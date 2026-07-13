@@ -1,0 +1,586 @@
+// Database schema — doc 09. Prisma models PascalCase / fields camelCase; database
+// identifiers snake_case via @map/@@map (D09-1). UUIDv7 primary keys (D09-2). Every
+// table carries createdAt/updatedAt (NFR-008). The FTS tsvector column + GIN index on
+// article_translations is added in a handwritten migration (D09-6) — Prisma cannot
+// express generated columns.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ===== Enums — code-coupled, therefore true enums (contrast D09-5) =====
+
+enum ContentStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  ARCHIVED
+}
+
+enum SkillGroup {
+  LANGUAGE
+  FRAMEWORK
+  TOOLING
+  PRACTICE
+}
+
+// ===== Localization reference table (D09-5) — adding a language is an INSERT =====
+
+model Locale {
+  code       String  @id // 'en', 'ar'
+  name       String
+  nativeName String  @map("native_name")
+  dir        String // 'ltr' | 'rtl' — drives RTL handling as data
+  isEnabled  Boolean @default(true) @map("is_enabled")
+  order      Int     @default(0)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  articleTranslations      ArticleTranslation[]
+  categoryTranslations     CategoryTranslation[]
+  tagTranslations          TagTranslation[]
+  projectTranslations      ProjectTranslation[]
+  galleryItemTranslations  ProjectGalleryItemTranslation[]
+  experienceTranslations   ExperienceTranslation[]
+  skillTranslations        SkillTranslation[]
+  testimonialTranslations  TestimonialTranslation[]
+  siteSettingsTranslations SiteSettingsTranslation[]
+  mediaAssetAlts           MediaAssetAlt[]
+  pageSeos                 PageSeo[]
+  slugRedirects            SlugRedirect[]
+
+  @@map("locales")
+}
+
+// ===== Identity & sessions (doc 19) =====
+
+model User {
+  id           String  @id @default(uuid(7))
+  email        String  @unique
+  passwordHash String  @map("password_hash") // argon2id (D19-1)
+  roleId       String  @map("role_id") // dynamic RBAC (D09-7); authorization resolved per request (D19-8)
+  isActive     Boolean @default(true) @map("is_active") // deactivation blocks login + all grants (doc 10 §5)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  role          Role           @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  refreshTokens RefreshToken[]
+
+  @@index([roleId])
+  @@map("users")
+}
+
+// Dynamic RBAC (D09-7, FR-DSH-090): roles are operator-created data; the permission catalog is
+// code (src/modules/access-control/permissions.ts). The seeded OWNER system role is undeletable
+// and uneditable and holds the single reserved '*' wildcard grant (D19-8).
+model Role {
+  id          String  @id @default(uuid(7))
+  name        String  @unique
+  description String?
+  isSystem    Boolean @default(false) @map("is_system")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users       User[]
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+// One grant per row (D09-7). `permission` is a code-defined catalog key (e.g. 'articles.read')
+// or the reserved '*' wildcard (D19-8). Grants are data; the catalog is code.
+model RolePermission {
+  id         String @id @default(uuid(7))
+  roleId     String @map("role_id")
+  permission String
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permission])
+  @@index([roleId])
+  @@map("role_permissions")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid(7))
+  userId    String    @map("user_id")
+  tokenHash String    @unique @map("token_hash") // SHA-256(token + pepper) — doc 19 §2
+  familyId  String    @map("family_id") // rotation lineage; reuse revokes the family (D19-2)
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+  @@map("refresh_tokens")
+}
+
+// ===== Articles + taxonomy =====
+
+model Article {
+  id           String        @id @default(uuid(7))
+  status       ContentStatus @default(DRAFT)
+  publishAt    DateTime?     @map("publish_at")
+  categoryId   String        @map("category_id")
+  coverImageId String?       @map("cover_image_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  category     Category             @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  coverImage   MediaAsset?          @relation("ArticleCover", fields: [coverImageId], references: [id], onDelete: Restrict)
+  translations ArticleTranslation[]
+  tags         ArticleTag[]
+
+  @@index([status, publishAt]) // public listing + scheduler query (D07-3, D09-5)
+  @@index([categoryId])
+  @@map("articles")
+}
+
+model ArticleTranslation {
+  id              String  @id @default(uuid(7))
+  articleId       String  @map("article_id")
+  locale          String
+  title           String
+  slug            String
+  excerpt         String
+  body            String // opaque Markdown (D01-5)
+  readingTimeMin  Int     @map("reading_time_min") // computed on write
+  metaTitle       String? @map("meta_title") // embedded SEO (D09-4)
+  metaDescription String? @map("meta_description")
+  ogImageId       String? @map("og_image_id")
+  canonicalUrl    String? @map("canonical_url")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  article   Article     @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  localeRef Locale      @relation(fields: [locale], references: [code])
+  ogImage   MediaAsset? @relation("ArticleTranslationOg", fields: [ogImageId], references: [id], onDelete: Restrict)
+
+  @@unique([articleId, locale])
+  @@unique([locale, slug]) // slugs unique per locale (D04-2); doubles as lookup index
+  @@map("article_translations")
+}
+
+model Category {
+  id String @id @default(uuid(7))
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  translations CategoryTranslation[]
+  articles     Article[]
+
+  @@map("categories")
+}
+
+model CategoryTranslation {
+  id          String  @id @default(uuid(7))
+  categoryId  String  @map("category_id")
+  locale      String
+  name        String
+  slug        String
+  description String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  category  Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  localeRef Locale   @relation(fields: [locale], references: [code])
+
+  @@unique([categoryId, locale])
+  @@unique([locale, slug])
+  @@map("category_translations")
+}
+
+model Tag {
+  id String @id @default(uuid(7))
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  translations TagTranslation[]
+  articles     ArticleTag[]
+
+  @@map("tags")
+}
+
+model TagTranslation {
+  id     String @id @default(uuid(7))
+  tagId  String @map("tag_id")
+  locale String
+  name   String
+  slug   String
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tag       Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  localeRef Locale @relation(fields: [locale], references: [code])
+
+  @@unique([tagId, locale])
+  @@unique([locale, slug])
+  @@map("tag_translations")
+}
+
+model ArticleTag {
+  articleId String @map("article_id")
+  tagId     String @map("tag_id")
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, tagId])
+  @@index([tagId])
+  @@map("article_tags")
+}
+
+// ===== Projects (schema-complete for feature 002+; no M1 module) =====
+
+model Project {
+  id       String  @id @default(uuid(7))
+  featured Boolean @default(false)
+  order    Int     @default(0)
+  liveUrl  String? @map("live_url")
+  repoUrl  String? @map("repo_url")
+  year     Int?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  translations ProjectTranslation[]
+  gallery      ProjectGalleryItem[]
+  technologies ProjectTechnology[]
+
+  @@index([featured, order])
+  @@map("projects")
+}
+
+model ProjectTranslation {
+  id              String  @id @default(uuid(7))
+  projectId       String  @map("project_id")
+  locale          String
+  title           String
+  slug            String
+  summary         String
+  overview        String // structured case-study sections, each Markdown (FR-CNT-020)
+  businessProblem String  @map("business_problem")
+  solution        String
+  role            String
+  architecture    String
+  challenges      String
+  features        String
+  lessonsLearned  String  @map("lessons_learned")
+  metaTitle       String? @map("meta_title")
+  metaDescription String? @map("meta_description")
+  ogImageId       String? @map("og_image_id")
+  canonicalUrl    String? @map("canonical_url")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  localeRef Locale      @relation(fields: [locale], references: [code])
+  ogImage   MediaAsset? @relation("ProjectTranslationOg", fields: [ogImageId], references: [id], onDelete: Restrict)
+
+  @@unique([projectId, locale])
+  @@unique([locale, slug])
+  @@map("project_translations")
+}
+
+model ProjectGalleryItem {
+  id           String @id @default(uuid(7))
+  projectId    String @map("project_id")
+  mediaAssetId String @map("media_asset_id")
+  order        Int    @default(0)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  project      Project                         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  mediaAsset   MediaAsset                      @relation(fields: [mediaAssetId], references: [id], onDelete: Restrict)
+  translations ProjectGalleryItemTranslation[]
+
+  @@index([projectId])
+  @@map("project_gallery_items")
+}
+
+model ProjectGalleryItemTranslation {
+  id            String  @id @default(uuid(7))
+  galleryItemId String  @map("gallery_item_id")
+  locale        String
+  caption       String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  galleryItem ProjectGalleryItem @relation(fields: [galleryItemId], references: [id], onDelete: Cascade)
+  localeRef   Locale             @relation(fields: [locale], references: [code])
+
+  @@unique([galleryItemId, locale])
+  @@map("project_gallery_item_translations")
+}
+
+model ProjectTechnology {
+  projectId String @map("project_id")
+  skillId   String @map("skill_id")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  skill   Skill   @relation(fields: [skillId], references: [id], onDelete: Restrict)
+
+  @@id([projectId, skillId])
+  @@index([skillId])
+  @@map("project_technologies")
+}
+
+// ===== Skills, experiences, testimonials (schema-complete; no M1 module) =====
+
+model Skill {
+  id         String     @id @default(uuid(7))
+  group      SkillGroup
+  order      Int        @default(0)
+  brandColor String?    @map("brand_color")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  translations SkillTranslation[]
+  projectLinks ProjectTechnology[]
+
+  @@map("skills")
+}
+
+model SkillTranslation {
+  id      String @id @default(uuid(7))
+  skillId String @map("skill_id")
+  locale  String
+  label   String
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  skill     Skill  @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  localeRef Locale @relation(fields: [locale], references: [code])
+
+  @@unique([skillId, locale])
+  @@map("skill_translations")
+}
+
+model Experience {
+  id        String    @id @default(uuid(7))
+  startDate DateTime  @map("start_date")
+  endDate   DateTime? @map("end_date")
+  isCurrent Boolean   @default(false) @map("is_current")
+  order     Int       @default(0)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  translations ExperienceTranslation[]
+
+  @@map("experiences")
+}
+
+model ExperienceTranslation {
+  id           String @id @default(uuid(7))
+  experienceId String @map("experience_id")
+  locale       String
+  role         String
+  company      String
+  location     String
+  impact       String // Markdown list
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  experience Experience @relation(fields: [experienceId], references: [id], onDelete: Cascade)
+  localeRef  Locale     @relation(fields: [locale], references: [code])
+
+  @@unique([experienceId, locale])
+  @@map("experience_translations")
+}
+
+model Testimonial {
+  id        String  @id @default(uuid(7))
+  avatarId  String? @map("avatar_id")
+  order     Int     @default(0)
+  isVisible Boolean @default(true) @map("is_visible")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  avatar       MediaAsset?              @relation("TestimonialAvatar", fields: [avatarId], references: [id], onDelete: Restrict)
+  translations TestimonialTranslation[]
+
+  @@map("testimonials")
+}
+
+model TestimonialTranslation {
+  id            String @id @default(uuid(7))
+  testimonialId String @map("testimonial_id")
+  locale        String
+  quote         String
+  authorName    String @map("author_name")
+  authorRole    String @map("author_role")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  testimonial Testimonial @relation(fields: [testimonialId], references: [id], onDelete: Cascade)
+  localeRef   Locale      @relation(fields: [locale], references: [code])
+
+  @@unique([testimonialId, locale])
+  @@map("testimonial_translations")
+}
+
+// ===== Media, SEO, redirects, contact, settings =====
+
+model MediaAsset {
+  id         String  @id @default(uuid(7))
+  storageKey String  @unique @map("storage_key")
+  mimeType   String  @map("mime_type")
+  sizeBytes  Int     @map("size_bytes")
+  width      Int?
+  height     Int?
+  blurhash   String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  alts               MediaAssetAlt[]
+  articleCovers      Article[]            @relation("ArticleCover")
+  articleOgImages    ArticleTranslation[] @relation("ArticleTranslationOg")
+  projectOgImages    ProjectTranslation[] @relation("ProjectTranslationOg")
+  galleryItems       ProjectGalleryItem[]
+  testimonialAvatars Testimonial[]        @relation("TestimonialAvatar")
+  resumeForSettings  SiteSettings[]       @relation("SettingsResume")
+  pageSeoOgImages    PageSeo[]            @relation("PageSeoOg")
+
+  @@map("media_assets")
+}
+
+model MediaAssetAlt {
+  id           String @id @default(uuid(7))
+  mediaAssetId String @map("media_asset_id")
+  locale       String
+  alt          String
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  mediaAsset MediaAsset @relation(fields: [mediaAssetId], references: [id], onDelete: Cascade)
+  localeRef  Locale     @relation(fields: [locale], references: [code])
+
+  @@unique([mediaAssetId, locale])
+  @@map("media_asset_alts")
+}
+
+model PageSeo {
+  id              String  @id @default(uuid(7))
+  pageKey         String  @map("page_key")
+  locale          String
+  metaTitle       String? @map("meta_title")
+  metaDescription String? @map("meta_description")
+  ogImageId       String? @map("og_image_id")
+  canonicalUrl    String? @map("canonical_url")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  localeRef Locale      @relation(fields: [locale], references: [code])
+  ogImage   MediaAsset? @relation("PageSeoOg", fields: [ogImageId], references: [id], onDelete: Restrict)
+
+  @@unique([pageKey, locale])
+  @@map("page_seo")
+}
+
+model SlugRedirect {
+  id         String @id @default(uuid(7))
+  locale     String
+  entityType String @map("entity_type")
+  fromSlug   String @map("from_slug")
+  toSlug     String @map("to_slug")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  localeRef Locale @relation(fields: [locale], references: [code])
+
+  @@unique([locale, entityType, fromSlug])
+  @@map("slug_redirects")
+}
+
+model ContactMessage {
+  id         String  @id @default(uuid(7))
+  name       String
+  email      String
+  subject    String
+  body       String
+  isRead     Boolean @default(false) @map("is_read")
+  isArchived Boolean @default(false) @map("is_archived")
+  meta       Json    @default("{}") // UA/referrer for spam forensics
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([isArchived, isRead, createdAt])
+  @@map("contact_messages")
+}
+
+model SiteSettings {
+  id                 String  @id @default(uuid(7))
+  profileLinks       Json    @default("[]") @map("profile_links") // [{ label, url, icon }]
+  availabilityStatus String? @map("availability_status")
+  resumeAssetId      String? @map("resume_asset_id")
+
+  // Global head/tag fields (FR-DSH-052) — verification, analytics, constrained custom metas.
+  googleSiteVerification String? @map("google_site_verification")
+  bingSiteVerification   String? @map("bing_site_verification")
+  analyticsProvider      String? @map("analytics_provider") // 'ga4' | 'gtm'
+  analyticsMeasurementId String? @map("analytics_measurement_id")
+  analyticsEnabled       Boolean @default(false) @map("analytics_enabled")
+  customMetas            Json    @default("[]") @map("custom_metas") // [{ name, content }] — never scripts
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  resumeAsset  MediaAsset?               @relation("SettingsResume", fields: [resumeAssetId], references: [id], onDelete: Restrict)
+  translations SiteSettingsTranslation[]
+
+  @@map("site_settings")
+}
+
+model SiteSettingsTranslation {
+  id                     String  @id @default(uuid(7))
+  siteSettingsId         String  @map("site_settings_id")
+  locale                 String
+  siteName               String? @map("site_name")
+  tagline                String?
+  defaultMetaTitle       String? @map("default_meta_title")
+  defaultMetaDescription String? @map("default_meta_description")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  siteSettings SiteSettings @relation(fields: [siteSettingsId], references: [id], onDelete: Cascade)
+  localeRef    Locale       @relation(fields: [locale], references: [code])
+
+  @@unique([siteSettingsId, locale])
+  @@map("site_settings_translations")
+}

@@ -1,0 +1,4194 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "operationId": "HealthController_liveness_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/LivenessStatus"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Liveness probe (no database access).",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/v1/health/ready": {
+      "get": {
+        "operationId": "HealthController_readiness_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReadinessStatus"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The database is unreachable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Readiness probe — verifies the database connection.",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/v1/locales": {
+      "get": {
+        "operationId": "LocalesController_list_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Enabled locales, ordered.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/LocaleEntity"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "List enabled content locales.",
+        "tags": [
+          "locales"
+        ]
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "operationId": "AuthController_login_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/LoginResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Malformed login payload.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Login rate limit exceeded (5 / 15 min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Authenticate; sets the refresh cookie and returns an access token.",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "operationId": "AuthController_refresh_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/RefreshResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, expired, or revoked refresh token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Refresh rate limit exceeded (30 / hour).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Rotate the refresh token and issue a new access token.",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "operationId": "AuthController_logout_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/LogoutResponse"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Revoke the refresh-token family and clear the cookie.",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/settings/site": {
+      "get": {
+        "operationId": "SettingsController_getSite_v1",
+        "parameters": [
+          {
+            "name": "locale",
+            "required": false,
+            "in": "query",
+            "description": "Two-letter locale code, validated against enabled locales.",
+            "schema": {
+              "default": "en",
+              "example": "ar",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Public settings resolved to ?locale=.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PublicSiteSettingsEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown or disabled locale.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Malformed query parameters.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Resolved site settings for the requested locale.",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/admin/settings": {
+      "get": {
+        "operationId": "SettingsAdminController_get_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminSiteSettingsEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Full site settings with the per-locale translation map.",
+        "tags": [
+          "settings"
+        ]
+      },
+      "patch": {
+        "operationId": "SettingsAdminController_update_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSettingsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated settings.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminSiteSettingsEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Update site settings, incl. FR-DSH-052 head/tag fields.",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/categories": {
+      "get": {
+        "operationId": "CategoriesController_list_v1",
+        "parameters": [
+          {
+            "name": "locale",
+            "required": false,
+            "in": "query",
+            "description": "Two-letter locale code, validated against enabled locales.",
+            "schema": {
+              "default": "en",
+              "example": "ar",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Categories in the requested locale.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PublicCategoryEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown or disabled locale.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Malformed query parameters.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "List categories resolved to the requested locale.",
+        "tags": [
+          "taxonomy"
+        ]
+      }
+    },
+    "/api/v1/admin/categories": {
+      "get": {
+        "operationId": "CategoriesAdminController_list_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminCategoryEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "List categories with full translation maps.",
+        "tags": [
+          "taxonomy"
+        ]
+      },
+      "post": {
+        "operationId": "CategoriesAdminController_create_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCategoryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminCategoryEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error or slug already in use.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Create a category with its translations.",
+        "tags": [
+          "taxonomy"
+        ]
+      }
+    },
+    "/api/v1/admin/categories/{id}": {
+      "patch": {
+        "operationId": "CategoriesAdminController_update_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCategoryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminCategoryEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Category not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error or slug already in use.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Upsert category translations.",
+        "tags": [
+          "taxonomy"
+        ]
+      },
+      "delete": {
+        "operationId": "CategoriesAdminController_remove_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Category deleted."
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Category not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Category is still referenced by articles.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Delete a category (409 if articles still reference it).",
+        "tags": [
+          "taxonomy"
+        ]
+      }
+    },
+    "/api/v1/tags": {
+      "get": {
+        "operationId": "TagsController_list_v1",
+        "parameters": [
+          {
+            "name": "locale",
+            "required": false,
+            "in": "query",
+            "description": "Two-letter locale code, validated against enabled locales.",
+            "schema": {
+              "default": "en",
+              "example": "ar",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tags in the requested locale.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PublicTagEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown or disabled locale.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Malformed query parameters.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "List tags resolved to the requested locale.",
+        "tags": [
+          "taxonomy"
+        ]
+      }
+    },
+    "/api/v1/admin/tags": {
+      "get": {
+        "operationId": "TagsAdminController_list_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminTagEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "List tags with full translation maps.",
+        "tags": [
+          "taxonomy"
+        ]
+      },
+      "post": {
+        "operationId": "TagsAdminController_create_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTagDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminTagEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error or slug already in use.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Create a tag with its translations.",
+        "tags": [
+          "taxonomy"
+        ]
+      }
+    },
+    "/api/v1/admin/tags/{id}": {
+      "patch": {
+        "operationId": "TagsAdminController_update_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTagDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminTagEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Tag not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error or slug already in use.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Upsert tag translations.",
+        "tags": [
+          "taxonomy"
+        ]
+      },
+      "delete": {
+        "operationId": "TagsAdminController_remove_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Tag deleted."
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Tag not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Delete a tag.",
+        "tags": [
+          "taxonomy"
+        ]
+      }
+    },
+    "/api/v1/articles": {
+      "get": {
+        "operationId": "ArticlesController_list_v1",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "perPage",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "default": 12,
+              "example": 12,
+              "type": "number"
+            }
+          },
+          {
+            "name": "locale",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "en",
+              "example": "ar",
+              "type": "string"
+            }
+          },
+          {
+            "name": "category",
+            "required": false,
+            "in": "query",
+            "description": "Category slug (in ?locale=).",
+            "schema": {
+              "example": "engineering",
+              "type": "string"
+            }
+          },
+          {
+            "name": "tag",
+            "required": false,
+            "in": "query",
+            "description": "Tag slug (in ?locale=).",
+            "schema": {
+              "example": "nestjs",
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Free-text match on title/excerpt.",
+            "schema": {
+              "example": "monolith",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated published articles.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PublicArticleListItemEntity"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMeta"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown or disabled locale.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Malformed query parameters.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "List published articles, resolved and filtered by locale.",
+        "tags": [
+          "articles"
+        ]
+      }
+    },
+    "/api/v1/articles/{slug}": {
+      "get": {
+        "operationId": "ArticlesController_getBySlug_v1",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "example": "designing-a-modular-monolith",
+              "type": "string"
+            }
+          },
+          {
+            "name": "locale",
+            "required": false,
+            "in": "query",
+            "description": "Two-letter locale code, validated against enabled locales.",
+            "schema": {
+              "default": "en",
+              "example": "ar",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PublicArticleDetailEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown or disabled locale.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No published article with this slug in the locale.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Malformed query parameters.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get a published article by its per-locale slug (drafts 404).",
+        "tags": [
+          "articles"
+        ]
+      }
+    },
+    "/api/v1/admin/articles": {
+      "get": {
+        "operationId": "ArticlesAdminController_list_v1",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "perPage",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "default": 12,
+              "example": 12,
+              "type": "number"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "DRAFT",
+                "SCHEDULED",
+                "PUBLISHED",
+                "ARCHIVED"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AdminArticleEntity"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMeta"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "List articles (any status) with full translation maps.",
+        "tags": [
+          "articles"
+        ]
+      },
+      "post": {
+        "operationId": "ArticlesAdminController_create_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateArticleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminArticleEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error, slug collision, or invalid publishAt.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Create an article with translations, tags, and scheduling.",
+        "tags": [
+          "articles"
+        ]
+      }
+    },
+    "/api/v1/admin/articles/{id}": {
+      "get": {
+        "operationId": "ArticlesAdminController_get_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminArticleEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Article not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Get one article with its full translation map.",
+        "tags": [
+          "articles"
+        ]
+      },
+      "patch": {
+        "operationId": "ArticlesAdminController_update_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateArticleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminArticleEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Article not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error, slug collision, or invalid publishAt.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Update an article; upserts translations and status transitions.",
+        "tags": [
+          "articles"
+        ]
+      },
+      "delete": {
+        "operationId": "ArticlesAdminController_remove_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Article deleted."
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Article not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Delete an article.",
+        "tags": [
+          "articles"
+        ]
+      }
+    },
+    "/api/v1/admin/permissions": {
+      "get": {
+        "operationId": "RolesAdminController_getPermissions_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PermissionCatalogEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "The read-only code-defined permission catalog (D10-9).",
+        "tags": [
+          "access-control"
+        ]
+      }
+    },
+    "/api/v1/admin/roles": {
+      "get": {
+        "operationId": "RolesAdminController_listRoles_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/RoleEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "List roles with their granted permission keys.",
+        "tags": [
+          "access-control"
+        ]
+      },
+      "post": {
+        "operationId": "RolesAdminController_createRole_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRoleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/RoleEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unknown permission key or duplicate name.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Create a custom role and grant it permission keys.",
+        "tags": [
+          "access-control"
+        ]
+      }
+    },
+    "/api/v1/admin/roles/{id}": {
+      "get": {
+        "operationId": "RolesAdminController_getRole_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/RoleEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Role not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Get one role.",
+        "tags": [
+          "access-control"
+        ]
+      },
+      "patch": {
+        "operationId": "RolesAdminController_updateRole_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateRoleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/RoleEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Role not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "System role, unknown key, or duplicate name.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Update a custom role (system roles reject edits with 422).",
+        "tags": [
+          "access-control"
+        ]
+      },
+      "delete": {
+        "operationId": "RolesAdminController_deleteRole_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Role deleted."
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Role not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "System role or still assigned to users.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Delete a custom role (system role or still-assigned role → 422).",
+        "tags": [
+          "access-control"
+        ]
+      }
+    },
+    "/api/v1/admin/users": {
+      "get": {
+        "operationId": "UsersAdminController_list_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/UserEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "List operator accounts with their role and active status.",
+        "tags": [
+          "access-control"
+        ]
+      },
+      "post": {
+        "operationId": "UsersAdminController_create_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/UserEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unknown role or duplicate email.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Create an operator account with a role.",
+        "tags": [
+          "access-control"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{id}": {
+      "patch": {
+        "operationId": "UsersAdminController_update_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/UserEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unknown role.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Assign a role or activate/deactivate an account.",
+        "tags": [
+          "access-control"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "eslammuatamed API",
+    "description": "REST contract for the eslammuatamed platform. Public reads are unauthenticated and locale-resolved; the /admin surface requires a bearer access token (doc 10, doc 19).",
+    "version": "1.0.0",
+    "contact": {}
+  },
+  "tags": [
+    {
+      "name": "health",
+      "description": "Liveness and readiness probes"
+    },
+    {
+      "name": "auth",
+      "description": "Login, refresh rotation, and logout"
+    },
+    {
+      "name": "locales",
+      "description": "Enabled content locales"
+    },
+    {
+      "name": "settings",
+      "description": "Public site settings and admin management"
+    },
+    {
+      "name": "articles",
+      "description": "Public article reads and admin CRUD"
+    },
+    {
+      "name": "taxonomy",
+      "description": "Categories and tags"
+    },
+    {
+      "name": "access-control",
+      "description": "Roles, permission grants, and operator accounts (FR-DSH-090)"
+    }
+  ],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "access-token": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http",
+        "in": "header"
+      }
+    },
+    "schemas": {
+      "LivenessStatus": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "ok"
+          },
+          "uptime": {
+            "type": "number",
+            "example": 12345.6,
+            "description": "Process uptime in seconds."
+          },
+          "timestamp": {
+            "type": "string",
+            "example": "2026-07-13T12:00:00.000Z"
+          }
+        },
+        "required": [
+          "status",
+          "uptime",
+          "timestamp"
+        ]
+      },
+      "FieldErrorDto": {
+        "type": "object",
+        "properties": {
+          "field": {
+            "type": "string",
+            "example": "translations[0].slug",
+            "description": "Dotted path to the offending field."
+          },
+          "message": {
+            "type": "string",
+            "example": "Slug already exists for locale 'en'."
+          }
+        },
+        "required": [
+          "field",
+          "message"
+        ]
+      },
+      "ProblemDetailsDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "example": "/problems/validation",
+            "description": "A URI reference identifying the problem type."
+          },
+          "title": {
+            "type": "string",
+            "example": "Validation failed"
+          },
+          "status": {
+            "type": "number",
+            "example": 422
+          },
+          "detail": {
+            "type": "string",
+            "example": "2 fields failed validation."
+          },
+          "instance": {
+            "type": "string",
+            "example": "/api/v1/admin/articles"
+          },
+          "errors": {
+            "description": "Present on 422 responses only.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldErrorDto"
+            }
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "status",
+          "detail",
+          "instance"
+        ]
+      },
+      "ReadinessStatus": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "ok"
+          },
+          "database": {
+            "type": "string",
+            "example": "up",
+            "enum": [
+              "up"
+            ]
+          }
+        },
+        "required": [
+          "status",
+          "database"
+        ]
+      },
+      "LocaleEntity": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "en",
+            "description": "Two-letter locale code (primary key)."
+          },
+          "name": {
+            "type": "string",
+            "example": "English"
+          },
+          "nativeName": {
+            "type": "string",
+            "example": "العربية",
+            "description": "Endonym shown in the locale switcher."
+          },
+          "dir": {
+            "type": "string",
+            "example": "ltr",
+            "enum": [
+              "ltr",
+              "rtl"
+            ],
+            "description": "Text direction as data (D09-5)."
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "nativeName",
+          "dir"
+        ]
+      },
+      "AuthUserRoleEntity": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "018f9d3c-1a2b-7c3d-8e4f-5a6b7c8d9e0f",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "example": "OWNER"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "AuthUserEntity": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "018f9d3c-1a2b-7c3d-8e4f-5a6b7c8d9e0f",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string",
+            "example": "owner@example.com",
+            "format": "email"
+          },
+          "role": {
+            "$ref": "#/components/schemas/AuthUserRoleEntity"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "role"
+        ]
+      },
+      "LoginResponse": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+            "description": "15-minute access token; the refresh token is set as an httpOnly cookie."
+          },
+          "user": {
+            "$ref": "#/components/schemas/AuthUserEntity"
+          }
+        },
+        "required": [
+          "accessToken",
+          "user"
+        ]
+      },
+      "LoginDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "owner@example.com",
+            "format": "email"
+          },
+          "password": {
+            "type": "string",
+            "example": "change-me-minimum-12-chars",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ]
+      },
+      "RefreshResponse": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+          }
+        },
+        "required": [
+          "accessToken"
+        ]
+      },
+      "LogoutResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          }
+        },
+        "required": [
+          "success"
+        ]
+      },
+      "ProfileLinkEntity": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "example": "GitHub"
+          },
+          "url": {
+            "type": "string",
+            "example": "https://github.com/eslammuatamed",
+            "format": "uri"
+          },
+          "icon": {
+            "type": "string",
+            "example": "i-simple-icons-github",
+            "description": "Icon token (UI hint)."
+          }
+        },
+        "required": [
+          "label",
+          "url"
+        ]
+      },
+      "CustomMetaEntity": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "theme-color"
+          },
+          "content": {
+            "type": "string",
+            "example": "#0b0b0f"
+          }
+        },
+        "required": [
+          "name",
+          "content"
+        ]
+      },
+      "PublicSiteSettingsEntity": {
+        "type": "object",
+        "properties": {
+          "siteName": {
+            "type": "string",
+            "nullable": true,
+            "example": "Eslam Muatamed"
+          },
+          "tagline": {
+            "type": "string",
+            "nullable": true,
+            "example": "Software engineer & architect"
+          },
+          "defaultMetaTitle": {
+            "type": "string",
+            "nullable": true,
+            "example": "Eslam Muatamed"
+          },
+          "defaultMetaDescription": {
+            "type": "string",
+            "nullable": true,
+            "example": "Portfolio, case studies, and writing."
+          },
+          "profileLinks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProfileLinkEntity"
+            }
+          },
+          "availabilityStatus": {
+            "type": "string",
+            "nullable": true,
+            "example": "Open to select consulting engagements"
+          },
+          "googleSiteVerification": {
+            "type": "string",
+            "nullable": true,
+            "example": "google-abc123",
+            "description": "Google Search Console token."
+          },
+          "bingSiteVerification": {
+            "type": "string",
+            "nullable": true,
+            "example": "bing-def456",
+            "description": "Bing Webmaster token."
+          },
+          "analytics": {
+            "type": "object",
+            "nullable": true,
+            "description": "Present only when analytics is enabled; null otherwise (FR-DSH-052, D20-5).",
+            "properties": {
+              "provider": {
+                "type": "string",
+                "enum": [
+                  "ga4",
+                  "gtm"
+                ],
+                "example": "ga4"
+              },
+              "measurementId": {
+                "type": "string",
+                "example": "G-XXXXXXXXXX"
+              }
+            },
+            "required": [
+              "provider",
+              "measurementId"
+            ]
+          },
+          "customMetas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomMetaEntity"
+            }
+          },
+          "availableLocales": {
+            "example": [
+              "en",
+              "ar"
+            ],
+            "description": "Locales with a translation.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "siteName",
+          "tagline",
+          "defaultMetaTitle",
+          "defaultMetaDescription",
+          "profileLinks",
+          "availabilityStatus",
+          "googleSiteVerification",
+          "bingSiteVerification",
+          "customMetas",
+          "availableLocales"
+        ]
+      },
+      "SiteSettingsTranslationEntity": {
+        "type": "object",
+        "properties": {
+          "siteName": {
+            "type": "string",
+            "nullable": true,
+            "example": "Eslam Muatamed"
+          },
+          "tagline": {
+            "type": "string",
+            "nullable": true,
+            "example": "Software engineer & architect"
+          },
+          "defaultMetaTitle": {
+            "type": "string",
+            "nullable": true
+          },
+          "defaultMetaDescription": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "siteName",
+          "tagline",
+          "defaultMetaTitle",
+          "defaultMetaDescription"
+        ]
+      },
+      "AdminSiteSettingsEntity": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "profileLinks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProfileLinkEntity"
+            }
+          },
+          "availabilityStatus": {
+            "type": "string",
+            "nullable": true
+          },
+          "resumeAssetId": {
+            "type": "string",
+            "nullable": true,
+            "format": "uuid"
+          },
+          "googleSiteVerification": {
+            "type": "string",
+            "nullable": true
+          },
+          "bingSiteVerification": {
+            "type": "string",
+            "nullable": true
+          },
+          "analyticsProvider": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "ga4",
+              "gtm"
+            ]
+          },
+          "analyticsMeasurementId": {
+            "type": "string",
+            "nullable": true
+          },
+          "analyticsEnabled": {
+            "type": "boolean",
+            "example": false
+          },
+          "customMetas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomMetaEntity"
+            }
+          },
+          "translations": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/SiteSettingsTranslationEntity"
+            },
+            "description": "Translation map keyed by locale code, e.g. { \"en\": {…}, \"ar\": {…} }."
+          }
+        },
+        "required": [
+          "id",
+          "profileLinks",
+          "availabilityStatus",
+          "resumeAssetId",
+          "googleSiteVerification",
+          "bingSiteVerification",
+          "analyticsProvider",
+          "analyticsMeasurementId",
+          "analyticsEnabled",
+          "customMetas",
+          "translations"
+        ]
+      },
+      "ProfileLinkDto": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "example": "GitHub"
+          },
+          "url": {
+            "type": "string",
+            "example": "https://github.com/eslammuatamed"
+          },
+          "icon": {
+            "type": "string",
+            "example": "i-simple-icons-github"
+          }
+        }
+      },
+      "CustomMetaDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "theme-color"
+          },
+          "content": {
+            "type": "string",
+            "example": "#0b0b0f"
+          }
+        }
+      },
+      "SettingsTranslationDto": {
+        "type": "object",
+        "properties": {
+          "locale": {
+            "type": "string",
+            "example": "ar",
+            "description": "Two-letter locale; must be enabled."
+          },
+          "siteName": {
+            "type": "string",
+            "example": "Eslam Muatamed"
+          },
+          "tagline": {
+            "type": "string",
+            "example": "Software engineer & architect"
+          },
+          "defaultMetaTitle": {
+            "type": "string",
+            "example": "Eslam Muatamed"
+          },
+          "defaultMetaDescription": {
+            "type": "string",
+            "example": "Portfolio, case studies, and writing."
+          }
+        }
+      },
+      "UpdateSettingsDto": {
+        "type": "object",
+        "properties": {
+          "profileLinks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProfileLinkDto"
+            }
+          },
+          "availabilityStatus": {
+            "type": "string",
+            "example": "Open to select consulting engagements"
+          },
+          "googleSiteVerification": {
+            "type": "string",
+            "example": "google-abc123"
+          },
+          "bingSiteVerification": {
+            "type": "string",
+            "example": "bing-def456"
+          },
+          "analyticsProvider": {
+            "type": "string",
+            "enum": [
+              "ga4",
+              "gtm"
+            ]
+          },
+          "analyticsMeasurementId": {
+            "type": "string",
+            "example": "G-XXXXXXXXXX"
+          },
+          "analyticsEnabled": {
+            "type": "boolean",
+            "example": false,
+            "description": "Analytics is off by default (D20-5)."
+          },
+          "customMetas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomMetaDto"
+            }
+          },
+          "translations": {
+            "description": "Per-locale upserts.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SettingsTranslationDto"
+            }
+          }
+        }
+      },
+      "PublicCategoryEntity": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "example": "Engineering"
+          },
+          "slug": {
+            "type": "string",
+            "example": "engineering",
+            "description": "Per-locale slug (D04-2)."
+          },
+          "description": {
+            "type": "string",
+            "nullable": true,
+            "example": "Systems, architecture, and craft."
+          },
+          "availableLocales": {
+            "example": [
+              "en",
+              "ar"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "description",
+          "availableLocales"
+        ]
+      },
+      "CategoryTranslationEntity": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Engineering"
+          },
+          "slug": {
+            "type": "string",
+            "example": "engineering"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "name",
+          "slug",
+          "description"
+        ]
+      },
+      "AdminCategoryEntity": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "translations": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/CategoryTranslationEntity"
+            },
+            "description": "Translation map keyed by locale code."
+          }
+        },
+        "required": [
+          "id",
+          "translations"
+        ]
+      },
+      "CategoryTranslationDto": {
+        "type": "object",
+        "properties": {
+          "locale": {
+            "type": "string",
+            "example": "en",
+            "description": "Two-letter locale; must be enabled."
+          },
+          "name": {
+            "type": "string",
+            "example": "Engineering"
+          },
+          "slug": {
+            "type": "string",
+            "example": "engineering"
+          },
+          "description": {
+            "type": "string",
+            "example": "Systems, architecture, and craft."
+          }
+        },
+        "required": [
+          "locale",
+          "name",
+          "slug"
+        ]
+      },
+      "CreateCategoryDto": {
+        "type": "object",
+        "properties": {
+          "translations": {
+            "description": "At least one locale translation.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CategoryTranslationDto"
+            }
+          }
+        },
+        "required": [
+          "translations"
+        ]
+      },
+      "UpdateCategoryDto": {
+        "type": "object",
+        "properties": {
+          "translations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CategoryTranslationDto"
+            }
+          }
+        }
+      },
+      "PublicTagEntity": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "example": "NestJS"
+          },
+          "slug": {
+            "type": "string",
+            "example": "nestjs",
+            "description": "Per-locale slug (D04-2)."
+          },
+          "availableLocales": {
+            "example": [
+              "en",
+              "ar"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "availableLocales"
+        ]
+      },
+      "TagTranslationEntity": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "NestJS"
+          },
+          "slug": {
+            "type": "string",
+            "example": "nestjs"
+          }
+        },
+        "required": [
+          "name",
+          "slug"
+        ]
+      },
+      "AdminTagEntity": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "translations": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/TagTranslationEntity"
+            },
+            "description": "Translation map keyed by locale code."
+          }
+        },
+        "required": [
+          "id",
+          "translations"
+        ]
+      },
+      "TagTranslationDto": {
+        "type": "object",
+        "properties": {
+          "locale": {
+            "type": "string",
+            "example": "en",
+            "description": "Two-letter locale; must be enabled."
+          },
+          "name": {
+            "type": "string",
+            "example": "NestJS"
+          },
+          "slug": {
+            "type": "string",
+            "example": "nestjs"
+          }
+        },
+        "required": [
+          "locale",
+          "name",
+          "slug"
+        ]
+      },
+      "CreateTagDto": {
+        "type": "object",
+        "properties": {
+          "translations": {
+            "description": "At least one locale translation.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TagTranslationDto"
+            }
+          }
+        },
+        "required": [
+          "translations"
+        ]
+      },
+      "UpdateTagDto": {
+        "type": "object",
+        "properties": {
+          "translations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TagTranslationDto"
+            }
+          }
+        }
+      },
+      "ArticleTaxonomyRefEntity": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "example": "Engineering"
+          },
+          "slug": {
+            "type": "string",
+            "example": "engineering"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug"
+        ]
+      },
+      "PublicArticleListItemEntity": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string",
+            "example": "Designing a modular monolith"
+          },
+          "slug": {
+            "type": "string",
+            "example": "designing-a-modular-monolith"
+          },
+          "excerpt": {
+            "type": "string",
+            "example": "Why one deployable with hard module seams beats microservices here."
+          },
+          "readingTimeMin": {
+            "type": "number",
+            "example": 7,
+            "description": "Computed reading time in minutes."
+          },
+          "publishAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "coverImageId": {
+            "type": "string",
+            "nullable": true,
+            "format": "uuid",
+            "description": "Cover MediaAsset id."
+          },
+          "category": {
+            "$ref": "#/components/schemas/ArticleTaxonomyRefEntity"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ArticleTaxonomyRefEntity"
+            }
+          },
+          "availableLocales": {
+            "example": [
+              "en",
+              "ar"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "slug",
+          "excerpt",
+          "readingTimeMin",
+          "publishAt",
+          "coverImageId",
+          "category",
+          "tags",
+          "availableLocales"
+        ]
+      },
+      "PageMeta": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "number",
+            "example": 1,
+            "description": "Current page (1-based)."
+          },
+          "perPage": {
+            "type": "number",
+            "example": 12,
+            "description": "Items per page (max 50)."
+          },
+          "total": {
+            "type": "number",
+            "example": 42,
+            "description": "Total matching items."
+          },
+          "totalPages": {
+            "type": "number",
+            "example": 4,
+            "description": "Total pages for the current perPage."
+          }
+        },
+        "required": [
+          "page",
+          "perPage",
+          "total",
+          "totalPages"
+        ]
+      },
+      "PublicArticleDetailEntity": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string",
+            "example": "Designing a modular monolith"
+          },
+          "slug": {
+            "type": "string",
+            "example": "designing-a-modular-monolith"
+          },
+          "excerpt": {
+            "type": "string",
+            "example": "Why one deployable with hard module seams beats microservices here."
+          },
+          "readingTimeMin": {
+            "type": "number",
+            "example": 7,
+            "description": "Computed reading time in minutes."
+          },
+          "publishAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "coverImageId": {
+            "type": "string",
+            "nullable": true,
+            "format": "uuid",
+            "description": "Cover MediaAsset id."
+          },
+          "category": {
+            "$ref": "#/components/schemas/ArticleTaxonomyRefEntity"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ArticleTaxonomyRefEntity"
+            }
+          },
+          "availableLocales": {
+            "example": [
+              "en",
+              "ar"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "body": {
+            "type": "string",
+            "example": "# Heading\n\nOpaque Markdown body…",
+            "description": "Opaque Markdown (D01-5)."
+          },
+          "metaTitle": {
+            "type": "string",
+            "nullable": true
+          },
+          "metaDescription": {
+            "type": "string",
+            "nullable": true
+          },
+          "ogImageId": {
+            "type": "string",
+            "nullable": true,
+            "format": "uuid"
+          },
+          "canonicalUrl": {
+            "type": "string",
+            "nullable": true,
+            "format": "uri"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "slug",
+          "excerpt",
+          "readingTimeMin",
+          "publishAt",
+          "coverImageId",
+          "category",
+          "tags",
+          "availableLocales",
+          "body",
+          "metaTitle",
+          "metaDescription",
+          "ogImageId",
+          "canonicalUrl"
+        ]
+      },
+      "AdminArticleTranslationEntity": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "excerpt": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string",
+            "description": "Opaque Markdown (D01-5)."
+          },
+          "readingTimeMin": {
+            "type": "number",
+            "example": 7
+          },
+          "metaTitle": {
+            "type": "string",
+            "nullable": true
+          },
+          "metaDescription": {
+            "type": "string",
+            "nullable": true
+          },
+          "ogImageId": {
+            "type": "string",
+            "nullable": true,
+            "format": "uuid"
+          },
+          "canonicalUrl": {
+            "type": "string",
+            "nullable": true,
+            "format": "uri"
+          }
+        },
+        "required": [
+          "title",
+          "slug",
+          "excerpt",
+          "body",
+          "readingTimeMin",
+          "metaTitle",
+          "metaDescription",
+          "ogImageId",
+          "canonicalUrl"
+        ]
+      },
+      "AdminArticleEntity": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "SCHEDULED",
+              "PUBLISHED",
+              "ARCHIVED"
+            ],
+            "example": "DRAFT"
+          },
+          "publishAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "categoryId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "coverImageId": {
+            "type": "string",
+            "nullable": true,
+            "format": "uuid"
+          },
+          "tagIds": {
+            "description": "Associated tag ids.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "translations": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/AdminArticleTranslationEntity"
+            },
+            "description": "Translation map keyed by locale code."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "publishAt",
+          "categoryId",
+          "coverImageId",
+          "tagIds",
+          "translations",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "ArticleTranslationDto": {
+        "type": "object",
+        "properties": {
+          "locale": {
+            "type": "string",
+            "example": "en",
+            "description": "Two-letter locale; must be enabled."
+          },
+          "title": {
+            "type": "string",
+            "example": "Designing a modular monolith"
+          },
+          "slug": {
+            "type": "string",
+            "example": "designing-a-modular-monolith"
+          },
+          "excerpt": {
+            "type": "string",
+            "example": "Why one deployable with hard module seams beats microservices here."
+          },
+          "body": {
+            "type": "string",
+            "example": "# Heading\n\nOpaque Markdown…",
+            "description": "Opaque Markdown (D01-5)."
+          },
+          "metaTitle": {
+            "type": "string"
+          },
+          "metaDescription": {
+            "type": "string"
+          },
+          "ogImageId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "canonicalUrl": {
+            "type": "string",
+            "format": "uri"
+          }
+        },
+        "required": [
+          "locale",
+          "title",
+          "slug",
+          "excerpt",
+          "body"
+        ]
+      },
+      "CreateArticleDto": {
+        "type": "object",
+        "properties": {
+          "categoryId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Required category (FR-CNT-050)."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "SCHEDULED",
+              "PUBLISHED",
+              "ARCHIVED"
+            ],
+            "default": "DRAFT"
+          },
+          "publishAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Required and future when SCHEDULED."
+          },
+          "coverImageId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Cover MediaAsset id."
+          },
+          "tagIds": {
+            "description": "Tag ids (optional).",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "translations": {
+            "description": "At least one locale translation.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ArticleTranslationDto"
+            }
+          }
+        },
+        "required": [
+          "categoryId",
+          "translations"
+        ]
+      },
+      "UpdateArticleDto": {
+        "type": "object",
+        "properties": {
+          "categoryId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "SCHEDULED",
+              "PUBLISHED",
+              "ARCHIVED"
+            ]
+          },
+          "publishAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "coverImageId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "tagIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "translations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ArticleTranslationDto"
+            }
+          }
+        }
+      },
+      "PermissionCatalogEntity": {
+        "type": "object",
+        "properties": {
+          "permissions": {
+            "example": [
+              "articles.read",
+              "articles.publish",
+              "settings.update"
+            ],
+            "description": "Every grantable permission key. The reserved \"*\" wildcard grants all of them.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "permissions"
+        ]
+      },
+      "RoleEntity": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "example": "Editor"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true,
+            "example": "Can manage content but not settings or users."
+          },
+          "isSystem": {
+            "type": "boolean",
+            "example": false,
+            "description": "System roles (OWNER) cannot be edited or deleted."
+          },
+          "permissions": {
+            "example": [
+              "articles.read",
+              "articles.create",
+              "articles.publish"
+            ],
+            "description": "Granted permission keys (or \"*\").",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "isSystem",
+          "permissions",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "CreateRoleDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Editor"
+          },
+          "description": {
+            "type": "string",
+            "example": "Manages content; no settings or user access."
+          },
+          "permissions": {
+            "example": [
+              "articles.read",
+              "articles.create",
+              "articles.publish"
+            ],
+            "description": "Catalog keys or \"*\".",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "name",
+          "permissions"
+        ]
+      },
+      "UpdateRoleDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Senior Editor"
+          },
+          "description": {
+            "type": "string"
+          },
+          "permissions": {
+            "example": [
+              "articles.read",
+              "articles.update"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "UserRoleRefEntity": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "example": "Editor"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "UserEntity": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "editor@example.com"
+          },
+          "isActive": {
+            "type": "boolean",
+            "example": true
+          },
+          "role": {
+            "$ref": "#/components/schemas/UserRoleRefEntity"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "isActive",
+          "role",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "CreateUserDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "editor@example.com"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 12,
+            "example": "change-me-minimum-12-chars"
+          },
+          "roleId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Assigned role id."
+          },
+          "isActive": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "required": [
+          "email",
+          "password",
+          "roleId"
+        ]
+      },
+      "UpdateUserDto": {
+        "type": "object",
+        "properties": {
+          "roleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Deactivating blocks login and denies all grants at once."
+          }
+        }
+      }
+    }
+  }
+}
