@@ -168,4 +168,48 @@ describe('Articles (e2e)', () => {
     // ts_rank ranks the denser document ahead of the sparser one.
     expect(denseIdx).toBeLessThan(sparseIdx);
   });
+
+  it('exposes a per-locale slug map on the detail response for locale switching (doc 10 §6)', async () => {
+    const enSlug = `bilingual-en-${unique}`;
+    const arSlug = `bilingual-ar-${unique}`;
+    await request(httpServer(app))
+      .post('/api/v1/admin/articles')
+      .set(auth())
+      .send({
+        categoryId,
+        status: 'PUBLISHED',
+        translations: [
+          {
+            locale: 'en',
+            title: `Bilingual ${unique}`,
+            slug: enSlug,
+            excerpt: 'EN excerpt.',
+            body: 'EN body.',
+          },
+          {
+            locale: 'ar',
+            title: `ثنائي اللغة ${unique}`,
+            slug: arSlug,
+            excerpt: 'مقتطف عربي.',
+            body: 'محتوى عربي.',
+          },
+        ],
+      })
+      .expect(201);
+
+    const res = await request(httpServer(app))
+      .get(`/api/v1/articles/${enSlug}?locale=en`)
+      .expect(200);
+    expect(res).toSatisfyApiSpec();
+
+    const detail = envelopeData<{
+      slugs: Record<string, string>;
+      availableLocales: string[];
+    }>(res);
+    expect(detail.slugs).toEqual({ en: enSlug, ar: arSlug });
+    // The map covers exactly the available locales — the frontend can switch to any of them.
+    expect(Object.keys(detail.slugs).sort()).toEqual(
+      [...detail.availableLocales].sort(),
+    );
+  });
 });

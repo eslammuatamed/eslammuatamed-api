@@ -57,6 +57,16 @@ export class PublicArticleListItemEntity {
 
 // Resolved detail for public reads — the list item plus body and per-locale SEO (D09-4).
 export class PublicArticleDetailEntity extends PublicArticleListItemEntity {
+  // Per-locale slug map so the frontend can switch locales without a 404 (slugs differ per
+  // locale — doc 10 §6). Covers exactly the locales in `availableLocales`; detail response only.
+  @ApiProperty({
+    type: 'object',
+    additionalProperties: { type: 'string' },
+    example: { en: 'building-x', ar: 'binaa-x' },
+    description: 'Locale code → that locale’s slug, for locale switching.',
+  })
+  readonly slugs!: Record<string, string>;
+
   @ApiProperty({
     example: '# Heading\n\nOpaque Markdown body…',
     description: 'Opaque Markdown (D01-5).',

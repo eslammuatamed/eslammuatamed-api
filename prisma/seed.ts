@@ -108,19 +108,23 @@ async function seedSiteSettings(): Promise<void> {
       analyticsEnabled: false,
       translations: {
         create: [
+          // Positioning per the content source of truth (owner-profile §2/§6): frontend-first,
+          // Vue.js/Nuxt.js primary — never generic "software engineer".
           {
             locale: 'en',
             siteName: 'Eslam Muatamed',
-            tagline: 'Software engineer & architect',
+            tagline: 'Frontend Engineer — Vue.js & Nuxt.js',
             defaultMetaTitle: 'Eslam Muatamed',
-            defaultMetaDescription: 'Portfolio, case studies, and writing.',
+            defaultMetaDescription:
+              'Frontend engineer specializing in Vue.js and Nuxt.js, building fast, accessible, SEO-focused web interfaces.',
           },
           {
             locale: 'ar',
             siteName: 'إسلام معتمد',
-            tagline: 'مهندس ومعماري برمجيات',
+            tagline: 'مهندس واجهات أمامية — Vue.js و Nuxt.js',
             defaultMetaTitle: 'إسلام معتمد',
-            defaultMetaDescription: 'أعمال ودراسات حالة ومقالات.',
+            defaultMetaDescription:
+              'مهندس واجهات أمامية متخصص في Vue.js و Nuxt.js، أبني واجهات ويب سريعة وسهلة الوصول ومهيأة لمحركات البحث.',
           },
         ],
       },

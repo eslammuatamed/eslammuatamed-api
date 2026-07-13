@@ -3674,6 +3674,17 @@
               "type": "string"
             }
           },
+          "slugs": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "example": {
+              "en": "building-x",
+              "ar": "binaa-x"
+            },
+            "description": "Locale code → that locale’s slug, for locale switching."
+          },
           "body": {
             "type": "string",
             "example": "# Heading\n\nOpaque Markdown body…",
@@ -3709,6 +3720,7 @@
           "category",
           "tags",
           "availableLocales",
+          "slugs",
           "body",
           "metaTitle",
           "metaDescription",

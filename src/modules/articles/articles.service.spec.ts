@@ -35,6 +35,22 @@ function articlePayload(status: ContentStatus, locale = 'en') {
         createdAt: now,
         updatedAt: now,
       },
+      {
+        id: 't-alt',
+        articleId: 'a1',
+        locale: locale === 'en' ? 'ar' : 'en',
+        title: 'Alt title',
+        slug: `slug-${locale === 'en' ? 'ar' : 'en'}`,
+        excerpt: 'Alt excerpt',
+        body: 'alt body',
+        readingTimeMin: 1,
+        metaTitle: null,
+        metaDescription: null,
+        ogImageId: null,
+        canonicalUrl: null,
+        createdAt: now,
+        updatedAt: now,
+      },
     ],
     category: {
       id: 'c1',
@@ -99,6 +115,8 @@ describe('ArticlesService', () => {
       expect(result.category.slug).toBe('engineering');
       expect(result.readingTimeMin).toBe(2);
       expect(result.body).toContain('word');
+      // Slug map covers every translation for locale switching (doc 10 §6).
+      expect(result.slugs).toEqual({ en: 'slug-en', ar: 'slug-ar' });
     });
   });
 

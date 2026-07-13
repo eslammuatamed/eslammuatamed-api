@@ -367,8 +367,15 @@ export class ArticlesService {
   ): PublicArticleDetailEntity {
     const listItem = this.resolveListItem(article, locale);
     const translation = this.requireTranslation(article, locale);
+    // Slug map over every translation — the same set as availableLocales — so the frontend can
+    // switch locales without guessing the other locale's slug (doc 10 §6).
+    const slugs: Record<string, string> = {};
+    for (const t of article.translations) {
+      slugs[t.locale] = t.slug;
+    }
     return {
       ...listItem,
+      slugs,
       body: translation.body,
       metaTitle: translation.metaTitle,
       metaDescription: translation.metaDescription,
