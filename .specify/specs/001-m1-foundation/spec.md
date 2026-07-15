@@ -19,10 +19,12 @@ skeleton renders — production-grade, not throwaway.
    handwritten migration SQL; idempotent `seed.ts` (locales en/ar, OWNER from env,
    SiteSettings, 4 categories).
 3. **Common infra** — RFC 7807 exception filter (Prisma error mapping included),
-   `{data, meta}` envelope interceptor, `@Public()`/`@Roles()`/`@CurrentUser()`,
-   global JWT guard (default-deny) + roles guard, pagination + locale query DTOs,
-   nestjs-pino with redaction, helmet, cookie-parser, throttler (login/public tiers),
-   URI versioning `/api/v1`.
+   `{data, meta}` envelope interceptor, `@Public()`/`@RequirePermission()`/`@CurrentUser()`,
+   global JWT guard (default-deny) + `PermissionsGuard` — a dynamic permission model
+   (`Role`/`RolePermission` tables, OWNER holds the `*` wildcard grant; FR-DSH-090,
+   D09-7/D19-8/D10-9, delivered as T8b), not static role checks — pagination + locale
+   query DTOs, nestjs-pino with redaction, helmet, cookie-parser, throttler
+   (login/public tiers), URI versioning `/api/v1`.
 4. **Auth module** — login/refresh/logout per doc 19 §2: argon2id, 15-min access JWT,
    rotating opaque refresh (hashed, familyId, reuse detection revokes family), httpOnly
    cookie scoped to `/api/v1/auth`, throttled login.
@@ -40,8 +42,8 @@ skeleton renders — production-grade, not throwaway.
    reuse, locale resolution, visibility, scheduling transition), e2e specs authored for
    auth/settings/articles with contract assertions (jest-openapi), CI workflow
    (lint → typecheck → unit; e2e job wired but requires Postgres service), lint-staged
-   pre-commit, `.nvmrc`/engines, docker-compose.yml (Postgres, for machines without a
-   native instance).
+   pre-commit, `.nvmrc`/engines, native PostgreSQL 16 — no Docker anywhere (owner
+   directive, D16-5).
 
 ## Acceptance criteria
 
@@ -54,8 +56,9 @@ skeleton renders — production-grade, not throwaway.
 - [ ] All 2xx bodies are `{data}` / `{data, meta}`; all errors are
       `application/problem+json`; 422 carries `errors[]` with field paths.
 - [ ] `npm run contract:export` produces valid OpenAPI 3.x with no DB running.
-- [ ] Admin endpoints 401 without token, 403 for role violations (settings PATCH is
-      OWNER-only).
+- [ ] Admin endpoints 401 without token, 403 for permission violations (settings PATCH
+      is guarded by the `settings.update` permission — D19-8; OWNER qualifies via the `*`
+      wildcard, and any role granted the key qualifies).
 - [ ] Scheduler promotes a due SCHEDULED article exactly once (idempotent query).
 - [ ] `npm run lint && npx tsc --noEmit && npm test` green; e2e suite passes once the
       local database exists (verification step in tasks).
@@ -64,3 +67,8 @@ skeleton renders — production-grade, not throwaway.
 
 Projects, experiences, skills, testimonials, media upload, redirects, contact, preview
 tokens, related-articles endpoint.
+
+## Revisions
+
+- **2026-07-15** — text reconciled to directives D19-8/D16-5 post-convergence-audit; no
+  scope change.

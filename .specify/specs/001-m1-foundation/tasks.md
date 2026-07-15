@@ -58,3 +58,12 @@ done. `[P]` = parallelizable with siblings.
   - **Verify:** re-running seed is a no-op; `/health` OK.
 - [x] T12 — Integration verification (coordinator)
   - Full e2e run green against the test DB; contract re-exported and committed.
+
+## Deferred (recorded 2026-07-15, convergence audit)
+
+- s3/R2 storage env vars are unpinned in `.env.example` + `env.validation.ts` — pin when
+  the media bucket lands (pre-launch; D23-3/D23-12).
+- The CI verify lane uploads `openapi.json` but does not diff it against the committed
+  copy — contract currency is convention-enforced (doc 16 §3); consider a CI guard.
+- `route-permissions.spec.ts` CONTROLLERS list is hand-maintained — consider deriving it
+  from the app graph.
