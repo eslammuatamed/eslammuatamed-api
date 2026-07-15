@@ -1,0 +1,193 @@
+# Production deploy — NestJS API → Contabo VPS (doc 23 §3 "API release", D23-10).
+#
+# TRIGGER: workflow_dispatch ONLY for now. The server is not provisioned yet; an
+# auto-trigger would paint the repo red on every push. After the doc 23 §4 restore
+# drill passes, switch the trigger to tag push per doc 23 §3 — a one-line change,
+# documented in the deploy runbook:
+#
+#     on:
+#       push:
+#         tags: ['v*']
+#
+# DEVIATIONS from doc 23 §3 (reported to the team lead, justified):
+#   - The deploy gate omits e2e (Postgres). e2e already ran on the merge commit the
+#     tag points at (PR gates, doc 17 §1); a Postgres service here would duplicate it.
+#   - "The release attaches openapi.json" is deferred with the tag trigger — there is
+#     no GitHub Release object under workflow_dispatch. It lands with the tag switch.
+#
+# ROLLBACK (no rebuild — doc 23 §3): on the VPS, repoint `current` at the previous
+# release and restart:
+#     ln -sfn /srv/eslammuatamed-api/releases/<previous> /srv/eslammuatamed-api/current.new
+#     mv -Tf  /srv/eslammuatamed-api/current.new /srv/eslammuatamed-api/current
+#     sudo systemctl restart eslammuatamed-api
+#   Migrations are fix-forward (doc 09 §6): rolling the symlink back does NOT roll the
+#   schema back. Database restore (doc 23 §4) is the disaster path only.
+#
+# SERVER LAYOUT this workflow deploys into (full contract in the deploy runbook):
+#   /srv/eslammuatamed-api/releases/<id>   extracted release (dist, node_modules, prisma)
+#   /srv/eslammuatamed-api/shared/.env     secrets, server-side only — never in a release
+#   /srv/eslammuatamed-api/current         symlink → the live release
+#   systemd unit: eslammuatamed-api  (EnvironmentFile=…/shared/.env, ExecStart=node dist/main.js)
+#   deploy user needs: authorized_keys (DEPLOY_SSH_KEY public half) + a scoped sudoers
+#   rule for exactly `systemctl restart eslammuatamed-api`.
+
+name: Deploy
+
+on:
+  workflow_dispatch:
+
+# Never let two deploys race; a deploy in flight must finish (do not cancel mid-cutover).
+concurrency:
+  group: deploy-api
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  # Release gate — mirrors the CI fast lane (ci.yml `verify`). ci.yml is not
+  # `workflow_call`-able, so the minimal gates are duplicated here rather than reused,
+  # so a tag build (which carries no PR checks) still proves lint/typecheck/unit/contract.
+  gate:
+    name: Lint · Typecheck · Unit · Contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Export OpenAPI contract (no database)
+        # Boot validation (doc 07 §3) needs a valid env even though no DB is touched;
+        # .env.example is the canonical valid development environment.
+        run: cp .env.example .env && npm run contract:export
+
+  deploy:
+    name: Build · Ship · Migrate · Cut over
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: gate
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Compute release id (UTC timestamp + short SHA)
+        run: echo "RELEASE=$(date -u +%Y%m%dT%H%M%SZ)-${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+
+      - run: npm ci
+
+      # Generate before build: the build type-checks against the generated client.
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Build
+        run: npm run build
+
+      # Prune dev deps for a lean runtime. The `prisma` CLI survives — it is a peer
+      # dependency of `@prisma/client` (a prod dep), so `prisma migrate deploy` runs
+      # hermetically on the server with the version-matched CLI (no skew).
+      - name: Prune to production dependencies
+        run: npm prune --omit=dev
+
+      # Regenerate AFTER the prune. The generated client under node_modules/.prisma is
+      # build output, not a tracked package, so the prune's guarantees do not cover it;
+      # regenerating (the CLI is present) makes a client-less artifact impossible.
+      - name: Regenerate Prisma client into the pruned tree
+        run: npx prisma generate
+
+      # Release tarball — code + prod deps + the schema/migrations prisma migrate deploy
+      # needs. Deliberately excludes .env: secrets live only in the server's shared/.env.
+      - name: Package release tarball
+        run: tar -czf "eslammuatamed-api-${RELEASE}.tar.gz" dist node_modules prisma package.json package-lock.json
+
+      - name: Write deploy key and pin the host key
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.ssh"
+          chmod 700 "$HOME/.ssh"
+          printf '%s\n' "$DEPLOY_SSH_KEY" > "$HOME/.ssh/deploy_key"
+          chmod 600 "$HOME/.ssh/deploy_key"
+          # Trust-on-first-use: no DEPLOY_KNOWN_HOSTS secret is provisioned. Pin the host
+          # key via a DEPLOY_KNOWN_HOSTS secret (runbook prerequisite) to close the MITM gap.
+          ssh-keyscan -H "$DEPLOY_HOST" > "$HOME/.ssh/known_hosts" 2>/dev/null
+          chmod 600 "$HOME/.ssh/known_hosts"
+
+      - name: Ship the tarball
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          set -euo pipefail
+          TARBALL="eslammuatamed-api-${RELEASE}.tar.gz"
+          scp -i "$HOME/.ssh/deploy_key" -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            "$TARBALL" "${DEPLOY_USER}@${DEPLOY_HOST}:/tmp/${TARBALL}"
+
+      - name: Extract, migrate, cut over, health-gate, prune
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          set -euo pipefail
+          # RELEASE has no shell-special characters (timestamp + hex SHA), so it is safe
+          # to pass as a positional arg into the quoted (non-expanding) remote heredoc.
+          ssh -i "$HOME/.ssh/deploy_key" -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" bash -s -- "$RELEASE" <<'REMOTE'
+          set -euo pipefail
+          RELEASE="$1"
+          BASE=/srv/eslammuatamed-api
+          REL_DIR="$BASE/releases/$RELEASE"
+          TARBALL="/tmp/eslammuatamed-api-${RELEASE}.tar.gz"
+
+          # 1. Extract the release (self-contained; carries no secrets).
+          mkdir -p "$REL_DIR"
+          tar -xzf "$TARBALL" -C "$REL_DIR"
+          rm -f "$TARBALL"
+
+          # 2. Pre-deploy migration (doc 23 §3) with the shared env, from the new release.
+          #    Fix-forward only (doc 09 §6): a bad migration is repaired by a new one.
+          set -a
+          . "$BASE/shared/.env"
+          set +a
+          ( cd "$REL_DIR" && npx prisma migrate deploy )
+
+          # 3. Atomic cut over: build the new symlink beside `current`, then rename over it
+          #    (mv -T is atomic; a bare `ln -sfn` is unlink-then-symlink, briefly dangling).
+          ln -sfn "$REL_DIR" "$BASE/current.new"
+          mv -Tf "$BASE/current.new" "$BASE/current"
+
+          # 4. Restart via the scoped sudoers rule (systemctl restart eslammuatamed-api only).
+          sudo systemctl restart eslammuatamed-api
+
+          # 5. Health gate — liveness (public, no DB). --retry-connrefused rides out the
+          #    boot window when the socket is not yet accepting connections.
+          curl --fail --retry 5 --retry-delay 3 --retry-connrefused --max-time 10 \
+            http://127.0.0.1:3001/api/v1/health
+
+          # 6. Keep the last 5 releases (the live one is newest, so always retained).
+          cd "$BASE/releases"
+          ls -1dt */ | tail -n +6 | xargs -r rm -rf
+          REMOTE
