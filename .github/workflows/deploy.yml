@@ -124,16 +124,19 @@ jobs:
       - name: Write deploy key and pin the host key
         env:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
         run: |
           set -euo pipefail
           mkdir -p "$HOME/.ssh"
           chmod 700 "$HOME/.ssh"
           printf '%s\n' "$DEPLOY_SSH_KEY" > "$HOME/.ssh/deploy_key"
           chmod 600 "$HOME/.ssh/deploy_key"
-          # Trust-on-first-use: no DEPLOY_KNOWN_HOSTS secret is provisioned. Pin the host
-          # key via a DEPLOY_KNOWN_HOSTS secret (runbook prerequisite) to close the MITM gap.
-          ssh-keyscan -H "$DEPLOY_HOST" > "$HOME/.ssh/known_hosts" 2>/dev/null
+          # Host key pinned from the DEPLOY_KNOWN_HOSTS secret (runbook B6: ssh-keyscan -H
+          # output captured at provisioning). No trust-on-first-use: a MITM or a re-keyed
+          # server fails host verification here instead of being silently trusted. Fail
+          # loudly if the secret is missing rather than writing an empty known_hosts.
+          [ -n "$DEPLOY_KNOWN_HOSTS" ] || { echo "DEPLOY_KNOWN_HOSTS secret is empty" >&2; exit 1; }
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
           chmod 600 "$HOME/.ssh/known_hosts"
 
       - name: Ship the tarball
