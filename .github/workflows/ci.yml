@@ -39,7 +39,9 @@ jobs:
         run: npm test
 
       - name: Export OpenAPI contract (no database)
-        run: npm run contract:export
+        # Boot validation (doc 07 §3) needs a valid env even though no DB is touched;
+        # .env.example is the canonical valid development environment.
+        run: cp .env.example .env && npm run contract:export
 
       - name: Upload OpenAPI artifact
         uses: actions/upload-artifact@v4

@@ -10,7 +10,12 @@ import { buildOpenApiConfig } from './openapi.config';
 // Prisma connection is lazy, so booting the app graph touches no database. Prefix and
 // versioning are applied identically to main.ts so the documented paths match runtime.
 async function exportOpenApi(): Promise<void> {
-  const app = await NestFactory.create(AppModule, { logger: false });
+  // abortOnError: false — with the logger off, Nest's default abort path is a SILENT
+  // process.exit(1) that bypasses the catch below; throwing keeps boot failures printable.
+  const app = await NestFactory.create(AppModule, {
+    logger: false,
+    abortOnError: false,
+  });
   app.setGlobalPrefix('api');
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
 
