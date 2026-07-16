@@ -2724,7 +2724,10 @@
                   ],
                   "properties": {
                     "data": {
-                      "$ref": "#/components/schemas/PublicSkillEntity"
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PublicSkillEntity"
+                      }
                     }
                   }
                 }
@@ -2774,7 +2777,10 @@
                   ],
                   "properties": {
                     "data": {
-                      "$ref": "#/components/schemas/AdminSkillEntity"
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AdminSkillEntity"
+                      }
                     }
                   }
                 }
@@ -3192,7 +3198,10 @@
                   ],
                   "properties": {
                     "data": {
-                      "$ref": "#/components/schemas/PublicExperienceEntity"
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PublicExperienceEntity"
+                      }
                     }
                   }
                 }
@@ -3242,7 +3251,10 @@
                   ],
                   "properties": {
                     "data": {
-                      "$ref": "#/components/schemas/AdminExperienceEntity"
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AdminExperienceEntity"
+                      }
                     }
                   }
                 }
@@ -3651,7 +3663,10 @@
                   ],
                   "properties": {
                     "data": {
-                      "$ref": "#/components/schemas/PublicTestimonialEntity"
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PublicTestimonialEntity"
+                      }
                     }
                   }
                 }
@@ -3701,7 +3716,10 @@
                   ],
                   "properties": {
                     "data": {
-                      "$ref": "#/components/schemas/AdminTestimonialEntity"
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AdminTestimonialEntity"
+                      }
                     }
                   }
                 }

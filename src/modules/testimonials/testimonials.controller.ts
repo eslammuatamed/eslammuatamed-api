@@ -14,7 +14,7 @@ export class TestimonialsController {
   @Get()
   @Public()
   @ApiOperation({ summary: 'List visible testimonials resolved to a locale.' })
-  @ApiOkEnvelope(PublicTestimonialEntity)
+  @ApiOkEnvelope(PublicTestimonialEntity, { isArray: true })
   @ApiPublicReadErrorResponses()
   list(@Query() query: LocaleQueryDto): Promise<PublicTestimonialEntity[]> {
     return this.testimonials.listPublic(query.locale);

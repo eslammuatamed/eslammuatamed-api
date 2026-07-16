@@ -44,7 +44,7 @@ export class TestimonialsAdminController {
   @Get()
   @RequirePermission('testimonials.read')
   @ApiOperation({ summary: 'List testimonials including hidden entries.' })
-  @ApiOkEnvelope(AdminTestimonialEntity)
+  @ApiOkEnvelope(AdminTestimonialEntity, { isArray: true })
   list(): Promise<AdminTestimonialEntity[]> {
     return this.testimonials.listAdmin();
   }

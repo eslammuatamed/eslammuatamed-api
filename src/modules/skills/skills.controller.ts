@@ -14,7 +14,7 @@ export class SkillsController {
   @Get()
   @Public()
   @ApiOperation({ summary: 'List skills resolved to a locale.' })
-  @ApiOkEnvelope(PublicSkillEntity)
+  @ApiOkEnvelope(PublicSkillEntity, { isArray: true })
   @ApiPublicReadErrorResponses()
   list(@Query() query: SkillQueryDto): Promise<PublicSkillEntity[]> {
     return this.skills.listPublic(query.locale);

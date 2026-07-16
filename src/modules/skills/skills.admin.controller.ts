@@ -41,7 +41,7 @@ export class SkillsAdminController {
   @Get()
   @RequirePermission('skills.read')
   @ApiOperation({ summary: 'List skills with full translations.' })
-  @ApiOkEnvelope(AdminSkillEntity)
+  @ApiOkEnvelope(AdminSkillEntity, { isArray: true })
   list(): Promise<AdminSkillEntity[]> {
     return this.skills.listAdmin();
   }

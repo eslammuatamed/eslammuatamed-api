@@ -40,7 +40,7 @@ export class ExperiencesAdminController {
   constructor(private readonly experiences: ExperiencesService) {}
   @Get()
   @RequirePermission('experiences.read')
-  @ApiOkEnvelope(AdminExperienceEntity)
+  @ApiOkEnvelope(AdminExperienceEntity, { isArray: true })
   @ApiOperation({ summary: 'List experiences with full translations.' })
   list(): Promise<AdminExperienceEntity[]> {
     return this.experiences.listAdmin();

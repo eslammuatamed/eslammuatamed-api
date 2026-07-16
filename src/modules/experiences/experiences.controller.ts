@@ -14,7 +14,7 @@ export class ExperiencesController {
   @Get()
   @Public()
   @ApiOperation({ summary: 'List experiences resolved to a locale.' })
-  @ApiOkEnvelope(PublicExperienceEntity)
+  @ApiOkEnvelope(PublicExperienceEntity, { isArray: true })
   @ApiPublicReadErrorResponses()
   list(@Query() query: ExperienceQueryDto): Promise<PublicExperienceEntity[]> {
     return this.experiences.listPublic(query.locale);
