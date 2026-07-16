@@ -19,18 +19,23 @@ entities were defined in the M1 init migration), plus **two additive fields**.
 - Testing: doc 18 §2 — Jest unit (services, Prisma mocked) + supertest e2e with jest-openapi
   contract assertions; no cross-repo CI coupling (D18-3).
 
-## Decision — where `careerStartDate` lives (owner asked to inspect first)
+## Decision — where the career start lives, and its precision (owner asked to inspect first)
 
-**`SiteSettings`.** The domain has **no Owner/Profile entity** (models verified: Locale, User,
-Role, RolePermission, RefreshToken, Article, Category, Tag, Project, Skill, Experience,
-Testimonial, MediaAsset, PageSeo, SlugRedirect, ContactMessage, SiteSettings — plus their
-translations). `SiteSettings` is the existing single-row global config that already holds
-owner-level profile facts (`profileLinks`, `availabilityStatus`, `resumeAssetId`). Creating a
-dedicated Owner/Profile entity for a single date would add a table, module, and endpoints for
-one field — a violation of principles 10 (simplicity) and 15 (no premature structure). So
-`careerStartDate` is a nullable `DateTime` on `SiteSettings`, seeded `2023-11-01`, exposed on
-the existing settings contract. If a real Owner/Profile aggregate is ever justified by more
-fields, migrating this one column is trivial.
+**`SiteSettings`, as month-precision integers.** The domain has **no Owner/Profile entity**
+(models verified: Locale, User, Role, RolePermission, RefreshToken, Article, Category, Tag,
+Project, Skill, Experience, Testimonial, MediaAsset, PageSeo, SlugRedirect, ContactMessage,
+SiteSettings — plus translations). `SiteSettings` is the existing single-row global config that
+already holds owner-level profile facts (`profileLinks`, `availabilityStatus`, `resumeAssetId`).
+A dedicated Owner/Profile entity for a couple of fields would add a table, module, and endpoints
+for near-nothing — against principles 10 (simplicity) and 15 (no premature structure). If a real
+Owner/Profile aggregate is ever justified, migrating these columns is trivial.
+
+**Precision (review C):** the confirmed fact is **November 2023**; the day is unknown and must
+not be invented. A single `DATE`/`DateTime` column would force a fabricated day (`2023-11-01`),
+so the model is two nullable, validated integers — `careerStartYear` and `careerStartMonth`
+(1–12) — the honest month-precision representation Postgres offers without a native year-month
+type. Seeded `2023 / 11`. The API exposes year + month; **years-of-experience is derived on the
+frontend and never stored.**
 
 ## Decision — `employmentType`
 
@@ -39,17 +44,46 @@ New Prisma enum `EmploymentType { FULL_TIME PART_TIME CONTRACT FREELANCE }` + a 
 backfill). Code enum only — the frontend renders localized labels, matching how `SkillGroup`
 and `ContentStatus` are handled; **no per-record translated labels** (owner directive).
 
+## Decision — Project publication control (review B)
+
+The smallest control that satisfies "curated case studies may be authored before they are
+ready": a boolean **`Project.isPublished @default(false)`**. Not a `ContentStatus` enum — projects
+need no draft/scheduled/archived lifecycle or scheduling (that machinery belongs to Articles);
+copying it would violate principle 10. Public list/detail filter `isPublished = true`; an
+unpublished slug 404s on the public surface (same rule as draft articles, FR-PUB-046); the
+`technology` filter operates within published projects. Admin controllers see and edit all
+projects regardless of state. **Testimonials already have `isVisible`** — that boolean is their
+publication control, so no new field is added there (no redundant state).
+
+## Related articles (review A)
+
+`GET /articles/{slug}/related` needs **no schema change** — it reads the existing `Article`,
+`Category`, and `Tag`/`ArticleTag` data. Rank by shared category/tags per doc 04 §5, published
+only, exclude self, fixed small limit. Lands in the existing `articles` module; scoped strictly
+to the ranking behavior and the doc 18 related-articles ranking test.
+
 ## New dependencies
 
 **None.** Every primitive this feature needs (Prisma, class-validator/-transformer, Swagger,
 throttler, jest-openapi, pagination/locale DTOs, envelope/filter/guards) already exists from
 M1. Adding a dependency here would fail the doc 16 §4 gate.
 
+## SpecKit tooling (reconciled 2026-07-16)
+
+`create-new-feature.sh` resolved `specs/` at the repo root, but this project's specs live under
+`.specify/specs/` (where `001-m1-foundation` lives). Fixed `SPECS_DIR` → `$REPO_ROOT/.specify/specs`
+and pointed `.specify/feature.json` at this feature, so `/speckit.plan`, `/speckit.tasks`, and
+`/speckit.implement` all resolve `.specify/specs/002-content-modules`. Verified via `--dry-run`
+(now numbers 003) and `check-prerequisites --paths-only` (resolves 002); `001-m1-foundation`
+untouched. Committed separately as `fix(speckit): …`.
+
 ## Module build order
 
 `docs revision (doc-first)` → `schema + migration + seed` → `skills` → `projects`
-(references skills via `ProjectTechnology`) → `experiences` → `testimonials` →
-`settings` extension (`careerStartDate`) → contract export → e2e + CI.
+(references skills via `ProjectTechnology`; `isPublished` gating) → `experiences`
+(`employmentType`) → `testimonials` (`isVisible` gating) → `articles/{slug}/related`
+(existing Articles module; no schema change) → `settings` extension
+(`careerStartYear`/`careerStartMonth`) → permission guards → contract export → e2e + CI.
 
 ## Structure (doc 08 §2)
 
