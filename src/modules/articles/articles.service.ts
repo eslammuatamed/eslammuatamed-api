@@ -182,6 +182,78 @@ export class ArticlesService {
     return this.resolveDetail(translation.article, locale);
   }
 
+  // Public related articles (D04-5/D10-6): published articles sharing the source category
+  // and/or tags, ranked same-category FIRST, then shared-tag count, then publish recency
+  // (doc 04 §5: "same category first, shared tags second, recency as tiebreaker").
+  async getPublicRelated(
+    slug: string,
+    locale: string,
+  ): Promise<PaginatedResult<PublicArticleListItemEntity>> {
+    await this.locales.assertEnabled(locale);
+    const translation = await this.prisma.articleTranslation.findUnique({
+      where: { locale_slug: { locale, slug } },
+      include: { article: { include: PUBLIC_INCLUDE(locale) } },
+    });
+
+    if (
+      !translation ||
+      translation.article.status !== ContentStatus.PUBLISHED
+    ) {
+      throw new NotFoundException('Article not found.');
+    }
+
+    const source = translation.article;
+    const sourceTagIds = source.tags.map((link) => link.tagId);
+    const candidates = await this.prisma.article.findMany({
+      where: {
+        status: ContentStatus.PUBLISHED,
+        id: { not: source.id },
+        translations: { some: { locale } },
+        OR: [
+          { categoryId: source.categoryId },
+          ...(sourceTagIds.length > 0
+            ? [{ tags: { some: { tagId: { in: sourceTagIds } } } }]
+            : []),
+        ],
+      },
+      include: PUBLIC_INCLUDE(locale),
+      orderBy: { publishAt: { sort: 'desc', nulls: 'last' } },
+    });
+
+    const sourceTagSet = new Set(sourceTagIds);
+    const ranked = candidates
+      .filter(
+        (article) =>
+          article.id !== source.id &&
+          article.status === ContentStatus.PUBLISHED,
+      )
+      .map((article) => ({
+        article,
+        sharedTagCount: article.tags.filter((link) =>
+          sourceTagSet.has(link.tagId),
+        ).length,
+        sameCategory: article.categoryId === source.categoryId ? 1 : 0,
+      }))
+      .sort((left, right) => {
+        if (right.sameCategory !== left.sameCategory) {
+          return right.sameCategory - left.sameCategory;
+        }
+        if (right.sharedTagCount !== left.sharedTagCount) {
+          return right.sharedTagCount - left.sharedTagCount;
+        }
+        return (
+          (right.article.publishAt?.getTime() ?? -Infinity) -
+          (left.article.publishAt?.getTime() ?? -Infinity)
+        );
+      })
+      .slice(0, 3);
+
+    return new PaginatedResult(
+      ranked.map(({ article }) => this.resolveListItem(article, locale)),
+      buildPageMeta(1, 3, ranked.length),
+    );
+  }
+
   async listAdmin(
     query: AdminArticleListQueryDto,
   ): Promise<PaginatedResult<AdminArticleEntity>> {

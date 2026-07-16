@@ -73,6 +73,42 @@ function articlePayload(status: ContentStatus, locale = 'en') {
   };
 }
 
+function relatedArticlePayload(options: {
+  id: string;
+  status: ContentStatus;
+  categoryId: string;
+  tagIds: string[];
+  publishAt: string;
+  slug: string;
+}) {
+  const article = articlePayload(options.status);
+  return {
+    ...article,
+    id: options.id,
+    categoryId: options.categoryId,
+    publishAt: new Date(options.publishAt),
+    translations: article.translations.map((translation, index) => ({
+      ...translation,
+      articleId: options.id,
+      locale: index === 0 ? 'en' : 'ar',
+      slug: index === 0 ? options.slug : `${options.slug}-ar`,
+    })),
+    category: {
+      ...article.category,
+      id: options.categoryId,
+      translations: article.category.translations,
+    },
+    tags: options.tagIds.map((tagId) => ({
+      articleId: options.id,
+      tagId,
+      tag: {
+        id: tagId,
+        translations: [{ name: tagId, slug: tagId }],
+      },
+    })),
+  };
+}
+
 describe('ArticlesService', () => {
   let prisma: DeepMockProxy<PrismaService>;
   let locales: DeepMockProxy<LocalesService>;
@@ -143,6 +179,151 @@ describe('ArticlesService', () => {
         total: 1,
         totalPages: 1,
       });
+    });
+  });
+
+  describe('getPublicRelated', () => {
+    it('ranks same category first, then shared tags, then publish date (doc 04 §5)', async () => {
+      const source = relatedArticlePayload({
+        id: 'source',
+        status: ContentStatus.PUBLISHED,
+        categoryId: 'category-source',
+        tagIds: ['tag-a', 'tag-b'],
+        publishAt: '2026-01-01T00:00:00.000Z',
+        slug: 'source',
+      });
+      const sharedTwoTags = relatedArticlePayload({
+        id: 'shared-two',
+        status: ContentStatus.PUBLISHED,
+        categoryId: 'category-other',
+        tagIds: ['tag-a', 'tag-b'],
+        publishAt: '2026-01-02T00:00:00.000Z',
+        slug: 'shared-two',
+      });
+      const sameCategory = relatedArticlePayload({
+        id: 'same-category',
+        status: ContentStatus.PUBLISHED,
+        categoryId: 'category-source',
+        tagIds: [],
+        publishAt: '2026-01-03T00:00:00.000Z',
+        slug: 'same-category',
+      });
+      const sameCategorySharedTag = relatedArticlePayload({
+        id: 'same-category-shared',
+        status: ContentStatus.PUBLISHED,
+        categoryId: 'category-source',
+        tagIds: ['tag-a'],
+        publishAt: '2026-01-01T00:00:00.000Z',
+        slug: 'same-category-shared',
+      });
+      const sharedOneTag = relatedArticlePayload({
+        id: 'shared-one',
+        status: ContentStatus.PUBLISHED,
+        categoryId: 'category-other',
+        tagIds: ['tag-a'],
+        publishAt: '2026-01-04T00:00:00.000Z',
+        slug: 'shared-one',
+      });
+      const sharedOneTagOlder = relatedArticlePayload({
+        id: 'shared-one-older',
+        status: ContentStatus.PUBLISHED,
+        categoryId: 'category-other',
+        tagIds: ['tag-a'],
+        publishAt: '2026-01-02T00:00:00.000Z',
+        slug: 'shared-one-older',
+      });
+      prisma.articleTranslation.findUnique.mockResolvedValue({
+        article: source,
+      } as never);
+      prisma.article.findMany.mockResolvedValue([
+        sameCategory,
+        sameCategorySharedTag,
+        sharedOneTag,
+        sharedOneTagOlder,
+        sharedTwoTags,
+      ] as never);
+
+      const result = await service.getPublicRelated('source', 'en');
+
+      expect(result.data.map((article) => article.id)).toEqual([
+        'same-category-shared',
+        'same-category',
+        'shared-two',
+      ]);
+      expect(result.meta).toEqual({
+        page: 1,
+        perPage: 3,
+        total: 3,
+        totalPages: 1,
+      });
+    });
+
+    it('excludes the source and unpublished candidates', async () => {
+      const source = relatedArticlePayload({
+        id: 'source',
+        status: ContentStatus.PUBLISHED,
+        categoryId: 'category-source',
+        tagIds: ['tag-a'],
+        publishAt: '2026-01-01T00:00:00.000Z',
+        slug: 'source',
+      });
+      const published = relatedArticlePayload({
+        id: 'published',
+        status: ContentStatus.PUBLISHED,
+        categoryId: 'category-source',
+        tagIds: [],
+        publishAt: '2026-01-02T00:00:00.000Z',
+        slug: 'published',
+      });
+      const unpublished = relatedArticlePayload({
+        id: 'unpublished',
+        status: ContentStatus.DRAFT,
+        categoryId: 'category-source',
+        tagIds: [],
+        publishAt: '2026-01-03T00:00:00.000Z',
+        slug: 'unpublished',
+      });
+      prisma.articleTranslation.findUnique.mockResolvedValue({
+        article: source,
+      } as never);
+      prisma.article.findMany.mockResolvedValue([
+        source,
+        unpublished,
+        published,
+      ] as never);
+
+      const result = await service.getPublicRelated('source', 'en');
+
+      expect(result.data.map((article) => article.id)).toEqual(['published']);
+      expect(prisma.article.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            status: ContentStatus.PUBLISHED,
+            id: { not: 'source' },
+          }),
+        }),
+      );
+    });
+
+    it('404s an unknown or unpublished source slug', async () => {
+      prisma.articleTranslation.findUnique.mockResolvedValue(null);
+      await expect(
+        service.getPublicRelated('missing', 'en'),
+      ).rejects.toBeInstanceOf(NotFoundException);
+
+      prisma.articleTranslation.findUnique.mockResolvedValue({
+        article: relatedArticlePayload({
+          id: 'draft',
+          status: ContentStatus.DRAFT,
+          categoryId: 'category-source',
+          tagIds: [],
+          publishAt: '2026-01-01T00:00:00.000Z',
+          slug: 'draft',
+        }),
+      } as never);
+      await expect(
+        service.getPublicRelated('draft', 'en'),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 

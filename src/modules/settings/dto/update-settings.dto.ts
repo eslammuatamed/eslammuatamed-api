@@ -3,12 +3,15 @@ import { Type } from 'class-transformer';
 import {
   IsArray,
   IsBoolean,
+  IsInt,
   IsIn,
   IsOptional,
   IsString,
   IsUrl,
+  Max,
   Matches,
   MaxLength,
+  Min,
   ValidateNested,
 } from 'class-validator';
 
@@ -100,6 +103,34 @@ export class UpdateSettingsDto {
 
   // resumeAssetId is intentionally not writable here: it is a MediaAsset FK, and the media
   // module ships in feature 002+. It remains readable on the admin entity.
+
+  @ApiPropertyOptional({
+    type: Number,
+    nullable: true,
+    example: 2023,
+    minimum: 1970,
+    maximum: 2100,
+    description: 'Career start year; set together with careerStartMonth.',
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1970)
+  @Max(2100)
+  readonly careerStartYear?: number | null;
+
+  @ApiPropertyOptional({
+    type: Number,
+    nullable: true,
+    example: 11,
+    minimum: 1,
+    maximum: 12,
+    description: 'Career start month; set together with careerStartYear.',
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(12)
+  readonly careerStartMonth?: number | null;
 
   @ApiPropertyOptional({ example: 'google-abc123' })
   @IsOptional()

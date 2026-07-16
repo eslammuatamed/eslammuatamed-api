@@ -1354,6 +1354,94 @@
         ]
       }
     },
+    "/api/v1/articles/{slug}/related": {
+      "get": {
+        "operationId": "ArticlesController_getRelated_v1",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "example": "designing-a-modular-monolith",
+              "type": "string"
+            }
+          },
+          {
+            "name": "locale",
+            "required": false,
+            "in": "query",
+            "description": "Two-letter locale code, validated against enabled locales.",
+            "schema": {
+              "default": "en",
+              "example": "ar",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Related published articles resolved to ?locale=.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PublicArticleListItemEntity"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMeta"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown or disabled locale.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No published article with this slug in the locale.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Malformed query parameters.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "List up to three published articles related to the source article.",
+        "tags": [
+          "articles"
+        ]
+      }
+    },
     "/api/v1/articles/{slug}": {
       "get": {
         "operationId": "ArticlesController_getBySlug_v1",
@@ -4967,6 +5055,16 @@
             "nullable": true,
             "example": "Open to select consulting engagements"
           },
+          "careerStartYear": {
+            "type": "number",
+            "nullable": true,
+            "example": 2023
+          },
+          "careerStartMonth": {
+            "type": "number",
+            "nullable": true,
+            "example": 11
+          },
           "googleSiteVerification": {
             "type": "string",
             "nullable": true,
@@ -5027,6 +5125,8 @@
           "defaultMetaDescription",
           "profileLinks",
           "availabilityStatus",
+          "careerStartYear",
+          "careerStartMonth",
           "googleSiteVerification",
           "bingSiteVerification",
           "customMetas",
@@ -5084,6 +5184,16 @@
             "nullable": true,
             "format": "uuid"
           },
+          "careerStartYear": {
+            "type": "number",
+            "nullable": true,
+            "example": 2023
+          },
+          "careerStartMonth": {
+            "type": "number",
+            "nullable": true,
+            "example": 11
+          },
           "googleSiteVerification": {
             "type": "string",
             "nullable": true
@@ -5127,6 +5237,8 @@
           "profileLinks",
           "availabilityStatus",
           "resumeAssetId",
+          "careerStartYear",
+          "careerStartMonth",
           "googleSiteVerification",
           "bingSiteVerification",
           "analyticsProvider",
@@ -5204,6 +5316,22 @@
           "availabilityStatus": {
             "type": "string",
             "example": "Open to select consulting engagements"
+          },
+          "careerStartYear": {
+            "type": "number",
+            "nullable": true,
+            "example": 2023,
+            "minimum": 1970,
+            "maximum": 2100,
+            "description": "Career start year; set together with careerStartMonth."
+          },
+          "careerStartMonth": {
+            "type": "number",
+            "nullable": true,
+            "example": 11,
+            "minimum": 1,
+            "maximum": 12,
+            "description": "Career start month; set together with careerStartYear."
           },
           "googleSiteVerification": {
             "type": "string",

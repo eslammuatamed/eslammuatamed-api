@@ -76,6 +76,12 @@ export class PublicSiteSettingsEntity {
   })
   readonly availabilityStatus!: string | null;
 
+  @ApiProperty({ type: Number, nullable: true, example: 2023 })
+  readonly careerStartYear!: number | null;
+
+  @ApiProperty({ type: Number, nullable: true, example: 11 })
+  readonly careerStartMonth!: number | null;
+
   @ApiProperty({
     type: String,
     nullable: true,
@@ -155,6 +161,12 @@ export class AdminSiteSettingsEntity {
 
   @ApiProperty({ type: String, nullable: true, format: 'uuid' })
   readonly resumeAssetId!: string | null;
+
+  @ApiProperty({ type: Number, nullable: true, example: 2023 })
+  readonly careerStartYear!: number | null;
+
+  @ApiProperty({ type: Number, nullable: true, example: 11 })
+  readonly careerStartMonth!: number | null;
 
   @ApiProperty({ type: String, nullable: true })
   readonly googleSiteVerification!: string | null;
