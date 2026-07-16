@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { Prisma, SiteSettings, SiteSettingsTranslation } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocalesService } from '../locales/locales.service';
@@ -37,6 +41,8 @@ export class SettingsService {
       defaultMetaDescription: translation?.defaultMetaDescription ?? null,
       profileLinks: toProfileLinks(settings.profileLinks),
       availabilityStatus: settings.availabilityStatus,
+      careerStartYear: settings.careerStartYear,
+      careerStartMonth: settings.careerStartMonth,
       googleSiteVerification: settings.googleSiteVerification,
       bingSiteVerification: settings.bingSiteVerification,
       // A disabled analytics tag is never advertised to the client (FR-DSH-052, D20-5).
@@ -71,6 +77,16 @@ export class SettingsService {
     for (const translation of dto.translations ?? []) {
       await this.locales.assertEnabled(translation.locale);
     }
+
+    const careerStartYear =
+      dto.careerStartYear !== undefined
+        ? dto.careerStartYear
+        : settings.careerStartYear;
+    const careerStartMonth =
+      dto.careerStartMonth !== undefined
+        ? dto.careerStartMonth
+        : settings.careerStartMonth;
+    validateCareerStart(careerStartYear, careerStartMonth);
 
     const operations: Prisma.PrismaPromise<unknown>[] = [
       this.prisma.siteSettings.update({
@@ -138,6 +154,8 @@ export class SettingsService {
       profileLinks: toProfileLinks(settings.profileLinks),
       availabilityStatus: settings.availabilityStatus,
       resumeAssetId: settings.resumeAssetId,
+      careerStartYear: settings.careerStartYear,
+      careerStartMonth: settings.careerStartMonth,
       googleSiteVerification: settings.googleSiteVerification,
       bingSiteVerification: settings.bingSiteVerification,
       analyticsProvider: settings.analyticsProvider,
@@ -156,6 +174,8 @@ function buildSettingsUpdate(
 ): Prisma.SiteSettingsUpdateInput {
   const data: Prisma.SiteSettingsUpdateInput = {
     availabilityStatus: dto.availabilityStatus,
+    careerStartYear: dto.careerStartYear,
+    careerStartMonth: dto.careerStartMonth,
     googleSiteVerification: dto.googleSiteVerification,
     bingSiteVerification: dto.bingSiteVerification,
     analyticsProvider: dto.analyticsProvider,
@@ -176,6 +196,27 @@ function buildSettingsUpdate(
     }));
   }
   return data;
+}
+
+function validateCareerStart(year: number | null, month: number | null): void {
+  if ((year === null) !== (month === null)) {
+    throw new UnprocessableEntityException(
+      'careerStartYear and careerStartMonth must both be present or both be absent.',
+    );
+  }
+  if (
+    year !== null &&
+    (!Number.isInteger(year) || year < 1970 || year > 2100)
+  ) {
+    throw new UnprocessableEntityException(
+      'careerStartYear must be an integer between 1970 and 2100.',
+    );
+  }
+  if (month !== null && (!Number.isInteger(month) || month < 1 || month > 12)) {
+    throw new UnprocessableEntityException(
+      'careerStartMonth must be an integer between 1 and 12.',
+    );
+  }
 }
 
 function isJsonObject(item: Prisma.JsonValue): item is Prisma.JsonObject {

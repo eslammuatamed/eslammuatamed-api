@@ -38,6 +38,28 @@ export class ArticlesController {
     return this.articles.listPublic(query);
   }
 
+  @Get(':slug/related')
+  @Public()
+  @ApiOperation({
+    summary:
+      'List up to three published articles related to the source article.',
+  })
+  @ApiParam({ name: 'slug', example: 'designing-a-modular-monolith' })
+  @ApiOkPaginated(PublicArticleListItemEntity, {
+    description: 'Related published articles resolved to ?locale=.',
+  })
+  @ApiPublicReadErrorResponses()
+  @ApiProblemResponse(
+    HttpStatus.NOT_FOUND,
+    'No published article with this slug in the locale.',
+  )
+  getRelated(
+    @Param('slug') slug: string,
+    @Query() query: LocaleQueryDto,
+  ): Promise<PaginatedResult<PublicArticleListItemEntity>> {
+    return this.articles.getPublicRelated(slug, query.locale);
+  }
+
   @Get(':slug')
   @Public()
   @ApiOperation({

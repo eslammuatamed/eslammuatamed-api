@@ -99,13 +99,24 @@ async function seedOwner(
 }
 
 async function seedSiteSettings(): Promise<void> {
-  const existing = await prisma.siteSettings.findFirst();
+  const existing = await prisma.siteSettings.findFirst({
+    select: { id: true },
+  });
   if (existing) {
+    await prisma.siteSettings.update({
+      where: { id: existing.id },
+      data: {
+        careerStartYear: 2023,
+        careerStartMonth: 11,
+      },
+    });
     return;
   }
   await prisma.siteSettings.create({
     data: {
       analyticsEnabled: false,
+      careerStartYear: 2023,
+      careerStartMonth: 11,
       translations: {
         create: [
           // Positioning per the content source of truth (owner-profile §2/§6): frontend-first,

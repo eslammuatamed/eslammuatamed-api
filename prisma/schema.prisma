@@ -29,6 +29,13 @@ enum SkillGroup {
   PRACTICE
 }
 
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  FREELANCE
+}
+
 // ===== Localization reference table (D09-5) — adding a language is an INSERT =====
 
 model Locale {
@@ -254,12 +261,13 @@ model ArticleTag {
 // ===== Projects (schema-complete for feature 002+; no M1 module) =====
 
 model Project {
-  id       String  @id @default(uuid(7))
-  featured Boolean @default(false)
-  order    Int     @default(0)
-  liveUrl  String? @map("live_url")
-  repoUrl  String? @map("repo_url")
-  year     Int?
+  id          String  @id @default(uuid(7))
+  featured    Boolean @default(false)
+  isPublished Boolean @default(false) @map("is_published")
+  order       Int     @default(0)
+  liveUrl     String? @map("live_url")
+  repoUrl     String? @map("repo_url")
+  year        Int?
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -383,11 +391,12 @@ model SkillTranslation {
 }
 
 model Experience {
-  id        String    @id @default(uuid(7))
-  startDate DateTime  @map("start_date")
-  endDate   DateTime? @map("end_date")
-  isCurrent Boolean   @default(false) @map("is_current")
-  order     Int       @default(0)
+  id             String         @id @default(uuid(7))
+  startDate      DateTime       @map("start_date")
+  endDate        DateTime?      @map("end_date")
+  isCurrent      Boolean        @default(false) @map("is_current")
+  employmentType EmploymentType @map("employment_type")
+  order          Int            @default(0)
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -548,6 +557,8 @@ model SiteSettings {
   profileLinks       Json    @default("[]") @map("profile_links") // [{ label, url, icon }]
   availabilityStatus String? @map("availability_status")
   resumeAssetId      String? @map("resume_asset_id")
+  careerStartYear    Int?    @map("career_start_year")
+  careerStartMonth   Int?    @map("career_start_month")
 
   // Global head/tag fields (FR-DSH-052) — verification, analytics, constrained custom metas.
   googleSiteVerification String? @map("google_site_verification")

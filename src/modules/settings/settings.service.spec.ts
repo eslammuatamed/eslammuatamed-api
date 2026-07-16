@@ -1,4 +1,7 @@
-import { BadRequestException } from '@nestjs/common';
+import {
+  BadRequestException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { SiteSettings, SiteSettingsTranslation } from '@prisma/client';
 import { DeepMockProxy, mockDeep } from 'jest-mock-extended';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -33,6 +36,8 @@ function settingsRow(overrides: Partial<SettingsRow> = {}): SettingsRow {
     ],
     availabilityStatus: 'Open',
     resumeAssetId: null,
+    careerStartYear: null,
+    careerStartMonth: null,
     googleSiteVerification: 'google-token',
     bingSiteVerification: null,
     analyticsProvider: 'ga4',
@@ -71,6 +76,8 @@ describe('SettingsService', () => {
         { label: 'GitHub', url: 'https://github.com/x', icon: 'gh' },
       ]);
       expect(result.availableLocales).toEqual(['ar', 'en']);
+      expect(result.careerStartYear).toBeNull();
+      expect(result.careerStartMonth).toBeNull();
     });
 
     it('advertises analytics only when enabled with an id', async () => {
@@ -114,6 +121,8 @@ describe('SettingsService', () => {
       expect(Object.keys(result.translations).sort()).toEqual(['ar', 'en']);
       expect(result.translations.en?.siteName).toBe('Site en');
       expect(result.analyticsEnabled).toBe(false);
+      expect(result.careerStartYear).toBeNull();
+      expect(result.careerStartMonth).toBeNull();
     });
   });
 
@@ -143,6 +152,68 @@ describe('SettingsService', () => {
       expect(prisma.siteSettings.update).toHaveBeenCalled();
       expect(prisma.siteSettingsTranslation.upsert).toHaveBeenCalled();
       expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    });
+
+    it('sets both career start fields', async () => {
+      prisma.siteSettings.findFirst.mockResolvedValue(settingsRow());
+      prisma.$transaction.mockResolvedValue([]);
+
+      await service.updateSettings({
+        careerStartYear: 2023,
+        careerStartMonth: 11,
+      });
+
+      expect(prisma.siteSettings.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            careerStartYear: 2023,
+            careerStartMonth: 11,
+          }),
+        }),
+      );
+    });
+
+    it('rejects a career start month outside 1..12 with 422', async () => {
+      prisma.siteSettings.findFirst.mockResolvedValue(settingsRow());
+
+      await expect(
+        service.updateSettings({ careerStartYear: 2023, careerStartMonth: 13 }),
+      ).rejects.toBeInstanceOf(UnprocessableEntityException);
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('rejects setting only one career start field with 422', async () => {
+      prisma.siteSettings.findFirst.mockResolvedValue(settingsRow());
+
+      await expect(
+        service.updateSettings({ careerStartYear: 2023 }),
+      ).rejects.toBeInstanceOf(UnprocessableEntityException);
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('clears both career start fields', async () => {
+      prisma.siteSettings.findFirst
+        .mockResolvedValueOnce(
+          settingsRow({ careerStartYear: 2023, careerStartMonth: 11 }),
+        )
+        .mockResolvedValueOnce(settingsRow());
+      prisma.$transaction.mockResolvedValue([]);
+
+      const result = await service.updateSettings({
+        careerStartYear: null,
+        careerStartMonth: null,
+      });
+
+      expect(prisma.siteSettings.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            careerStartYear: null,
+            careerStartMonth: null,
+          }),
+        }),
+      );
+      expect(result.careerStartYear).toBeNull();
+      expect(result.careerStartMonth).toBeNull();
     });
   });
 });

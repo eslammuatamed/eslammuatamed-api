@@ -7,11 +7,16 @@ import {
 } from '@nestjs/swagger';
 import { PageMeta } from '../pagination/page-meta';
 
-// Documents the `{ data: <model> }` envelope (D10-3) for a 200 response.
+// Documents the `{ data: <model> }` envelope (D10-3) for a 200 response. Pass
+// `{ isArray: true }` for a non-paginated list endpoint whose `data` is `<model>[]`
+// (small fixed collections that skip pagination, e.g. skills/experiences/testimonials).
 export function ApiOkEnvelope<TModel extends Type<unknown>>(
   model: TModel,
-  options?: { description?: string },
+  options?: { description?: string; isArray?: boolean },
 ): MethodDecorator & ClassDecorator {
+  const data = options?.isArray
+    ? { type: 'array' as const, items: { $ref: getSchemaPath(model) } }
+    : { $ref: getSchemaPath(model) };
   return applyDecorators(
     ApiExtraModels(model),
     ApiOkResponse({
@@ -19,7 +24,7 @@ export function ApiOkEnvelope<TModel extends Type<unknown>>(
       schema: {
         type: 'object',
         required: ['data'],
-        properties: { data: { $ref: getSchemaPath(model) } },
+        properties: { data },
       },
     }),
   );

@@ -127,7 +127,9 @@ REPO_ROOT=$(get_repo_root) || exit 1
 
 cd "$REPO_ROOT"
 
-SPECS_DIR="$REPO_ROOT/specs"
+# Feature specs live under .specify/specs/ in this project (where 001-m1-foundation lives),
+# not a top-level specs/ dir. REPO_ROOT is the directory *containing* .specify/.
+SPECS_DIR="$REPO_ROOT/.specify/specs"
 if [ "$DRY_RUN" != true ]; then
     mkdir -p "$SPECS_DIR"
 fi

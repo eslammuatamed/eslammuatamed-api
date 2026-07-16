@@ -12,6 +12,14 @@ import { TagsController } from '../taxonomy/tags.controller';
 import { TagsAdminController } from '../taxonomy/tags.admin.controller';
 import { ArticlesController } from '../articles/articles.controller';
 import { ArticlesAdminController } from '../articles/articles.admin.controller';
+import { SkillsController } from '../skills/skills.controller';
+import { SkillsAdminController } from '../skills/skills.admin.controller';
+import { ExperiencesController } from '../experiences/experiences.controller';
+import { ExperiencesAdminController } from '../experiences/experiences.admin.controller';
+import { TestimonialsController } from '../testimonials/testimonials.controller';
+import { TestimonialsAdminController } from '../testimonials/testimonials.admin.controller';
+import { ProjectsController } from '../projects/projects.controller';
+import { ProjectsAdminController } from '../projects/projects.admin.controller';
 import { RolesAdminController } from './roles.admin.controller';
 import { UsersAdminController } from './users.admin.controller';
 import { REQUIRE_PERMISSION_KEY } from './decorators/require-permission.decorator';
@@ -32,6 +40,14 @@ const CONTROLLERS: Type[] = [
   TagsAdminController,
   ArticlesController,
   ArticlesAdminController,
+  SkillsController,
+  SkillsAdminController,
+  ExperiencesController,
+  ExperiencesAdminController,
+  TestimonialsController,
+  TestimonialsAdminController,
+  ProjectsController,
+  ProjectsAdminController,
   RolesAdminController,
   UsersAdminController,
 ];
