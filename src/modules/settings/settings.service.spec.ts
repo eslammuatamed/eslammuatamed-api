@@ -33,6 +33,8 @@ function settingsRow(overrides: Partial<SettingsRow> = {}): SettingsRow {
     ],
     availabilityStatus: 'Open',
     resumeAssetId: null,
+    careerStartYear: null,
+    careerStartMonth: null,
     googleSiteVerification: 'google-token',
     bingSiteVerification: null,
     analyticsProvider: 'ga4',

@@ -19,6 +19,9 @@ import { SettingsModule } from './modules/settings/settings.module';
 import { TaxonomyModule } from './modules/taxonomy/taxonomy.module';
 import { ArticlesModule } from './modules/articles/articles.module';
 import { AccessControlModule } from './modules/access-control/access-control.module';
+import { SkillsModule } from './modules/skills/skills.module';
+import { ExperiencesModule } from './modules/experiences/experiences.module';
+import { TestimonialsModule } from './modules/testimonials/testimonials.module';
 
 @Module({
   imports: [
@@ -43,6 +46,9 @@ import { AccessControlModule } from './modules/access-control/access-control.mod
     TaxonomyModule,
     ArticlesModule,
     AccessControlModule,
+    SkillsModule,
+    ExperiencesModule,
+    TestimonialsModule,
   ],
   providers: [
     // Guards run in registration order: throttle first (applies even to public), then
