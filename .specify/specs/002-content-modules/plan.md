@@ -1,5 +1,7 @@
 # Plan 002 — Content Modules (API)
 
+**Status:** ✅ Shipped 2026-07-16 (released `v0.1.0`/`v0.1.1`, deployed + production-verified). Retained as the executed record.
+
 Architecture is already decided in the governing docs — this plan binds them to the feature.
 Feature 002 is mostly **module build-out on a schema that already exists** (the four content
 entities were defined in the M1 init migration), plus **two additive fields**.

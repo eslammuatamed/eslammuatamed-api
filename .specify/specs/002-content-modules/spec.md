@@ -1,7 +1,7 @@
 # Feature 002 — Content Modules (API)
 
 **Feature Branch:** `002-content-modules`
-**Milestone:** M2 — API Complete (doc 24 §2). **Status:** Draft — revised per owner review 2026-07-16; awaiting final approval.
+**Milestone:** M2 — API Complete (doc 24 §2). **Status:** ✅ **Shipped 2026-07-16** — released `v0.1.0` + `v0.1.1`, deployed to production and verified. Merged: API PR #1 (`77813547`), docs PR #1 (`92713700`).
 **Governing docs:** 02 §3/§4/§5, 04 §5, 07, 08, 09, 10, 15, 16, 18, 19.
 **Requirements carried:** FR-CNT-020 (Projects) + publication control, FR-CNT-030 (Experience) +
 employment type, FR-CNT-040 (Skill), FR-CNT-060 (Testimonial, S), FR-PUB-012/030–033
@@ -133,6 +133,12 @@ Doc-first: revise the docs (decision-log entries + version bumps) **before** the
 
 ## Revisions
 
+- **2026-07-16 (shipped)** — All tasks T1–T12 implemented (Codex-assisted, coordinator-reviewed)
+  and merged (API PR #1, `77813547`) against the doc-first contract (docs PR #1, `92713700`).
+  Released `v0.1.0`, deployed to production; the #2 array-envelope fix released `v0.1.1` and
+  deployed; web contract adoption merged + deployed (web PR #1, `156e11d`). Unit 85 / e2e 40
+  green; production verified; canonical career start set to `2023/11` in prod. Two supervision
+  fixes applied (related-articles ranking → doc 04 §5; non-paginated list envelopes → arrays).
 - **2026-07-16 (rev 2)** — Owner review: added related-articles (A), `Project.isPublished`
   publication control with testimonials reusing `isVisible` (B), month-precision career start
   `careerStartYear`/`careerStartMonth` (C); expanded the doc-first task scope; SpecKit tooling
