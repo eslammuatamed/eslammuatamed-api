@@ -87,7 +87,10 @@
                   ],
                   "properties": {
                     "data": {
-                      "$ref": "#/components/schemas/LocaleEntity"
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/LocaleEntity"
+                      }
                     }
                   }
                 }
@@ -489,7 +492,10 @@
                   ],
                   "properties": {
                     "data": {
-                      "$ref": "#/components/schemas/PublicCategoryEntity"
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PublicCategoryEntity"
+                      }
                     }
                   }
                 }
@@ -880,7 +886,10 @@
                   ],
                   "properties": {
                     "data": {
-                      "$ref": "#/components/schemas/PublicTagEntity"
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PublicTagEntity"
+                      }
                     }
                   }
                 }
