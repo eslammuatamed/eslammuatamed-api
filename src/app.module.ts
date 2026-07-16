@@ -22,6 +22,7 @@ import { AccessControlModule } from './modules/access-control/access-control.mod
 import { SkillsModule } from './modules/skills/skills.module';
 import { ExperiencesModule } from './modules/experiences/experiences.module';
 import { TestimonialsModule } from './modules/testimonials/testimonials.module';
+import { ProjectsModule } from './modules/projects/projects.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { TestimonialsModule } from './modules/testimonials/testimonials.module';
     SkillsModule,
     ExperiencesModule,
     TestimonialsModule,
+    ProjectsModule,
   ],
   providers: [
     // Guards run in registration order: throttle first (applies even to public), then

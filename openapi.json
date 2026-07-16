@@ -3993,6 +3993,621 @@
           "testimonials"
         ]
       }
+    },
+    "/api/v1/projects": {
+      "get": {
+        "operationId": "ProjectsController_list_v1",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "perPage",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "default": 12,
+              "example": 12,
+              "type": "number"
+            }
+          },
+          {
+            "name": "locale",
+            "required": false,
+            "in": "query",
+            "description": "Two-letter locale code, validated against enabled locales.",
+            "schema": {
+              "default": "en",
+              "example": "ar",
+              "type": "string"
+            }
+          },
+          {
+            "name": "technology",
+            "required": false,
+            "in": "query",
+            "description": "Filter to projects linked to this Skill id.",
+            "schema": {
+              "format": "uuid",
+              "example": "0194f9a2-ef2a-7a31-8cb7-369c87f7933a",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Featured-first paginated published projects.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PublicProjectListItemEntity"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMeta"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown or disabled locale.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Malformed query parameters.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "List published projects, resolved and filtered by locale.",
+        "tags": [
+          "projects"
+        ]
+      }
+    },
+    "/api/v1/projects/{slug}": {
+      "get": {
+        "operationId": "ProjectsController_getBySlug_v1",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "example": "content-platform-api",
+              "type": "string"
+            }
+          },
+          {
+            "name": "locale",
+            "required": false,
+            "in": "query",
+            "description": "Two-letter locale code, validated against enabled locales.",
+            "schema": {
+              "default": "en",
+              "example": "ar",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PublicProjectDetailEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown or disabled locale.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No published project with this slug in the locale.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Malformed query parameters.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get a published project by its per-locale slug.",
+        "tags": [
+          "projects"
+        ]
+      }
+    },
+    "/api/v1/admin/projects": {
+      "get": {
+        "operationId": "ProjectsAdminController_list_v1",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "perPage",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "default": 12,
+              "example": 12,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AdminProjectEntity"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMeta"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "List all projects, including unpublished entries.",
+        "tags": [
+          "projects"
+        ]
+      },
+      "post": {
+        "operationId": "ProjectsAdminController_create_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProjectDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminProjectEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error, invalid locale, or slug collision.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Create a project, gallery, and technology links.",
+        "tags": [
+          "projects"
+        ]
+      }
+    },
+    "/api/v1/admin/projects/{id}": {
+      "get": {
+        "operationId": "ProjectsAdminController_get_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminProjectEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Get one project with its full translation map.",
+        "tags": [
+          "projects"
+        ]
+      },
+      "patch": {
+        "operationId": "ProjectsAdminController_update_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProjectDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminProjectEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error, invalid locale, or slug collision.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Update a project and replace provided relation sets.",
+        "tags": [
+          "projects"
+        ]
+      },
+      "delete": {
+        "operationId": "ProjectsAdminController_remove_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Project deleted."
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "tags": [
+          "projects"
+        ]
+      }
     }
   },
   "info": {
@@ -6248,6 +6863,718 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/TestimonialTranslationDto"
+            }
+          }
+        }
+      },
+      "ProjectTechnologyEntity": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "label": {
+            "type": "string",
+            "example": "NestJS"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ]
+      },
+      "PublicProjectListItemEntity": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "slug": {
+            "type": "string",
+            "example": "content-platform-api"
+          },
+          "title": {
+            "type": "string",
+            "example": "Content platform API"
+          },
+          "summary": {
+            "type": "string",
+            "example": "A multilingual publishing platform."
+          },
+          "featured": {
+            "type": "boolean",
+            "example": true
+          },
+          "year": {
+            "type": "number",
+            "nullable": true,
+            "example": 2026
+          },
+          "technologies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectTechnologyEntity"
+            }
+          },
+          "availableLocales": {
+            "example": [
+              "en",
+              "ar"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "title",
+          "summary",
+          "featured",
+          "year",
+          "technologies",
+          "availableLocales"
+        ]
+      },
+      "PublicProjectGalleryItemEntity": {
+        "type": "object",
+        "properties": {
+          "mediaAssetId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "order": {
+            "type": "number",
+            "example": 0
+          },
+          "caption": {
+            "type": "string",
+            "nullable": true,
+            "example": "Dashboard overview."
+          }
+        },
+        "required": [
+          "mediaAssetId",
+          "order",
+          "caption"
+        ]
+      },
+      "PublicProjectDetailEntity": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "slug": {
+            "type": "string",
+            "example": "content-platform-api"
+          },
+          "title": {
+            "type": "string",
+            "example": "Content platform API"
+          },
+          "summary": {
+            "type": "string",
+            "example": "A multilingual publishing platform."
+          },
+          "featured": {
+            "type": "boolean",
+            "example": true
+          },
+          "year": {
+            "type": "number",
+            "nullable": true,
+            "example": 2026
+          },
+          "technologies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectTechnologyEntity"
+            }
+          },
+          "availableLocales": {
+            "example": [
+              "en",
+              "ar"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "slugs": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "example": {
+              "en": "content-platform-api",
+              "ar": "content-platform-api-ar"
+            },
+            "description": "Locale code to that locale’s project slug."
+          },
+          "liveUrl": {
+            "type": "string",
+            "nullable": true,
+            "format": "uri"
+          },
+          "repoUrl": {
+            "type": "string",
+            "nullable": true,
+            "format": "uri"
+          },
+          "overview": {
+            "type": "string",
+            "description": "Opaque Markdown."
+          },
+          "businessProblem": {
+            "type": "string",
+            "description": "Opaque Markdown."
+          },
+          "solution": {
+            "type": "string",
+            "description": "Opaque Markdown."
+          },
+          "role": {
+            "type": "string",
+            "description": "Opaque Markdown."
+          },
+          "architecture": {
+            "type": "string",
+            "description": "Opaque Markdown."
+          },
+          "challenges": {
+            "type": "string",
+            "description": "Opaque Markdown."
+          },
+          "features": {
+            "type": "string",
+            "description": "Opaque Markdown."
+          },
+          "lessonsLearned": {
+            "type": "string",
+            "description": "Opaque Markdown."
+          },
+          "gallery": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicProjectGalleryItemEntity"
+            }
+          },
+          "metaTitle": {
+            "type": "string",
+            "nullable": true
+          },
+          "metaDescription": {
+            "type": "string",
+            "nullable": true
+          },
+          "ogImageId": {
+            "type": "string",
+            "nullable": true,
+            "format": "uuid"
+          },
+          "canonicalUrl": {
+            "type": "string",
+            "nullable": true,
+            "format": "uri"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "title",
+          "summary",
+          "featured",
+          "year",
+          "technologies",
+          "availableLocales",
+          "slugs",
+          "liveUrl",
+          "repoUrl",
+          "overview",
+          "businessProblem",
+          "solution",
+          "role",
+          "architecture",
+          "challenges",
+          "features",
+          "lessonsLearned",
+          "gallery",
+          "metaTitle",
+          "metaDescription",
+          "ogImageId",
+          "canonicalUrl"
+        ]
+      },
+      "AdminProjectTranslationEntity": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string",
+            "description": "Opaque Markdown."
+          },
+          "overview": {
+            "type": "string",
+            "description": "Opaque Markdown."
+          },
+          "businessProblem": {
+            "type": "string",
+            "description": "Opaque Markdown."
+          },
+          "solution": {
+            "type": "string",
+            "description": "Opaque Markdown."
+          },
+          "role": {
+            "type": "string",
+            "description": "Opaque Markdown."
+          },
+          "architecture": {
+            "type": "string",
+            "description": "Opaque Markdown."
+          },
+          "challenges": {
+            "type": "string",
+            "description": "Opaque Markdown."
+          },
+          "features": {
+            "type": "string",
+            "description": "Opaque Markdown."
+          },
+          "lessonsLearned": {
+            "type": "string",
+            "description": "Opaque Markdown."
+          },
+          "metaTitle": {
+            "type": "string",
+            "nullable": true
+          },
+          "metaDescription": {
+            "type": "string",
+            "nullable": true
+          },
+          "ogImageId": {
+            "type": "string",
+            "nullable": true,
+            "format": "uuid"
+          },
+          "canonicalUrl": {
+            "type": "string",
+            "nullable": true,
+            "format": "uri"
+          }
+        },
+        "required": [
+          "title",
+          "slug",
+          "summary",
+          "overview",
+          "businessProblem",
+          "solution",
+          "role",
+          "architecture",
+          "challenges",
+          "features",
+          "lessonsLearned",
+          "metaTitle",
+          "metaDescription",
+          "ogImageId",
+          "canonicalUrl"
+        ]
+      },
+      "AdminProjectGalleryTranslationEntity": {
+        "type": "object",
+        "properties": {
+          "caption": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "caption"
+        ]
+      },
+      "AdminProjectGalleryItemEntity": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "mediaAssetId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "order": {
+            "type": "number",
+            "example": 0
+          },
+          "translations": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/AdminProjectGalleryTranslationEntity"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "mediaAssetId",
+          "order",
+          "translations"
+        ]
+      },
+      "AdminProjectEntity": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "featured": {
+            "type": "boolean",
+            "example": true
+          },
+          "isPublished": {
+            "type": "boolean",
+            "example": false
+          },
+          "order": {
+            "type": "number",
+            "example": 0
+          },
+          "liveUrl": {
+            "type": "string",
+            "nullable": true,
+            "format": "uri"
+          },
+          "repoUrl": {
+            "type": "string",
+            "nullable": true,
+            "format": "uri"
+          },
+          "year": {
+            "type": "number",
+            "nullable": true,
+            "example": 2026
+          },
+          "technologyIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "gallery": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminProjectGalleryItemEntity"
+            }
+          },
+          "translations": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/AdminProjectTranslationEntity"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "featured",
+          "isPublished",
+          "order",
+          "liveUrl",
+          "repoUrl",
+          "year",
+          "technologyIds",
+          "gallery",
+          "translations",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "ProjectTranslationDto": {
+        "type": "object",
+        "properties": {
+          "locale": {
+            "type": "string",
+            "example": "en",
+            "description": "Enabled two-letter locale."
+          },
+          "title": {
+            "type": "string",
+            "example": "Content platform API"
+          },
+          "slug": {
+            "type": "string",
+            "example": "content-platform-api"
+          },
+          "summary": {
+            "type": "string",
+            "example": "A multilingual content platform built for reliable publishing.",
+            "description": "Opaque Markdown."
+          },
+          "overview": {
+            "type": "string",
+            "example": "## Overview\n\nThe platform…",
+            "description": "Opaque Markdown."
+          },
+          "businessProblem": {
+            "type": "string",
+            "example": "## Problem\n\nPublishing was fragmented.",
+            "description": "Opaque Markdown."
+          },
+          "solution": {
+            "type": "string",
+            "example": "## Solution\n\nA modular monolith.",
+            "description": "Opaque Markdown."
+          },
+          "role": {
+            "type": "string",
+            "example": "## Role\n\nBackend lead.",
+            "description": "Opaque Markdown."
+          },
+          "architecture": {
+            "type": "string",
+            "example": "## Architecture\n\nNestJS and PostgreSQL.",
+            "description": "Opaque Markdown."
+          },
+          "challenges": {
+            "type": "string",
+            "example": "## Challenges\n\nLocale-aware routing.",
+            "description": "Opaque Markdown."
+          },
+          "features": {
+            "type": "string",
+            "example": "## Features\n\n- Publishing\n- RBAC",
+            "description": "Opaque Markdown."
+          },
+          "lessonsLearned": {
+            "type": "string",
+            "example": "## Lessons\n\nKeep module seams explicit.",
+            "description": "Opaque Markdown."
+          },
+          "metaTitle": {
+            "type": "string",
+            "example": "Content platform API case study"
+          },
+          "metaDescription": {
+            "type": "string",
+            "example": "How the multilingual platform was built."
+          },
+          "ogImageId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0194f9a2-ef2a-7a31-8cb7-369c87f7933a"
+          },
+          "canonicalUrl": {
+            "type": "string",
+            "format": "uri",
+            "example": "https://eslammuatamed.com/projects/content-platform-api"
+          }
+        },
+        "required": [
+          "locale",
+          "title",
+          "slug",
+          "summary",
+          "overview",
+          "businessProblem",
+          "solution",
+          "role",
+          "architecture",
+          "challenges",
+          "features",
+          "lessonsLearned"
+        ]
+      },
+      "ProjectGalleryCaptionDto": {
+        "type": "object",
+        "properties": {
+          "caption": {
+            "type": "object",
+            "nullable": true,
+            "example": "Admin dashboard overview."
+          }
+        }
+      },
+      "ProjectGalleryItemDto": {
+        "type": "object",
+        "properties": {
+          "mediaAssetId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0194f9a2-ef2a-7a31-8cb7-369c87f7933a"
+          },
+          "order": {
+            "type": "number",
+            "example": 0,
+            "minimum": 0
+          },
+          "translations": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ProjectGalleryCaptionDto"
+            },
+            "example": {
+              "en": {
+                "caption": "Dashboard overview."
+              }
+            }
+          }
+        },
+        "required": [
+          "mediaAssetId",
+          "order",
+          "translations"
+        ]
+      },
+      "CreateProjectDto": {
+        "type": "object",
+        "properties": {
+          "featured": {
+            "type": "boolean",
+            "example": true
+          },
+          "isPublished": {
+            "type": "boolean",
+            "default": false,
+            "example": false
+          },
+          "order": {
+            "type": "number",
+            "example": 0,
+            "minimum": 0
+          },
+          "liveUrl": {
+            "type": "object",
+            "nullable": true,
+            "format": "uri",
+            "example": "https://example.com"
+          },
+          "repoUrl": {
+            "type": "object",
+            "nullable": true,
+            "format": "uri",
+            "example": "https://github.com/eslammuatamed/example"
+          },
+          "year": {
+            "type": "object",
+            "nullable": true,
+            "example": 2026,
+            "minimum": 0
+          },
+          "translations": {
+            "description": "At least one complete project translation.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectTranslationDto"
+            }
+          },
+          "technologyIds": {
+            "example": [
+              "0194f9a2-ef2a-7a31-8cb7-369c87f7933a"
+            ],
+            "description": "Skill ids; the project technology set is replaced on update.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "gallery": {
+            "description": "Ordered gallery; the set is replaced on update.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectGalleryItemDto"
+            }
+          }
+        },
+        "required": [
+          "featured",
+          "order",
+          "translations",
+          "technologyIds",
+          "gallery"
+        ]
+      },
+      "UpdateProjectDto": {
+        "type": "object",
+        "properties": {
+          "featured": {
+            "type": "boolean",
+            "example": true
+          },
+          "isPublished": {
+            "type": "boolean",
+            "default": false,
+            "example": false
+          },
+          "order": {
+            "type": "number",
+            "example": 0,
+            "minimum": 0
+          },
+          "liveUrl": {
+            "type": "object",
+            "nullable": true,
+            "format": "uri",
+            "example": "https://example.com"
+          },
+          "repoUrl": {
+            "type": "object",
+            "nullable": true,
+            "format": "uri",
+            "example": "https://github.com/eslammuatamed/example"
+          },
+          "year": {
+            "type": "object",
+            "nullable": true,
+            "example": 2026,
+            "minimum": 0
+          },
+          "translations": {
+            "description": "At least one complete project translation.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectTranslationDto"
+            }
+          },
+          "technologyIds": {
+            "example": [
+              "0194f9a2-ef2a-7a31-8cb7-369c87f7933a"
+            ],
+            "description": "Skill ids; the project technology set is replaced on update.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "gallery": {
+            "description": "Ordered gallery; the set is replaced on update.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectGalleryItemDto"
             }
           }
         }
