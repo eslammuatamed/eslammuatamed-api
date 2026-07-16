@@ -13,7 +13,10 @@ export class LocalesController {
   @Get()
   @Public()
   @ApiOperation({ summary: 'List enabled content locales.' })
-  @ApiOkEnvelope(LocaleEntity, { description: 'Enabled locales, ordered.' })
+  @ApiOkEnvelope(LocaleEntity, {
+    description: 'Enabled locales, ordered.',
+    isArray: true,
+  })
   list(): Promise<LocaleEntity[]> {
     return this.localesService.listEnabled();
   }

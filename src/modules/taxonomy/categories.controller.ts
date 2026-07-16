@@ -19,6 +19,7 @@ export class CategoriesController {
   })
   @ApiOkEnvelope(PublicCategoryEntity, {
     description: 'Categories in the requested locale.',
+    isArray: true,
   })
   @ApiPublicReadErrorResponses()
   list(@Query() query: LocaleQueryDto): Promise<PublicCategoryEntity[]> {

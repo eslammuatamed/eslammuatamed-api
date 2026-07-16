@@ -17,6 +17,7 @@ export class TagsController {
   @ApiOperation({ summary: 'List tags resolved to the requested locale.' })
   @ApiOkEnvelope(PublicTagEntity, {
     description: 'Tags in the requested locale.',
+    isArray: true,
   })
   @ApiPublicReadErrorResponses()
   list(@Query() query: LocaleQueryDto): Promise<PublicTagEntity[]> {
