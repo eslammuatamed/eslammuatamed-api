@@ -63,7 +63,7 @@
 |---|---|
 | `@nestjs/common` · `@nestjs/core` · `@nestjs/platform-express` | نواة إطار `NestJS` + محوّل `Express` (الـ HTTP adapter) |
 | `@nestjs/config` | تحميل الإعدادات مع تحقّق class-validator عند الإقلاع (الوحدة `config`) |
-| `@nestjs/jwt` | `JwtService` لتوقيع/التحقّق من access token — حارس قائم على `JwtService` لا على `passport` (`principle 16`) |
+| `@nestjs/jwt` | `JwtService` لتوقيع/التحقّق من access token مباشرةً (وفق توثيق مصادقة `NestJS`؛ `Passport` بديل اختياري غير مستخدَم) |
 | `@nestjs/swagger` | توليد مستند `OpenAPI` — هو **العقد الرسمي** |
 | `@nestjs/throttler` | تحديد المعدّل (rate limiting) بطبقات لكل نوع مسار |
 | `@nestjs/schedule` | cron داخل العملية: نشر المقالات المجدولة كل دقيقة |
@@ -220,7 +220,7 @@ npm run test:e2e         # يحتاج PostgreSQL (Supertest + jest-openapi)
 
 - **Documentation First (`principle 1`):** لا كود لقدرة قبل اعتماد وثيقتها الحاكمة؛ الكود لا يسبق الوثائق صامتًا.
 - **API First (`principle 3`):** العقد يُصمَّم قبل تنفيذه.
-- **Official Documentation Over Habit (`principle 16`, `D00-6`):** الكود يتبع **التوثيق الرسمي الحالي** للأداة؛ نمط تجاوزه التوثيق = عيب حتى لو عمل (المثال المذكور صراحةً: `passport-jwt` حيث يعلّم التوثيق الحالي حارس `JwtService`).
+- **Official Documentation Over Habit (`principle 16`, `D00-6`):** الكود يتبع **التوثيق الرسمي الحالي** للأداة؛ نمط تجاوزه التوثيق = عيب حتى لو عمل. (مثال المشروع: التحقّق من الـ JWT مباشرةً بـ `JwtService` وفق توثيق مصادقة `NestJS` — وهو نمط مدعوم رسميًّا — دون طبقة `Passport` الاختيارية التي لا يحتاجها المشروع.)
 - **Reasoned Dissent Before Assent (`principle 17`, `D00-7`):** الاعتراض المُبرَّر بأدلّة يُطرح قبل التنفيذ؛ ثم قرار المالك يُنفَّذ ويُسجَّل الخلاف الجوهري.
 
 ## 13. ملخّص مراجعة التوافق (Compatibility Review)
@@ -229,10 +229,10 @@ npm run test:e2e         # يحتاج PostgreSQL (Supertest + jest-openapi)
 
 | النمط | الملفات الأساسية | التصنيف | المرجع الرسمي والحاكم |
 |---|---|---|---|
-| حارس مصادقة قائم على `JwtService` (لا `passport-jwt`) | `common/guards/jwt-auth.guard.ts`, `modules/auth/*` | `Compatible` + انحراف مقصود عن عادة `passport` | [NestJS Authentication](https://docs.nestjs.com/security/authentication) · `principle 16`/`D00-6` |
+| تحقّق مباشر من الـ JWT بـ `JwtService` (`Passport` بديل اختياري غير مستخدَم) | `common/guards/jwt-auth.guard.ts`, `modules/auth/*` | `Compatible` (مدعوم رسميًّا؛ ليس انحرافًا) | [NestJS Authentication](https://docs.nestjs.com/security/authentication) · القرار `D00-6` |
 | تجزئة `argon2id` (64 MiB/t=3/p=4) | `modules/auth/hashing/*` | `Compatible` (يفي/يفوق حدّ OWASP الأدنى لـ Argon2id) | [OWASP Password Storage](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html) · `D19-1` |
 | حقن `PrismaService` مباشرة، بلا repository | كل `*.service.ts` | `Compatible` (وصفة NestJS+Prisma الرسمية تحقنه مباشرة) | [NestJS Prisma recipe](https://docs.nestjs.com/recipes/prisma) · `D07-2`/`D00-3` |
-| اتصال `Prisma` كسول (بلا `$connect` عند الإقلاع) | `prisma/prisma.service.ts` | `Intentional documented deviation` عن نمط `$connect` المُبكّر الشائع (والاتصال الكسول نفسه متّسق مع إرشاد `Prisma`) | `constitution rule 4` (تصدير العقد بلا DB) |
+| اتصال `Prisma` كسول (بلا `$connect` عند الإقلاع) | `prisma/prisma.service.ts` | `Compatible` (`Prisma` يدعم الاتصال الكسول أصلًا؛ ويحقّق `constitution rule 4`، لا يخالفها) | [Prisma connection management](https://www.prisma.io/docs/orm/prisma-client/setup-and-configuration/databases-connections/connection-management) · `constitution rule 4` |
 | `ValidationPipe` عام (whitelist + forbid + transform) | `main.ts`, كل `dto/*` | `Compatible` | [NestJS Validation](https://docs.nestjs.com/techniques/validation) |
 | أخطاء `RFC 7807` عبر exception filter عام | `common/filters/*`, `common/http/*` | `Compatible` | [RFC 7807](https://datatracker.ietf.org/doc/html/rfc7807) · [NestJS Exception filters](https://docs.nestjs.com/exception-filters) |
 | حرّاس عامّون عبر `APP_GUARD` + `@Public()` بالـ metadata | `app.module.ts`, `common/decorators/*` | `Compatible` | [NestJS Guards](https://docs.nestjs.com/guards) |
