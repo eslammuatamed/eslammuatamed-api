@@ -1,4 +1,5 @@
 import { ApiExtraModels, ApiProperty, getSchemaPath } from '@nestjs/swagger';
+import { PublicMediaImageDescriptor } from '../../media/entities/media-descriptor.entity';
 
 export class ProjectTechnologyEntity {
   @ApiProperty({ format: 'uuid' })
@@ -37,6 +38,12 @@ export class PublicProjectListItemEntity {
 export class PublicProjectGalleryItemEntity {
   @ApiProperty({ format: 'uuid' })
   readonly mediaAssetId!: string;
+
+  @ApiProperty({
+    type: PublicMediaImageDescriptor,
+    description: 'Resolved gallery image.',
+  })
+  readonly mediaAsset!: PublicMediaImageDescriptor;
 
   @ApiProperty({ example: 0 })
   readonly order!: number;
@@ -95,6 +102,13 @@ export class PublicProjectDetailEntity extends PublicProjectListItemEntity {
 
   @ApiProperty({ type: String, nullable: true, format: 'uuid' })
   readonly ogImageId!: string | null;
+
+  @ApiProperty({
+    type: PublicMediaImageDescriptor,
+    nullable: true,
+    description: 'Resolved OG image (null when none is set).',
+  })
+  readonly ogImage!: PublicMediaImageDescriptor | null;
 
   @ApiProperty({ type: String, nullable: true, format: 'uri' })
   readonly canonicalUrl!: string | null;

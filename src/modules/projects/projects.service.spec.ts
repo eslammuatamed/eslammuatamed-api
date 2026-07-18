@@ -2,10 +2,64 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { MediaKind, MediaVariantFormat } from '@prisma/client';
 import { DeepMockProxy, mockDeep } from 'jest-mock-extended';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocalesService } from '../locales/locales.service';
+import { MediaDescriptorResolver } from '../media/media-descriptor.resolver';
+import { StorageAdapter } from '../media/storage/storage-adapter.interface';
 import { ProjectsService } from './projects.service';
+
+const storage = {
+  put: jest.fn(),
+  delete: jest.fn(),
+  deleteMany: jest.fn(),
+  publicUrl: (key: string) => `https://media.test/${key}`,
+} as unknown as StorageAdapter;
+
+// A loaded image MediaAsset (variants + alts) for gallery / OG descriptor tests.
+const imageAsset = (
+  id: string,
+  alts: { locale: string; alt: string }[] = [],
+): Record<string, unknown> => {
+  const now = new Date('2026-07-16T00:00:00.000Z');
+  return {
+    id,
+    kind: MediaKind.IMAGE,
+    storageKey: `media/${id}/master.webp`,
+    originalFilename: 'x.jpg',
+    mimeType: 'image/webp',
+    sizeBytes: 1000,
+    contentHash: id,
+    width: 1600,
+    height: 900,
+    blurhash: 'BH',
+    createdAt: now,
+    updatedAt: now,
+    variants: [
+      {
+        id: `${id}-w`,
+        mediaAssetId: id,
+        format: MediaVariantFormat.WEBP,
+        width: 1280,
+        height: 720,
+        storageKey: `media/${id}/1280-webp.webp`,
+        sizeBytes: 900,
+        overBudget: false,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ],
+    alts: alts.map((entry, index) => ({
+      id: `${id}-alt${index}`,
+      mediaAssetId: id,
+      locale: entry.locale,
+      alt: entry.alt,
+      createdAt: now,
+      updatedAt: now,
+    })),
+  };
+};
 
 function projectPayload(isPublished: boolean) {
   const now = new Date('2026-07-16T00:00:00.000Z');
@@ -94,6 +148,9 @@ function projectPayload(isPublished: boolean) {
         id: 'gallery-1',
         projectId: 'project-1',
         mediaAssetId: 'media-1',
+        mediaAsset: imageAsset('media-1', [
+          { locale: 'en', alt: 'Dashboard shot' },
+        ]),
         order: 1,
         createdAt: now,
         updatedAt: now,
@@ -143,7 +200,11 @@ describe('ProjectsService', () => {
   beforeEach(() => {
     prisma = mockDeep<PrismaService>();
     locales = mockDeep<LocalesService>();
-    service = new ProjectsService(prisma, locales);
+    service = new ProjectsService(
+      prisma,
+      locales,
+      new MediaDescriptorResolver(storage),
+    );
   });
 
   describe('listPublic', () => {
@@ -235,6 +296,21 @@ describe('ProjectsService', () => {
   });
 
   describe('getPublicBySlug', () => {
+    const publishedWithOg = (): never => {
+      const base = projectPayload(true);
+      return {
+        ...base,
+        translations: base.translations.map((translation) => ({
+          ...translation,
+          ogImageId: translation.locale === 'en' ? 'og-1' : null,
+          ogImage:
+            translation.locale === 'en'
+              ? imageAsset('og-1', [{ locale: 'en', alt: 'OG alt' }])
+              : null,
+        })),
+      } as never;
+    };
+
     it('returns 404 for an unpublished project slug', async () => {
       prisma.projectTranslation.findUnique.mockResolvedValue({
         project: projectPayload(false),
@@ -243,6 +319,60 @@ describe('ProjectsService', () => {
       await expect(
         service.getPublicBySlug('english-project', 'en'),
       ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('resolves gallery + OG descriptors, retains ids, and issues no per-item media query', async () => {
+      prisma.projectTranslation.findUnique.mockResolvedValue({
+        project: publishedWithOg(),
+      } as never);
+
+      const result = await service.getPublicBySlug('english-project', 'en');
+
+      expect(result.gallery[0]?.mediaAssetId).toBe('media-1');
+      expect(result.gallery[0]?.mediaAsset).toEqual({
+        id: 'media-1',
+        kind: MediaKind.IMAGE,
+        url: 'https://media.test/media/media-1/1280-webp.webp',
+        width: 1600,
+        height: 900,
+        blurhash: 'BH',
+        alt: 'Dashboard shot',
+        variants: [
+          {
+            format: MediaVariantFormat.WEBP,
+            width: 1280,
+            height: 720,
+            url: 'https://media.test/media/media-1/1280-webp.webp',
+          },
+        ],
+      });
+      expect(result.ogImageId).toBe('og-1');
+      expect(result.ogImage?.url).toBe(
+        'https://media.test/media/og-1/1280-webp.webp',
+      );
+      // No N+1 — gallery + OG came from the single project query.
+      expect(prisma.mediaAsset.findUnique).not.toHaveBeenCalled();
+      expect(prisma.mediaAsset.findMany).not.toHaveBeenCalled();
+    });
+
+    it('returns ogImage: null when the translation has no OG', async () => {
+      prisma.projectTranslation.findUnique.mockResolvedValue({
+        project: projectPayload(true),
+      } as never);
+
+      const result = await service.getPublicBySlug('english-project', 'en');
+      expect(result.ogImageId).toBeNull();
+      expect(result.ogImage).toBeNull();
+    });
+
+    it('resolves a gallery alt to null for a missing locale (no cross-locale fallback)', async () => {
+      prisma.projectTranslation.findUnique.mockResolvedValue({
+        project: projectPayload(true),
+      } as never);
+
+      // Detail resolved to 'ar'; the gallery image has only an 'en' alt row.
+      const result = await service.getPublicBySlug('arabic-project', 'ar');
+      expect(result.gallery[0]?.mediaAsset.alt).toBeNull();
     });
   });
 

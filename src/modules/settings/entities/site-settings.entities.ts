@@ -4,6 +4,7 @@ import {
   ApiPropertyOptional,
   getSchemaPath,
 } from '@nestjs/swagger';
+import { PublicMediaPdfDescriptor } from '../../media/entities/media-descriptor.entity';
 
 // Profile link JSON payload (doc 09 SiteSettings.profileLinks). Stored opaque as JSONB; the
 // shape is enforced on write by ProfileLinkDto.
@@ -117,6 +118,14 @@ export class PublicSiteSettingsEntity {
 
   @ApiProperty({ type: [CustomMetaEntity] })
   readonly customMetas!: CustomMetaEntity[];
+
+  @ApiProperty({
+    type: PublicMediaPdfDescriptor,
+    nullable: true,
+    description:
+      'Resolved résumé PDF descriptor (FR-PUB-023); null when no résumé is configured. The bare asset id stays admin-only.',
+  })
+  readonly resumeAsset!: PublicMediaPdfDescriptor | null;
 
   @ApiProperty({
     type: [String],

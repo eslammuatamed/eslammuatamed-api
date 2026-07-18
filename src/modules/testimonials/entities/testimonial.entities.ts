@@ -1,9 +1,16 @@
 import { ApiExtraModels, ApiProperty, getSchemaPath } from '@nestjs/swagger';
+import { PublicMediaImageDescriptor } from '../../media/entities/media-descriptor.entity';
 
 export class PublicTestimonialEntity {
   @ApiProperty({ format: 'uuid' }) readonly id!: string;
   @ApiProperty({ type: String, nullable: true, format: 'uuid' })
   readonly avatarId!: string | null;
+  @ApiProperty({
+    type: PublicMediaImageDescriptor,
+    nullable: true,
+    description: 'Resolved avatar image (null when no avatar is set).',
+  })
+  readonly avatar!: PublicMediaImageDescriptor | null;
   @ApiProperty() readonly order!: number;
   @ApiProperty() readonly quote!: string;
   @ApiProperty() readonly authorName!: string;

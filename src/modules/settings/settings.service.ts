@@ -3,14 +3,10 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import {
-  MediaKind,
-  Prisma,
-  SiteSettings,
-  SiteSettingsTranslation,
-} from '@prisma/client';
+import { MediaKind, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocalesService } from '../locales/locales.service';
+import { MediaDescriptorResolver } from '../media/media-descriptor.resolver';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
 import {
   AdminSiteSettingsEntity,
@@ -20,15 +16,18 @@ import {
   SiteSettingsTranslationEntity,
 } from './entities/site-settings.entities';
 
-type SettingsWithTranslations = SiteSettings & {
-  translations: SiteSettingsTranslation[];
-};
+// The resume asset loads with the singleton so the public PDF descriptor resolves in the same
+// query (no N+1). It is a PDF, so no variants/alts are needed.
+type SettingsWithTranslations = Prisma.SiteSettingsGetPayload<{
+  include: { translations: true; resumeAsset: true };
+}>;
 
 @Injectable()
 export class SettingsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly locales: LocalesService,
+    private readonly mediaDescriptors: MediaDescriptorResolver,
   ) {}
 
   // Public resolved read (D10-6): translatable fields flattened to the requested locale, no
@@ -61,6 +60,12 @@ export class SettingsService {
             }
           : null,
       customMetas: toCustomMetas(settings.customMetas),
+      // Public résumé descriptor (FR-PUB-023): the download URL/filename/size only — never the bare
+      // asset id. The FK is PDF-guarded on write (T6); the kind check here is defence in depth.
+      resumeAsset:
+        settings.resumeAsset && settings.resumeAsset.kind === MediaKind.PDF
+          ? this.mediaDescriptors.resolvePdf(settings.resumeAsset)
+          : null,
       availableLocales: settings.translations.map((t) => t.locale).sort(),
     };
   }
@@ -153,7 +158,7 @@ export class SettingsService {
 
   private async loadSingletonOrThrow(): Promise<SettingsWithTranslations> {
     const settings = await this.prisma.siteSettings.findFirst({
-      include: { translations: true },
+      include: { translations: true, resumeAsset: true },
     });
     if (!settings) {
       throw new NotFoundException('Site settings have not been initialized.');

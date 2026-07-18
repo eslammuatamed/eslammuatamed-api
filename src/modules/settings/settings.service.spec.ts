@@ -3,6 +3,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import {
+  MediaAsset,
   MediaKind,
   SiteSettings,
   SiteSettingsTranslation,
@@ -10,9 +11,36 @@ import {
 import { DeepMockProxy, mockDeep } from 'jest-mock-extended';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocalesService } from '../locales/locales.service';
+import { MediaDescriptorResolver } from '../media/media-descriptor.resolver';
+import { StorageAdapter } from '../media/storage/storage-adapter.interface';
 import { SettingsService } from './settings.service';
 
-type SettingsRow = SiteSettings & { translations: SiteSettingsTranslation[] };
+const storage = {
+  put: jest.fn(),
+  delete: jest.fn(),
+  deleteMany: jest.fn(),
+  publicUrl: (key: string) => `https://media.test/${key}`,
+} as unknown as StorageAdapter;
+
+const pdfAsset = (): MediaAsset => ({
+  id: 'resume-1',
+  kind: MediaKind.PDF,
+  storageKey: 'media/resume-1/document.pdf',
+  originalFilename: 'eslam-muatamed-resume.pdf',
+  mimeType: 'application/pdf',
+  sizeBytes: 90_000,
+  contentHash: 'h',
+  width: null,
+  height: null,
+  blurhash: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+});
+
+type SettingsRow = SiteSettings & {
+  translations: SiteSettingsTranslation[];
+  resumeAsset: MediaAsset | null;
+};
 
 function translation(
   locale: string,
@@ -51,6 +79,7 @@ function settingsRow(overrides: Partial<SettingsRow> = {}): SettingsRow {
     createdAt: new Date(),
     updatedAt: new Date(),
     translations: [translation('en'), translation('ar')],
+    resumeAsset: null,
     ...overrides,
   };
 }
@@ -63,7 +92,11 @@ describe('SettingsService', () => {
   beforeEach(() => {
     prisma = mockDeep<PrismaService>();
     locales = mockDeep<LocalesService>();
-    service = new SettingsService(prisma, locales);
+    service = new SettingsService(
+      prisma,
+      locales,
+      new MediaDescriptorResolver(storage),
+    );
   });
 
   describe('getPublicSettings', () => {
@@ -113,6 +146,78 @@ describe('SettingsService', () => {
       await expect(service.getPublicSettings('zz')).rejects.toBeInstanceOf(
         BadRequestException,
       );
+    });
+  });
+
+  describe('getPublicSettings — résumé descriptor (T7, FR-PUB-023)', () => {
+    it('returns resumeAsset: null when no résumé is configured', async () => {
+      prisma.siteSettings.findFirst.mockResolvedValue(settingsRow());
+      const result = await service.getPublicSettings('en');
+      expect(result.resumeAsset).toBeNull();
+    });
+
+    it('resolves the résumé PDF descriptor (public URL + sanitized filename + size only)', async () => {
+      prisma.siteSettings.findFirst.mockResolvedValue(
+        settingsRow({ resumeAssetId: 'resume-1', resumeAsset: pdfAsset() }),
+      );
+
+      const result = await service.getPublicSettings('en');
+
+      expect(result.resumeAsset).toEqual({
+        id: 'resume-1',
+        kind: MediaKind.PDF,
+        url: 'https://media.test/media/resume-1/document.pdf',
+        filename: 'eslam-muatamed-resume.pdf',
+        sizeBytes: 90_000,
+      });
+    });
+
+    it('never exposes the bare resumeAssetId or any image/internal metadata', async () => {
+      prisma.siteSettings.findFirst.mockResolvedValue(
+        settingsRow({ resumeAssetId: 'resume-1', resumeAsset: pdfAsset() }),
+      );
+
+      const result = await service.getPublicSettings('en');
+
+      // The bare id stays admin-only — not on the public response.
+      expect('resumeAssetId' in result).toBe(false);
+      // The descriptor exposes only the approved fields.
+      expect(Object.keys(result.resumeAsset ?? {}).sort()).toEqual([
+        'filename',
+        'id',
+        'kind',
+        'sizeBytes',
+        'url',
+      ]);
+      const serialized = JSON.stringify(result.resumeAsset);
+      for (const forbidden of [
+        'variants',
+        'width',
+        'height',
+        'blurhash',
+        'storageKey',
+        'contentHash',
+      ]) {
+        expect(serialized).not.toContain(forbidden);
+      }
+    });
+
+    it('leaves the existing public settings fields unchanged', async () => {
+      prisma.siteSettings.findFirst.mockResolvedValue(
+        settingsRow({
+          careerStartYear: 2023,
+          careerStartMonth: 5,
+          resumeAssetId: 'resume-1',
+          resumeAsset: pdfAsset(),
+        }),
+      );
+
+      const result = await service.getPublicSettings('en');
+
+      expect(result.availabilityStatus).toBe('Open');
+      expect(result.careerStartYear).toBe(2023);
+      expect(result.careerStartMonth).toBe(5);
+      expect(result.availableLocales).toEqual(['ar', 'en']);
     });
   });
 
