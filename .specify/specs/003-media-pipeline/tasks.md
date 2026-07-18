@@ -5,7 +5,7 @@ off only with its verification done. `[P]` = parallelizable with siblings. **Tas
 the owner approves the spec + plan** (Q1–Q4 resolved 2026-07-18). Dependency spine:
 **T1 → T2 → T3 → {T4, T5} → T6 → T7 → T8 → T9 → T10 → T11** (T4/T5 parallel after T3; T6 needs both).
 
-- [ ] T1 — Doc-first revisions (docs repo; doc 01 principle 1) **[gate]** — *staged, awaiting review*
+- [x] T1 — Doc-first revisions (docs repo; doc 01 principle 1) **[gate]** — done: docs 2623b15, pushed as PR #2
   - `eslammuatamed-docs` on branch `003-media-pipeline`: **doc 02** v1.4.0 (FR-DSH-030–034, D02-7),
     **doc 07** v1.1.0 (§6 rewrite, D07-6), **doc 09** v1.4.0 (`MediaAsset` reconcile + `MediaAssetVariant`
     + enums, D09-11/12/13), **doc 10** v1.3.0 (media endpoints + descriptor contract, D10-10), **doc 19**
@@ -13,12 +13,12 @@ the owner approves the spec + plan** (Q1–Q4 resolved 2026-07-18). Dependency s
     with decision-log entries + version bumps. Roadmap untouched; no handoff/memory file.
   - **Verify:** docs committed with decision IDs + version bumps **before** any API code lands. (Diffs
     are staged now; commit on owner approval.)
-- [ ] T2 — Dependencies (doc 16 §4 gate)
+- [x] T2 — Dependencies (doc 16 §4 gate) — done: e828ebd
   - Add `sharp`, `@aws-sdk/client-s3`, `blurhash` (runtime) and `@types/multer` (dev). `multer` +
     `file-type` already present transitively; `file-type` used only via the framework validator.
   - **Verify:** lockfile committed; `npm audit --audit-level=high` clean; `contract:export` still
     DB-free; `sharp` loads on a linux/x64/glibc build (deploy-target match — plan Verification).
-- [ ] T3 — Schema + migration (doc 09, D09-11/12/13)
+- [x] T3 — Schema + migration (doc 09, D09-11/12/13) — done: 55d8f90 (amended; redundant index removed)
   - `MediaAsset` + `kind` (`MediaKind`), `contentHash` (SHA-256 of the **original upload bytes**, **unique**), `originalFilename`;
     `width`/`height`/`blurhash` image-only. New `MediaAssetVariant` (`format` `MediaVariantFormat`,
     `width`, `height`, `storageKey` unique, `sizeBytes`, `overBudget` Boolean default false;
@@ -26,7 +26,7 @@ the owner approves the spec + plan** (Q1–Q4 resolved 2026-07-18). Dependency s
     One additive migration (empty tables, no backfill).
   - **Verify:** `prisma validate` + `format` clean; `migrate deploy` applies; M1/002 unit+e2e still green;
     `contract:export` DB-free green.
-- [ ] T4 [P] — StorageAdapter + config (doc 07 §6 D07-4, doc 23 §1 D23-15) — *needs T3*
+- [x] T4 [P] — StorageAdapter + config (doc 07 §6 D07-4, doc 23 §1 D23-15) — done: 56be678 (driver fails closed; prod requires s3)
   - `StorageAdapter` interface + `LocalStorageAdapter` (dev/tests) + `S3StorageAdapter` (R2,
     `@aws-sdk/client-s3`, region `auto`); provider factory on `STORAGE_DRIVER`. Add `S3_*` env
     (conditional when `STORAGE_DRIVER=s3`) to `env.validation` + `.env.example`; dev static serving of

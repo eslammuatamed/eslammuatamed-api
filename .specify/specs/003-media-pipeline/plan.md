@@ -1,6 +1,6 @@
 # Plan 003 — Media Pipeline (API)
 
-**Status:** 📝 Draft — awaiting owner review (design decisions approved 2026-07-18). No implementation until approved.
+**Status:** 🚧 In progress — approved & underway (Q1–Q4 resolved 2026-07-18). Doc-first committed (docs PR #2); **T1–T4 complete** (deps `e828ebd`, schema `55d8f90`, storage `56be678`). **Next task: T5** (Sharp image pipeline + PDF validation). API branch local/unpushed.
 
 Architecture is already decided in the governing docs — this plan **binds** them to the feature.
 Unlike Feature 002 (module build-out on an existing schema, no new deps), Feature 003 is a
