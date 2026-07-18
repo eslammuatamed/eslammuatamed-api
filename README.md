@@ -1,114 +1,69 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# eslammuatamed-api
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+خدمة REST بـ `NestJS 11` + `Prisma 6` + `PostgreSQL 16` لمنصّة `eslammuatamed`.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+هذا الملف مرجع تشغيل سريع فقط. **لفهم المعمارية والتدفّقات ومراجعة التوافق ابدأ من [`PROJECT_GUIDE.md`](PROJECT_GUIDE.md)**، ثم ملفات `README.md` داخل مجلدات `src/`.
 
-## Description
+الوثائق الحاكمة (مصدر الحقيقة المعماري) في `../eslammuatamed-docs/docs/` — خاصّةً `00` (الدستور) و`07`/`09`/`10`/`19` (معمارية هذا المستودع). ملزِم أيضًا: `.specify/memory/constitution.md`.
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## المتطلّبات
 
-## Quickstart
+- `Node 24` (مثبّت في `.nvmrc`).
+- `PostgreSQL 16` أصلي على المنفذ `5432`. **لا `Docker` في المشروع** (توجيه المالك، `D16-5`) — هيّئ `Postgres` أصليًّا.
 
-Node 24 (`.nvmrc`) and a native PostgreSQL 16 instance on `5432`. There is **no Docker** in
-this project (owner directive) — provision Postgres natively.
+## التشغيل السريع
 
 ```bash
 npm ci
-cp .env.example .env          # boot-validated; fill in local values
+cp .env.example .env          # مُتحقَّق منه عند الإقلاع؛ املأ القيم المحلّية
 
-# Local databases (native Postgres, passwordless role `eslammuatamed`):
+# قواعد البيانات المحلّية (Postgres أصلي، دور eslammuatamed بلا كلمة مرور):
 createuser eslammuatamed
 createdb -O eslammuatamed eslammuatamed_dev
 createdb -O eslammuatamed eslammuatamed_test
 
-npx prisma migrate deploy     # apply the committed migration to the dev DB
-npm run db:seed               # locales, OWNER role (+ '*' grant), owner, settings, categories
-npm run start:dev             # http://localhost:3001  (Swagger UI at /docs)
+npx prisma migrate deploy     # تطبيق الـ migration المُلتزَم على قاعدة dev
+npm run db:seed               # locales، دور OWNER (+ منحة '*')، المالك، الإعدادات، التصنيفات
+npm run start:dev             # http://localhost:3001  (Swagger UI على /docs)
 ```
 
-## Gates (no database required)
+> ملاحظة إعداد: الدور بلا كلمة مرور قد يُفشِل أول `migrate deploy`/`db:seed` لأن `pg_hba.conf` الافتراضي يطلب `scram-sha-256` على `127.0.0.1`؛ أضِف سطر `trust` مُقيَّدًا على loopback (انظر تعليق `.env.example` و`runbooks/setup.md` في `../eslammuatamed-docs`).
 
-The app connects to Postgres lazily, so these all run without a database:
+## البوابات (بلا قاعدة بيانات)
+
+الاتصال بـ `Postgres` كسول (lazy)، فتعمل هذه كلها دون قاعدة بيانات:
 
 ```bash
 npm run lint
 npx tsc --noEmit
-npm run test                  # unit tests
-npm run contract:export       # → openapi.json (the official contract)
+npm test                      # اختبارات الوحدة
+npm run contract:export       # → openapi.json (العقد الرسمي)
 ```
 
-## End-to-end tests (require Postgres)
+## اختبارات e2e (تحتاج Postgres)
 
-The e2e suite runs against the **test** database — migrate, seed, then run. Point
-`DATABASE_URL` at the test DB and keep the seed/login credentials consistent:
+تعمل ضدّ قاعدة **الاختبار** — هيّئها (migrate ثم seed) ثم شغّلها ببيانات اعتماد متّسقة مع الـ seed:
 
 ```bash
 export DATABASE_URL=postgresql://eslammuatamed@localhost:5432/eslammuatamed_test
 export SEED_OWNER_EMAIL=owner@example.com
 export SEED_OWNER_PASSWORD=change-me-minimum-12
 
-npx prisma migrate deploy     # first time / after a schema change
+npx prisma migrate deploy     # أول مرّة / بعد تغيير المخطّط
 npm run db:seed               # idempotent
-npm run test:e2e              # Supertest + jest-openapi contract assertions
+npm run test:e2e              # Supertest + jest-openapi (تأكيد مطابقة العقد)
 ```
 
-CI mirrors this: the `e2e` job in `.github/workflows/ci.yml` spins up a Postgres 16 service and
-runs generate → `migrate deploy` → `db:seed` → `test:e2e` with self-consistent credentials.
+الـ CI يعكس هذا: مسار `e2e` في `.github/workflows/ci.yml` يشغّل خدمة `Postgres 16` ثم `generate` → `migrate deploy` → `db:seed` → `test:e2e` ببيانات اعتماد متّسقة.
 
-## Deployment
+## النشر
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+الوسم `vX.Y.Z` على `main` يُشغّل البناء والنشر ويُرفِق `openapi.json` كأثر إصدار. النشر على `Contabo VPS` بلا `Docker`. التفاصيل في [الوثيقة 23 (Deployment)](../eslammuatamed-docs/docs/23-deployment.md) و[التوثيق الرسمي لنشر NestJS](https://docs.nestjs.com/deployment).
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+## انضباط التغيير
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
+Doc-first: عمل يناقض وثيقة معتمدة ← نقّح الوثيقة في `../eslammuatamed-docs` أولًا (سجلّ قرار + رفع إصدار). Conventional Commits عبر PR. تغييرات العقد تتبع [الوثيقة 16 §3](../eslammuatamed-docs/docs/16-development-conventions.md) (تصدير → إصدار → يتبنّاه web).
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+## الترخيص
 
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+`UNLICENSED` — مستودع خاص.

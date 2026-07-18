@@ -1,0 +1,273 @@
+# دليل المشروع — `eslammuatamed-api`
+
+> **الحالة:** أساس مستقرّ (Stable baseline) مُشتقّ من `origin/main` عند `227c232`.
+> **آخر مراجعة:** 2026-07-18.
+> **لمن هذا الدليل:** مهندس واجهات أمامية (Vue/Nuxt) يتعلّم الـ backend بـ `NestJS` و`Prisma`. الشرح بالعربية، وكل مُعرّف تقني يبقى بالإنجليزية كما في الكود.
+> **قاعدة الحالة:** هذا الدليل يصف **الكود المُسلَّم (Shipped) على `main` فقط**. أي شيء مُعلَّم `Planned` أو `Deferred` أو `In Progress` غير موجود في هذا الأساس. Feature 003 (`media`) **ليست مدموجة** ولا تُوثَّق هنا كأنها مُسلَّمة.
+
+---
+
+## 1. الغرض من المستودع
+
+`eslammuatamed-api` هو خدمة REST مبنية بـ `NestJS 11` فوق `Prisma 6` و`PostgreSQL 16`. مسؤوليتها الوحيدة: أن تكون **مصدر الحقيقة للبيانات والمنطق** لمنصّة `eslammuatamed` (موقع شخصي/portfolio ثنائي اللغة عربي/إنجليزي + لوحة تحكّم CMS).
+
+الخدمة تقدّم سطحين:
+
+- **سطح عام (public)** غير مُصادَق عليه، للقراءة فقط، يُرجِع محتوى مُترجَمًا ومُحلّلًا للّغة المطلوبة (`?locale=`). تستهلكه واجهة الموقع العامة.
+- **سطح إداري (`/admin`)** مُصادَق عليه بـ bearer access token، لعمليات CRUD الكاملة مع خرائط الترجمة الكاملة. تستهلكه لوحة التحكّم.
+
+المصطلح `resolved shape` يعني: الكيان بعد «تسطيح» ترجمته إلى لغة واحدة — أي بدلًا من إرجاع كل اللغات، تُرجِع القراءة العامة نصوص اللغة المطلوبة فقط، جاهزة للعرض المباشر.
+
+## 2. العلاقة بالمستودعات الأخرى
+
+المنصّة ثلاثة مستودعات **مستقلّة تمامًا** (قيد دستوري دائم — [الوثيقة 00 §3](../eslammuatamed-docs/docs/00-engineering-principles.md)):
+
+| المستودع | الدور | التواصل |
+|---|---|---|
+| `eslammuatamed-api` (هنا) | الـ backend: البيانات + المنطق + العقد | يُصدِّر `openapi.json` |
+| `eslammuatamed-web` | الـ frontend: الموقع العام (SSR) + لوحة التحكّم (SPA) | يستهلك العقد عبر أنواع مولّدة |
+| `eslammuatamed-docs` | الوثائق الحاكمة (`00–24`) — مصدر الحقيقة المعماري | لا كود |
+
+القاعدة الحديدية: **لا مشاركة كود/أنواع/إعدادات بين `api` و`web` إطلاقًا**. القناة الوحيدة بينهما هي مستند `OpenAPI` المُصدَّر (`openapi.json`). الـ frontend لا يعرف شيئًا عن تنفيذ الـ backend، والعكس. ثمن هذا الاستقلال مقبول عمدًا: الأنواع والتحقّق يُكتبان مرّتين (مرّة لكل مستودع) — انظر `D00-5`.
+
+هذا المستودع «مصدر الحقيقة» للعقد: يُنفَّذ العقد في الكود بـ decorators من `@nestjs/swagger`، ثم يُصدَّر إلى `openapi.json` عبر `npm run contract:export`، ثم يتبنّاه `web`. تفاصيل التدفّق في القسم 7 (عقد الواجهة الأمامية ↔ الـ API) و[الوثيقة 16 §3](../eslammuatamed-docs/docs/16-development-conventions.md).
+
+## 3. حالة الميزات — `Shipped` / `In Progress` / `Planned` / `Deferred`
+
+> هذا التمييز جوهري. لا تعامل شيئًا خارج عمود `Shipped` كأنه موجود في هذا الأساس.
+
+**`Shipped` (على `main`، مُنشور 2026-07-16):** البنية التحتية العرضية كاملة (`config`, `prisma`, `common`, `contract`, `main`) + الوحدات التالية:
+`health`, `locales`, `auth`, `users`, `access-control`, `settings`, `taxonomy` (categories + tags), `articles`, `projects`, `experiences`, `skills`, `testimonials`.
+
+**`In Progress` (على فرع `003-media-pipeline`، غير مدموج — **خارج هذا الأساس**):** وحدة `media` (خط رفع الصور بـ `Sharp`، `StorageAdapter`، الـ descriptors) قيد التطوير على فرع غير مدموج؛ تفاصيل تقدّمها في `tasks.md` الخاصّ بذلك الفرع، لا في هذا الأساس، وستُوثَّق توثيقًا دائمًا **بعد** دمجها. **لا تُذكر في وثائق هذا الأساس إلا كإشارة إلى أنها قادمة.**
+
+**`Planned` (مجدولة، غير مكتوبة بعد):**
+- `redirects` + `contact` + preview tokens (Feature 004).
+- `seo` على مستوى الصفحات (جدول `page_seo` موجود، لا وحدة).
+- `api-hardening`: طبقات throttle كاملة + نسخ احتياطي (Feature 005).
+
+**`Deferred` (مؤجّلة بقرار):**
+- ترقية `Prisma 7` — مؤجّلة عمدًا عند `6.19.x` (`D16-6`: تزيل `datasourceUrl` وتفرض إعادة كتابة `PrismaService`، وتُهدّد ضمان تصدير العقد بلا قاعدة بيانات).
+- طبقة cache للقراءة داخل الـ API (`Redis`) — فقط إذا خُرقت ميزانية الأداء `NFR-006` (الوثيقة 07 §11).
+- `TOTP 2FA` — عند وجود حساب مشغّل ثانٍ حقيقي.
+
+**ملاحظة مهمة عن `schema` مقابل الوحدات:** مخطّط قاعدة البيانات **مكتمل مسبقًا (schema-complete)** — جداول مثل `media_assets`, `media_asset_alts`, `page_seo`, `slug_redirects`, `contact_messages` موجودة على `main`، لكن **وحداتها لم تُبنَ بعد** (`Planned`). كذلك متغيّرات البيئة `STORAGE_*` و`PREVIEW_TOKEN_SECRET` مُتحقَّق منها عند الإقلاع رغم أن وحداتها لم تُنفَّذ. أي: المخطّط والإعداد يسبقان الوحدات عمدًا، وتُبنى الوحدات بالتدريج حسب [الوثيقة 24 (خارطة الطريق)](../eslammuatamed-docs/docs/24-roadmap.md).
+
+## 4. المكدّس والمكتبات المهمة (ولماذا كلٌّ منها)
+
+`Node 24` (مثبّت في `.nvmrc` + `engines`)، `TypeScript 5.7` صارم بلا `any`.
+
+**التبعيات وقت التشغيل (production) على هذا الأساس:**
+
+| المكتبة | لماذا هي موجودة |
+|---|---|
+| `@nestjs/common` · `@nestjs/core` · `@nestjs/platform-express` | نواة إطار `NestJS` + محوّل `Express` (الـ HTTP adapter) |
+| `@nestjs/config` | تحميل الإعدادات مع تحقّق class-validator عند الإقلاع (الوحدة `config`) |
+| `@nestjs/jwt` | `JwtService` لتوقيع/التحقّق من access token — حارس قائم على `JwtService` لا على `passport` (`principle 16`) |
+| `@nestjs/swagger` | توليد مستند `OpenAPI` — هو **العقد الرسمي** |
+| `@nestjs/throttler` | تحديد المعدّل (rate limiting) بطبقات لكل نوع مسار |
+| `@nestjs/schedule` | cron داخل العملية: نشر المقالات المجدولة كل دقيقة |
+| `@prisma/client` | عميل `Prisma` وقت التشغيل — هو الـ data-mapper (لا طبقة repository) |
+| `argon2` | تجزئة كلمات المرور بـ `argon2id` (`D19-1`) |
+| `class-transformer` · `class-validator` | تحقّق الـ DTO (عبر `ValidationPipe`) وتحقّق البيئة |
+| `cookie-parser` | قراءة كوكي refresh token httpOnly |
+| `helmet` | ترويسات أمان HTTP افتراضية |
+| `nestjs-pino` · `pino-http` | تسجيل مُهيكَل JSON مع تنقيح الحقول الحسّاسة (`D07-5`) |
+| `reflect-metadata` | polyfill الميتاداتا اللازم لـ decorators في `NestJS` |
+| `rxjs` | الأساس التفاعلي الذي تُبنى عليه الـ interceptors في `NestJS` |
+
+> ملاحظة: مكتبات خط الوسائط (`sharp`, `@aws-sdk/client-s3`, `blurhash`, `load-esm`) **ليست** في هذا الأساس؛ تُضاف مع Feature 003.
+
+**أهم تبعيات التطوير:** `@nestjs/testing` + `jest` + `ts-jest` (اختبارات الوحدة)، `supertest` + `jest-openapi` (اختبارات e2e مع تأكيد مطابقة العقد)، `jest-mock-extended` (mocking لـ `PrismaService`)، `prisma` CLI، `eslint` + `typescript-eslint` + `prettier` + `husky` + `lint-staged` (بوابات الجودة).
+
+سياسة إضافة أي تبعية جديدة صارمة (`principle 14`، [الوثيقة 16 §4](../eslammuatamed-docs/docs/16-development-conventions.md)): إطار مدمج ← تبعية قائمة ← وحدة من نظام الإطار ← ثم طرف ثالث بمبرّر مكتوب.
+
+## 5. نظرة عامة على المعمارية
+
+النمط: **modular monolith** (`D07-1`) — تطبيق `NestJS` واحد، قاعدة `PostgreSQL` واحدة، وحدات ذات حدود صريحة. لا microservices (مبالغة هندسية لمنصّة بمشغّل واحد).
+
+التركيب الطبقي لكل طلب:
+
+```
+HTTP → Guard(s) → Pipe (ValidationPipe) → Controller → Service → PrismaService → PostgreSQL
+                                              │             │
+                                        (رفيع: يربط        (يملك منطق العمل،
+                                         الـ DTO بالـ        الـ transactions،
+                                         service فقط)        وتحليل اللغة)
+```
+
+- **Controllers رفيعة:** توجيه، ربط DTO للتحقّق، decorators لـ Swagger. **لا منطق.**
+- **Services تملك المنطق:** قواعد العمل، الـ transactions، تحليل اللغة. وهي وحدة الاختبار (`principle 13`).
+- **لا طبقة repository (`D07-2`):** الـ services تحقن `PrismaService` مباشرة. `Prisma` نفسه هو التجريد؛ ولفّه في repositories تمريرية هو الطبقية الاحتفالية التي يمنعها `D00-3`. مقعد الاختبار (seam) هو حقن `PrismaService` نفسه.
+- **اتجاه التبعية أحادي:** `services` لا تستورد `controllers`؛ الوحدات تتفاعل عبر خدمات مُصدَّرة صراحةً، لا عبر نماذج `Prisma` لوحدة أخرى؛ و`common/` لا يستورد من `modules/` أبدًا.
+
+خريطة الطبقات على القرص في [`src/` — انظر الوثيقة 08](../eslammuatamed-docs/docs/08-folder-structure.md) وملفات `README.md` داخل كل مجلد:
+
+| المجلد | المسؤولية | دليله |
+|---|---|---|
+| `src/config` | مخطّط البيئة + الإعداد المُتحقَّق | [`src/config/README.md`](src/config/README.md) |
+| `src/prisma` | `PrismaService` العام (الـ data-mapper) | [`src/prisma/README.md`](src/prisma/README.md) |
+| `src/common` | الآليات العرضية فقط (guards, filters, interceptors, decorators, dto, pagination, http, logging, swagger, throttling) | [`src/common/README.md`](src/common/README.md) |
+| `src/contract` | تصدير مستند `OpenAPI` (العقد) | [`src/contract/README.md`](src/contract/README.md) |
+| `src/modules` | وحدات المجال (الشكل القانوني للوحدة) | [`src/modules/README.md`](src/modules/README.md) |
+| `prisma/` | `schema.prisma` + migrations + `seed.ts` | [`prisma/` موصوف في الوثيقة 09](../eslammuatamed-docs/docs/09-database-design.md) |
+| `test/` | اختبارات e2e (اختبارات الوحدة بجوار مصادرها) | [`test/README.md`](test/README.md) |
+
+## 6. مسارات التشغيل الرئيسية وقت الطلب
+
+### 6.1 دورة حياة الطلب والحرّاس العامّون
+تُسجَّل ثلاثة حرّاس عامّون في `src/app.module.ts` بترتيب التنفيذ التالي (الترتيب يهمّ):
+
+```
+ThrottlerGuard → JwtAuthGuard → PermissionsGuard → (Controller)
+```
+
+1. `ThrottlerGuard`: يطبّق حدّ المعدّل حتى على المسارات العامّة.
+2. `JwtAuthGuard` (default-deny): كل مسار خاصّ افتراضيًا؛ يتحقّق من access token ويضع `request.user`. مسار مُعلَّم `@Public()` يتخطّاه.
+3. `PermissionsGuard`: يحلّ صلاحيات المستخدم من قاعدة البيانات في كل طلب ويقارنها بالصلاحية المطلوبة `@RequirePermission('<resource>.<action>')`.
+
+ثم يمرّ الرد عبر `ResponseEnvelopeInterceptor` (يغلّف كل جسم 2xx في `{ data }` أو `{ data, meta }`)، وأي خطأ يمرّ عبر `AllExceptionsFilter` (يحوّله إلى `application/problem+json` وفق `RFC 7807`).
+
+### 6.2 المصادقة والتفويض (auth flow)
+- **الدخول:** `POST /api/v1/auth/login` → تحقّق كلمة المرور بـ `argon2id` (فشل موحّد لمنع تعداد المستخدمين) → إصدار access token (JWT، `sub` فقط، 15 دقيقة) + refresh token (قيمة عشوائية 256-bit، تُخزَّن مُجزّأة بـ HMAC-SHA256، تُسلَّم ككوكي `httpOnly; SameSite=Lax` بمسار `/api/v1/auth`).
+- **التجديد:** `POST /api/v1/auth/refresh` → تدوير الـ refresh token مع كشف إعادة الاستخدام عبر `familyId` (تقديم رمز مُبطَل = إشارة سرقة → إبطال العائلة كلها).
+- **التفويض:** كل نقطة إدارية تُعلن صلاحيتها؛ يحلّها `PermissionsGuard` من قاعدة البيانات لحظيًّا (تغيير الصلاحيات يسري فورًا دون انتظار انتهاء الـ token). الدور `OWNER` يملك المنحة الجامحة `*`.
+
+التفاصيل الكاملة في [`src/modules/auth/README.md`](src/modules/auth/README.md) و[`src/modules/access-control/README.md`](src/modules/access-control/README.md).
+
+### 6.3 الوصول إلى قاعدة البيانات
+كل service يحقن `PrismaService` (نموذج data-mapper). الاتصال **كسول (lazy)**: لا `$connect` عند الإقلاع، فيفتح `Prisma` المجمّع عند أول استعلام — ما يتيح تصدير العقد وتشغيل الاختبارات دون قاعدة بيانات (`constitution rule 4`). التفاصيل في [`src/prisma/README.md`](src/prisma/README.md).
+
+### 6.4 تحليل اللغة (i18n)
+الترجمات في جداول ترجمة منفصلة لكل كيان (`D09-1`). طبقة الـ service تملك تحليل اللغة:
+- **قراءة عامة:** `?locale=` مُتحقَّق منه ضدّ اللغات المُفعّلة (`LocalesService.assertEnabled`) → شكل مُسطَّح للّغة الواحدة. **لا رجوع صامت** إلى لغة أخرى: ترجمة مفقودة تبقى مفقودة (404 عند الوصول المباشر).
+- **قراءة إدارية:** خريطة الترجمة الكاملة (لتحرير جنب-إلى-جنب).
+
+### 6.5 الوسائط بالمرجع فقط (على هذا الأساس)
+جداول الوسائط موجودة، لكن **لا توجد وحدة رفع ولا تحليل descriptor على `main`**. الكيانات التي تشير إلى وسائط (`Article.coverImageId`, `*.ogImageId`, gallery `mediaAssetId`, `Testimonial.avatarId`, `SiteSettings.resumeAssetId`) تُرجِع **المُعرّف الخام (bare id)** في القراءة العامة. رفع الملفّات وتحويل الـ id إلى descriptor (URL + أبعاد + `blurhash` + نص بديل) هو عمل Feature 003 (`In Progress`، خارج هذا الأساس).
+
+### 6.6 النشر المجدول
+`@nestjs/schedule` يشغّل cron داخل العملية كل دقيقة يرفع المقالات `SCHEDULED` المستحقّة (`publishAt <= now`) إلى `PUBLISHED` باستعلام واحد idempotent (`D07-3`). صحيح لنسخة API واحدة؛ التوسّع الأفقي مستقبلًا يحتاج قفلًا موزّعًا (موثّق في الوثيقة 07 §5).
+
+### 6.7 نموذج الخطأ والغلاف
+- **الخطأ:** `AllExceptionsFilter` يحوّل كل استثناء إلى `RFC 7807 problem+json`، ويعيّن أكواد `Prisma` المعروفة (`P2002`→422، `P2025`→404، `P2003`→409) لأكواد HTTP ذات معنى، ويُخفي التفاصيل الداخلية في الإنتاج.
+- **الغلاف:** `ResponseEnvelopeInterceptor` يوحّد كل رد ناجح: قائمة → `{ data, meta }`، وأي شيء آخر → `{ data }` (`D10-3`).
+
+## 7. عقد الواجهة الأمامية ↔ الـ API
+
+التدفّق المُعتمد الوحيد لعبور تغيير في العقد حدود المستودعات ([الوثيقة 16 §3](../eslammuatamed-docs/docs/16-development-conventions.md)):
+
+```
+1. تصميم التغيير في الوثيقة 10 (API Design)
+2. تنفيذه في الـ API: decorators من @nestjs/swagger + class-validator
+3. npm run contract:export  →  يُولّد openapi.json (بلا قاعدة بيانات)
+4. يتبنّاه web: نسخ openapi.json + npm run api:types + التكيّف — في commit ذرّي واحد
+```
+
+`openapi.json` هو الأثر (artifact) الرسمي، يُبنى من نفس إعداد `buildOpenApiConfig()` المستخدَم في `/docs` UI. القاعدة الحرجة: **يجب أن يعمل `contract:export` دون قاعدة بيانات** (يعتمد على الاتصال الكسول لـ `Prisma`).
+
+## 8. نموذج المصادقة والتفويض (ملخّص)
+
+| البُعد | القرار | المرجع |
+|---|---|---|
+| تجزئة كلمة المرور | `argon2id` (64 MiB, t=3, p=4) | `D19-1` |
+| access token | JWT HS256، `sub` فقط، 15 دقيقة، في الذاكرة عميلًا | `D19-8` |
+| refresh token | عشوائي 256-bit، مُجزّأ HMAC-SHA256 بـ pepper، كوكي `httpOnly; Secure(prod); SameSite=Lax` بمسار `/api/v1/auth` | `D19-2/D19-3` |
+| التفويض | default-deny عام + `@Public()`؛ RBAC ديناميكي قائم على الصلاحيات، يُحلّ من DB لكل طلب؛ منحة `*` لـ `OWNER` | `D19-8` |
+
+## 9. نموذج قاعدة البيانات والتخزين
+
+- **الـ ORM:** `Prisma 6.19` فوق `PostgreSQL 16`. نماذج PascalCase / حقول camelCase؛ أسماء الجداول snake_case عبر `@map`/`@@map` (`D09-1`). مفاتيح `UUIDv7` (`D09-2`). كل جدول يحمل `createdAt`/`updatedAt`.
+- **الترجمة:** جداول ترجمة منفصلة لكل كيان؛ فرادة الـ slug لكل لغة (`@@unique([locale, slug])`).
+- **البحث النصّي الكامل (FTS):** عمود `tsvector` + فهرس `GIN` على `article_translations`، يُضاف بـ migration يدوي (`D09-6`) لأن `Prisma` لا يعبّر عن الأعمدة المولّدة.
+- **التخزين:** جدول `media_assets` موجود، لكن التخزين الفعلي (محلي/`S3`/`R2`) وراء واجهة `StorageAdapter` هو عمل Feature 003 (`Planned`/`In Progress`، خارج الأساس).
+- المخطّط الكامل موثّق في [الوثيقة 09 (Database Design)](../eslammuatamed-docs/docs/09-database-design.md) — لا نكرّره هنا.
+
+## 10. البيئة والإعداد
+
+كل متغيّر **مُتحقَّق منه عند الإقلاع** في `src/config/env.validation.ts`؛ متغيّر مفقود أو غير صالح يُفشِل الإقلاع فورًا (لا خطأ 500 بعد ساعة). القالب الكامل في `.env.example` (عقد الإعداد). المجموعات على هذا الأساس:
+
+`NODE_ENV`, `PORT` · `DATABASE_URL` · `CORS_ORIGIN` · `JWT_ACCESS_SECRET`, `JWT_ACCESS_TTL`, `REFRESH_TOKEN_TTL_DAYS`, `REFRESH_TOKEN_PEPPER`, `PREVIEW_TOKEN_SECRET`, `COOKIE_DOMAIN` · `SEED_OWNER_EMAIL`, `SEED_OWNER_PASSWORD` · `STORAGE_DRIVER`, `STORAGE_LOCAL_DIR`, `PUBLIC_MEDIA_URL`.
+
+> `PREVIEW_TOKEN_SECRET` و`STORAGE_*` مُتحقَّق منها رغم أن وحداتها `Planned` — الإعداد يسبق الوحدات عمدًا. `S3_*` **ليست** على هذا الأساس (تُضاف مع Feature 003). التفاصيل في [`src/config/README.md`](src/config/README.md).
+
+لا `Docker` في المشروع (توجيه المالك، `D16-5`): `PostgreSQL` أصلي محليًّا، ودور `eslammuatamed` بلا كلمة مرور على المنفذ `5432`.
+
+## 11. التطوير والاختبار محليًّا · بوابات الجودة · النشر
+
+**أوامر التطوير** (`package.json`):
+```bash
+npm run start:dev        # المنفذ 3001، Swagger UI على /docs
+npm run lint             # eslint --fix
+npx tsc --noEmit         # فحص الأنواع
+npm test                 # اختبارات الوحدة (jest) — بلا قاعدة بيانات
+npm run contract:export  # → openapi.json (بلا قاعدة بيانات)
+npx prisma migrate deploy && npm run db:seed   # تهيئة قاعدة البيانات المحلّية
+npm run test:e2e         # يحتاج PostgreSQL (Supertest + jest-openapi)
+```
+
+**البوابات (بلا قاعدة بيانات — لأن الاتصال كسول):** `lint`, `tsc --noEmit`, `npm test`, `contract:export`.
+
+**CI** (`.github/workflows/ci.yml`) مساران:
+- `verify`: lint · typecheck · unit · تصدير العقد (بلا DB) · `npm audit` (إعلامي حاليًا).
+- `e2e`: يشغّل خدمة `postgres:16` → `migrate deploy` → `db:seed` → `test:e2e`.
+
+**تعريف الإنجاز (Definition of Done):** المطابقة للوثائق الحاكمة (أو تُنقَّح الوثيقة أولًا)، ونجاح lint/typecheck/tests، وتغطية اختبارية للسلوك الجديد. التفاصيل في [الوثيقة 16 §5](../eslammuatamed-docs/docs/16-development-conventions.md).
+
+**النشر:** وسم `vX.Y.Z` على `main` يُشغّل بناءً ونشرًا ويُرفِق `openapi.json` كأثر إصدار. النشر على `Contabo VPS` (لا `Docker`). التفاصيل في [الوثيقة 23 (Deployment)](../eslammuatamed-docs/docs/23-deployment.md).
+
+## 12. قرارات عرضية (cross-cutting)
+
+- **Documentation First (`principle 1`):** لا كود لقدرة قبل اعتماد وثيقتها الحاكمة؛ الكود لا يسبق الوثائق صامتًا.
+- **API First (`principle 3`):** العقد يُصمَّم قبل تنفيذه.
+- **Official Documentation Over Habit (`principle 16`, `D00-6`):** الكود يتبع **التوثيق الرسمي الحالي** للأداة؛ نمط تجاوزه التوثيق = عيب حتى لو عمل (المثال المذكور صراحةً: `passport-jwt` حيث يعلّم التوثيق الحالي حارس `JwtService`).
+- **Reasoned Dissent Before Assent (`principle 17`, `D00-7`):** الاعتراض المُبرَّر بأدلّة يُطرح قبل التنفيذ؛ ثم قرار المالك يُنفَّذ ويُسجَّل الخلاف الجوهري.
+
+## 13. ملخّص مراجعة التوافق (Compatibility Review)
+
+قِيس كل نمط جوهري ضدّ التوثيق الرسمي بالإصدار المُثبَّت. التصنيفات: `Compatible` (مطابق) / `Intentional documented deviation` (انحراف مقصود موثّق) / `Unexplained deviation` (انحراف غير مُفسَّر). **لم يُرصَد أي انحراف غير مُفسَّر في هذا الأساس.**
+
+| النمط | الملفات الأساسية | التصنيف | المرجع الرسمي والحاكم |
+|---|---|---|---|
+| حارس مصادقة قائم على `JwtService` (لا `passport-jwt`) | `common/guards/jwt-auth.guard.ts`, `modules/auth/*` | `Compatible` + انحراف مقصود عن عادة `passport` | [NestJS Authentication](https://docs.nestjs.com/security/authentication) · `principle 16`/`D00-6` |
+| تجزئة `argon2id` (64 MiB/t=3/p=4) | `modules/auth/hashing/*` | `Compatible` (يفي/يفوق حدّ OWASP الأدنى لـ Argon2id) | [OWASP Password Storage](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html) · `D19-1` |
+| حقن `PrismaService` مباشرة، بلا repository | كل `*.service.ts` | `Compatible` (وصفة NestJS+Prisma الرسمية تحقنه مباشرة) | [NestJS Prisma recipe](https://docs.nestjs.com/recipes/prisma) · `D07-2`/`D00-3` |
+| اتصال `Prisma` كسول (بلا `$connect` عند الإقلاع) | `prisma/prisma.service.ts` | `Intentional documented deviation` عن نمط `$connect` المُبكّر الشائع (والاتصال الكسول نفسه متّسق مع إرشاد `Prisma`) | `constitution rule 4` (تصدير العقد بلا DB) |
+| `ValidationPipe` عام (whitelist + forbid + transform) | `main.ts`, كل `dto/*` | `Compatible` | [NestJS Validation](https://docs.nestjs.com/techniques/validation) |
+| أخطاء `RFC 7807` عبر exception filter عام | `common/filters/*`, `common/http/*` | `Compatible` | [RFC 7807](https://datatracker.ietf.org/doc/html/rfc7807) · [NestJS Exception filters](https://docs.nestjs.com/exception-filters) |
+| حرّاس عامّون عبر `APP_GUARD` + `@Public()` بالـ metadata | `app.module.ts`, `common/decorators/*` | `Compatible` | [NestJS Guards](https://docs.nestjs.com/guards) |
+| إعداد مُتحقَّق منه عند الإقلاع | `config/*` | `Compatible` | [NestJS Configuration](https://docs.nestjs.com/techniques/configuration) |
+| `@nestjs/throttler` بطبقات | `app.module.ts`, `common/throttling/*` | `Compatible` | [NestJS Rate limiting](https://docs.nestjs.com/security/rate-limiting) |
+| cron داخل العملية للنشر | `modules/articles/articles.scheduler.ts` | `Compatible` + تحذير توسّع موثّق | [NestJS Task scheduling](https://docs.nestjs.com/techniques/task-scheduling) · `D07-3` |
+| FTS عبر `$queryRaw` مُعامَل | `modules/articles/articles.service.ts` | `Compatible` (استعلام خام مُعامَل ضدّ الحقن) | [Prisma raw queries](https://www.prisma.io/docs/orm/prisma-client/using-raw-sql/raw-queries) |
+| إصدارات URI `/api/v1` + بادئة عامة | `main.ts` | `Compatible` | [NestJS Versioning](https://docs.nestjs.com/techniques/versioning) |
+| `@nestjs/swagger` + تصدير العقد | `contract/*`, كل controller | `Compatible` | [NestJS OpenAPI](https://docs.nestjs.com/openapi/introduction) |
+
+كل بند مشروح بتفصيله (الكود الفعلي مقابل المصدر) في `README.md` للمجلد المعني.
+
+## 14. مخاطر معلومة وعمل مؤجَّل
+
+- **مصدر الحقيقة لتقدّم Feature 003 هو `tasks.md` لا `feature-map.md`:** الأخير يعرض 003 كـ `Not started` باصطلاح «حدّ التسليم» (يعكس ما هو على `main`). لا تستنتج أن الوسائط غير مبدوءة.
+- **الوسائط بالمرجع فقط:** القراءات العامة تُرجِع `*Id` خامة حتى تُدمج Feature 003.
+- **`Prisma 7` مؤجّلة (`D16-6`):** أي ترقية تحتاج قرارًا مُراجَعًا مستقلًّا.
+- **cron داخل العملية:** صحيح لنسخة واحدة فقط؛ التوسّع الأفقي يحتاج قفلًا.
+- **تحذير إعداد محلّي:** الدور بلا كلمة مرور يحتاج سطر `trust` في `pg_hba.conf` (انظر تعليق `.env.example`).
+
+## 15. مسار تعديل آمن + ترتيب قراءة مقترح
+
+**عند التعديل:** (1) إن ناقض العمل وثيقة حاكمة، نقّح الوثيقة أولًا (`Documentation First`). (2) اكتب على فرع `feat/…`/`fix/…`. (3) شغّل البوابات الأربع بلا قاعدة بيانات + e2e إن مسّ السلوك. (4) إن تغيّر العقد، اتبع تدفّق القسم 7 (عقد الواجهة الأمامية ↔ الـ API). (5) commit ذرّي بصيغة Conventional Commits عبر PR ([الوثيقة 17](../eslammuatamed-docs/docs/17-git-workflow.md)).
+
+**ترتيب القراءة للمطوّر الجديد:**
+1. هذا الدليل (`PROJECT_GUIDE.md`).
+2. [`src/config/README.md`](src/config/README.md) → [`src/prisma/README.md`](src/prisma/README.md) → [`src/common/README.md`](src/common/README.md) (البنية العرضية).
+3. [`src/modules/README.md`](src/modules/README.md) (الشكل القانوني للوحدة).
+4. [`src/modules/auth/README.md`](src/modules/auth/README.md) + [`src/modules/access-control/README.md`](src/modules/access-control/README.md) (الأمان).
+5. [`src/modules/articles/README.md`](src/modules/articles/README.md) (أغنى وحدة — النموذج المرجعي).
+6. باقي وحدات المحتوى + [`test/README.md`](test/README.md).
+
+## 16. روابط التوثيق الرسمي
+
+- [NestJS](https://docs.nestjs.com) · [Prisma](https://www.prisma.io/docs) · [PostgreSQL 16](https://www.postgresql.org/docs/16/)
+- [class-validator](https://github.com/typestack/class-validator) · [argon2 (node)](https://github.com/ranisalt/node-argon2) · [OWASP Password Storage](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html)
+- [RFC 7807 Problem Details](https://datatracker.ietf.org/doc/html/rfc7807) · [OpenAPI Specification](https://spec.openapis.org/)
+- الوثائق الحاكمة: [00](../eslammuatamed-docs/docs/00-engineering-principles.md) · [07](../eslammuatamed-docs/docs/07-backend-architecture.md) · [08](../eslammuatamed-docs/docs/08-folder-structure.md) · [09](../eslammuatamed-docs/docs/09-database-design.md) · [10](../eslammuatamed-docs/docs/10-api-design.md) · [16](../eslammuatamed-docs/docs/16-development-conventions.md) · [17](../eslammuatamed-docs/docs/17-git-workflow.md) · [19](../eslammuatamed-docs/docs/19-security.md) · [24](../eslammuatamed-docs/docs/24-roadmap.md)
