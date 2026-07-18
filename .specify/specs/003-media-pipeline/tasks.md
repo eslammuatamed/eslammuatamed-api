@@ -64,7 +64,7 @@ the owner approves the spec + plan** (Q1–Q4 resolved 2026-07-18). Dependency s
     winner; usages across every relation incl resume; 409 on referenced delete; alt CRUD; PDF only to resume slot
     (attachment metadata, T4); compensation tests for **partial-variant / DB-failure / dup-race**; 429 past the
     concurrency limit.
-- [ ] T7 — Public media descriptors (additive, doc 10 §6 D10-10)
+- [x] T7 — Public media descriptors (additive, doc 10 §6 D10-10) — done: 989f3e7 (reusable MediaDescriptorResolver exported from MediaModule; articles cover+OG, projects gallery+OG, testimonial avatar, settings résumé PDF; ids retained, no N+1. page-SEO deferred — no public endpoint exists; settings exposes résumé descriptor only, no bare resumeAssetId)
   - Resolve `mediaAssetId` → descriptor on public `projects`/`articles`/`testimonials`/`settings`/`seo`
     read shapes; **retain** existing `*Id` fields; resolve in the parent query (Prisma `include`);
     media-origin URLs; image `url` = **widest WebP rendition**; `alt` = **`string | null`** per `?locale=`
