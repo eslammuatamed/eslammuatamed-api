@@ -1,5 +1,6 @@
 import {
   encodeWithinBudget,
+  fileExtension,
   hasPdfStructure,
   sanitizeFilename,
 } from './media-processing.util';
@@ -118,6 +119,34 @@ describe('sanitizeFilename (doc 19 §5 — display/search metadata only)', () =>
     const result = sanitizeFilename(long);
     expect(result.length).toBeLessThanOrEqual(200);
     expect(result.endsWith('.pdf')).toBe(true);
+  });
+});
+
+describe('fileExtension (validated before sanitization — doc 19 §5)', () => {
+  it('returns the lowercased extension of the basename', () => {
+    expect(fileExtension('resume.pdf')).toBe('pdf');
+    expect(fileExtension('photo.jpeg')).toBe('jpeg');
+    expect(fileExtension('/var/www/file.PNG')).toBe('png');
+    expect(fileExtension('C:\\Users\\me\\HEAD.JPG')).toBe('jpg');
+  });
+
+  it('matches case-insensitively (uppercase extensions)', () => {
+    expect(fileExtension('PHOTO.JPG')).toBe('jpg');
+    expect(fileExtension('DOC.PDF')).toBe('pdf');
+  });
+
+  it('uses only the final extension of a multi-dot name', () => {
+    expect(fileExtension('archive.tar.gz')).toBe('gz');
+  });
+
+  it('returns an empty string when there is no real extension', () => {
+    expect(fileExtension('noextension')).toBe('');
+    expect(fileExtension('.hidden')).toBe(''); // dotfile, not an extension
+    expect(fileExtension('trailingdot.')).toBe('');
+  });
+
+  it('ignores surrounding whitespace', () => {
+    expect(fileExtension('  resume.pdf  ')).toBe('pdf');
   });
 });
 

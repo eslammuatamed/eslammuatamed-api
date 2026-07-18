@@ -6,6 +6,30 @@
 
 export type ImageVariantFormat = 'webp' | 'avif';
 
+// The controller hands processing the raw bytes plus the two client-supplied hints — the original
+// filename and the declared Content-Type. Neither hint is trusted on its own (the magic-byte sniff
+// is authoritative), but both are cross-checked against the detected type so a renamed file or a
+// spoofed Content-Type is rejected with 422 (doc 19 §5).
+export interface ProcessImageInput {
+  readonly buffer: Buffer;
+  readonly originalFilename: string;
+  readonly declaredMimeType: string;
+}
+
+export interface ProcessPdfInput {
+  readonly buffer: Buffer;
+  readonly originalFilename: string;
+  readonly declaredMimeType: string;
+}
+
+// A consistency rule for one approved image type: the detected magic-byte MIME must line up with a
+// declared MIME and an allowed file extension (JPEG deliberately allows both .jpg and .jpeg).
+export interface ImageTypeRule {
+  readonly detectedMime: string;
+  readonly declaredMime: string;
+  readonly extensions: readonly string[];
+}
+
 // One delivered rendition (a future MediaAssetVariant row). Carries everything T6 needs to persist
 // the row and, for an over-budget rendition, emit the doc 20 §4 structured log event (width, format,
 // bytes) — T5 deliberately does not log; it returns the facts.

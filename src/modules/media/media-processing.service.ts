@@ -3,12 +3,12 @@ import { encode as encodeBlurhash } from 'blurhash';
 import { loadEsm } from 'load-esm';
 import sharp from 'sharp';
 import {
-  ALLOWED_IMAGE_MIME_TYPES,
   BLURHASH_COMPONENTS_X,
   BLURHASH_COMPONENTS_Y,
   BLURHASH_SAMPLE_SIZE,
   DELIVERED_FORMATS,
   IMAGE_FORMAT_MIME,
+  IMAGE_TYPE_RULES,
   MASTER_QUALITY,
   MAX_INPUT_PIXELS,
   MAX_UPLOAD_BYTES,
@@ -23,18 +23,21 @@ import {
   ProcessedImage,
   ProcessedImageVariant,
   ProcessedPdf,
+  ProcessImageInput,
+  ProcessPdfInput,
 } from './media-processing.types';
 import {
   encodeWithinBudget,
+  fileExtension,
   hasPdfStructure,
   sanitizeFilename,
 } from './media-processing.util';
 
 // `file-type@22` is pure ESM; this project compiles to CommonJS under `module: nodenext`, so a
-// static `import 'file-type'` would not compile. `load-esm` is a tiny precompiled CJS wrapper whose
-// `import()` TypeScript never downlevels — the same mechanism `@nestjs/common`'s own file-type
-// validator uses (principle 16). The import is cached so it is paid once per process. Jest exercises
-// this path with `NODE_OPTIONS=--experimental-vm-modules` (doc 18).
+// static `import 'file-type'` would not compile. `load-esm` (a declared direct dependency) is a tiny
+// precompiled CJS wrapper whose `import()` TypeScript never downlevels — the same mechanism
+// `@nestjs/common`'s own file-type validator uses (principle 16). The import is cached so it is paid
+// once per process. Jest exercises this path with `NODE_OPTIONS=--experimental-vm-modules` (doc 18).
 interface FileTypeResult {
   readonly ext: string;
   readonly mime: string;
@@ -59,26 +62,29 @@ interface RenditionTarget {
 }
 
 // Pure media processing (T5): untrusted bytes → sanitized, delivery-ready outputs. Deliberately
-// independent of controllers, Prisma, and storage — it takes buffers and returns buffers + metadata,
-// so the orchestration layer (T6) owns hashing, key generation, persistence, uploads, and logging.
-// It never persists or returns the raw upload (D07-6): everything derives from the sanitized master.
+// independent of controllers, Prisma, and storage — it takes buffers + client hints and returns
+// buffers + metadata, so the orchestration layer (T6) owns hashing, key generation, persistence,
+// uploads, and logging. It never persists or returns the raw upload (D07-6): everything derives from
+// the sanitized master.
 @Injectable()
 export class MediaProcessingService {
   // IMAGE path (doc 07 §6, doc 19 §5, doc 20 §4). Rejections are UnprocessableEntity (→ 422) — a
   // transport-agnostic signal the controller maps without T5 touching request/response objects.
-  async processImage(input: Buffer): Promise<ProcessedImage> {
-    const mime = await this.sniffMimeType(input);
-    if (!mime || !ALLOWED_IMAGE_MIME_TYPES.includes(mime)) {
-      throw new UnprocessableEntityException(
-        `Unsupported image type: ${mime ?? 'unrecognized'}. Allowed: JPEG, PNG, WebP, AVIF.`,
-      );
-    }
+  async processImage(input: ProcessImageInput): Promise<ProcessedImage> {
+    const detected = await this.sniffMimeType(input.buffer);
+    this.assertImageTypeConsistent(
+      detected,
+      input.originalFilename,
+      input.declaredMimeType,
+    );
 
-    await this.assertWithinPixelCeiling(input);
+    await this.assertWithinPixelCeiling(input.buffer);
 
     // Master: auto-orient from EXIF (`rotate()` with no args), strip all metadata (not calling
     // `withMetadata`), re-encode WebP q90 at the full — never upscaled — dimensions (doc 07 §6).
-    const master = await sharp(input, { limitInputPixels: MAX_INPUT_PIXELS })
+    const master = await sharp(input.buffer, {
+      limitInputPixels: MAX_INPUT_PIXELS,
+    })
       .rotate()
       .webp({ quality: MASTER_QUALITY })
       .toBuffer({ resolveWithObject: true });
@@ -105,28 +111,32 @@ export class MediaProcessingService {
 
   // PDF path (doc 19 §5, D19-9): the single non-image asset, resume-only. Validated but never
   // Sharp-processed and never given variants/blurhash. Attaching it to the resume slot is a T6 rule.
-  async processPdf(
-    input: Buffer,
-    originalFilename: string,
-  ): Promise<ProcessedPdf> {
-    if (!/\.pdf$/i.test(originalFilename.trim())) {
+  async processPdf(input: ProcessPdfInput): Promise<ProcessedPdf> {
+    // Validate the ORIGINAL extension before sanitization could hide a rename (doc 19 §5).
+    if (fileExtension(input.originalFilename) !== 'pdf') {
       throw new UnprocessableEntityException('The resume must be a .pdf file.');
     }
-
-    const mime = await this.sniffMimeType(input);
-    if (mime !== PDF_MIME_TYPE) {
+    if (this.normalizeMime(input.declaredMimeType) !== PDF_MIME_TYPE) {
       throw new UnprocessableEntityException(
-        `Unsupported resume type: ${mime ?? 'unrecognized'}. Expected application/pdf.`,
+        'The resume must be declared as application/pdf.',
       );
     }
 
-    if (input.length > MAX_UPLOAD_BYTES) {
+    // Magic bytes are authoritative — a renamed/mis-declared file is caught here regardless.
+    const detected = await this.sniffMimeType(input.buffer);
+    if (detected !== PDF_MIME_TYPE) {
+      throw new UnprocessableEntityException(
+        `Unsupported resume content: ${detected ?? 'unrecognized'}. Expected application/pdf.`,
+      );
+    }
+
+    if (input.buffer.length > MAX_UPLOAD_BYTES) {
       throw new UnprocessableEntityException(
         'The resume PDF exceeds the 10 MiB upload limit.',
       );
     }
 
-    if (!hasPdfStructure(input)) {
+    if (!hasPdfStructure(input.buffer)) {
       throw new UnprocessableEntityException(
         'The resume PDF is malformed or truncated.',
       );
@@ -134,11 +144,43 @@ export class MediaProcessingService {
 
     return {
       kind: 'PDF',
-      buffer: input,
+      buffer: input.buffer,
       mimeType: PDF_MIME_TYPE,
-      sizeBytes: input.length,
-      originalFilename: sanitizeFilename(originalFilename),
+      sizeBytes: input.buffer.length,
+      originalFilename: sanitizeFilename(input.originalFilename),
     };
+  }
+
+  // Magic bytes are authoritative (doc 19 §5): the detected type must be an approved image, and the
+  // client-supplied extension AND declared MIME must both agree with it. A rename (bytes vs
+  // extension) or a spoofed Content-Type (bytes vs declared MIME) is a 422. The detected MIME is a
+  // controlled `file-type` value; the untrusted extension/declared string is never echoed back.
+  private assertImageTypeConsistent(
+    detected: string | null,
+    originalFilename: string,
+    declaredMimeType: string,
+  ): void {
+    if (!detected) {
+      throw new UnprocessableEntityException(
+        'Unsupported image type: unrecognized. Allowed: JPEG, PNG, WebP, AVIF.',
+      );
+    }
+    const rule = IMAGE_TYPE_RULES.find((r) => r.detectedMime === detected);
+    if (!rule) {
+      throw new UnprocessableEntityException(
+        `Unsupported image type: ${detected}. Allowed: JPEG, PNG, WebP, AVIF.`,
+      );
+    }
+    if (!rule.extensions.includes(fileExtension(originalFilename))) {
+      throw new UnprocessableEntityException(
+        `The file extension does not match the detected image content (${detected}).`,
+      );
+    }
+    if (this.normalizeMime(declaredMimeType) !== rule.declaredMime) {
+      throw new UnprocessableEntityException(
+        `The declared content type does not match the detected image content (${detected}).`,
+      );
+    }
   }
 
   // Magic-byte sniff — the real type, never the extension or client Content-Type (doc 19 §5).
@@ -146,6 +188,11 @@ export class MediaProcessingService {
     const fileType = await loadFileType();
     const detected = await fileType.fileTypeFromBuffer(input);
     return detected?.mime ?? null;
+  }
+
+  // Reduce a declared Content-Type to a bare, comparable form (drop parameters, trim, lowercase).
+  private normalizeMime(mime: string): string {
+    return mime.split(';')[0]?.trim().toLowerCase() ?? '';
   }
 
   // Explicit 40 MP ceiling (D19-9): reject before any processing. The header is read WITHOUT

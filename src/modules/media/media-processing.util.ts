@@ -44,6 +44,19 @@ export async function encodeWithinBudget(
   return { buffer, quality, overBudget: buffer.length > options.budgetBytes };
 }
 
+// The lowercased final extension of an untrusted filename (directory components stripped). Used to
+// cross-check the declared/detected type BEFORE `sanitizeFilename` runs, so a rename can never be
+// hidden by sanitization (doc 19 §5). Returns '' for a name with no real extension (including a
+// dotfile like `.pdf` or a trailing dot).
+export function fileExtension(filename: string): string {
+  const base = (filename.split(/[/\\]/).pop() ?? '').trim();
+  const dot = base.lastIndexOf('.');
+  if (dot <= 0) {
+    return '';
+  }
+  return base.slice(dot + 1).toLowerCase();
+}
+
 const MAX_FILENAME_LENGTH = 200;
 
 // Sanitizes an untrusted upload filename down to display/search metadata (doc 19 §5): the result

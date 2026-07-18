@@ -1,16 +1,31 @@
-import { ImageVariantFormat } from './media-processing.types';
+import { ImageTypeRule, ImageVariantFormat } from './media-processing.types';
 
-// ── Type allowlists (doc 19 §5, D19-6/9) ────────────────────────────────────────────────────────
+// ── Type allowlist + consistency rules (doc 19 §5, D19-6/9) ─────────────────────────────────────
 // Raster images only; GIF dropped, SVG forbidden (SVG is script-capable and has no magic bytes, so
-// `file-type` returns undefined for it → it fails this allowlist). PDF is the single non-image kind
-// and only ever attaches to the resume slot (a T6 concern).
-export const ALLOWED_IMAGE_MIME_TYPES: readonly string[] = [
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/avif',
+// `file-type` returns undefined for it → no rule matches). Each approved type pins the detected
+// magic-byte MIME (authoritative), the declared MIME it must be uploaded as, and the extensions that
+// may name it — JPEG deliberately allows both `.jpg` and `.jpeg`. Extension + declared MIME are
+// cross-checked against the detected type, so a rename or spoofed Content-Type is rejected.
+export const IMAGE_TYPE_RULES: readonly ImageTypeRule[] = [
+  {
+    detectedMime: 'image/jpeg',
+    declaredMime: 'image/jpeg',
+    extensions: ['jpg', 'jpeg'],
+  },
+  { detectedMime: 'image/png', declaredMime: 'image/png', extensions: ['png'] },
+  {
+    detectedMime: 'image/webp',
+    declaredMime: 'image/webp',
+    extensions: ['webp'],
+  },
+  {
+    detectedMime: 'image/avif',
+    declaredMime: 'image/avif',
+    extensions: ['avif'],
+  },
 ];
 
+// PDF is the single non-image kind and only ever attaches to the resume slot (a T6 concern).
 export const PDF_MIME_TYPE = 'application/pdf';
 
 // ── Decode & size limits (doc 19 §5, D19-9) ─────────────────────────────────────────────────────
