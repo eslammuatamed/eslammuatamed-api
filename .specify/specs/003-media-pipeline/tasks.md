@@ -51,7 +51,7 @@ the owner approves the spec + plan** (Q1–Q4 resolved 2026-07-18). Dependency s
     non-empty; EXIF stripped; renamed non-image + SVG → rejected; **40 MP boundary** accept(=)/reject(>);
     each rendition ≤ budget or floor with `overBudget=true` persisted + a structured log line; PDF path produces no variants. Run with
     `NODE_OPTIONS=--experimental-vm-modules`.
-- [ ] T6 — Media module: admin endpoints, dedupe, usages, compensation (doc 10 §5, doc 07 §6 D07-6)
+- [x] T6 — Media module: admin endpoints, dedupe, usages, compensation (doc 10 §5, doc 07 §6 D07-6) — done: 31f9b25 (module+AppModule wiring; upload/dedup/race/compensation; usages+409; per-locale alt; 2-wide limiter+Retry-After; cross-module: `SiteSettings.resumeAssetId` PDF-only guard in settings PATCH)
   - `POST /admin/media` (multipart, image or resume PDF → **201** new / **200** existing with `meta.deduplicated: true`),
     `GET /admin/media` (paginated, search filename+alt, `kind` filter), `GET /admin/media/{id}`,
     `PATCH /admin/media/{id}` (per-locale alt), `GET /admin/media/{id}/usages`, `DELETE /admin/media/{id}`

@@ -1,6 +1,6 @@
 # Plan 003 — Media Pipeline (API)
 
-**Status:** 🚧 In progress — approved & underway (Q1–Q4 resolved 2026-07-18). Doc-first committed (docs PR #2); **T1–T5 complete** (deps `e828ebd`, schema `55d8f90`, storage `56be678`, processing `5ee7344`). **Next task: T6** (media module: admin endpoints, dedupe, usages, compensation). API branch local/unpushed.
+**Status:** 🚧 In progress — approved & underway (Q1–Q4 resolved 2026-07-18). Doc-first committed (docs PR #2); **T1–T6 complete** (deps `e828ebd`, schema `55d8f90`, storage `56be678`, processing `5ee7344`, media module `31f9b25`). **Next task: T7** (public media descriptors, additive). API branch local/unpushed.
 
 Architecture is already decided in the governing docs — this plan **binds** them to the feature.
 Unlike Feature 002 (module build-out on an existing schema, no new deps), Feature 003 is a

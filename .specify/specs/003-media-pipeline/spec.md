@@ -1,7 +1,7 @@
 # Feature 003 — Media Pipeline (API)
 
 **Feature Branch:** `003-media-pipeline`
-**Milestone:** M2 — API Complete (doc 24 §2). **Status:** 🚧 **In progress** — approved & underway (Q1–Q4 resolved 2026-07-18). Doc-first committed (docs branch `2623b15`, PR #2 open); **T1–T5 complete**, **next task T6**. API branch local/unpushed.
+**Milestone:** M2 — API Complete (doc 24 §2). **Status:** 🚧 **In progress** — approved & underway (Q1–Q4 resolved 2026-07-18). Doc-first committed (docs branch `2623b15`, PR #2 open); **T1–T6 complete**, **next task T7**. API branch local/unpushed.
 **Governing docs:** 02 §4 (FR-DSH-030–034, D02-7), 07 §6 (D07-6), 08, 09 §3/§4 (D09-11/12/13), 10 §5/§6 (D10-10), 15, 16, 18, 19 §5/§6 (D19-6/D19-9), 20 §4 (D20-6), 23 §1 (D23-15).
 **Requirements carried:** FR-DSH-030 (upload + grid + search + per-locale alt), FR-DSH-031 (usage-protected deletion), FR-DSH-032 (validation + processing pipeline), FR-DSH-033 (reusable central library), FR-DSH-034 (SHA-256 duplicate detection), FR-DSH-070 (settings resume file), FR-PUB-023 (resume PDF download), FR-PUB-032 (case-study gallery images), FR-CNT-010/020/060 (cover / gallery / avatar references), FR-DSH-050 (per-entity OG image), NFR-001 (image performance), NFR-005 (strict validation). Owner design approval 2026-07-18 (7-point directive + Q1–Q4 resolutions).
 
