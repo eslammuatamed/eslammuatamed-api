@@ -3,7 +3,12 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { Prisma, SiteSettings, SiteSettingsTranslation } from '@prisma/client';
+import {
+  MediaKind,
+  Prisma,
+  SiteSettings,
+  SiteSettingsTranslation,
+} from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocalesService } from '../locales/locales.service';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
@@ -76,6 +81,25 @@ export class SettingsService {
 
     for (const translation of dto.translations ?? []) {
       await this.locales.assertEnabled(translation.locale);
+    }
+
+    // The resume slot may only reference a PDF asset (service invariant, feature 003 T6). null
+    // clears it (the prior asset is retained). Setting a non-existent or non-PDF asset is a 422.
+    if (dto.resumeAssetId !== undefined && dto.resumeAssetId !== null) {
+      const asset = await this.prisma.mediaAsset.findUnique({
+        where: { id: dto.resumeAssetId },
+        select: { kind: true },
+      });
+      if (!asset) {
+        throw new UnprocessableEntityException(
+          'resumeAssetId does not reference an existing media asset.',
+        );
+      }
+      if (asset.kind !== MediaKind.PDF) {
+        throw new UnprocessableEntityException(
+          'resumeAssetId must reference a PDF asset.',
+        );
+      }
     }
 
     const careerStartYear =
@@ -194,6 +218,13 @@ function buildSettingsUpdate(
       name: meta.name,
       content: meta.content,
     }));
+  }
+  // Repoint (connect) or clear (disconnect) the resume FK; the prior asset is never deleted here.
+  if (dto.resumeAssetId !== undefined) {
+    data.resumeAsset =
+      dto.resumeAssetId === null
+        ? { disconnect: true }
+        : { connect: { id: dto.resumeAssetId } };
   }
   return data;
 }

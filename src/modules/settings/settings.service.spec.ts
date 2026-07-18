@@ -2,7 +2,11 @@ import {
   BadRequestException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { SiteSettings, SiteSettingsTranslation } from '@prisma/client';
+import {
+  MediaKind,
+  SiteSettings,
+  SiteSettingsTranslation,
+} from '@prisma/client';
 import { DeepMockProxy, mockDeep } from 'jest-mock-extended';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocalesService } from '../locales/locales.service';
@@ -152,6 +156,62 @@ describe('SettingsService', () => {
       expect(prisma.siteSettings.update).toHaveBeenCalled();
       expect(prisma.siteSettingsTranslation.upsert).toHaveBeenCalled();
       expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects a resumeAssetId that references a non-PDF asset with 422', async () => {
+      prisma.siteSettings.findFirst.mockResolvedValue(settingsRow());
+      prisma.mediaAsset.findUnique.mockResolvedValue({
+        kind: MediaKind.IMAGE,
+      } as never);
+
+      await expect(
+        service.updateSettings({ resumeAssetId: 'image-asset-id' }),
+      ).rejects.toBeInstanceOf(UnprocessableEntityException);
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('rejects a resumeAssetId that does not exist with 422', async () => {
+      prisma.siteSettings.findFirst.mockResolvedValue(settingsRow());
+      prisma.mediaAsset.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.updateSettings({ resumeAssetId: 'missing-asset-id' }),
+      ).rejects.toBeInstanceOf(UnprocessableEntityException);
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('connects the resume FK when the asset is a PDF', async () => {
+      prisma.siteSettings.findFirst.mockResolvedValue(settingsRow());
+      prisma.mediaAsset.findUnique.mockResolvedValue({
+        kind: MediaKind.PDF,
+      } as never);
+      prisma.$transaction.mockResolvedValue([]);
+
+      await service.updateSettings({ resumeAssetId: 'pdf-asset-id' });
+
+      expect(prisma.siteSettings.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            resumeAsset: { connect: { id: 'pdf-asset-id' } },
+          }),
+        }),
+      );
+    });
+
+    it('disconnects the resume FK for null without a PDF lookup (asset retained)', async () => {
+      prisma.siteSettings.findFirst.mockResolvedValue(settingsRow());
+      prisma.$transaction.mockResolvedValue([]);
+
+      await service.updateSettings({ resumeAssetId: null });
+
+      expect(prisma.mediaAsset.findUnique).not.toHaveBeenCalled();
+      expect(prisma.siteSettings.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            resumeAsset: { disconnect: true },
+          }),
+        }),
+      );
     });
 
     it('sets both career start fields', async () => {

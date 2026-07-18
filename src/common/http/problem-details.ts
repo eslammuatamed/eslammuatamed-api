@@ -29,6 +29,9 @@ export interface ProblemDetails {
   readonly detail: string;
   readonly instance: string;
   readonly errors?: readonly FieldError[];
+  // RFC 7807 extension member (§3.2): the references blocking a 409 delete (doc 10 §6). Carried
+  // through from an HttpException response object that supplies a `usages` array.
+  readonly usages?: readonly unknown[];
 }
 
 // Swagger schema for the error envelope so the contract documents error shapes too.
@@ -67,4 +70,12 @@ export class ProblemDetailsDto {
     description: 'Present on 422 responses only.',
   })
   readonly errors?: readonly FieldError[];
+
+  @ApiPropertyOptional({
+    type: 'array',
+    items: { type: 'object' },
+    description:
+      'Present on a 409 media-in-use response only: the records referencing the asset.',
+  })
+  readonly usages?: readonly unknown[];
 }
