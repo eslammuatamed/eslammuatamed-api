@@ -1,4 +1,5 @@
 import { MediaKind, MediaVariantFormat } from '@prisma/client';
+import { PinoLogger } from 'nestjs-pino';
 import {
   DescriptorImageInput,
   DescriptorPdfInput,
@@ -12,6 +13,13 @@ const storage: jest.Mocked<StorageAdapter> = {
   deleteMany: jest.fn(),
   publicUrl: jest.fn((key: string) => `https://media.test/${key}`),
 };
+
+const logger = {
+  error: jest.fn(),
+  warn: jest.fn(),
+  info: jest.fn(),
+  debug: jest.fn(),
+} as unknown as PinoLogger;
 
 const imageInput = (
   overrides: Partial<DescriptorImageInput> = {},
@@ -64,7 +72,9 @@ const pdfInput = (
 });
 
 describe('MediaDescriptorResolver', () => {
-  const resolver = new MediaDescriptorResolver(storage);
+  const resolver = new MediaDescriptorResolver(storage, logger);
+
+  beforeEach(() => jest.clearAllMocks());
 
   describe('resolveImage', () => {
     it('builds the image descriptor with the widest WebP as the primary URL', () => {
@@ -168,6 +178,55 @@ describe('MediaDescriptorResolver', () => {
         'en',
       );
       expect(d.url).toBe('https://media.test/k/1280-webp.webp');
+    });
+  });
+
+  describe('image descriptor invariants (T7 correction)', () => {
+    it('selects the widest WebP when both WebP and AVIF variants exist (no invariant error)', () => {
+      const d = resolver.resolveImage(imageInput(), 'en');
+      expect(d.url).toBe('https://media.test/k/1920-webp.webp');
+      expect(logger.error).not.toHaveBeenCalled();
+    });
+
+    it('raises a controlled internal error for an AVIF-only image (never an AVIF primary URL)', () => {
+      const avifOnly = imageInput({
+        variants: [
+          {
+            format: MediaVariantFormat.AVIF,
+            width: 1920,
+            height: 1080,
+            storageKey: 'k/1920-avif.avif',
+          },
+        ],
+      });
+
+      expect(() => resolver.resolveImage(avifOnly, 'en')).toThrow(
+        /invariant violated/i,
+      );
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: 'media.descriptor_invariant_violation',
+          assetId: 'img-1',
+          reason: expect.stringContaining('WebP'),
+        }),
+        expect.any(String),
+      );
+    });
+
+    it('raises a controlled internal error when width or height is missing (never a 0 dimension)', () => {
+      expect(() =>
+        resolver.resolveImage(imageInput({ width: null }), 'en'),
+      ).toThrow(/invariant violated/i);
+      expect(() =>
+        resolver.resolveImage(imageInput({ height: null }), 'en'),
+      ).toThrow(/invariant violated/i);
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: 'media.descriptor_invariant_violation',
+          reason: expect.stringContaining('width/height'),
+        }),
+        expect.any(String),
+      );
     });
   });
 

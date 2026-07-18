@@ -1,5 +1,7 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { MediaKind, MediaVariantFormat } from '@prisma/client';
+import { InjectPinoLogger } from 'nestjs-pino';
+import type { PinoLogger } from 'nestjs-pino';
 import {
   PublicMediaImageDescriptor,
   PublicMediaPdfDescriptor,
@@ -39,14 +41,30 @@ export interface DescriptorPdfInput {
 export class MediaDescriptorResolver {
   constructor(
     @Inject(STORAGE_ADAPTER) private readonly storage: StorageAdapter,
+    // Injected in the app (global LoggerModule); optional so `new MediaDescriptorResolver(storage)`
+    // in unit tests needs no stub. Used only on the (should-never-happen) invariant-violation path.
+    @Optional()
+    @InjectPinoLogger(MediaDescriptorResolver.name)
+    private readonly logger?: PinoLogger,
   ) {}
 
-  // Image descriptor: primary `url` is the widest WebP rendition (never the master, doc 07 §6);
-  // `alt` is the requested locale's alt, or null when that translation is absent (no fallback, "" kept).
+  // Image descriptor: primary `url` is the widest WebP rendition — NEVER an AVIF or the master (doc
+  // 07 §6, doc 10 §6). `alt` is the requested locale's alt, or null when that translation is absent
+  // (no fallback, "" kept). Width/height/WebP are hard invariants for an IMAGE asset (doc 09 CHECK +
+  // T5): a violation is an internal data bug → a controlled 500, never a faked value or an AVIF URL.
   resolveImage(
     asset: DescriptorImageInput,
     locale: string,
   ): PublicMediaImageDescriptor {
+    // Invariants first — fail fast before any URL is built, so an AVIF-only or dimensionless asset
+    // can never surface a partial descriptor.
+    if (asset.width === null || asset.height === null) {
+      this.failInvariant(asset.id, 'image is missing width/height');
+    }
+    const primaryUrl = this.storage.publicUrl(
+      this.widestWebpKey(asset.id, asset.variants),
+    );
+
     const variants: PublicMediaVariantDescriptor[] = [...asset.variants]
       .sort((a, b) => a.width - b.width || a.format.localeCompare(b.format))
       .map((variant) => ({
@@ -61,10 +79,9 @@ export class MediaDescriptorResolver {
     return {
       id: asset.id,
       kind: MediaKind.IMAGE,
-      url: this.storage.publicUrl(this.widestWebpKey(asset.variants)),
-      // IMAGE assets always carry dimensions (DB CHECK, doc 09); the ?? 0 is an unreachable guard.
-      width: asset.width ?? 0,
-      height: asset.height ?? 0,
+      url: primaryUrl,
+      width: asset.width,
+      height: asset.height,
       blurhash: asset.blurhash,
       alt: altRow ? altRow.alt : null,
       variants,
@@ -81,24 +98,39 @@ export class MediaDescriptorResolver {
     };
   }
 
-  // Widest WebP rendition preferred; falls back to the widest rendition of any format if (never, for
-  // a valid image) no WebP exists. The master is never a candidate — the input carries no master key.
-  private widestWebpKey(variants: readonly DescriptorVariantInput[]): string {
+  // The widest WebP rendition — no fallback to AVIF or the master. Every IMAGE asset has ≥ 1 WebP
+  // rendition (T5); its absence is an internal invariant violation, not a client error.
+  private widestWebpKey(
+    assetId: string,
+    variants: readonly DescriptorVariantInput[],
+  ): string {
     const webp = variants.filter(
       (variant) => variant.format === MediaVariantFormat.WEBP,
     );
-    const pool = webp.length > 0 ? webp : variants;
 
-    let widest = pool[0];
+    let widest = webp[0];
     if (!widest) {
-      // Unreachable for a valid image (T5 produces ≥ 1 rendition); never emit the master.
-      throw new Error('Image media asset has no renditions.');
+      this.failInvariant(assetId, 'image has no WebP rendition');
     }
-    for (const variant of pool) {
+    for (const variant of webp) {
       if (variant.width > widest.width) {
         widest = variant;
       }
     }
     return widest.storageKey;
+  }
+
+  // Controlled internal error for a violated image descriptor invariant. Emits a structured event
+  // for ops (asset id + reason — never storage keys) and throws a plain Error, which
+  // AllExceptionsFilter renders as a generic 500 with no internals leaked (the project's controlled
+  // internal-error pattern). `never` return narrows the caller past the guard.
+  private failInvariant(assetId: string, reason: string): never {
+    this.logger?.error(
+      { event: 'media.descriptor_invariant_violation', assetId, reason },
+      'Public image descriptor invariant violated',
+    );
+    throw new Error(
+      `Public image descriptor invariant violated for asset ${assetId}: ${reason}`,
+    );
   }
 }
