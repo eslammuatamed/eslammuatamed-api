@@ -1,4 +1,4 @@
-import { plainToInstance, Type } from 'class-transformer';
+import { plainToInstance, Transform, Type } from 'class-transformer';
 import {
   IsEmail,
   IsEnum,
@@ -6,11 +6,13 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUrl,
   Matches,
   Max,
   Min,
   MinLength,
   validateSync,
+  ValidateIf,
 } from 'class-validator';
 
 export enum NodeEnv {
@@ -87,13 +89,67 @@ export class EnvironmentVariables {
   @IsEnum(StorageDriver)
   STORAGE_DRIVER!: StorageDriver;
 
+  // Required only for the local driver (D23-15); the S3_* group covers the s3/R2 driver.
+  @ValidateIf(
+    (env: EnvironmentVariables) => env.STORAGE_DRIVER === StorageDriver.Local,
+  )
   @IsString()
   @IsNotEmpty()
   STORAGE_LOCAL_DIR!: string;
 
+  // Public media origin for both drivers (doc 19 §5). Normalized once here: trailing slashes are
+  // stripped, and the value must be an absolute http(s) URL. Production must be https — checked in
+  // validate() below, since a class-validator option cannot depend on another field at decoration
+  // time. require_tld is off so localhost is accepted in development.
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.replace(/\/+$/, '') : value,
+  )
   @IsString()
   @IsNotEmpty()
+  @IsUrl({
+    protocols: ['http', 'https'],
+    require_protocol: true,
+    require_tld: false,
+  })
   PUBLIC_MEDIA_URL!: string;
+
+  // Cloudflare R2 (S3-compatible) — required only when STORAGE_DRIVER=s3 (doc 23 §1, D23-15).
+  @ValidateIf(
+    (env: EnvironmentVariables) => env.STORAGE_DRIVER === StorageDriver.S3,
+  )
+  @IsString()
+  @IsNotEmpty()
+  @IsUrl({ protocols: ['https'], require_protocol: true, require_tld: false })
+  S3_ENDPOINT!: string;
+
+  @ValidateIf(
+    (env: EnvironmentVariables) => env.STORAGE_DRIVER === StorageDriver.S3,
+  )
+  @IsString()
+  @IsNotEmpty()
+  S3_BUCKET!: string;
+
+  @ValidateIf(
+    (env: EnvironmentVariables) => env.STORAGE_DRIVER === StorageDriver.S3,
+  )
+  @IsString()
+  @IsNotEmpty()
+  S3_ACCESS_KEY_ID!: string;
+
+  @ValidateIf(
+    (env: EnvironmentVariables) => env.STORAGE_DRIVER === StorageDriver.S3,
+  )
+  @IsString()
+  @IsNotEmpty()
+  S3_SECRET_ACCESS_KEY!: string;
+
+  // Optional; R2 uses "auto" and the config layer defaults it.
+  @ValidateIf(
+    (env: EnvironmentVariables) => env.STORAGE_DRIVER === StorageDriver.S3,
+  )
+  @IsOptional()
+  @IsString()
+  S3_REGION?: string;
 }
 
 // Passed to ConfigModule.forRoot({ validate }). Throwing here aborts boot with a readable
@@ -116,6 +172,28 @@ export function validate(raw: Record<string, unknown>): EnvironmentVariables {
       })
       .join('\n');
     throw new Error(`Invalid environment configuration:\n${details}`);
+  }
+
+  // Production must use s3/R2 storage — local filesystem storage is development/test only (D23-15).
+  // Fail closed at boot rather than letting the provider factory pick a backend by accident.
+  if (
+    validated.NODE_ENV === NodeEnv.Production &&
+    validated.STORAGE_DRIVER !== StorageDriver.S3
+  ) {
+    throw new Error(
+      'Invalid environment configuration:\n  - STORAGE_DRIVER: production requires s3 storage (local is development/test only)',
+    );
+  }
+
+  // Production must serve media over https (doc 19 §5). Expressed here rather than as a decorator
+  // because it depends on NODE_ENV; the URL itself was already validated + trailing-slash-normalized.
+  if (
+    validated.NODE_ENV === NodeEnv.Production &&
+    !validated.PUBLIC_MEDIA_URL.startsWith('https://')
+  ) {
+    throw new Error(
+      'Invalid environment configuration:\n  - PUBLIC_MEDIA_URL: must be an absolute https URL in production',
+    );
   }
 
   return validated;
