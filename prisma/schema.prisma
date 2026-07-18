@@ -36,6 +36,17 @@ enum EmploymentType {
   FREELANCE
 }
 
+// Media asset kind + rendition format (D09-12 / D09-11). PDF is resume-only (D02-7).
+enum MediaKind {
+  IMAGE
+  PDF
+}
+
+enum MediaVariantFormat {
+  WEBP
+  AVIF
+}
+
 // ===== Localization reference table (D09-5) — adding a language is an INSERT =====
 
 model Locale {
@@ -461,18 +472,25 @@ model TestimonialTranslation {
 // ===== Media, SEO, redirects, contact, settings =====
 
 model MediaAsset {
-  id         String  @id @default(uuid(7))
-  storageKey String  @unique @map("storage_key")
-  mimeType   String  @map("mime_type")
-  sizeBytes  Int     @map("size_bytes")
-  width      Int?
-  height     Int?
-  blurhash   String?
+  id               String    @id @default(uuid(7))
+  kind             MediaKind
+  storageKey       String    @unique @map("storage_key")
+  originalFilename String    @map("original_filename")
+  mimeType         String    @map("mime_type")
+  sizeBytes        Int       @map("size_bytes")
+  contentHash      String    @unique @map("content_hash")
+  // IMAGE: base fields describe the sanitized WebP-q90 master (the raw upload is never persisted,
+  // D07-6). PDF: base fields describe the PDF object. The kind↔fields consistency (IMAGE ⇒
+  // width/height/blurhash present + image/webp; PDF ⇒ all null + application/pdf) is a DB CHECK.
+  width            Int?
+  height           Int?
+  blurhash         String?
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   alts               MediaAssetAlt[]
+  variants           MediaAssetVariant[]
   articleCovers      Article[]            @relation("ArticleCover")
   articleOgImages    ArticleTranslation[] @relation("ArticleTranslationOg")
   projectOgImages    ProjectTranslation[] @relation("ProjectTranslationOg")
@@ -498,6 +516,30 @@ model MediaAssetAlt {
 
   @@unique([mediaAssetId, locale])
   @@map("media_asset_alts")
+}
+
+// Generated image renditions of a MediaAsset (D09-11, doc 20 §4). IMAGE assets only —
+// PDFs have no variants (a service invariant). Deleted with the parent asset (CASCADE).
+model MediaAssetVariant {
+  id           String             @id @default(uuid(7))
+  mediaAssetId String             @map("media_asset_id")
+  format       MediaVariantFormat
+  width        Int
+  height       Int
+  storageKey   String             @unique @map("storage_key")
+  sizeBytes    Int                @map("size_bytes")
+  // Rendition stayed above its doc 20 §4 width×format budget at the quality floor (D20-6):
+  // admin/ops-searchable, delivery-non-blocking, never exposed in the public descriptor.
+  overBudget   Boolean            @default(false) @map("over_budget")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  mediaAsset MediaAsset @relation(fields: [mediaAssetId], references: [id], onDelete: Cascade)
+
+  // mediaAssetId lookups (FK/cascade) are served by the composite unique's leftmost prefix.
+  @@unique([mediaAssetId, format, width])
+  @@map("media_asset_variants")
 }
 
 model PageSeo {
