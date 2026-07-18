@@ -95,10 +95,16 @@ export class MediaService {
 
   // ── Upload (POST /admin/media) ────────────────────────────────────────────────────────────────
   async upload(input: MediaUploadInput): Promise<MediaUploadOutcome> {
+    // Lightweight identity validation runs on EVERY upload, BEFORE the dedup lookup: magic-byte +
+    // extension + declared-MIME consistency (and PDF size/integrity), with no Sharp and no object
+    // writes. This closes the gap where a duplicate carrying a forged filename/MIME could return 200
+    // instead of 422 — validation is never skipped by the dedup fast path (doc 19 §5).
+    await this.validateIdentity(input);
+
     const contentHash = this.hashOriginalBytes(input.buffer);
 
-    // Fast-path dedup BEFORE any processing (D09-13): a byte-identical re-upload resolves to the
-    // existing asset — no Sharp, no object write, no concurrency slot consumed.
+    // Fast-path dedup BEFORE any Sharp processing (D09-13): a byte-identical re-upload resolves to
+    // the existing asset — no Sharp, no object write, no concurrency slot consumed.
     const existing = await this.prisma.mediaAsset.findUnique({
       where: { contentHash },
       include: ADMIN_INCLUDE,
@@ -109,6 +115,16 @@ export class MediaService {
 
     // A genuinely new asset processes under the memory-bounded concurrency cap (Q3, doc 19 §6).
     return this.limiter.run(() => this.processAndPersist(input, contentHash));
+  }
+
+  // Routes identity validation by declared MIME the same way processAndPersist routes processing, so
+  // the pre-dedup check and the eventual Sharp/PDF path agree on the kind. Never invokes Sharp.
+  private async validateIdentity(input: MediaUploadInput): Promise<void> {
+    if (this.normalizeMime(input.declaredMimeType) === PDF_MIME_TYPE) {
+      await this.processing.validatePdfInput(input);
+    } else {
+      await this.processing.validateImageInput(input);
+    }
   }
 
   private async processAndPersist(

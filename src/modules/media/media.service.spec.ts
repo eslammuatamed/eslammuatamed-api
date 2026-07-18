@@ -7,6 +7,7 @@ import { MediaKind, Prisma } from '@prisma/client';
 import { createHash } from 'node:crypto';
 import { DeepMockProxy, mockDeep } from 'jest-mock-extended';
 import { PinoLogger } from 'nestjs-pino';
+import sharp from 'sharp';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocalesService } from '../locales/locales.service';
 import { MediaInUseException } from './media-in-use.exception';
@@ -136,6 +137,12 @@ const p2002 = (target: string[]): Prisma.PrismaClientKnownRequestError =>
     meta: { target },
   });
 
+// A minimal structurally-valid PDF (real %PDF- magic + %%EOF trailer) for the validation tests.
+const VALID_PDF = Buffer.from(
+  '%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n',
+  'latin1',
+);
+
 const imageUpload = () => ({
   buffer: Buffer.from('raw-image-bytes'),
   originalFilename: 'photo.jpg',
@@ -153,7 +160,12 @@ const pdfUpload = () => ({
 describe('MediaService', () => {
   let prisma: DeepMockProxy<PrismaService>;
   let locales: DeepMockProxy<LocalesService>;
-  let processing: { processImage: jest.Mock; processPdf: jest.Mock };
+  let processing: {
+    processImage: jest.Mock;
+    processPdf: jest.Mock;
+    validateImageInput: jest.Mock;
+    validatePdfInput: jest.Mock;
+  };
   let storage: jest.Mocked<StorageAdapter>;
   let limiter: ProcessingConcurrencyLimiter;
   let logger: PinoLogger;
@@ -162,7 +174,14 @@ describe('MediaService', () => {
   beforeEach(() => {
     prisma = mockDeep<PrismaService>();
     locales = mockDeep<LocalesService>();
-    processing = { processImage: jest.fn(), processPdf: jest.fn() };
+    processing = {
+      processImage: jest.fn(),
+      processPdf: jest.fn(),
+      // Identity validation runs before dedup; default to passing so the existing suites (which use
+      // synthetic buffers) exercise the orchestration, not the real magic-byte checks.
+      validateImageInput: jest.fn().mockResolvedValue(undefined),
+      validatePdfInput: jest.fn().mockResolvedValue(undefined),
+    };
     storage = {
       put: jest.fn().mockResolvedValue(undefined),
       delete: jest.fn().mockResolvedValue(undefined),
@@ -273,6 +292,128 @@ describe('MediaService', () => {
       expect(processing.processPdf).not.toHaveBeenCalled();
       expect(storage.put).not.toHaveBeenCalled();
       expect(prisma.mediaAsset.create).not.toHaveBeenCalled();
+    });
+  });
+
+  // T6 correction: identity validation (magic-byte + extension + declared-MIME consistency) must run
+  // on EVERY upload BEFORE the dedup lookup, so a duplicate carrying a forged filename/MIME is
+  // rejected (422) rather than deduplicated. A real MediaProcessingService validates real bytes;
+  // none of these cases reach Sharp (they either fail validation or hit dedup), so no real image
+  // processing runs.
+  describe('upload — validation before deduplication', () => {
+    let realProcessing: MediaProcessingService;
+    let realService: MediaService;
+
+    const jpegBytes = (): Promise<Buffer> =>
+      sharp({
+        create: { width: 8, height: 8, channels: 3, background: '#ff0000' },
+      })
+        .jpeg()
+        .toBuffer();
+
+    beforeEach(() => {
+      realProcessing = new MediaProcessingService();
+      realService = new MediaService(
+        prisma,
+        storage,
+        realProcessing,
+        locales,
+        limiter,
+        logger,
+      );
+    });
+
+    it('accepts a valid duplicate JPEG (.jpg, image/jpeg) → 200 deduplicated, no Sharp, no storage', async () => {
+      prisma.mediaAsset.findUnique.mockResolvedValue(imageAssetRow());
+      const sharpSpy = jest.spyOn(realProcessing, 'processImage');
+
+      const outcome = await realService.upload({
+        buffer: await jpegBytes(),
+        originalFilename: 'photo.jpg',
+        declaredMimeType: 'image/jpeg',
+      });
+
+      expect(outcome.deduplicated).toBe(true);
+      expect(sharpSpy).not.toHaveBeenCalled();
+      expect(storage.put).not.toHaveBeenCalled();
+    });
+
+    it('rejects an existing JPEG re-uploaded as .png → 422, no Sharp, no storage', async () => {
+      const sharpSpy = jest.spyOn(realProcessing, 'processImage');
+
+      await expect(
+        realService.upload({
+          buffer: await jpegBytes(),
+          originalFilename: 'photo.png',
+          declaredMimeType: 'image/jpeg',
+        }),
+      ).rejects.toBeInstanceOf(UnprocessableEntityException);
+
+      expect(sharpSpy).not.toHaveBeenCalled();
+      expect(storage.put).not.toHaveBeenCalled();
+      expect(prisma.mediaAsset.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('rejects an existing JPEG declared image/png → 422, no Sharp, no storage', async () => {
+      const sharpSpy = jest.spyOn(realProcessing, 'processImage');
+
+      await expect(
+        realService.upload({
+          buffer: await jpegBytes(),
+          originalFilename: 'photo.jpg',
+          declaredMimeType: 'image/png',
+        }),
+      ).rejects.toBeInstanceOf(UnprocessableEntityException);
+
+      expect(sharpSpy).not.toHaveBeenCalled();
+      expect(storage.put).not.toHaveBeenCalled();
+      expect(prisma.mediaAsset.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('rejects a PDF uploaded as .jpg declared image/jpeg → 422, no Sharp, no storage', async () => {
+      const sharpSpy = jest.spyOn(realProcessing, 'processImage');
+
+      await expect(
+        realService.upload({
+          buffer: VALID_PDF,
+          originalFilename: 'resume.jpg',
+          declaredMimeType: 'image/jpeg',
+        }),
+      ).rejects.toBeInstanceOf(UnprocessableEntityException);
+
+      expect(sharpSpy).not.toHaveBeenCalled();
+      expect(storage.put).not.toHaveBeenCalled();
+      expect(prisma.mediaAsset.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('rejects a PDF declared application/octet-stream → 422, no Sharp, no storage', async () => {
+      const sharpSpy = jest.spyOn(realProcessing, 'processImage');
+
+      await expect(
+        realService.upload({
+          buffer: VALID_PDF,
+          originalFilename: 'resume.pdf',
+          declaredMimeType: 'application/octet-stream',
+        }),
+      ).rejects.toBeInstanceOf(UnprocessableEntityException);
+
+      expect(sharpSpy).not.toHaveBeenCalled();
+      expect(storage.put).not.toHaveBeenCalled();
+      expect(prisma.mediaAsset.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('accepts a valid duplicate with uppercase .JPG and image/jpeg → 200 deduplicated', async () => {
+      prisma.mediaAsset.findUnique.mockResolvedValue(imageAssetRow());
+      const sharpSpy = jest.spyOn(realProcessing, 'processImage');
+
+      const outcome = await realService.upload({
+        buffer: await jpegBytes(),
+        originalFilename: 'PHOTO.JPG',
+        declaredMimeType: 'image/jpeg',
+      });
+
+      expect(outcome.deduplicated).toBe(true);
+      expect(sharpSpy).not.toHaveBeenCalled();
     });
   });
 

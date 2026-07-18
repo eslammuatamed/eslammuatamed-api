@@ -68,16 +68,23 @@ interface RenditionTarget {
 // the sanitized master.
 @Injectable()
 export class MediaProcessingService {
-  // IMAGE path (doc 07 §6, doc 19 §5, doc 20 §4). Rejections are UnprocessableEntity (→ 422) — a
-  // transport-agnostic signal the controller maps without T5 touching request/response objects.
-  async processImage(input: ProcessImageInput): Promise<ProcessedImage> {
+  // Lightweight IMAGE identity validation (doc 19 §5): magic-byte sniff + extension/declared-MIME
+  // consistency, with NO Sharp decode and no object writes. Exposed so the orchestration layer can
+  // validate every upload — including a potential duplicate — before the dedup lookup, so a forged
+  // filename/MIME can never bypass validation via the dedup fast path. Rejections are 422.
+  async validateImageInput(input: ProcessImageInput): Promise<void> {
     const detected = await this.sniffMimeType(input.buffer);
     this.assertImageTypeConsistent(
       detected,
       input.originalFilename,
       input.declaredMimeType,
     );
+  }
 
+  // IMAGE path (doc 07 §6, doc 19 §5, doc 20 §4). Rejections are UnprocessableEntity (→ 422) — a
+  // transport-agnostic signal the controller maps without T5 touching request/response objects.
+  async processImage(input: ProcessImageInput): Promise<ProcessedImage> {
+    await this.validateImageInput(input);
     await this.assertWithinPixelCeiling(input.buffer);
 
     // Master: auto-orient from EXIF (`rotate()` with no args), strip all metadata (not calling
@@ -109,9 +116,10 @@ export class MediaProcessingService {
     };
   }
 
-  // PDF path (doc 19 §5, D19-9): the single non-image asset, resume-only. Validated but never
-  // Sharp-processed and never given variants/blurhash. Attaching it to the resume slot is a T6 rule.
-  async processPdf(input: ProcessPdfInput): Promise<ProcessedPdf> {
+  // Lightweight PDF identity validation (doc 19 §5, D19-9): extension + declared MIME + magic bytes
+  // + 10 MiB size + %PDF-/%%EOF integrity, with NO Sharp and no object writes. Exposed for the same
+  // reason as validateImageInput — every upload is validated before the dedup lookup. Rejections are 422.
+  async validatePdfInput(input: ProcessPdfInput): Promise<void> {
     // Validate the ORIGINAL extension before sanitization could hide a rename (doc 19 §5).
     if (fileExtension(input.originalFilename) !== 'pdf') {
       throw new UnprocessableEntityException('The resume must be a .pdf file.');
@@ -141,7 +149,12 @@ export class MediaProcessingService {
         'The resume PDF is malformed or truncated.',
       );
     }
+  }
 
+  // PDF path (doc 19 §5, D19-9): the single non-image asset, resume-only. Validated but never
+  // Sharp-processed and never given variants/blurhash. Attaching it to the resume slot is a T6 rule.
+  async processPdf(input: ProcessPdfInput): Promise<ProcessedPdf> {
+    await this.validatePdfInput(input);
     return {
       kind: 'PDF',
       buffer: input.buffer,
