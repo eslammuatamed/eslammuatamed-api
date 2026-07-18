@@ -38,7 +38,7 @@ the owner approves the spec + plan** (Q1–Q4 resolved 2026-07-18). Dependency s
     object metadata (image `Cache-Control` immutable; PDF `Content-Disposition`); S3 adapter unit with
     mocked client; env boot rejects missing `S3_*` when `driver=s3`. **No** speculative R2 checksum
     workaround unless a T10 integration test proves it needed.
-- [ ] T5 [P] — Processing service (doc 20 §4 D20-6, doc 19 §5 D19-6/9) — *needs T3*
+- [x] T5 [P] — Processing service (doc 20 §4 D20-6, doc 19 §5 D19-6/9) — done: 5ee7344 (magic-byte allowlist, 40 MP ceiling, WebP-q90 master, budget ladder + overBudget, PDF validation; unit tests via `--experimental-vm-modules`)
   - Image: content-sniff (framework `ParseFilePipe` magic-byte validator), **40 MP `limitInputPixels`**
     (explicit), `sharp` auto-orient + strip metadata → sanitized **WebP-q90 master** (full dims, no upscale;
     the raw upload is never persisted; `MediaAsset` describes the master; `blurhash` from it) → **renditions**
