@@ -1,0 +1,75 @@
+# Deploy fallback — merged-PR event dispatcher (owner Option 4).
+#
+# WHY: the `push`→`main` event that should auto-trigger deploy.yml is empirically
+# unreliable in these private repos — GitHub intermittently creates NO workflow run for
+# the merge push (proven: the ref updates but no check-suite is created for any app;
+# see the deploy runbook). The `pull_request: closed` event is delivered INDEPENDENTLY
+# of the push event, so it covers the normal promotion/hotfix flow (all main changes
+# arrive via merged PRs; direct pushes to main are prohibited by policy).
+#
+# SAFETY: this dispatcher never receives production SSH secrets and never checks out or
+# runs PR-branch code. It only reads PR metadata + the current main SHA, validates the
+# exact merged SHA, and dispatches deploy.yml via workflow_dispatch (which a GITHUB_TOKEN
+# is permitted to do). deploy.yml re-verifies and deploys; concurrency + the
+# already-deployed check make a same-SHA push+fallback pair idempotent (one deploys, the
+# other no-ops).
+name: Deploy fallback (merged PR)
+
+on:
+  pull_request:
+    branches: [main]
+    types: [closed]
+
+# Least privilege: read to resolve the SHA, actions:write to dispatch deploy.yml. No
+# secrets, no contents write, no deployments write.
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  dispatch:
+    name: Validate merged main SHA + dispatch deploy
+    # Only a genuinely MERGED PR into main (not a closed-without-merge) proceeds.
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Resolve, validate, dispatch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          BASE_REPO: ${{ github.event.pull_request.base.repo.full_name }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          echo "PR #$PR merged into '$BASE_REF' (base repo '$BASE_REPO'); merge_commit_sha=$MERGE_SHA"
+          # Same repository, base = main, and a real merge commit SHA (never the PR head
+          # SHA and never a synthetic test-merge SHA).
+          if [ "$BASE_REPO" != "$REPO" ] || [ "$HEAD_REPO" != "$REPO" ]; then
+            echo "Not a same-repository PR — skipping (fork/cross-repo)."; exit 0
+          fi
+          if [ "$BASE_REF" != "main" ]; then
+            echo "Base ref is not main — skipping."; exit 0
+          fi
+          if [ -z "$MERGE_SHA" ] || [ "$MERGE_SHA" = "null" ]; then
+            echo "::error::merged PR has no merge_commit_sha."; exit 1
+          fi
+          # The merge commit must still be the current main tip; otherwise a newer commit
+          # already owns main and will be deployed by its own event (deploy.yml also
+          # re-checks). This prevents deploying a stale/superseded SHA.
+          MAIN_SHA="$(gh api "repos/$REPO/commits/heads/main" --jq '.sha')"
+          if [ "$MERGE_SHA" != "$MAIN_SHA" ]; then
+            echo "merge_commit_sha ($MERGE_SHA) is no longer current main ($MAIN_SHA) — superseded; skipping dispatch."
+            exit 0
+          fi
+          echo "Dispatching deploy.yml (workflow_dispatch) for validated main SHA $MERGE_SHA"
+          gh workflow run deploy.yml --repo "$REPO" --ref main -f target_sha="$MERGE_SHA"
+          {
+            echo "### Merged-PR fallback dispatched"
+            echo "- PR: #$PR"
+            echo "- validated main SHA: \`$MERGE_SHA\`"
+            echo "- dispatched: \`deploy.yml\` (workflow_dispatch, target_sha)"
+          } >> "$GITHUB_STEP_SUMMARY"

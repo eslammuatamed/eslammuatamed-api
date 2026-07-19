@@ -1,38 +1,37 @@
 # Production deploy — NestJS API → Contabo VPS (doc 23 §3 "API release").
 #
-# TRIGGER (owner policy): automatic deployment from `main`.
-#   on: push -> main      : a merged dev->main promotion (or authorized push) is
-#                           re-verified at the EXACT merged SHA, then deployed.
-#   on: workflow_dispatch : recovery / manual redeploy (must run on main; see guard).
-# There is no tag trigger and no manual approval gate (GitHub environment required
-# reviewers are unavailable on the Free/private plan — enforcement is procedural).
+# TRIGGERS:
+#   push -> main        : happy path — a merged dev->main promotion (or authorized push).
+#   pull_request:closed : the merged-PR FALLBACK (deploy-fallback.yml) dispatches this
+#                         workflow via workflow_dispatch with target_sha, because the
+#                         push->main event is intermittently dropped by GitHub (proven in
+#                         the runbook). Both converge on this exact-SHA path.
+#   workflow_dispatch   : manual recovery / the fallback dispatcher (optional target_sha).
+# No tag trigger, no manual approval gate, no scheduled reconciliation (cost + schedule
+# reliability — owner Option 4). Direct pushes to main are prohibited by policy.
 #
-# EXACT-SHA GATING: the `deploy` job `needs: [verify, e2e]` from THIS run, so it cannot
-# start unless lint/typecheck/unit/contract AND the Postgres e2e suite pass for the same
-# `github.sha`. It does not rely on checks that ran on the PR before the merge. Before any
-# server mutation the job asserts `github.ref == refs/heads/main` and that the checked-out
-# HEAD equals `github.sha`. No path filters — every main commit is fully gated; a
-# `[skip ci]` message in a main commit must never be used (it would skip this workflow;
-# recover with workflow_dispatch on main — see the runbook).
+# EXACT-SHA + IDEMPOTENCY: `preflight` resolves the target SHA (push -> github.sha;
+# workflow_dispatch -> target_sha, which must equal github.sha), asserts it is the current
+# main tip, and reads the live release SHA over SSH. It emits action = deploy /
+# already-deployed / superseded. verify + e2e + deploy run ONLY when action == deploy, so a
+# same-SHA push+fallback pair is idempotent (one deploys; the queued one no-ops at
+# preflight). The whole workflow shares one concurrency group so only one path mutates the
+# server, and the deploy job re-checks github.sha == current main immediately before any
+# mutation. A `[skip ci]` on a main commit must never be used.
 #
-# ROLLBACK (no rebuild — doc 23 §3): on the VPS, repoint `current` at the previous
-# release and restart:
+# ROLLBACK (no rebuild — doc 23 §3): the deploy auto-rolls-back (repoint `current` at the
+# previous release + restart) if the post-cutover health gate fails. Manual form:
 #     ln -sfn /srv/eslammuatamed-api/releases/<previous> /srv/eslammuatamed-api/current.new
 #     mv -Tf  /srv/eslammuatamed-api/current.new /srv/eslammuatamed-api/current
 #     sudo systemctl restart eslammuatamed-api
-#   Migrations are fix-forward (doc 09 §6): rolling the symlink back does NOT roll the
+#   Migrations are fix-forward (doc 09 §6); rolling the symlink back does NOT roll the
 #   schema back. Database restore (doc 23 §4) is the disaster path only.
 #
-# DEVIATION from doc 23 §3: "the release attaches openapi.json" (doc 17 §4) is not yet
-# implemented — a deliberate follow-up, outside this deployment-trigger policy change.
-#
-# SERVER LAYOUT this workflow deploys into (full contract in the deploy runbook):
-#   /srv/eslammuatamed-api/releases/<id>   extracted release (dist, node_modules, prisma)
+# SERVER LAYOUT (full contract in the deploy runbook):
+#   /srv/eslammuatamed-api/releases/<id>   extracted release (id = <UTC-ts>-<short-sha>)
 #   /srv/eslammuatamed-api/shared/.env     secrets, server-side only — never in a release
 #   /srv/eslammuatamed-api/current         symlink → the live release
-#   systemd unit: eslammuatamed-api  (EnvironmentFile=…/shared/.env, ExecStart=node dist/main.js)
-#   deploy user needs: authorized_keys (DEPLOY_SSH_KEY public half) + a scoped sudoers
-#   rule for exactly `systemctl restart eslammuatamed-api`.
+#   systemd unit: eslammuatamed-api  ·  deploy user: scoped sudoers for the restart only.
 
 name: Deploy
 
@@ -40,9 +39,14 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      target_sha:
+        description: 'Exact main commit SHA to deploy (must equal current main). Empty = current main.'
+        required: false
+        type: string
 
-# One production deployment at a time; an in-flight deploy must finish (never cancel a
-# cutover). Scoped to this repo's production pipeline.
+# One production deployment at a time across EVERY path (push + fallback dispatch); an
+# in-flight deploy must finish (never cancel a cutover). The queued path no-ops at preflight.
 concurrency:
   group: deploy-api-production
   cancel-in-progress: false
@@ -51,13 +55,88 @@ permissions:
   contents: read
 
 jobs:
-  # Release gate — mirrors ci.yml `verify`. ci.yml is not `workflow_call`-able, so the
-  # gates are duplicated here rather than reused, so the deploy is gated on THIS run's
-  # verification of the exact main SHA (not only the pre-merge PR checks).
+  # Resolve + validate the exact target SHA and decide the action. Runs first (after
+  # acquiring the concurrency slot), reads the live release SHA over SSH, and short-circuits
+  # already-deployed / superseded so the second path of a same-SHA pair is a cheap no-op.
+  preflight:
+    name: Preflight — resolve & validate exact SHA
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      action: ${{ steps.pf.outputs.action }}
+      sha: ${{ steps.pf.outputs.sha }}
+      trigger: ${{ steps.pf.outputs.trigger }}
+    steps:
+      - name: Write deploy key + pin host key (read-only preflight use)
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.ssh"; chmod 700 "$HOME/.ssh"
+          printf '%s\n' "$DEPLOY_SSH_KEY" > "$HOME/.ssh/deploy_key"; chmod 600 "$HOME/.ssh/deploy_key"
+          [ -n "$DEPLOY_KNOWN_HOSTS" ] || { echo "DEPLOY_KNOWN_HOSTS secret is empty" >&2; exit 1; }
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"; chmod 600 "$HOME/.ssh/known_hosts"
+
+      - name: Resolve trigger, validate SHA == current main, check already-deployed
+        id: pf
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          EVENT: ${{ github.event_name }}
+          SHA: ${{ github.sha }}
+          REF: ${{ github.ref }}
+          TARGET_INPUT: ${{ github.event.inputs.target_sha }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          set -euo pipefail
+          echo "trigger=$EVENT" >> "$GITHUB_OUTPUT"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Deploy preflight"
+            echo "- trigger: \`$EVENT\`"
+            echo "- source branch: \`$REF\`"
+            echo "- source/target SHA: \`$SHA\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+          # Production is main only.
+          if [ "$REF" != "refs/heads/main" ]; then
+            echo "::error::ref '$REF' is not refs/heads/main."
+            echo "action=abort" >> "$GITHUB_OUTPUT"; exit 1
+          fi
+          # A dispatched target_sha (from the merged-PR fallback) must match github.sha
+          # exactly — never deploy a stale/mismatched SHA.
+          if [ -n "${TARGET_INPUT:-}" ] && [ "$TARGET_INPUT" != "$SHA" ]; then
+            echo "target_sha ($TARGET_INPUT) != github.sha ($SHA) — superseded."
+            echo "- result: **superseded** (target_sha != github.sha)" >> "$GITHUB_STEP_SUMMARY"
+            echo "action=superseded" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          # github.sha must be the current main tip.
+          MAIN="$(gh api "repos/$REPO/commits/heads/main" --jq '.sha')"
+          if [ "$SHA" != "$MAIN" ]; then
+            echo "github.sha ($SHA) != current main ($MAIN) — superseded."
+            echo "- result: **superseded** (github.sha != current main)" >> "$GITHUB_STEP_SUMMARY"
+            echo "action=superseded" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          # Already deployed? Read the live release id (<ts>-<short7sha>) and compare the sha.
+          DEPLOYED="$(ssh -i "$HOME/.ssh/deploy_key" -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            -o BatchMode=yes -o ConnectTimeout=10 "$DEPLOY_USER@$DEPLOY_HOST" \
+            'readlink -f /srv/eslammuatamed-api/current 2>/dev/null | sed "s#.*/##"' | sed 's/^.*-//' || true)"
+          echo "deployed short SHA: '${DEPLOYED:-none}'  target short SHA: '${SHA:0:7}'"
+          if [ -n "$DEPLOYED" ] && [ "$DEPLOYED" = "${SHA:0:7}" ]; then
+            echo "- result: **already deployed** (\`$DEPLOYED\`)" >> "$GITHUB_STEP_SUMMARY"
+            echo "action=already-deployed" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          echo "- decision: **deploy** (currently deployed: \`${DEPLOYED:-none}\`)" >> "$GITHUB_STEP_SUMMARY"
+          echo "action=deploy" >> "$GITHUB_OUTPUT"
+
+  # Release gate — mirrors ci.yml `verify`. Runs only for a real deploy.
   verify:
     name: Lint · Typecheck · Unit · Contract
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    needs: preflight
+    if: needs.preflight.outputs.action == 'deploy'
     steps:
       - uses: actions/checkout@v4
 
@@ -81,14 +160,9 @@ jobs:
         run: npm test
 
       - name: Export OpenAPI contract (no database)
-        # Boot validation (doc 07 §3) needs a valid env even though no DB is touched;
-        # .env.example is the canonical valid development environment.
         run: cp .env.example .env && npm run contract:export
 
       - name: Enforce OpenAPI contract idempotence
-        # The committed openapi.json must be a fixed point of contract:export (doc 16 §3).
-        # Content-level compare (git's --exit-status stat cache false-positives after the
-        # rewrite); a drifted contract fails here before anything is deployed.
         run: |
           if git show HEAD:openapi.json | diff -u - openapi.json; then
             echo "openapi.json is a fixed point of contract:export."
@@ -97,13 +171,13 @@ jobs:
             exit 1
           fi
 
-  # Integration gate — Postgres 16 + migrations + seed + the e2e suite against the exact
-  # main SHA (owner policy: main verification must include PostgreSQL E2E).
+  # Integration gate — Postgres 16 + migrations + seed + the e2e suite. Runs only for a deploy.
   e2e:
     name: E2E (Postgres)
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: verify
+    needs: [preflight, verify]
+    if: needs.preflight.outputs.action == 'deploy'
     services:
       postgres:
         image: postgres:16
@@ -159,35 +233,21 @@ jobs:
     name: Build · Ship · Migrate · Cut over
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # Gate: cannot start unless BOTH verification jobs of THIS run (same github.sha) pass.
-    needs: [verify, e2e]
-    # Production is main only. A workflow_dispatch on any other ref skips the deploy job
-    # entirely (verify/e2e still run harmlessly); a push only ever carries refs/heads/main.
-    if: github.ref == 'refs/heads/main'
+    # Cannot start unless preflight decided `deploy` AND both verification jobs of THIS run
+    # (same github.sha) pass.
+    needs: [preflight, verify, e2e]
+    if: needs.preflight.outputs.action == 'deploy'
     steps:
       - uses: actions/checkout@v4
 
-      # Exact-SHA guard (owner policy): prove we are on main and that the checked-out tree
-      # is exactly github.sha before any server mutation. Fails loudly otherwise.
-      - name: Verify production ref and pin the exact SHA
+      - name: Confirm checked-out HEAD == github.sha
         env:
-          EVENT_NAME: ${{ github.event_name }}
-          REF: ${{ github.ref }}
           SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          echo "event=$EVENT_NAME ref=$REF github.sha=$SHA"
-          if [ "$REF" != "refs/heads/main" ]; then
-            echo "::error::Refusing to deploy: ref '$REF' is not refs/heads/main." >&2
-            exit 1
-          fi
           HEAD_SHA="$(git rev-parse HEAD)"
-          if [ "$HEAD_SHA" != "$SHA" ]; then
-            echo "::error::Checked-out HEAD ($HEAD_SHA) != github.sha ($SHA); aborting." >&2
-            exit 1
-          fi
-          echo "Deploying main at exact SHA $SHA (HEAD verified)."
-          echo "✅ Deploying \`main\` at exact SHA \`$SHA\`." >> "$GITHUB_STEP_SUMMARY"
+          [ "$HEAD_SHA" = "$SHA" ] || { echo "::error::HEAD ($HEAD_SHA) != github.sha ($SHA)"; exit 1; }
+          echo "Building exact SHA $SHA."
 
       - uses: actions/setup-node@v4
         with:
@@ -199,27 +259,18 @@ jobs:
 
       - run: npm ci
 
-      # Generate before build: the build type-checks against the generated client.
       - name: Generate Prisma client
         run: npx prisma generate
 
       - name: Build
         run: npm run build
 
-      # Prune dev deps for a lean runtime. The `prisma` CLI survives — it is a peer
-      # dependency of `@prisma/client` (a prod dep), so `prisma migrate deploy` runs
-      # hermetically on the server with the version-matched CLI (no skew).
       - name: Prune to production dependencies
         run: npm prune --omit=dev
 
-      # Regenerate AFTER the prune. The generated client under node_modules/.prisma is
-      # build output, not a tracked package, so the prune's guarantees do not cover it;
-      # regenerating (the CLI is present) makes a client-less artifact impossible.
       - name: Regenerate Prisma client into the pruned tree
         run: npx prisma generate
 
-      # Release tarball — code + prod deps + the schema/migrations prisma migrate deploy
-      # needs. Deliberately excludes .env: secrets live only in the server's shared/.env.
       - name: Package release tarball
         run: tar -czf "eslammuatamed-api-${RELEASE}.tar.gz" dist node_modules prisma package.json package-lock.json
 
@@ -233,15 +284,31 @@ jobs:
           chmod 700 "$HOME/.ssh"
           printf '%s\n' "$DEPLOY_SSH_KEY" > "$HOME/.ssh/deploy_key"
           chmod 600 "$HOME/.ssh/deploy_key"
-          # Host key pinned from the DEPLOY_KNOWN_HOSTS secret (runbook B6: ssh-keyscan -H
-          # output captured at provisioning). No trust-on-first-use: a MITM or a re-keyed
-          # server fails host verification here instead of being silently trusted. Fail
-          # loudly if the secret is missing rather than writing an empty known_hosts.
           [ -n "$DEPLOY_KNOWN_HOSTS" ] || { echo "DEPLOY_KNOWN_HOSTS secret is empty" >&2; exit 1; }
           printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
           chmod 600 "$HOME/.ssh/known_hosts"
 
+      # Final exact-SHA re-check immediately before any server mutation (owner policy):
+      # main may have moved during verify/e2e; if so, abort without touching the server —
+      # the newer commit is deployed by its own event.
+      - name: Re-check github.sha is still current main
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          MAIN="$(gh api "repos/$REPO/commits/heads/main" --jq '.sha')"
+          if [ "$MAIN" != "$SHA" ]; then
+            echo "::warning::main moved to $MAIN since preflight; aborting cutover (superseded)."
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "proceed=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Ship the tarball
+        if: steps.gate.outputs.proceed == 'true'
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
@@ -252,13 +319,13 @@ jobs:
             "$TARBALL" "${DEPLOY_USER}@${DEPLOY_HOST}:/tmp/${TARBALL}"
 
       - name: Extract, migrate, cut over, health-gate, prune
+        id: cutover
+        if: steps.gate.outputs.proceed == 'true'
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
         run: |
           set -euo pipefail
-          # RELEASE has no shell-special characters (timestamp + hex SHA), so it is safe
-          # to pass as a positional arg into the quoted (non-expanding) remote heredoc.
           ssh -i "$HOME/.ssh/deploy_key" -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
             "${DEPLOY_USER}@${DEPLOY_HOST}" bash -s -- "$RELEASE" <<'REMOTE'
           set -euo pipefail
@@ -267,8 +334,6 @@ jobs:
           REL_DIR="$BASE/releases/$RELEASE"
           TARBALL="/tmp/eslammuatamed-api-${RELEASE}.tar.gz"
 
-          # Capture the currently-live release up front so an unhealthy new release can be
-          # auto-rolled-back (symlink only — migrations are fix-forward, doc 09 §6).
           PREV="$(readlink -f "$BASE/current" 2>/dev/null || true)"
 
           # 1. Extract the release (self-contained; carries no secrets).
@@ -276,25 +341,20 @@ jobs:
           tar -xzf "$TARBALL" -C "$REL_DIR"
           rm -f "$TARBALL"
 
-          # 2. Pre-deploy migration (doc 23 §3) with the shared env, from the new release.
-          #    Fix-forward only (doc 09 §6): a bad migration is repaired by a new one.
+          # 2. Pre-deploy migration (fix-forward only — doc 09 §6).
           set -a
           . "$BASE/shared/.env"
           set +a
           ( cd "$REL_DIR" && npx prisma migrate deploy )
 
-          # 3. Atomic cut over: build the new symlink beside `current`, then rename over it
-          #    (mv -T is atomic; a bare `ln -sfn` is unlink-then-symlink, briefly dangling).
+          # 3. Atomic cut over.
           ln -sfn "$REL_DIR" "$BASE/current.new"
           mv -Tf "$BASE/current.new" "$BASE/current"
 
-          # 4. Restart via the scoped sudoers rule (systemctl restart eslammuatamed-api only).
+          # 4. Restart via the scoped sudoers rule.
           sudo systemctl restart eslammuatamed-api
 
-          # 5. Health gate with AUTOMATIC application rollback (owner policy). Liveness is
-          #    public/no-DB; --retry-connrefused rides out the boot window. On failure,
-          #    repoint `current` at the previous release and restart — the schema is left
-          #    as-is (fix-forward, doc 09 §6; never a destructive DB rollback).
+          # 5. Health gate with AUTOMATIC application rollback.
           if curl --fail --retry 5 --retry-delay 3 --retry-connrefused --max-time 10 \
                http://127.0.0.1:3001/api/v1/health; then
             echo "Health gate passed for release $RELEASE."
@@ -316,8 +376,29 @@ jobs:
             exit 1
           fi
 
-          # 6. Keep the last 5 releases (the live one is newest, so always retained).
-          #    Only reached on a healthy deploy — a rolled-back run exits above.
+          # 6. Keep the last 5 releases.
           cd "$BASE/releases"
           ls -1dt */ | tail -n +6 | xargs -r rm -rf
           REMOTE
+
+      - name: Deploy summary (observability)
+        if: always()
+        env:
+          TRIGGER: ${{ needs.preflight.outputs.trigger }}
+          SHA: ${{ github.sha }}
+          PROCEED: ${{ steps.gate.outputs.proceed }}
+          CUTOVER: ${{ steps.cutover.outcome }}
+        run: |
+          {
+            echo "### Deploy result"
+            echo "- trigger: \`$TRIGGER\`"
+            echo "- deployed SHA: \`$SHA\`"
+            echo "- release: \`${RELEASE:-<none>}\`"
+            if [ "${PROCEED:-}" != "true" ]; then
+              echo "- result: **superseded** (main moved during verify/e2e; no server mutation)"
+            elif [ "${CUTOVER:-}" = "success" ]; then
+              echo "- result: **deployed** (post-cutover health gate passed; auto-rollback armed)"
+            else
+              echo "- result: **FAILED** (cutover/health outcome: \`${CUTOVER:-unknown}\`; auto-rollback attempted — check logs)"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
