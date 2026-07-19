@@ -5609,6 +5609,43 @@
           "success"
         ]
       },
+      "PublicMediaPdfDescriptor": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "IMAGE",
+              "PDF"
+            ],
+            "example": "PDF"
+          },
+          "url": {
+            "type": "string",
+            "description": "Download URL (attachment headers are object metadata, doc 19 §5).",
+            "example": "https://media.eslammuatamed.com/media/8f…/document.pdf"
+          },
+          "filename": {
+            "type": "string",
+            "example": "eslam-muatamed-resume.pdf"
+          },
+          "sizeBytes": {
+            "type": "number",
+            "example": 245123
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "url",
+          "filename",
+          "sizeBytes"
+        ]
+      },
       "ProfileLinkEntity": {
         "type": "object",
         "properties": {
@@ -5647,43 +5684,6 @@
         "required": [
           "name",
           "content"
-        ]
-      },
-      "PublicMediaPdfDescriptor": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "kind": {
-            "type": "string",
-            "enum": [
-              "IMAGE",
-              "PDF"
-            ],
-            "example": "PDF"
-          },
-          "url": {
-            "type": "string",
-            "description": "Download URL (attachment headers are object metadata, doc 19 §5).",
-            "example": "https://media.eslammuatamed.com/media/8f…/document.pdf"
-          },
-          "filename": {
-            "type": "string",
-            "example": "eslam-muatamed-resume.pdf"
-          },
-          "sizeBytes": {
-            "type": "number",
-            "example": 245123
-          }
-        },
-        "required": [
-          "id",
-          "kind",
-          "url",
-          "filename",
-          "sizeBytes"
         ]
       },
       "PublicSiteSettingsEntity": {
@@ -5773,13 +5773,12 @@
           },
           "resumeAsset": {
             "nullable": true,
-            "description": "Resolved résumé PDF descriptor (FR-PUB-023); null when no résumé is configured. The bare asset id stays admin-only.",
-            "type": "object",
             "allOf": [
               {
                 "$ref": "#/components/schemas/PublicMediaPdfDescriptor"
               }
-            ]
+            ],
+            "description": "Resolved résumé PDF descriptor (FR-PUB-023); null when no résumé is configured. The bare asset id stays admin-only."
           },
           "availableLocales": {
             "example": [
@@ -6554,97 +6553,6 @@
           }
         }
       },
-      "PublicMediaVariantDescriptor": {
-        "type": "object",
-        "properties": {
-          "format": {
-            "type": "string",
-            "enum": [
-              "WEBP",
-              "AVIF"
-            ],
-            "example": "WEBP"
-          },
-          "width": {
-            "type": "number",
-            "example": 1280
-          },
-          "height": {
-            "type": "number",
-            "example": 720
-          },
-          "url": {
-            "type": "string",
-            "example": "https://media.eslammuatamed.com/media/8f…/1280-webp.webp"
-          }
-        },
-        "required": [
-          "format",
-          "width",
-          "height",
-          "url"
-        ]
-      },
-      "PublicMediaImageDescriptor": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "kind": {
-            "type": "string",
-            "enum": [
-              "IMAGE",
-              "PDF"
-            ],
-            "example": "IMAGE"
-          },
-          "url": {
-            "type": "string",
-            "description": "Widest WebP rendition (never the sanitized master).",
-            "example": "https://media.eslammuatamed.com/media/8f…/1920-webp.webp"
-          },
-          "width": {
-            "type": "number",
-            "example": 2400,
-            "description": "Intrinsic image width (px)."
-          },
-          "height": {
-            "type": "number",
-            "example": 1350
-          },
-          "blurhash": {
-            "type": "string",
-            "nullable": true,
-            "example": "LEHV6nWB2yk8pyo0adR*.7kCMdnj",
-            "description": "BlurHash LQIP."
-          },
-          "alt": {
-            "type": "string",
-            "nullable": true,
-            "example": "A laptop on a wooden desk",
-            "description": "Alt for the requested ?locale=: null = no translation (no fallback), \"\" = intentionally decorative."
-          },
-          "variants": {
-            "description": "Every WebP/AVIF rendition (width asc, format asc).",
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PublicMediaVariantDescriptor"
-            }
-          }
-        },
-        "required": [
-          "id",
-          "kind",
-          "url",
-          "width",
-          "height",
-          "blurhash",
-          "alt",
-          "variants"
-        ]
-      },
       "ArticleTaxonomyRefEntity": {
         "type": "object",
         "properties": {
@@ -6704,13 +6612,12 @@
           },
           "coverImage": {
             "nullable": true,
-            "description": "Resolved cover image (null when no cover is set).",
-            "type": "object",
             "allOf": [
               {
                 "$ref": "#/components/schemas/PublicMediaImageDescriptor"
               }
-            ]
+            ],
+            "description": "Resolved cover image (null when no cover is set)."
           },
           "category": {
             "$ref": "#/components/schemas/ArticleTaxonomyRefEntity"
@@ -6783,13 +6690,12 @@
           },
           "coverImage": {
             "nullable": true,
-            "description": "Resolved cover image (null when no cover is set).",
-            "type": "object",
             "allOf": [
               {
                 "$ref": "#/components/schemas/PublicMediaImageDescriptor"
               }
-            ]
+            ],
+            "description": "Resolved cover image (null when no cover is set)."
           },
           "category": {
             "$ref": "#/components/schemas/ArticleTaxonomyRefEntity"
@@ -6841,13 +6747,12 @@
           },
           "ogImage": {
             "nullable": true,
-            "description": "Resolved OG image (null when none is set).",
-            "type": "object",
             "allOf": [
               {
                 "$ref": "#/components/schemas/PublicMediaImageDescriptor"
               }
-            ]
+            ],
+            "description": "Resolved OG image (null when none is set)."
           },
           "canonicalUrl": {
             "type": "string",
@@ -7834,13 +7739,12 @@
           },
           "avatar": {
             "nullable": true,
-            "description": "Resolved avatar image (null when no avatar is set).",
-            "type": "object",
             "allOf": [
               {
                 "$ref": "#/components/schemas/PublicMediaImageDescriptor"
               }
-            ]
+            ],
+            "description": "Resolved avatar image (null when no avatar is set)."
           },
           "order": {
             "type": "number"
@@ -8099,6 +8003,97 @@
           "availableLocales"
         ]
       },
+      "PublicMediaVariantDescriptor": {
+        "type": "object",
+        "properties": {
+          "format": {
+            "type": "string",
+            "enum": [
+              "WEBP",
+              "AVIF"
+            ],
+            "example": "WEBP"
+          },
+          "width": {
+            "type": "number",
+            "example": 1280
+          },
+          "height": {
+            "type": "number",
+            "example": 720
+          },
+          "url": {
+            "type": "string",
+            "example": "https://media.eslammuatamed.com/media/8f…/1280-webp.webp"
+          }
+        },
+        "required": [
+          "format",
+          "width",
+          "height",
+          "url"
+        ]
+      },
+      "PublicMediaImageDescriptor": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "IMAGE",
+              "PDF"
+            ],
+            "example": "IMAGE"
+          },
+          "url": {
+            "type": "string",
+            "description": "Widest WebP rendition (never the sanitized master).",
+            "example": "https://media.eslammuatamed.com/media/8f…/1920-webp.webp"
+          },
+          "width": {
+            "type": "number",
+            "example": 2400,
+            "description": "Intrinsic image width (px)."
+          },
+          "height": {
+            "type": "number",
+            "example": 1350
+          },
+          "blurhash": {
+            "type": "string",
+            "nullable": true,
+            "example": "LEHV6nWB2yk8pyo0adR*.7kCMdnj",
+            "description": "BlurHash LQIP."
+          },
+          "alt": {
+            "type": "string",
+            "nullable": true,
+            "example": "A laptop on a wooden desk",
+            "description": "Alt for the requested ?locale=: null = no translation (no fallback), \"\" = intentionally decorative."
+          },
+          "variants": {
+            "description": "Every WebP/AVIF rendition (width asc, format asc).",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicMediaVariantDescriptor"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "url",
+          "width",
+          "height",
+          "blurhash",
+          "alt",
+          "variants"
+        ]
+      },
       "PublicProjectGalleryItemEntity": {
         "type": "object",
         "properties": {
@@ -8249,13 +8244,12 @@
           },
           "ogImage": {
             "nullable": true,
-            "description": "Resolved OG image (null when none is set).",
-            "type": "object",
             "allOf": [
               {
                 "$ref": "#/components/schemas/PublicMediaImageDescriptor"
               }
-            ]
+            ],
+            "description": "Resolved OG image (null when none is set)."
           },
           "canonicalUrl": {
             "type": "string",

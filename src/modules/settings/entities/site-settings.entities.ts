@@ -46,6 +46,9 @@ export class PublicAnalyticsEntity {
 // to the requested locale, plus global chrome and the FR-DSH-052 head/tag fields. Nullable
 // fields declare `type: String` explicitly — a `string | null` union otherwise reflects as
 // `Object`, which would document the flat string values as `type: object` (contract defect).
+// Registers PublicMediaPdfDescriptor into components.schemas: resumeAsset now references it via an
+// explicit $ref (not `type:`), so @nestjs/swagger no longer auto-registers it (its only such use).
+@ApiExtraModels(PublicMediaPdfDescriptor)
 export class PublicSiteSettingsEntity {
   @ApiProperty({ type: String, nullable: true, example: 'Eslam Muatamed' })
   readonly siteName!: string | null;
@@ -119,9 +122,11 @@ export class PublicSiteSettingsEntity {
   @ApiProperty({ type: [CustomMetaEntity] })
   readonly customMetas!: CustomMetaEntity[];
 
+  // Nullable $ref: an explicit `allOf` with a sibling `nullable` (and NO `type: object`, which
+  // @nestjs/swagger would otherwise add and which makes strict jest-openapi/AJV reject `null`).
   @ApiProperty({
-    type: PublicMediaPdfDescriptor,
     nullable: true,
+    allOf: [{ $ref: getSchemaPath(PublicMediaPdfDescriptor) }],
     description:
       'Resolved résumé PDF descriptor (FR-PUB-023); null when no résumé is configured. The bare asset id stays admin-only.',
   })
