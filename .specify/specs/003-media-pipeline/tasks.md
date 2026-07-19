@@ -106,7 +106,7 @@ the owner approves the spec + plan** (Q1–Q4 resolved 2026-07-18). Dependency s
     paths + 8 media schemas added; every `*Id` retained, D10-1; 0 removed paths/schemas/props; 0 semantic
     changes to any feature-002 schema/response — line-diff "deletions" are pretty-print key-reordering).
     tsc/eslint/249 unit tests/`git diff --check` green.
-- [ ] T10 — E2e suites + CI (doc 18 §2)
+- [x] T10 — E2e suites + CI (doc 18 §2) — done: e2e `d1a3811`, contract fix `07b128a` (local, unpushed, pending owner review)
   - Supertest e2e: upload happy path (real image fixture → asset + WebP-q90 master described + renditions),
     **201** new / **200** duplicate (`meta.deduplicated`), 422 (renamed non-image / SVG / bad locale / PDF to
     non-resume), 401/403 authz, **429** past 10/min **and** past 2 concurrent (with `Retry-After`), 409
@@ -114,6 +114,17 @@ the owner approves the spec + plan** (Q1–Q4 resolved 2026-07-18). Dependency s
     accept/reject, object headers on fetch (image immutable `Cache-Control`; PDF `Content-Disposition`).
     One R2 integration test decides whether any checksum config is actually required (owner directive).
     jest-openapi assertions; `NODE_OPTIONS=--experimental-vm-modules` in the e2e job.
+  - **Done (owner-scoped T10):** `test/media.e2e-spec.ts` against a fresh migrated/seeded
+    `eslammuatamed_test` (real AppModule, local storage, jest-openapi oracle): 401, 403, authorized
+    upload (master + WebP/AVIF renditions), 200 dedup, 409 delete-in-use + usages / 204, 422 no-orphan,
+    429 + `Retry-After` (RFC 7807), public descriptor present-object **and** null both contract-valid,
+    and real D07-6 compensation (storage fails after master → `deleteMany` + no orphan row). `test:e2e`
+    now sets the ESM flag. **A T10 contract assertion exposed a T9 defect** (nullable descriptor `$ref`
+    rejected `null`) — fixed contract-only in `07b128a` (owner-approved).
+  - **Deferred (not in owner's T10 scope / gated):** 40 MP boundary and object-headers-on-fetch e2e
+    (unit-covered; not requested this pass); the R2 checksum integration test (real R2 forbidden without
+    explicit approval); the 2-concurrent limiter is unit-covered (T6). Full e2e **13/13 suites, 56 tests**
+    green; `contract:export` DB-free + idempotent; tsc/eslint/249 unit/`git diff --check` green.
   - **Verify:** e2e compiles + passes against `eslammuatamed_test`; unit-tier CI green locally.
 - [ ] T11 — Integration verification (coordinator)
   - `migrate deploy` + `db:seed` + full e2e green on the test DB; compensation/orphan check; contract
