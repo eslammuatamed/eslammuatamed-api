@@ -66,7 +66,23 @@ jobs:
             exit 0
           fi
           echo "Dispatching deploy.yml (workflow_dispatch) for validated main SHA $MERGE_SHA"
-          gh workflow run deploy.yml --repo "$REPO" --ref main -f target_sha="$MERGE_SHA"
+          # The workflow_dispatch REST API intermittently returns HTTP 500 (observed twice,
+          # GitHub-side). Retry with backoff so a transient API error does not lose the
+          # deploy — this dispatch is the reliability guarantee of the whole fallback.
+          dispatched=false
+          for attempt in 1 2 3 4 5; do
+            if gh workflow run deploy.yml --repo "$REPO" --ref main -f target_sha="$MERGE_SHA"; then
+              echo "Dispatched on attempt $attempt."
+              dispatched=true
+              break
+            fi
+            echo "Dispatch attempt $attempt failed (transient?); retrying in $((attempt * 5))s..."
+            sleep "$((attempt * 5))"
+          done
+          if [ "$dispatched" != true ]; then
+            echo "::error::Failed to dispatch deploy.yml after 5 attempts."
+            exit 1
+          fi
           {
             echo "### Merged-PR fallback dispatched"
             echo "- PR: #$PR"
