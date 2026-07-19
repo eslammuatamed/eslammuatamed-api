@@ -1,19 +1,19 @@
-# Production deploy — NestJS API → Contabo VPS (doc 23 §3 "API release", D23-10).
+# Production deploy — NestJS API → Contabo VPS (doc 23 §3 "API release").
 #
-# TRIGGER: workflow_dispatch ONLY for now. The server is not provisioned yet; an
-# auto-trigger would paint the repo red on every push. After the doc 23 §4 restore
-# drill passes, switch the trigger to tag push per doc 23 §3 — a one-line change,
-# documented in the deploy runbook:
+# TRIGGER (owner policy): automatic deployment from `main`.
+#   on: push -> main      : a merged dev->main promotion (or authorized push) is
+#                           re-verified at the EXACT merged SHA, then deployed.
+#   on: workflow_dispatch : recovery / manual redeploy (must run on main; see guard).
+# There is no tag trigger and no manual approval gate (GitHub environment required
+# reviewers are unavailable on the Free/private plan — enforcement is procedural).
 #
-#     on:
-#       push:
-#         tags: ['v*']
-#
-# DEVIATIONS from doc 23 §3 (reported to the team lead, justified):
-#   - The deploy gate omits e2e (Postgres). e2e already ran on the merge commit the
-#     tag points at (PR gates, doc 17 §1); a Postgres service here would duplicate it.
-#   - "The release attaches openapi.json" is deferred with the tag trigger — there is
-#     no GitHub Release object under workflow_dispatch. It lands with the tag switch.
+# EXACT-SHA GATING: the `deploy` job `needs: [verify, e2e]` from THIS run, so it cannot
+# start unless lint/typecheck/unit/contract AND the Postgres e2e suite pass for the same
+# `github.sha`. It does not rely on checks that ran on the PR before the merge. Before any
+# server mutation the job asserts `github.ref == refs/heads/main` and that the checked-out
+# HEAD equals `github.sha`. No path filters — every main commit is fully gated; a
+# `[skip ci]` message in a main commit must never be used (it would skip this workflow;
+# recover with workflow_dispatch on main — see the runbook).
 #
 # ROLLBACK (no rebuild — doc 23 §3): on the VPS, repoint `current` at the previous
 # release and restart:
@@ -22,6 +22,9 @@
 #     sudo systemctl restart eslammuatamed-api
 #   Migrations are fix-forward (doc 09 §6): rolling the symlink back does NOT roll the
 #   schema back. Database restore (doc 23 §4) is the disaster path only.
+#
+# DEVIATION from doc 23 §3: "the release attaches openapi.json" (doc 17 §4) is not yet
+# implemented — a deliberate follow-up, outside this deployment-trigger policy change.
 #
 # SERVER LAYOUT this workflow deploys into (full contract in the deploy runbook):
 #   /srv/eslammuatamed-api/releases/<id>   extracted release (dist, node_modules, prisma)
@@ -34,21 +37,24 @@
 name: Deploy
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
-# Never let two deploys race; a deploy in flight must finish (do not cancel mid-cutover).
+# One production deployment at a time; an in-flight deploy must finish (never cancel a
+# cutover). Scoped to this repo's production pipeline.
 concurrency:
-  group: deploy-api
+  group: deploy-api-production
   cancel-in-progress: false
 
 permissions:
   contents: read
 
 jobs:
-  # Release gate — mirrors the CI fast lane (ci.yml `verify`). ci.yml is not
-  # `workflow_call`-able, so the minimal gates are duplicated here rather than reused,
-  # so a tag build (which carries no PR checks) still proves lint/typecheck/unit/contract.
-  gate:
+  # Release gate — mirrors ci.yml `verify`. ci.yml is not `workflow_call`-able, so the
+  # gates are duplicated here rather than reused, so the deploy is gated on THIS run's
+  # verification of the exact main SHA (not only the pre-merge PR checks).
+  verify:
     name: Lint · Typecheck · Unit · Contract
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -79,13 +85,109 @@ jobs:
         # .env.example is the canonical valid development environment.
         run: cp .env.example .env && npm run contract:export
 
+      - name: Enforce OpenAPI contract idempotence
+        # The committed openapi.json must be a fixed point of contract:export (doc 16 §3).
+        # Content-level compare (git's --exit-status stat cache false-positives after the
+        # rewrite); a drifted contract fails here before anything is deployed.
+        run: |
+          if git show HEAD:openapi.json | diff -u - openapi.json; then
+            echo "openapi.json is a fixed point of contract:export."
+          else
+            echo "::error::Committed openapi.json is stale — run 'npm run contract:export' and commit the result." >&2
+            exit 1
+          fi
+
+  # Integration gate — Postgres 16 + migrations + seed + the e2e suite against the exact
+  # main SHA (owner policy: main verification must include PostgreSQL E2E).
+  e2e:
+    name: E2E (Postgres)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: verify
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: eslammuatamed
+          POSTGRES_PASSWORD: eslammuatamed
+          POSTGRES_DB: eslammuatamed_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U eslammuatamed"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      NODE_ENV: test
+      PORT: '3001'
+      DATABASE_URL: postgresql://eslammuatamed:eslammuatamed@localhost:5432/eslammuatamed_test
+      CORS_ORIGIN: http://localhost:3000
+      JWT_ACCESS_SECRET: ci-access-secret-that-is-at-least-32-chars
+      JWT_ACCESS_TTL: 15m
+      REFRESH_TOKEN_TTL_DAYS: '7'
+      REFRESH_TOKEN_PEPPER: ci-refresh-pepper-16
+      PREVIEW_TOKEN_SECRET: ci-preview-secret-16
+      SEED_OWNER_EMAIL: owner@example.com
+      SEED_OWNER_PASSWORD: change-me-minimum-12
+      STORAGE_DRIVER: local
+      STORAGE_LOCAL_DIR: ./storage
+      PUBLIC_MEDIA_URL: http://localhost:3001/media
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Apply migrations
+        run: npx prisma migrate deploy
+
+      - name: Seed
+        run: npm run db:seed
+
+      - name: E2E tests
+        run: npm run test:e2e
+
   deploy:
     name: Build · Ship · Migrate · Cut over
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: gate
+    # Gate: cannot start unless BOTH verification jobs of THIS run (same github.sha) pass.
+    needs: [verify, e2e]
+    # Production is main only. A workflow_dispatch on any other ref skips the deploy job
+    # entirely (verify/e2e still run harmlessly); a push only ever carries refs/heads/main.
+    if: github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
+
+      # Exact-SHA guard (owner policy): prove we are on main and that the checked-out tree
+      # is exactly github.sha before any server mutation. Fails loudly otherwise.
+      - name: Verify production ref and pin the exact SHA
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          echo "event=$EVENT_NAME ref=$REF github.sha=$SHA"
+          if [ "$REF" != "refs/heads/main" ]; then
+            echo "::error::Refusing to deploy: ref '$REF' is not refs/heads/main." >&2
+            exit 1
+          fi
+          HEAD_SHA="$(git rev-parse HEAD)"
+          if [ "$HEAD_SHA" != "$SHA" ]; then
+            echo "::error::Checked-out HEAD ($HEAD_SHA) != github.sha ($SHA); aborting." >&2
+            exit 1
+          fi
+          echo "Deploying main at exact SHA $SHA (HEAD verified)."
+          echo "✅ Deploying \`main\` at exact SHA \`$SHA\`." >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/setup-node@v4
         with:
@@ -165,6 +267,10 @@ jobs:
           REL_DIR="$BASE/releases/$RELEASE"
           TARBALL="/tmp/eslammuatamed-api-${RELEASE}.tar.gz"
 
+          # Capture the currently-live release up front so an unhealthy new release can be
+          # auto-rolled-back (symlink only — migrations are fix-forward, doc 09 §6).
+          PREV="$(readlink -f "$BASE/current" 2>/dev/null || true)"
+
           # 1. Extract the release (self-contained; carries no secrets).
           mkdir -p "$REL_DIR"
           tar -xzf "$TARBALL" -C "$REL_DIR"
@@ -185,12 +291,33 @@ jobs:
           # 4. Restart via the scoped sudoers rule (systemctl restart eslammuatamed-api only).
           sudo systemctl restart eslammuatamed-api
 
-          # 5. Health gate — liveness (public, no DB). --retry-connrefused rides out the
-          #    boot window when the socket is not yet accepting connections.
-          curl --fail --retry 5 --retry-delay 3 --retry-connrefused --max-time 10 \
-            http://127.0.0.1:3001/api/v1/health
+          # 5. Health gate with AUTOMATIC application rollback (owner policy). Liveness is
+          #    public/no-DB; --retry-connrefused rides out the boot window. On failure,
+          #    repoint `current` at the previous release and restart — the schema is left
+          #    as-is (fix-forward, doc 09 §6; never a destructive DB rollback).
+          if curl --fail --retry 5 --retry-delay 3 --retry-connrefused --max-time 10 \
+               http://127.0.0.1:3001/api/v1/health; then
+            echo "Health gate passed for release $RELEASE."
+          else
+            echo "Health gate FAILED for $RELEASE — rolling the application back." >&2
+            if [ -n "$PREV" ] && [ -d "$PREV" ] && [ "$PREV" != "$REL_DIR" ]; then
+              ln -sfn "$PREV" "$BASE/current.new"
+              mv -Tf "$BASE/current.new" "$BASE/current"
+              sudo systemctl restart eslammuatamed-api
+              if curl --fail --retry 5 --retry-delay 3 --retry-connrefused --max-time 10 \
+                   http://127.0.0.1:3001/api/v1/health; then
+                echo "Rolled back to previous release ($PREV); it is healthy." >&2
+              else
+                echo "Rolled back to $PREV but health still failing — MANUAL INTERVENTION REQUIRED." >&2
+              fi
+            else
+              echo "No previous healthy release to roll back to — MANUAL INTERVENTION REQUIRED." >&2
+            fi
+            exit 1
+          fi
 
           # 6. Keep the last 5 releases (the live one is newest, so always retained).
+          #    Only reached on a healthy deploy — a rolled-back run exits above.
           cd "$BASE/releases"
           ls -1dt */ | tail -n +6 | xargs -r rm -rf
           REMOTE
