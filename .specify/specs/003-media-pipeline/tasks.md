@@ -126,10 +126,17 @@ the owner approves the spec + plan** (Q1–Q4 resolved 2026-07-18). Dependency s
     explicit approval); the 2-concurrent limiter is unit-covered (T6). Full e2e **13/13 suites, 56 tests**
     green; `contract:export` DB-free + idempotent; tsc/eslint/249 unit/`git diff --check` green.
   - **Verify:** e2e compiles + passes against `eslammuatamed_test`; unit-tier CI green locally.
-- [ ] T11 — Integration verification (coordinator)
+- [x] T11 — Integration verification (coordinator) — verified at feature tip `1bb2add` (local, unpushed, pending owner merge decision)
   - `migrate deploy` + `db:seed` + full e2e green on the test DB; compensation/orphan check; contract
     re-exported + committed; final `lint`/`typecheck`/`unit` green DB-free.
-  - **Verify:** re-run seed is a no-op; all gates green; ready for PR.
+  - **Verified (read-only review + matrix):** test DB migrated (3 migrations) + seeded, **seed re-run is a
+    no-op** (OWNER stays 1); full **e2e 13/13 suites / 56 tests**, media **e2e 9/9** (authz 401/403, upload,
+    dedup, usage-guarded delete 409+204, compensation cleanup, throttle 429, public descriptor present+null);
+    **unit 249**; tsc/eslint/`git diff --check` green; `contract:export` DB-free + idempotent; contract
+    **purely additive** vs pre-feature `2a6a3a3` (0 removed paths/schemas/props), **no dangling refs**, all 6
+    nullable descriptor fields null-accepting. Clean API tree; Web untouched; Docs PR #2 open/untouched;
+    `.env` untracked; no R2 op. **Feature 003 ready for the integration/merge decision.**
+  - **Verify:** re-run seed is a no-op ✓; all gates green ✓; ready for PR ✓.
 
 ## Not in this feature
 
