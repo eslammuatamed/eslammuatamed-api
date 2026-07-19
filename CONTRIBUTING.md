@@ -22,6 +22,14 @@ hotfix/<slug>   (branch from main)
   → merge the hotfix back into dev
 ```
 
+## Merge strategy & branch synchronization
+- **Feature / fix / chore → `dev`:** **squash merge** (preferred) — keeps `dev` one complete commit per PR.
+- **Promotion `dev` → `main`:** **merge commit** — never squash or rebase a `dev → main` promotion. A squash gives `main` a fresh commit with no shared ancestry to `dev`, leaving the branches content-identical but historically divergent.
+- **After a successful `main` deployment:** **fast-forward `dev` to the new `main` merge commit**, so `dev` and `main` share history at their tips.
+- **Hotfixes** merged into `main` must be **merged back into `dev`** (a merge, not a squash) to keep the branches synchronized.
+- **Never reset or force-push the shared `dev` branch**, and never recreate it.
+- **A zero-file content diff is not sufficient** — `dev` and `main` must also share ancestry (`git merge-base --is-ancestor origin/main origin/dev` is true after a sync). This synchronization rule applies **independently per repository**; coordinated API/Web releases still go **API first, then Web**.
+
 ## Automatic deployment (from green `main`)
 - **Triggers:** `push` to `main` (a merge or authorized push) and `workflow_dispatch` (recovery / redeploy). **No tags.**
 - The `deploy` job cannot start unless the **same workflow run** re-verifies the **exact `github.sha`** — it does **not** rely only on the pre-merge PR checks (`needs: [verify, e2e]`). Before any server mutation it asserts `github.ref == refs/heads/main` **and** `HEAD == github.sha`.
