@@ -1,6 +1,6 @@
 # Plan 003 — Media Pipeline (API)
 
-**Status:** 🚧 In progress — approved & underway (Q1–Q4 resolved 2026-07-18). Doc-first committed (docs PR #2); **T1–T7 complete** (deps `e828ebd`, schema `55d8f90`, storage `56be678`, processing `5ee7344`, media module `31f9b25`, public descriptors `989f3e7`). **Next task: T8** (permission wiring + upload throttle). API branch local/unpushed. Note: page-SEO descriptor deferred (no public SEO endpoint exists — separate task); résumé exposed via `GET /settings/site` (descriptor only).
+**Status:** 🚧 In progress — approved & underway (Q1–Q4 resolved 2026-07-18). Doc-first committed (docs PR #2); **T1–T8 complete** (deps `e828ebd`, schema `55d8f90`, storage `56be678`, processing `5ee7344`, media module `31f9b25`, public descriptors `989f3e7`, permission wiring + upload throttle `7c8d3e4`; T1–T7 SHAs are pre-rebase). **Next task: T9** (Swagger + contract export). API branch local/unpushed. Note: page-SEO descriptor deferred (no public SEO endpoint exists — separate task); résumé exposed via `GET /settings/site` (descriptor only).
 
 Architecture is already decided in the governing docs — this plan **binds** them to the feature.
 Unlike Feature 002 (module build-out on an existing schema, no new deps), Feature 003 is a

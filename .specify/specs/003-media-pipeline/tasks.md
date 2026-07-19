@@ -71,11 +71,25 @@ the owner approves the spec + plan** (Q1–Q4 resolved 2026-07-18). Dependency s
     (`null` = missing, no fallback; `""` = decorative) — distinction preserved in the DTO **and** OpenAPI.
   - **Verify:** unit — descriptor shape (image `url`=widest WebP + `variants[]`; PDF); IDs retained;
     **query-count assertion → no N+1**; `alt: null` on missing-locale **vs** `""` decorative both round-trip.
-- [ ] T8 — Permission wiring + upload throttle (D19-8, doc 19 §6)
+- [x] T8 — Permission wiring + upload throttle (D19-8, doc 19 §6) — done: 7c8d3e4 (local, unpushed, pending owner review)
   - Wire each new protected route to its existing `media.*` key (catalog already declares them); apply the
     conservative upload throttle to `POST /admin/media` (Q3).
-  - **Verify:** `route-permissions.spec` green (no undeclared protected route); 401 without token, 403 on
-    permission violation, 429 past the upload throttle.
+  - **Done:** permission wiring already satisfied in T6 (every route declares `media.*`; controller in
+    `route-permissions.spec`) — verified, not re-done. Added the **route-local `UploadUserIpThrottlerGuard`**
+    (`@UseGuards` on the upload route, so it runs after the global auth+permission guards and can key by
+    **authenticated user + IP**, which the global throttle-before-auth guard cannot): its own `media-upload`
+    tier (10/min) via public `@nestjs/throttler` extension points, no double-count, standard `Retry-After`,
+    RFC 7807 429. The tracker builds only `user:<id>|ip:<trusted-ip>` and **fails closed (401)** if
+    `request.user` is absent (never an IP-only key). Owner-directed (per-user+IP, not per-IP; no global
+    guard reorder). Arabic folder docs
+    **deferred** per doc 16 §8.5 (no Feature 003 folder guides before T8–T11 are complete + merged); the §8
+    compatibility review + evidence are recorded in the session report. `openapi.json` re-export left to T9;
+    full `/admin/media` e2e to T10.
+  - **Verify:** `route-permissions.spec` green ✓; 401 without token / 403 on permission violation enforced by
+    the global guards ✓; **429 past the upload throttle** proven by `upload-user-ip-throttler.http.spec.ts`
+    (10→429, RFC 7807 + `Retry-After`, per-user bucket separation, **401 fail-closed when no user**) +
+    `.guard.spec.ts` (bucket-key matrix + fail-closed throw). tsc/eslint/249 unit tests/`git diff --check`
+    green; DB-free `contract:export` still boots.
 - [ ] T9 — Swagger + contract export (doc 10 §1)
   - Exhaustive `@nestjs/swagger` + class-validator decorators + realistic examples on every new DTO/entity
     (incl. the descriptor with **nullable `alt`**, `variants[]`, and the upload **201 / 200** (200 carries `meta.deduplicated`)
