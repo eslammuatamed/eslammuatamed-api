@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { UploadUserIpThrottlerGuard } from '../../common/throttling/upload-user-ip-throttler.guard';
 import { LocalesModule } from '../locales/locales.module';
 import { MediaAdminController } from './media.admin.controller';
 import { MediaDescriptorResolver } from './media-descriptor.resolver';
@@ -22,6 +23,9 @@ import { StorageModule } from './storage/storage.module';
     ProcessingConcurrencyLimiter,
     RetryAfterInterceptor,
     MediaDescriptorResolver,
+    // Registered so its onModuleInit runs (builds the route-local upload tier) and @UseGuards on the
+    // upload route resolves this singleton from DI (T8).
+    UploadUserIpThrottlerGuard,
   ],
   exports: [MediaDescriptorResolver],
 })

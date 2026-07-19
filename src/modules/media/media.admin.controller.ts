@@ -13,6 +13,7 @@ import {
   Query,
   Res,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -38,6 +39,7 @@ import {
   ApiProblemResponse,
 } from '../../common/swagger/api-problem-response';
 import { THROTTLE_TIERS } from '../../common/throttling/throttle-tiers';
+import { UploadUserIpThrottlerGuard } from '../../common/throttling/upload-user-ip-throttler.guard';
 import { RequirePermission } from '../access-control/decorators/require-permission.decorator';
 import { MediaListQueryDto } from './dto/media-list-query.dto';
 import { UpdateMediaAltDto } from './dto/update-media-alt.dto';
@@ -49,8 +51,9 @@ import { RetryAfterInterceptor } from './retry-after.interceptor';
 
 // Admin media library (doc 10 §5). Thin controller (D07-1): the multipart boundary + the dynamic
 // 201/200 status live here; all orchestration is in MediaService. Every route is permission-guarded
-// (never @Public) via the global default-deny PermissionsGuard. The 10/min upload rate throttle is
-// wired in T8; the in-process 2-wide processing cap (Q3) lives in the service + RetryAfterInterceptor.
+// (never @Public) via the global default-deny PermissionsGuard. POST carries the 10/min-per-user+IP
+// upload rate throttle (T8, UploadUserIpThrottlerGuard); the in-process 2-wide processing cap (Q3)
+// lives in the service + RetryAfterInterceptor.
 @ApiTags('media')
 @ApiBearerAuth('access-token')
 @Throttle({ default: THROTTLE_TIERS.admin })
@@ -61,6 +64,9 @@ export class MediaAdminController {
 
   @Post()
   @RequirePermission('media.create')
+  // Route-local: runs after the global auth + permission guards so it can key the 10/min cap by the
+  // authenticated user + IP (doc 19 §6, Q3/D19-9), which the global IP-only throttle guard cannot do.
+  @UseGuards(UploadUserIpThrottlerGuard)
   @UseInterceptors(
     // Multer defaults to in-memory storage, so `file.buffer` feeds the processor directly. The
     // 10 MiB cap is enforced here (multipart) independently of the 1 MiB JSON body limit.

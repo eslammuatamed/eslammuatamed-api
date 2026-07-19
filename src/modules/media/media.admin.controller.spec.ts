@@ -3,13 +3,15 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { ResponseEnvelopeInterceptor } from '../../common/interceptors/response-envelope.interceptor';
+import { UploadUserIpThrottlerGuard } from '../../common/throttling/upload-user-ip-throttler.guard';
 import { MediaAdminController } from './media.admin.controller';
 import { MediaService } from './media.service';
 
 // Verifies the transport-boundary behavior that unit-testing the service can't: the @Res passthrough
 // yields 201 for a new asset and 200 for a duplicate, and both still flow through the global
 // response envelope (single value → { data }, DataWithMeta → { data, meta }). No DB — the service is
-// mocked; no guards are registered in this minimal module, so no auth is required.
+// mocked; the global auth/permission guards aren't registered here, and the route-local upload
+// throttle guard is overridden to a no-op (its own tests cover throttling), so no auth is required.
 describe('MediaAdminController — upload status + envelope', () => {
   let app: INestApplication;
   const media = { upload: jest.fn() };
@@ -21,7 +23,10 @@ describe('MediaAdminController — upload status + envelope', () => {
         { provide: MediaService, useValue: media },
         { provide: APP_INTERCEPTOR, useClass: ResponseEnvelopeInterceptor },
       ],
-    }).compile();
+    })
+      .overrideGuard(UploadUserIpThrottlerGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
     app = moduleRef.createNestApplication();
     await app.init();
   });
