@@ -1,19 +1,17 @@
 # Production deploy — NestJS API → Contabo VPS (doc 23 §3 "API release", D23-10).
 #
-# TRIGGER: workflow_dispatch ONLY for now. The server is not provisioned yet; an
-# auto-trigger would paint the repo red on every push. After the doc 23 §4 restore
-# drill passes, switch the trigger to tag push per doc 23 §3 — a one-line change,
-# documented in the deploy runbook:
-#
-#     on:
-#       push:
-#         tags: ['v*']
+# TRIGGER: workflow_dispatch (manual re-runs) + push of a semver `vX.Y.Z` tag — the
+# production API release path (doc 23 §3 D23-10; §2 lists API prod as "tag → systemd
+# service"). This switch was gated on the doc 23 §4 restore drill, which passed on
+# 2026-07-19 (dump → fresh DB → all migrations/tables/seed/constraints verified); the
+# server is provisioned and live. The tag filter is restricted to `v*.*.*` so only
+# release-shaped tags reach production — a stray `v`-prefixed tag will not deploy.
 #
 # DEVIATIONS from doc 23 §3 (reported to the team lead, justified):
 #   - The deploy gate omits e2e (Postgres). e2e already ran on the merge commit the
 #     tag points at (PR gates, doc 17 §1); a Postgres service here would duplicate it.
-#   - "The release attaches openapi.json" is deferred with the tag trigger — there is
-#     no GitHub Release object under workflow_dispatch. It lands with the tag switch.
+#   - "The release attaches openapi.json" (doc 17 §4) is NOT yet implemented — a
+#     deliberate follow-up, outside this minimal trigger-only change.
 #
 # ROLLBACK (no rebuild — doc 23 §3): on the VPS, repoint `current` at the previous
 # release and restart:
@@ -35,6 +33,8 @@ name: Deploy
 
 on:
   workflow_dispatch:
+  push:
+    tags: ['v*.*.*']
 
 # Never let two deploys race; a deploy in flight must finish (do not cancel mid-cutover).
 concurrency:
