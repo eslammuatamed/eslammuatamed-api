@@ -1,0 +1,91 @@
+# `media` — مكتبة الوسائط المركزية (Feature 003)
+
+> اقرأ [`src/modules/README.md`](../README.md) أولًا. هذه الوحدة هي **مكتبة الوسائط المركزية القابلة لإعادة الاستخدام** (`D02-7`): كل وحدات المحتوى (`projects`, `articles`, `testimonials`, `settings`) تشير إلى أصولها بالمرجع فقط، ولا ترفع أو تعالج الوسائط بنفسها.
+
+## المسؤولية
+
+رفع الصور وملف السيرة الذاتية `PDF`، مع إزالة التكرار بـ `SHA-256`، ومعالجة الصور إلى `master` وبدائل (`variants`) بصيغ `WebP`/`AVIF`، وتخزينها خلف `StorageAdapter` واحد، وخدمتها مباشرةً من أصل الوسائط. **الحالة: مُنجَزة ومنشورة** (`T1`–`T11` مكتملة ومُتحقَّق منها في الإنتاج).
+
+## خريطة الملفّات
+
+| الملف | الدور |
+|---|---|
+| `media.admin.controller.ts` | مسارات محروسة تحت `/admin/media` (كل نقطة تُعلن `media.*`)؛ حدّ الرفع + حالة `201/200` الديناميكية |
+| `media.service.ts` | التنسيق: إزالة التكرار، الترقيم (`persistImage`/`persistPdf`)، `usages`، الحذف الآمن، تعويض `D07-6` |
+| `media-processing.service.ts` | خطّ `Sharp`: تعقيم الأصل → `master` → البدائل ضمن الميزانية → `BlurHash` |
+| `media-processing.util.ts` | منطق قابل للاختبار بلا `Sharp`: سُلّم الجودة، التحقّق من الامتداد، والتحقّق البنيوي للـ `PDF` |
+| `media-descriptor.resolver.ts` · `entities/media-descriptor.entity.ts` | حلّ الواصفات (`descriptors`) العامّة المُضافة على قراءات الوحدات الأخرى |
+| `processing-concurrency.limiter.ts` · `retry-after.interceptor.ts` | سقف المعالجة المتزامنة `2`، و`429` + `Retry-After` |
+| `storage/` | `storage-adapter.interface.ts` (المقبس)، `local-storage.adapter.ts` (تطوير/اختبار)، `r2-storage.adapter.ts` (إنتاج) |
+| `entities/*` · `dto/*` | مخرجات الإدارة/العامّة، واستعلام القائمة + `UpdateMediaAltDto` |
+
+## خريطة الاتصال
+
+- **وارد:** `MediaDescriptorResolver` تستهلكه `projects`/`articles`/`testimonials`/`settings` لحقن الواصفات.
+- **يعتمد على:** `PrismaService`، و`StorageAdapter` عبر رمز الحقن `STORAGE_ADAPTER` (`@Inject`)، و`Sharp`، ومُحمّل `file-type` (`ESM`) لكشف البايتات السحرية.
+
+## التدفّقات
+
+### الرفع — `POST /admin/media` (متعدّد الأجزاء، `media.create`)
+```
+sniff (file-type) → نوع مكتشَف من البايتات (مرجعي) → يُطابَق مع الامتداد + Content-Type المُعلَن
+  صورة؟ → سقف 40 MP (MAX_INPUT_PIXELS) → Sharp master (WebP q90, auto-orient, تجريد الميتاداتا)
+        → بدائل WebP/AVIF عند 640/1280/1920 (لا تكبير) ضمن ميزانية العرض×الصيغة → BlurHash 4×3
+  PDF؟   → تحقّق بنيوي (يبدأ بـ %PDF- وينتهي بـ %%EOF) — بلا تحليل كامل
+  → SHA-256 على البايتات الأصلية (contentHash فريد) → موجود مسبقًا؟
+      نعم → 200 مع meta.deduplicated=true (الأصل القائم، بلا رفع جديد)
+      لا  → limiter (سقف 2) → كتابة الكائنات ثم صف DB → 201
+```
+الأصل الخام **لا يُخزَّن أبدًا**؛ يُحتفَظ فقط بالـ `master` المعقَّم للتوليد المستقبلي. حدّ الرفع `10 MiB` (`MAX_UPLOAD_BYTES`) مطبَّق في `Multer` وكدفاع في العمق. مفتاح كل كائن عشوائي تحت بادئة واحدة (`MEDIA_KEY_ROOT = 'media'`)؛ اسم الملف الأصلي لا يظهر في أي مفتاح أو مسار عام.
+
+### الحذف والاستخدامات
+- `GET /admin/media/:id/usages` (`media.read`): يعدّد كل مفتاح خارجي يشير إلى الأصل، في استعلام واحد (لا `N+1`).
+- `DELETE /admin/media/:id` (`media.delete`): إن كان مُشارًا إليه → **`409`** مع تعداد `usages` في الجسم، دون لمس أي صفّ أو كائن؛ وإلا يحذف الصفّ + البدائل + الكائنات ويُعيد **`204`**.
+
+### التحقّق والحدود (`422`)
+نوع غير مدعوم، أو تزييف المحتوى (البايتات لا تطابق النوع المُعلَن/الامتداد)، أو صورة تتجاوز `40 MP`، أو `PDF` مشوَّه/مبتور → **`422`** (RFC 7807).
+
+### السقف والخنق (`429`)
+- **معدّل الرفع:** `10/دقيقة` لكل مستخدِم مُصادَق + `IP` عبر `UploadUserIpThrottlerGuard` (محلّي للمسار، بعد حرّاس المصادقة/الصلاحية؛ يفشل **مغلقًا بـ `401`** إن غاب `request.user` أو `IP` موثوق — لا رجوع لخنق `IP` فقط).
+- **سقف المعالجة:** `MAX_CONCURRENT_PROCESSING = 2` متزامنة لكل نسخة؛ رفعٌ إضافي أثناء الانشغال → **`429`** + `Retry-After` (`PROCESSING_RETRY_AFTER_SECONDS = 2`) ولا يُصفّ أبدًا.
+
+### التعويض وضمان انعدام اليتامى (`D07-6`)
+الكائنات تُكتَب **قبل** صفّ `DB`؛ عند أي فشل بعد الكتابة يُستدعى `compensate`: `storage.deleteMany` للكائنات المرفوعة بالضبط. سباق محتوى مكرِّر يُحلّ لصالح **الفائز** (إعادة فحص `contentHash`). التنظيف لا يرمي أبدًا؛ وإن بقيت كائنات يُسجَّل `media.compensation_incomplete` — فلا صفّ يتيم ولا كائن يتيم.
+
+## العقود والثوابت
+
+- **الصيغ:** صور `JPEG`/`PNG`/`WebP`/`AVIF` (النوع المكتشَف بالبايتات مرجعيّ، ويُقاطَع مع الامتداد و`Content-Type`)؛ **لا دعم `GIF`**، و`SVG` ممنوع (قابل للسكربتة، بلا بايتات سحرية). `PDF` (`application/pdf`) هو النوع غير الصوري الوحيد ويخصّ خانة السيرة الذاتية فقط.
+- **الصلاحيات:** `media.create` / `media.read` / `media.update` / `media.delete` عبر `@RequirePermission` تحت `PermissionsGuard` (رفض افتراضي؛ لا `@Public` مطلقًا). بلا رمز → **`401`**؛ رمز بلا الصلاحية → **`403`**.
+- **المسارات الإدارية:** `POST /admin/media` (201/200)، `GET /admin/media` (قائمة مُرقّمة، بحث في الاسم + النص البديل، مرشِّح `kind`)، `GET /admin/media/:id`، `PATCH /admin/media/:id` (ضبط/مسح نصّ بديل لكل لغة: `""` = زخرفيّ، `null` = إزالة)، `GET /admin/media/:id/usages`، `DELETE /admin/media/:id`.
+- **الجداول:** `media_assets` (`MediaAsset`: `kind`, `originalFilename`, `sizeBytes`, `contentHash` فريد، `width?`/`height?`/`blurhash?`)، `media_asset_variants` (`format`, `width`, `height`, `sizeBytes`, `overBudget`؛ `@@unique([mediaAssetId, format, width])`)، `media_asset_alts` (`locale`, `text`). اتّساق `kind↔الحقول` (صورة ⇒ `width/height/blurhash` + `image/webp`؛ `PDF` ⇒ الكل `null` + `application/pdf`) قيد `CHECK` في `DB`.
+- **الميزانيات:** عرض البدائل `640/1280/1920` (`RENDITION_WIDTHS`) بميزانية بايت لكل عرض×صيغة، وسُلّم جودة (`webp` من `78` إلى `55`، `avif` من `55` إلى `40`، خطوة `8`)؛ يُرفع `overBudget` إن بقي عند الأرضية فوق الميزانية.
+- **الواصفات العامّة (`descriptors`):** تُضاف على القراءات العامّة **بجانب** حقول `*Id` المحفوظة، أضيق من كيان الإدارة (بلا `overBudget`، بلا مفاتيح تخزين، بلا `contentHash`، بلا رابط `master`). كل `url` مطلق على أصل الوسائط (لا أصل الـ `API`). `PublicMediaImageDescriptor.url` = أوسع بديل `WebP`؛ و`blurhash`/`alt` قابلان لـ `null` (`null` = لا ترجمة/لا رجوع، `""` = زخرفيّ). `PublicMediaPdfDescriptor` يحمل `filename` + `sizeBytes`.
+- **عقد `OpenAPI` القابل لـ `null`:** الحقول القابلة لـ `null` من نوع `$ref` تُصدَّر كـ `{ nullable: true, allOf: [$ref] }` (دون `type: object`)، وهو التمثيل الوحيد الذي يقبله `jest-openapi`/`AJV` الصارم للقيمة `null` (تصحيح `T10`).
+- **التخزين:** `LocalStorageAdapter` للتطوير/الاختبار (`STORAGE_DRIVER=local`، `STORAGE_LOCAL_DIR`، يُخدَم عند `PUBLIC_MEDIA_URL`)؛ و`R2StorageAdapter` المتوافق مع `S3` للإنتاج على `Cloudflare R2` (`STORAGE_DRIVER=s3`، `S3_ENDPOINT`/`S3_BUCKET`/`S3_ACCESS_KEY_ID`/`S3_SECRET_ACCESS_KEY`/`S3_REGION`). المقبس `STORAGE_ADAPTER` (`D07-4`)؛ لا كود أعمال يمسّ `SDK` تخزين. كل كائن يُكتَب بـ `Content-Type` صحيح؛ الصور بـ `Cache-Control: public, max-age=31536000, immutable`، والـ `PDF` يضيف `Content-Disposition: attachment`.
+
+## الترحيل وقاعدة الإنتاج
+
+المخطّط يُطبَّق بـ `prisma migrate deploy` **فقط** في الإنتاج (تقدّم للأمام — `doc 09 §6`)؛ لا `migrate reset` ولا حذف/تصفير للإنتاج مطلقًا. هجرة الميزة تضيف `MediaKind`/`MediaVariantFormat`، وجدول البدائل، وأعمدة `media_assets`، وقيود `CHECK` — إضافيّة بالكامل.
+
+## الاختبارات وما تُثبته
+
+- **وحدات:** `media.service.spec.ts`، `media-processing.service.spec.ts`، `media-processing.util.spec.ts`، `processing-concurrency.limiter.spec.ts`، `retry-after.interceptor.spec.ts`، `media-descriptor.resolver.spec.ts`، ومحوّلا التخزين.
+- **e2e:** `test/media.e2e-spec.ts` — `401/403`، رفع مُصرَّح `201` (`master` + بدائل `WebP`/`AVIF`)، إزالة تكرار `200` + `meta.deduplicated`، حذف محميّ `409` + `usages` ثم `204`، غير-صورة `422` (بلا يتيم)، الواصف العامّ حاضرًا **و** `null` — كلاهما مطابق للعقد، `429` + `Retry-After`، وتعويض فشل التخزين (`deleteMany` بلا صفّ يتيم). يتطلّب `NODE_OPTIONS=--experimental-vm-modules` لمُحمّل `file-type` الـ `ESM`.
+- **تحقّق الإنتاج (`R2`):** دورة كاملة مُتحقَّق منها فعليًّا مقابل الإنتاج — رفع `201` → جلب الـ `master` والبديلين `WebP`+`AVIF` من أصل الوسائط بـ `Content-Type` صحيح و`Cache-Control` غير قابل للتغيير → `usages` صفر → حذف `204`.
+
+## القيود المقبولة (موثّقة سلفًا)
+
+- **لا `e2e` لرفع `PDF`:** رفع/معالجة سيرة `PDF` خارج نطاق `Feature 003`؛ تغطية `resumeAsset = null` + التحقّق البنيوي لواصف `PDF` كافيان.
+- **لا اختبار تكامل `R2` حقيقي في `CI`:** التخزين يُتحقَّق منه بالمحوّل المحلّي وبمُحاكيات حتمية؛ اختبار `checksum` مقابل `R2` حقيقي مُبوَّب.
+- **بنود `e2e` مؤجَّلة:** حدّ `40 MP` وترويسات الكائن عند الجلب (مغطّاة بالوحدات).
+
+## المرجع الرسمي وحالة التوافق
+
+- [NestJS File upload](https://docs.nestjs.com/techniques/file-upload) · [Sharp](https://sharp.pixelplumbing.com/) · [Prisma transactions](https://www.prisma.io/docs/orm/prisma-client/queries/transactions) · [Cloudflare R2 (S3 API)](https://developers.cloudflare.com/r2/api/s3/) · [OpenAPI 3.0 `nullable`](https://spec.openapis.org/oas/v3.0.3#schema-object).
+
+**حالة التوافق:**
+- **`StorageAdapter` عبر رمز حقن + `@aws-sdk/client-s3`:** `Compatible` — المقبس النظيف يُبقي كود الأعمال بلا `SDK`، و`R2` يُستهلَك عبر واجهة `S3` الرسمية.
+- **كشف النوع بـ `file-type` (`ESM`) + `Sharp`:** `Compatible` — البايتات السحرية مرجعيّة، لا الامتداد/الترويسة؛ يتطلّب `--experimental-vm-modules` لتحميل `ESM` من `Jest`.
+- **`nullable $ref` بـ `allOf` بلا `type: object`:** `Compatible` — التمثيل الوحيد المقبول في `OpenAPI 3.0` لدى `jest-openapi`/`AJV` الصارم للقيمة `null`.
+
+**لم يُرصَد انحراف غير مُفسَّر في هذه الوحدة.**

@@ -1,9 +1,9 @@
 # دليل المشروع — `eslammuatamed-api`
 
-> **الحالة:** أساس مستقرّ (Stable baseline) مُشتقّ من `origin/main` عند `227c232`.
-> **آخر مراجعة:** 2026-07-18.
+> **الحالة:** أساس مستقرّ (Stable baseline) مُشتقّ من `origin/main` عند `284795e`.
+> **آخر مراجعة:** 2026-07-19.
 > **لمن هذا الدليل:** مهندس واجهات أمامية (Vue/Nuxt) يتعلّم الـ backend بـ `NestJS` و`Prisma`. الشرح بالعربية، وكل مُعرّف تقني يبقى بالإنجليزية كما في الكود.
-> **قاعدة الحالة:** هذا الدليل يصف **الكود المُسلَّم (Shipped) على `main` فقط**. أي شيء مُعلَّم `Planned` أو `Deferred` أو `In Progress` غير موجود في هذا الأساس. Feature 003 (`media`) **ليست مدموجة** ولا تُوثَّق هنا كأنها مُسلَّمة.
+> **قاعدة الحالة:** هذا الدليل يصف **الكود المُسلَّم (Shipped) على `main` فقط**. أي شيء مُعلَّم `Planned` أو `Deferred` غير موجود في هذا الأساس. Feature 003 (`media`) **مدموجة ومُسلَّمة** على `main` (PR #7)، وتُوثَّق تفصيلًا في [`src/modules/media/README.md`](src/modules/media/README.md).
 
 ---
 
@@ -36,10 +36,10 @@
 
 > هذا التمييز جوهري. لا تعامل شيئًا خارج عمود `Shipped` كأنه موجود في هذا الأساس.
 
-**`Shipped` (على `main`، مُنشور 2026-07-16):** البنية التحتية العرضية كاملة (`config`, `prisma`, `common`, `contract`, `main`) + الوحدات التالية:
-`health`, `locales`, `auth`, `users`, `access-control`, `settings`, `taxonomy` (categories + tags), `articles`, `projects`, `experiences`, `skills`, `testimonials`.
+**`Shipped` (على `main`):** البنية التحتية العرضية كاملة (`config`, `prisma`, `common`, `contract`, `main`) + الوحدات التالية:
+`health`, `locales`, `auth`, `users`, `access-control`, `settings`, `taxonomy` (categories + tags), `articles`, `projects`, `experiences`, `skills`, `testimonials`, و`media` (Feature 003 — مدموجة 2026-07-19، PR #7؛ راجع [`src/modules/media/README.md`](src/modules/media/README.md)).
 
-**`In Progress` (على فرع `003-media-pipeline`، غير مدموج — **خارج هذا الأساس**):** وحدة `media` (خط رفع الصور بـ `Sharp`، `StorageAdapter`، الـ descriptors) قيد التطوير على فرع غير مدموج؛ تفاصيل تقدّمها في `tasks.md` الخاصّ بذلك الفرع، لا في هذا الأساس، وستُوثَّق توثيقًا دائمًا **بعد** دمجها. **لا تُذكر في وثائق هذا الأساس إلا كإشارة إلى أنها قادمة.**
+**`In Progress`:** — لا شيء حاليًّا. (Feature 003 `media` اكتملت — `T1`–`T11` — ودُمجت إلى `main`؛ انظر `Shipped` أعلاه.)
 
 **`Planned` (مجدولة، غير مكتوبة بعد):**
 - `redirects` + `contact` + preview tokens (Feature 004).
@@ -51,7 +51,7 @@
 - طبقة cache للقراءة داخل الـ API (`Redis`) — فقط إذا خُرقت ميزانية الأداء `NFR-006` (الوثيقة 07 §11).
 - `TOTP 2FA` — عند وجود حساب مشغّل ثانٍ حقيقي.
 
-**ملاحظة مهمة عن `schema` مقابل الوحدات:** مخطّط قاعدة البيانات **مكتمل مسبقًا (schema-complete)** — جداول مثل `media_assets`, `media_asset_alts`, `page_seo`, `slug_redirects`, `contact_messages` موجودة على `main`، لكن **وحداتها لم تُبنَ بعد** (`Planned`). كذلك متغيّرات البيئة `STORAGE_*` و`PREVIEW_TOKEN_SECRET` مُتحقَّق منها عند الإقلاع رغم أن وحداتها لم تُنفَّذ. أي: المخطّط والإعداد يسبقان الوحدات عمدًا، وتُبنى الوحدات بالتدريج حسب [الوثيقة 24 (خارطة الطريق)](../eslammuatamed-docs/docs/24-roadmap.md).
+**ملاحظة مهمة عن `schema` مقابل الوحدات:** المخطّط سبق بعض الوحدات عمدًا. جداول `media_assets`/`media_asset_alts`/`media_asset_variants` صارت الآن مخدومة بوحدة `media` (`Shipped`)، أمّا `page_seo`, `slug_redirects`, `contact_messages` فما زالت جداول بلا وحدات (`Planned`). متغيّرات `STORAGE_*` تستخدمها وحدة `media` الآن (و`S3_*` في الإنتاج)، بينما `PREVIEW_TOKEN_SECRET` ما زال مُتحقَّقًا منه رغم أن وحدته `Planned`. تُبنى بقيّة الوحدات بالتدريج حسب [الوثيقة 24 (خارطة الطريق)](../eslammuatamed-docs/docs/24-roadmap.md).
 
 ## 4. المكدّس والمكتبات المهمة (ولماذا كلٌّ منها)
 
@@ -76,7 +76,7 @@
 | `reflect-metadata` | polyfill الميتاداتا اللازم لـ decorators في `NestJS` |
 | `rxjs` | الأساس التفاعلي الذي تُبنى عليه الـ interceptors في `NestJS` |
 
-> ملاحظة: مكتبات خط الوسائط (`sharp`, `@aws-sdk/client-s3`, `blurhash`, `load-esm`) **ليست** في هذا الأساس؛ تُضاف مع Feature 003.
+> ملاحظة: مكتبات خط الوسائط (`sharp`, `@aws-sdk/client-s3`, `blurhash`, `load-esm`) صارت **جزءًا من هذا الأساس** مع دمج Feature 003.
 
 **أهم تبعيات التطوير:** `@nestjs/testing` + `jest` + `ts-jest` (اختبارات الوحدة)، `supertest` + `jest-openapi` (اختبارات e2e مع تأكيد مطابقة العقد)، `jest-mock-extended` (mocking لـ `PrismaService`)، `prisma` CLI، `eslint` + `typescript-eslint` + `prettier` + `husky` + `lint-staged` (بوابات الجودة).
 
@@ -143,8 +143,8 @@ ThrottlerGuard → JwtAuthGuard → PermissionsGuard → (Controller)
 - **قراءة عامة:** `?locale=` مُتحقَّق منه ضدّ اللغات المُفعّلة (`LocalesService.assertEnabled`) → شكل مُسطَّح للّغة الواحدة. **لا رجوع صامت** إلى لغة أخرى: ترجمة مفقودة تبقى مفقودة (404 عند الوصول المباشر).
 - **قراءة إدارية:** خريطة الترجمة الكاملة (لتحرير جنب-إلى-جنب).
 
-### 6.5 الوسائط بالمرجع فقط (على هذا الأساس)
-جداول الوسائط موجودة، لكن **لا توجد وحدة رفع ولا تحليل descriptor على `main`**. الكيانات التي تشير إلى وسائط (`Article.coverImageId`, `*.ogImageId`, gallery `mediaAssetId`, `Testimonial.avatarId`, `SiteSettings.resumeAssetId`) تُرجِع **المُعرّف الخام (bare id)** في القراءة العامة. رفع الملفّات وتحويل الـ id إلى descriptor (URL + أبعاد + `blurhash` + نص بديل) هو عمل Feature 003 (`In Progress`، خارج هذا الأساس).
+### 6.5 الوسائط: وحدة `media` (Feature 003، مدموجة)
+وحدة `media` تُدير الرفع والمعالجة والتخزين وحلّ الـ descriptors. القراءات العامة تُبقي حقول `*Id` الخامة (`Article.coverImageId`, `*.ogImageId`, gallery `mediaAssetId`, `Testimonial.avatarId`, `SiteSettings.resumeAssetId`) وتُضيف **بجانبها** descriptor مُحلّلًا (URL على أصل الوسائط + أبعاد + `blurhash` + نص بديل للّغة، قابل لـ `null`). التفاصيل الكاملة في [`src/modules/media/README.md`](src/modules/media/README.md).
 
 ### 6.6 النشر المجدول
 `@nestjs/schedule` يشغّل cron داخل العملية كل دقيقة يرفع المقالات `SCHEDULED` المستحقّة (`publishAt <= now`) إلى `PUBLISHED` باستعلام واحد idempotent (`D07-3`). صحيح لنسخة API واحدة؛ التوسّع الأفقي مستقبلًا يحتاج قفلًا موزّعًا (موثّق في الوثيقة 07 §5).
@@ -180,7 +180,7 @@ ThrottlerGuard → JwtAuthGuard → PermissionsGuard → (Controller)
 - **الـ ORM:** `Prisma 6.19` فوق `PostgreSQL 16`. نماذج PascalCase / حقول camelCase؛ أسماء الجداول snake_case عبر `@map`/`@@map` (`D09-1`). مفاتيح `UUIDv7` (`D09-2`). كل جدول يحمل `createdAt`/`updatedAt`.
 - **الترجمة:** جداول ترجمة منفصلة لكل كيان؛ فرادة الـ slug لكل لغة (`@@unique([locale, slug])`).
 - **البحث النصّي الكامل (FTS):** عمود `tsvector` + فهرس `GIN` على `article_translations`، يُضاف بـ migration يدوي (`D09-6`) لأن `Prisma` لا يعبّر عن الأعمدة المولّدة.
-- **التخزين:** جدول `media_assets` موجود، لكن التخزين الفعلي (محلي/`S3`/`R2`) وراء واجهة `StorageAdapter` هو عمل Feature 003 (`Planned`/`In Progress`، خارج الأساس).
+- **التخزين:** التخزين الفعلي وراء واجهة `StorageAdapter` (`D07-4`) صار مُسلَّمًا مع Feature 003: `LocalStorageAdapter` للتطوير/الاختبار و`R2StorageAdapter` المتوافق مع `S3` على `Cloudflare R2` للإنتاج، يُختاران بـ `STORAGE_DRIVER`. التفاصيل في [`src/modules/media/README.md`](src/modules/media/README.md).
 - المخطّط الكامل موثّق في [الوثيقة 09 (Database Design)](../eslammuatamed-docs/docs/09-database-design.md) — لا نكرّره هنا.
 
 ## 10. البيئة والإعداد
@@ -189,7 +189,7 @@ ThrottlerGuard → JwtAuthGuard → PermissionsGuard → (Controller)
 
 `NODE_ENV`, `PORT` · `DATABASE_URL` · `CORS_ORIGIN` · `JWT_ACCESS_SECRET`, `JWT_ACCESS_TTL`, `REFRESH_TOKEN_TTL_DAYS`, `REFRESH_TOKEN_PEPPER`, `PREVIEW_TOKEN_SECRET`, `COOKIE_DOMAIN` · `SEED_OWNER_EMAIL`, `SEED_OWNER_PASSWORD` · `STORAGE_DRIVER`, `STORAGE_LOCAL_DIR`, `PUBLIC_MEDIA_URL`.
 
-> `PREVIEW_TOKEN_SECRET` و`STORAGE_*` مُتحقَّق منها رغم أن وحداتها `Planned` — الإعداد يسبق الوحدات عمدًا. `S3_*` **ليست** على هذا الأساس (تُضاف مع Feature 003). التفاصيل في [`src/config/README.md`](src/config/README.md).
+> `STORAGE_*` تستخدمها وحدة `media` الآن، و`S3_*` (`S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_REGION`) مطلوبة عند `STORAGE_DRIVER=s3` (الإنتاج). `PREVIEW_TOKEN_SECRET` ما زال مُتحقَّقًا منه رغم أن وحدته `Planned` — الإعداد يسبق الوحدات عمدًا. التفاصيل في [`src/config/README.md`](src/config/README.md).
 
 لا `Docker` في المشروع (توجيه المالك، `D16-5`): `PostgreSQL` أصلي محليًّا، ودور `eslammuatamed` بلا كلمة مرور على المنفذ `5432`.
 
@@ -247,8 +247,8 @@ npm run test:e2e         # يحتاج PostgreSQL (Supertest + jest-openapi)
 
 ## 14. مخاطر معلومة وعمل مؤجَّل
 
-- **مصدر الحقيقة لتقدّم Feature 003 هو `tasks.md` لا `feature-map.md`:** الأخير يعرض 003 كـ `Not started` باصطلاح «حدّ التسليم» (يعكس ما هو على `main`). لا تستنتج أن الوسائط غير مبدوءة.
-- **الوسائط بالمرجع فقط:** القراءات العامة تُرجِع `*Id` خامة حتى تُدمج Feature 003.
+- **Feature 003 (`media`) مدموجة ومُسلَّمة على `main`** (`T1`–`T11`، PR #7). إن تأخّر `feature-map.md` في عكس ذلك فالحالة على `main` هي المرجع.
+- **الوسائط:** القراءات العامة تُرجِع `*Id` خامة **مع** descriptor مُحلّل بجانبها (وحدة `media`، مدموجة).
 - **`Prisma 7` مؤجّلة (`D16-6`):** أي ترقية تحتاج قرارًا مُراجَعًا مستقلًّا.
 - **cron داخل العملية:** صحيح لنسخة واحدة فقط؛ التوسّع الأفقي يحتاج قفلًا.
 - **تحذير إعداد محلّي:** الدور بلا كلمة مرور يحتاج سطر `trust` في `pg_hba.conf` (انظر تعليق `.env.example`).
