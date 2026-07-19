@@ -1,16 +1,70 @@
 name: CI
 
+# Verification only — never deploys (production deploy lives in deploy.yml, on push to main).
+# Events (branch policy: dev = integration, main = production):
+#   - pull_request -> dev or main : full verification of the proposed merge
+#   - push         -> dev         : verification of the integration branch
+# main is deliberately NOT a push trigger here: a push to main is handled by deploy.yml,
+# which re-runs the same verification against the exact merged SHA before deploying. No
+# path filters — every change to these branches is fully verified (no accidental skips).
 on:
-  push:
-    branches: [main]
   pull_request:
-    branches: [main]
+    branches: [dev, main]
+  push:
+    branches: [dev]
 
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
+  # Advisory branch-policy guard (Free plan). GitHub branch protection / rulesets are
+  # unavailable on this plan, so this cannot be made unbypassable — it only REPORTS an
+  # unexpected promotion path. Enforcement is procedural (see the deployment runbook).
+  policy:
+    name: Branch-policy guard (advisory)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check promotion path
+        env:
+          BASE: ${{ github.base_ref }}
+          HEAD: ${{ github.head_ref }}
+        run: |
+          set -euo pipefail
+          echo "PR promotion path: '$HEAD' -> '$BASE'"
+          ok=1
+          case "$BASE" in
+            dev)
+              case "$HEAD" in
+                feature/*|fix/*|chore/*|hotfix/*|dependabot/*|renovate/*) ok=0 ;;
+              esac ;;
+            main)
+              case "$HEAD" in
+                dev|hotfix/*) ok=0 ;;
+              esac ;;
+          esac
+          if [ "$ok" -eq 0 ]; then
+            echo "✅ Allowed promotion path: '$HEAD' -> '$BASE'." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::warning title=Branch policy::Unexpected promotion path '$HEAD' -> '$BASE'. Expected feature/*|fix/*|chore/* -> dev, and dev|hotfix/* -> main. ADVISORY only (branch protection is unavailable on the Free plan)."
+            {
+              echo "### ⚠️ Branch-policy advisory"
+              echo "Unexpected promotion path: \`$HEAD\` -> \`$BASE\`."
+              echo ""
+              echo "- PRs to \`dev\` should originate from \`feature/*\`, \`fix/*\`, \`chore/*\` (or \`hotfix/*\` back-merges / bot branches)."
+              echo "- PRs to \`main\` should originate from \`dev\` or \`hotfix/*\`."
+              echo ""
+              echo "_Advisory only — GitHub cannot enforce branch protection on this plan, so this does not block the merge._"
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          # Advisory: never fail the build on a policy mismatch.
+          exit 0
+
   # Fast lane — runs with no database (constitution rule 4). Prisma connects lazily, so
   # typecheck, unit tests, and the contract export all boot the app graph without Postgres.
   verify:
@@ -42,6 +96,19 @@ jobs:
         # Boot validation (doc 07 §3) needs a valid env even though no DB is touched;
         # .env.example is the canonical valid development environment.
         run: cp .env.example .env && npm run contract:export
+
+      - name: Enforce OpenAPI contract idempotence
+        # The committed openapi.json must be a fixed point of contract:export (doc 16 §3).
+        # Compare the committed blob against the freshly-exported file at the content level
+        # (git's --exit-status stat cache false-positives after the rewrite). Drift — an
+        # entity changed without regenerating the contract — fails here.
+        run: |
+          if git show HEAD:openapi.json | diff -u - openapi.json; then
+            echo "openapi.json is a fixed point of contract:export."
+          else
+            echo "::error::Committed openapi.json is stale — run 'npm run contract:export' and commit the result." >&2
+            exit 1
+          fi
 
       - name: Upload OpenAPI artifact
         uses: actions/upload-artifact@v4
