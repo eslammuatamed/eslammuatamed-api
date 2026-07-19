@@ -118,17 +118,20 @@ jobs:
             echo "- result: **superseded** (github.sha != current main)" >> "$GITHUB_STEP_SUMMARY"
             echo "action=superseded" >> "$GITHUB_OUTPUT"; exit 0
           fi
-          # Already deployed? Read the live release id (<ts>-<short7sha>) and compare the sha.
-          DEPLOYED="$(ssh -i "$HOME/.ssh/deploy_key" -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+          # Already live? Read the live release id (<ts>-<short7sha>) and compare the sha.
+          LIVE="$(ssh -i "$HOME/.ssh/deploy_key" -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
             -o BatchMode=yes -o ConnectTimeout=10 "$DEPLOY_USER@$DEPLOY_HOST" \
             'readlink -f /srv/eslammuatamed-api/current 2>/dev/null | sed "s#.*/##"' | sed 's/^.*-//' || true)"
-          echo "deployed short SHA: '${DEPLOYED:-none}'  target short SHA: '${SHA:0:7}'"
-          if [ -n "$DEPLOYED" ] && [ "$DEPLOYED" = "${SHA:0:7}" ]; then
-            echo "- result: **already deployed** (\`$DEPLOYED\`)" >> "$GITHUB_STEP_SUMMARY"
-            echo "action=already-deployed" >> "$GITHUB_OUTPUT"; exit 0
+          echo "live release short SHA: '${LIVE:-none}'  target short SHA: '${SHA:0:7}'"
+          if [ -n "$LIVE" ] && [ "$LIVE" = "${SHA:0:7}" ]; then
+            echo "- result: **already current** (\`$LIVE\`)" >> "$GITHUB_STEP_SUMMARY"
+            echo "action=already-current" >> "$GITHUB_OUTPUT"; exit 0
           fi
-          echo "- decision: **deploy** (currently deployed: \`${DEPLOYED:-none}\`)" >> "$GITHUB_STEP_SUMMARY"
-          echo "action=deploy" >> "$GITHUB_OUTPUT"
+          # action value MUST NOT contain the string that is the DEPLOY_USER secret ("deploy"):
+          # GitHub masks any output value containing a secret and drops the output entirely,
+          # which would make every gated job skip. Use "release" (see the if: conditions).
+          echo "- decision: **release** (currently live: \`${LIVE:-none}\`)" >> "$GITHUB_STEP_SUMMARY"
+          echo "action=release" >> "$GITHUB_OUTPUT"
 
   # Release gate — mirrors ci.yml `verify`. Runs only for a real deploy.
   verify:
@@ -136,7 +139,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: preflight
-    if: needs.preflight.outputs.action == 'deploy'
+    if: needs.preflight.outputs.action == 'release'
     steps:
       - uses: actions/checkout@v4
 
@@ -177,7 +180,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: [preflight, verify]
-    if: needs.preflight.outputs.action == 'deploy'
+    if: needs.preflight.outputs.action == 'release'
     services:
       postgres:
         image: postgres:16
@@ -236,7 +239,7 @@ jobs:
     # Cannot start unless preflight decided `deploy` AND both verification jobs of THIS run
     # (same github.sha) pass.
     needs: [preflight, verify, e2e]
-    if: needs.preflight.outputs.action == 'deploy'
+    if: needs.preflight.outputs.action == 'release'
     steps:
       - uses: actions/checkout@v4
 
@@ -397,7 +400,7 @@ jobs:
             if [ "${PROCEED:-}" != "true" ]; then
               echo "- result: **superseded** (main moved during verify/e2e; no server mutation)"
             elif [ "${CUTOVER:-}" = "success" ]; then
-              echo "- result: **deployed** (post-cutover health gate passed; auto-rollback armed)"
+              echo "- result: **released** (post-cutover health gate passed; auto-rollback armed)"
             else
               echo "- result: **FAILED** (cutover/health outcome: \`${CUTOVER:-unknown}\`; auto-rollback attempted — check logs)"
             fi
