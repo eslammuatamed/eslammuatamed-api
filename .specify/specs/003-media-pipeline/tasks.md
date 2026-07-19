@@ -90,13 +90,22 @@ the owner approves the spec + plan** (Q1–Q4 resolved 2026-07-18). Dependency s
     (10→429, RFC 7807 + `Retry-After`, per-user bucket separation, **401 fail-closed when no user**) +
     `.guard.spec.ts` (bucket-key matrix + fail-closed throw). tsc/eslint/249 unit tests/`git diff --check`
     green; DB-free `contract:export` still boots.
-- [ ] T9 — Swagger + contract export (doc 10 §1)
+- [x] T9 — Swagger + contract export (doc 10 §1) — done: aaab13c (local, unpushed, pending owner review)
   - Exhaustive `@nestjs/swagger` + class-validator decorators + realistic examples on every new DTO/entity
     (incl. the descriptor with **nullable `alt`**, `variants[]`, and the upload **201 / 200** (200 carries `meta.deduplicated`)
     responses; the **admin** variant shape carries `overBudget`, the **public** descriptor omits it);
     `contract:export` emits valid OpenAPI **without a DB**; re-export `openapi.json`.
-  - **Verify:** `contract:export` green with DB down; OpenAPI models `alt: string|null` and the 201/200
-    upload shapes; diff reviewed (additive; no `*Id` removed).
+  - **Done:** T5–T7 already decorated the entities/DTOs; T9 exported the first `openapi.json` since the media
+    additions and corrected two Swagger models to match the shipped code (Swagger metadata only, no runtime
+    change): `AdminMediaAssetEntity.width/height/blurhash` now declare explicit `type` (were `object` from the
+    `T|null` union), and the dedup **200** response models `{ data, meta: { deduplicated: true } }` via an inline
+    `@ApiOkResponse` (the generic `{ data }` helper omitted `meta`). Descriptors verified: `url` = widest WebP,
+    `alt` `string|null`, admin variant carries `overBudget` / public omits it, PDF shape per doc 10 §6.
+  - **Verify:** `contract:export` green DB-free **and idempotent** (stable fixed point); OpenAPI models
+    `alt: string|null` and the 201/200 upload shapes; **diff reviewed vs `346a07a` — purely additive** (3 media
+    paths + 8 media schemas added; every `*Id` retained, D10-1; 0 removed paths/schemas/props; 0 semantic
+    changes to any feature-002 schema/response — line-diff "deletions" are pretty-print key-reordering).
+    tsc/eslint/249 unit tests/`git diff --check` green.
 - [ ] T10 — E2e suites + CI (doc 18 §2)
   - Supertest e2e: upload happy path (real image fixture → asset + WebP-q90 master described + renditions),
     **201** new / **200** duplicate (`meta.deduplicated`), 422 (renamed non-image / SVG / bad locale / PDF to
