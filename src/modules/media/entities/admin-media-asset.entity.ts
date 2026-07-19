@@ -70,16 +70,18 @@ export class AdminMediaAssetEntity {
   readonly originalFilename!: string;
 
   @ApiProperty({
+    type: Number,
     nullable: true,
     example: 2400,
     description: 'Master width in pixels (images only; null for PDF).',
   })
   readonly width!: number | null;
 
-  @ApiProperty({ nullable: true, example: 1350 })
+  @ApiProperty({ type: Number, nullable: true, example: 1350 })
   readonly height!: number | null;
 
   @ApiProperty({
+    type: String,
     nullable: true,
     example: 'LEHV6nWB2yk8pyo0adR*.7kCMdnj',
     description: 'BlurHash LQIP of the master (images only).',

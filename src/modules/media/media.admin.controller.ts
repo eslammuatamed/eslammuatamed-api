@@ -21,9 +21,12 @@ import {
   ApiBearerAuth,
   ApiBody,
   ApiConsumes,
+  ApiExtraModels,
   ApiNoContentResponse,
+  ApiOkResponse,
   ApiOperation,
   ApiTags,
+  getSchemaPath,
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
@@ -88,9 +91,27 @@ export class MediaAdminController {
   @ApiCreatedEnvelope(AdminMediaAssetEntity, {
     description: 'A new asset was created.',
   })
-  @ApiOkEnvelope(AdminMediaAssetEntity, {
+  // The dedup 200 carries `meta.deduplicated: true` (Q1/D10-3), which the generic { data } envelope
+  // helper does not model — so the envelope is spelled out here. ApiExtraModels registers the model
+  // independently of the sibling 201 decorator so this $ref never dangles.
+  @ApiExtraModels(AdminMediaAssetEntity)
+  @ApiOkResponse({
     description:
       'A byte-identical asset already existed; returned with meta.deduplicated=true.',
+    schema: {
+      type: 'object',
+      required: ['data', 'meta'],
+      properties: {
+        data: { $ref: getSchemaPath(AdminMediaAssetEntity) },
+        meta: {
+          type: 'object',
+          required: ['deduplicated'],
+          properties: {
+            deduplicated: { type: 'boolean', enum: [true], example: true },
+          },
+        },
+      },
+    },
   })
   @ApiProblemResponse(
     HttpStatus.UNPROCESSABLE_ENTITY,

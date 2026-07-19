@@ -464,6 +464,600 @@
         ]
       }
     },
+    "/api/v1/admin/media": {
+      "post": {
+        "operationId": "MediaAdminController_upload_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A byte-identical asset already existed; returned with meta.deduplicated=true.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminMediaAssetEntity"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "required": [
+                        "deduplicated"
+                      ],
+                      "properties": {
+                        "deduplicated": {
+                          "type": "boolean",
+                          "enum": [
+                            true
+                          ],
+                          "example": true
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "A new asset was created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminMediaAssetEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unsupported type, spoofed content, oversized image, or malformed PDF.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Processing capacity reached; retry after the Retry-After delay.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Upload an image or the resume PDF. A byte-identical duplicate returns the existing asset with meta.deduplicated=true (200).",
+        "tags": [
+          "media"
+        ]
+      },
+      "get": {
+        "operationId": "MediaAdminController_list_v1",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "perPage",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "default": 12,
+              "example": 12,
+              "type": "number"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Free-text search over sanitized filename and alt text.",
+            "schema": {
+              "example": "desk",
+              "type": "string"
+            }
+          },
+          {
+            "name": "kind",
+            "required": false,
+            "in": "query",
+            "description": "Filter by asset kind.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "IMAGE",
+                "PDF"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AdminMediaAssetEntity"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMeta"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "List media assets (newest first) with search over filename + alt text and a kind filter.",
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/api/v1/admin/media/{id}": {
+      "get": {
+        "operationId": "MediaAdminController_get_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminMediaAssetEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Media asset not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Get one media asset with its variants and alt text.",
+        "tags": [
+          "media"
+        ]
+      },
+      "patch": {
+        "operationId": "MediaAdminController_updateAlt_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMediaAltDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminMediaAssetEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Media asset not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Alt text is not allowed on a PDF asset, or the locale is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Set or clear a locale alt for an image asset (\"\" = decorative, null = remove).",
+        "tags": [
+          "media"
+        ]
+      },
+      "delete": {
+        "operationId": "MediaAdminController_remove_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Media asset and its objects deleted."
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Media asset not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The asset is referenced; the response body enumerates its usages.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "tags": [
+          "media"
+        ]
+      }
+    },
+    "/api/v1/admin/media/{id}/usages": {
+      "get": {
+        "operationId": "MediaAdminController_usages_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/MediaUsageEntity"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Media asset not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "List every record that references this asset (blocks deletion).",
+        "tags": [
+          "media"
+        ]
+      }
+    },
     "/api/v1/categories": {
       "get": {
         "operationId": "CategoriesController_list_v1",
@@ -4843,6 +5437,13 @@
             "items": {
               "$ref": "#/components/schemas/FieldErrorDto"
             }
+          },
+          "usages": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            },
+            "description": "Present on a 409 media-in-use response only: the records referencing the asset."
           }
         },
         "required": [
@@ -5048,6 +5649,43 @@
           "content"
         ]
       },
+      "PublicMediaPdfDescriptor": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "IMAGE",
+              "PDF"
+            ],
+            "example": "PDF"
+          },
+          "url": {
+            "type": "string",
+            "description": "Download URL (attachment headers are object metadata, doc 19 §5).",
+            "example": "https://media.eslammuatamed.com/media/8f…/document.pdf"
+          },
+          "filename": {
+            "type": "string",
+            "example": "eslam-muatamed-resume.pdf"
+          },
+          "sizeBytes": {
+            "type": "number",
+            "example": 245123
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "url",
+          "filename",
+          "sizeBytes"
+        ]
+      },
       "PublicSiteSettingsEntity": {
         "type": "object",
         "properties": {
@@ -5133,6 +5771,16 @@
               "$ref": "#/components/schemas/CustomMetaEntity"
             }
           },
+          "resumeAsset": {
+            "nullable": true,
+            "description": "Resolved résumé PDF descriptor (FR-PUB-023); null when no résumé is configured. The bare asset id stays admin-only.",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PublicMediaPdfDescriptor"
+              }
+            ]
+          },
           "availableLocales": {
             "example": [
               "en",
@@ -5157,6 +5805,7 @@
           "googleSiteVerification",
           "bingSiteVerification",
           "customMetas",
+          "resumeAsset",
           "availableLocales"
         ]
       },
@@ -5344,6 +5993,12 @@
             "type": "string",
             "example": "Open to select consulting engagements"
           },
+          "resumeAssetId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "Resume PDF media asset id (must be a PDF), or null to clear."
+          },
           "careerStartYear": {
             "type": "number",
             "nullable": true,
@@ -5398,6 +6053,251 @@
             }
           }
         }
+      },
+      "AdminMediaVariantEntity": {
+        "type": "object",
+        "properties": {
+          "format": {
+            "type": "string",
+            "enum": [
+              "WEBP",
+              "AVIF"
+            ],
+            "example": "WEBP"
+          },
+          "width": {
+            "type": "number",
+            "example": 1280
+          },
+          "height": {
+            "type": "number",
+            "example": 720
+          },
+          "sizeBytes": {
+            "type": "number",
+            "example": 84213,
+            "description": "Rendition size in bytes."
+          },
+          "url": {
+            "type": "string",
+            "example": "https://media.eslammuatamed.com/media/8f…/1280-webp.webp"
+          },
+          "overBudget": {
+            "type": "boolean",
+            "example": false,
+            "description": "Kept above its doc 20 §4 budget at the quality floor (D20-6); admin/ops-only."
+          }
+        },
+        "required": [
+          "format",
+          "width",
+          "height",
+          "sizeBytes",
+          "url",
+          "overBudget"
+        ]
+      },
+      "AdminMediaAltEntity": {
+        "type": "object",
+        "properties": {
+          "locale": {
+            "type": "string",
+            "example": "en"
+          },
+          "alt": {
+            "type": "string",
+            "example": "A laptop on a wooden desk",
+            "description": "An empty string is an intentionally-decorative alt."
+          }
+        },
+        "required": [
+          "locale",
+          "alt"
+        ]
+      },
+      "AdminMediaAssetEntity": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "IMAGE",
+              "PDF"
+            ],
+            "example": "IMAGE"
+          },
+          "url": {
+            "type": "string",
+            "description": "IMAGE: widest WebP rendition. PDF: download URL. Absolute on the media origin.",
+            "example": "https://media.eslammuatamed.com/media/8f…/1920-webp.webp"
+          },
+          "mimeType": {
+            "type": "string",
+            "example": "image/webp"
+          },
+          "sizeBytes": {
+            "type": "number",
+            "example": 245123
+          },
+          "originalFilename": {
+            "type": "string",
+            "example": "desk-setup.jpg",
+            "description": "Sanitized original filename (display + search)."
+          },
+          "width": {
+            "type": "number",
+            "nullable": true,
+            "example": 2400,
+            "description": "Master width in pixels (images only; null for PDF)."
+          },
+          "height": {
+            "type": "number",
+            "nullable": true,
+            "example": 1350
+          },
+          "blurhash": {
+            "type": "string",
+            "nullable": true,
+            "example": "LEHV6nWB2yk8pyo0adR*.7kCMdnj",
+            "description": "BlurHash LQIP of the master (images only)."
+          },
+          "contentHash": {
+            "type": "string",
+            "example": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "description": "SHA-256 (lowercase hex) of the original upload bytes."
+          },
+          "variants": {
+            "description": "Delivered renditions (images only; empty for a PDF).",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminMediaVariantEntity"
+            }
+          },
+          "alts": {
+            "description": "Per-locale alt text (images only).",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminMediaAltEntity"
+            }
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "url",
+          "mimeType",
+          "sizeBytes",
+          "originalFilename",
+          "width",
+          "height",
+          "blurhash",
+          "contentHash",
+          "variants",
+          "alts",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "PageMeta": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "number",
+            "example": 1,
+            "description": "Current page (1-based)."
+          },
+          "perPage": {
+            "type": "number",
+            "example": 12,
+            "description": "Items per page (max 50)."
+          },
+          "total": {
+            "type": "number",
+            "example": 42,
+            "description": "Total matching items."
+          },
+          "totalPages": {
+            "type": "number",
+            "example": 4,
+            "description": "Total pages for the current perPage."
+          }
+        },
+        "required": [
+          "page",
+          "perPage",
+          "total",
+          "totalPages"
+        ]
+      },
+      "UpdateMediaAltDto": {
+        "type": "object",
+        "properties": {
+          "locale": {
+            "type": "string",
+            "example": "en",
+            "description": "Two-letter locale; must be enabled."
+          },
+          "alt": {
+            "type": "string",
+            "nullable": true,
+            "example": "A laptop on a wooden desk",
+            "description": "\"\" = intentionally decorative; null removes the alt for this locale."
+          }
+        },
+        "required": [
+          "locale",
+          "alt"
+        ]
+      },
+      "MediaUsageEntity": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "article-cover",
+              "article-og",
+              "project-og",
+              "project-gallery",
+              "testimonial-avatar",
+              "page-seo-og",
+              "settings-resume"
+            ],
+            "example": "article-cover"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id of the record that references the asset."
+          },
+          "reference": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Context for the reference (e.g. articleId, projectId, locale, pageKey).",
+            "example": {
+              "articleId": "018f…",
+              "locale": "en"
+            }
+          }
+        },
+        "required": [
+          "type",
+          "id"
+        ]
       },
       "PublicCategoryEntity": {
         "type": "object",
@@ -5654,6 +6554,97 @@
           }
         }
       },
+      "PublicMediaVariantDescriptor": {
+        "type": "object",
+        "properties": {
+          "format": {
+            "type": "string",
+            "enum": [
+              "WEBP",
+              "AVIF"
+            ],
+            "example": "WEBP"
+          },
+          "width": {
+            "type": "number",
+            "example": 1280
+          },
+          "height": {
+            "type": "number",
+            "example": 720
+          },
+          "url": {
+            "type": "string",
+            "example": "https://media.eslammuatamed.com/media/8f…/1280-webp.webp"
+          }
+        },
+        "required": [
+          "format",
+          "width",
+          "height",
+          "url"
+        ]
+      },
+      "PublicMediaImageDescriptor": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "IMAGE",
+              "PDF"
+            ],
+            "example": "IMAGE"
+          },
+          "url": {
+            "type": "string",
+            "description": "Widest WebP rendition (never the sanitized master).",
+            "example": "https://media.eslammuatamed.com/media/8f…/1920-webp.webp"
+          },
+          "width": {
+            "type": "number",
+            "example": 2400,
+            "description": "Intrinsic image width (px)."
+          },
+          "height": {
+            "type": "number",
+            "example": 1350
+          },
+          "blurhash": {
+            "type": "string",
+            "nullable": true,
+            "example": "LEHV6nWB2yk8pyo0adR*.7kCMdnj",
+            "description": "BlurHash LQIP."
+          },
+          "alt": {
+            "type": "string",
+            "nullable": true,
+            "example": "A laptop on a wooden desk",
+            "description": "Alt for the requested ?locale=: null = no translation (no fallback), \"\" = intentionally decorative."
+          },
+          "variants": {
+            "description": "Every WebP/AVIF rendition (width asc, format asc).",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicMediaVariantDescriptor"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "url",
+          "width",
+          "height",
+          "blurhash",
+          "alt",
+          "variants"
+        ]
+      },
       "ArticleTaxonomyRefEntity": {
         "type": "object",
         "properties": {
@@ -5711,6 +6702,16 @@
             "format": "uuid",
             "description": "Cover MediaAsset id."
           },
+          "coverImage": {
+            "nullable": true,
+            "description": "Resolved cover image (null when no cover is set).",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PublicMediaImageDescriptor"
+              }
+            ]
+          },
           "category": {
             "$ref": "#/components/schemas/ArticleTaxonomyRefEntity"
           },
@@ -5739,40 +6740,10 @@
           "readingTimeMin",
           "publishAt",
           "coverImageId",
+          "coverImage",
           "category",
           "tags",
           "availableLocales"
-        ]
-      },
-      "PageMeta": {
-        "type": "object",
-        "properties": {
-          "page": {
-            "type": "number",
-            "example": 1,
-            "description": "Current page (1-based)."
-          },
-          "perPage": {
-            "type": "number",
-            "example": 12,
-            "description": "Items per page (max 50)."
-          },
-          "total": {
-            "type": "number",
-            "example": 42,
-            "description": "Total matching items."
-          },
-          "totalPages": {
-            "type": "number",
-            "example": 4,
-            "description": "Total pages for the current perPage."
-          }
-        },
-        "required": [
-          "page",
-          "perPage",
-          "total",
-          "totalPages"
         ]
       },
       "PublicArticleDetailEntity": {
@@ -5809,6 +6780,16 @@
             "nullable": true,
             "format": "uuid",
             "description": "Cover MediaAsset id."
+          },
+          "coverImage": {
+            "nullable": true,
+            "description": "Resolved cover image (null when no cover is set).",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PublicMediaImageDescriptor"
+              }
+            ]
           },
           "category": {
             "$ref": "#/components/schemas/ArticleTaxonomyRefEntity"
@@ -5858,6 +6839,16 @@
             "nullable": true,
             "format": "uuid"
           },
+          "ogImage": {
+            "nullable": true,
+            "description": "Resolved OG image (null when none is set).",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PublicMediaImageDescriptor"
+              }
+            ]
+          },
           "canonicalUrl": {
             "type": "string",
             "nullable": true,
@@ -5872,6 +6863,7 @@
           "readingTimeMin",
           "publishAt",
           "coverImageId",
+          "coverImage",
           "category",
           "tags",
           "availableLocales",
@@ -5880,6 +6872,7 @@
           "metaTitle",
           "metaDescription",
           "ogImageId",
+          "ogImage",
           "canonicalUrl"
         ]
       },
@@ -6839,6 +7832,16 @@
             "nullable": true,
             "format": "uuid"
           },
+          "avatar": {
+            "nullable": true,
+            "description": "Resolved avatar image (null when no avatar is set).",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PublicMediaImageDescriptor"
+              }
+            ]
+          },
           "order": {
             "type": "number"
           },
@@ -6865,6 +7868,7 @@
         "required": [
           "id",
           "avatarId",
+          "avatar",
           "order",
           "quote",
           "authorName",
@@ -7102,6 +8106,14 @@
             "type": "string",
             "format": "uuid"
           },
+          "mediaAsset": {
+            "description": "Resolved gallery image.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PublicMediaImageDescriptor"
+              }
+            ]
+          },
           "order": {
             "type": "number",
             "example": 0
@@ -7114,6 +8126,7 @@
         },
         "required": [
           "mediaAssetId",
+          "mediaAsset",
           "order",
           "caption"
         ]
@@ -7234,6 +8247,16 @@
             "nullable": true,
             "format": "uuid"
           },
+          "ogImage": {
+            "nullable": true,
+            "description": "Resolved OG image (null when none is set).",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PublicMediaImageDescriptor"
+              }
+            ]
+          },
           "canonicalUrl": {
             "type": "string",
             "nullable": true,
@@ -7264,6 +8287,7 @@
           "metaTitle",
           "metaDescription",
           "ogImageId",
+          "ogImage",
           "canonicalUrl"
         ]
       },
