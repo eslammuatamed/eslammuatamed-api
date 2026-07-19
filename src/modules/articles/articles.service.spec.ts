@@ -2,11 +2,76 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { ContentStatus } from '@prisma/client';
+import { ContentStatus, MediaKind, MediaVariantFormat } from '@prisma/client';
 import { DeepMockProxy, mockDeep } from 'jest-mock-extended';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocalesService } from '../locales/locales.service';
+import { MediaDescriptorResolver } from '../media/media-descriptor.resolver';
+import { StorageAdapter } from '../media/storage/storage-adapter.interface';
 import { ArticlesService } from './articles.service';
+
+const storage = {
+  put: jest.fn(),
+  delete: jest.fn(),
+  deleteMany: jest.fn(),
+  publicUrl: (key: string) => `https://media.test/${key}`,
+} as unknown as StorageAdapter;
+
+// A loaded image MediaAsset (variants + alts) for cover / OG descriptor tests.
+const imageAsset = (
+  id: string,
+  alts: { locale: string; alt: string }[],
+): Record<string, unknown> => {
+  const now = new Date('2026-01-01T00:00:00.000Z');
+  return {
+    id,
+    kind: MediaKind.IMAGE,
+    storageKey: `media/${id}/master.webp`,
+    originalFilename: 'x.jpg',
+    mimeType: 'image/webp',
+    sizeBytes: 1000,
+    contentHash: id,
+    width: 1920,
+    height: 1080,
+    blurhash: 'BH',
+    createdAt: now,
+    updatedAt: now,
+    variants: [
+      {
+        id: `${id}-w`,
+        mediaAssetId: id,
+        format: MediaVariantFormat.WEBP,
+        width: 1920,
+        height: 1080,
+        storageKey: `media/${id}/1920-webp.webp`,
+        sizeBytes: 900,
+        overBudget: false,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: `${id}-a`,
+        mediaAssetId: id,
+        format: MediaVariantFormat.AVIF,
+        width: 1920,
+        height: 1080,
+        storageKey: `media/${id}/1920-avif.avif`,
+        sizeBytes: 800,
+        overBudget: false,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ],
+    alts: alts.map((entry, index) => ({
+      id: `${id}-alt${index}`,
+      mediaAssetId: id,
+      locale: entry.locale,
+      alt: entry.alt,
+      createdAt: now,
+      updatedAt: now,
+    })),
+  };
+};
 
 function articlePayload(status: ContentStatus, locale = 'en') {
   const now = new Date('2026-01-01T00:00:00.000Z');
@@ -117,7 +182,11 @@ describe('ArticlesService', () => {
   beforeEach(() => {
     prisma = mockDeep<PrismaService>();
     locales = mockDeep<LocalesService>();
-    service = new ArticlesService(prisma, locales);
+    service = new ArticlesService(
+      prisma,
+      locales,
+      new MediaDescriptorResolver(storage),
+    );
   });
 
   describe('getPublicBySlug (FR-PUB-046 visibility)', () => {
@@ -153,6 +222,120 @@ describe('ArticlesService', () => {
       expect(result.body).toContain('word');
       // Slug map covers every translation for locale switching (doc 10 §6).
       expect(result.slugs).toEqual({ en: 'slug-en', ar: 'slug-ar' });
+    });
+  });
+
+  describe('media descriptors (T7)', () => {
+    const withMedia = (
+      coverAlts: { locale: string; alt: string }[],
+      ogAlts: { locale: string; alt: string }[],
+    ): never => {
+      const base = articlePayload(ContentStatus.PUBLISHED);
+      return {
+        ...base,
+        coverImageId: 'cover-1',
+        coverImage: imageAsset('cover-1', coverAlts),
+        translations: base.translations.map((translation) => ({
+          ...translation,
+          ogImageId: translation.locale === 'en' ? 'og-1' : null,
+          ogImage:
+            translation.locale === 'en' ? imageAsset('og-1', ogAlts) : null,
+        })),
+      } as never;
+    };
+
+    it('resolves the cover descriptor on the list, retains coverImageId, and issues no per-item media query', async () => {
+      prisma.$transaction.mockResolvedValue([
+        [withMedia([{ locale: 'en', alt: 'Cover alt' }], [])],
+        1,
+      ] as never);
+
+      const result = await service.listPublic({
+        page: 1,
+        perPage: 12,
+        skip: 0,
+        take: 12,
+        locale: 'en',
+      });
+      const item = result.data[0]!;
+
+      expect(item.coverImageId).toBe('cover-1');
+      expect(item.coverImage).toEqual({
+        id: 'cover-1',
+        kind: MediaKind.IMAGE,
+        url: 'https://media.test/media/cover-1/1920-webp.webp', // widest WebP
+        width: 1920,
+        height: 1080,
+        blurhash: 'BH',
+        alt: 'Cover alt',
+        variants: [
+          {
+            format: MediaVariantFormat.AVIF,
+            width: 1920,
+            height: 1080,
+            url: 'https://media.test/media/cover-1/1920-avif.avif',
+          },
+          {
+            format: MediaVariantFormat.WEBP,
+            width: 1920,
+            height: 1080,
+            url: 'https://media.test/media/cover-1/1920-webp.webp',
+          },
+        ],
+      });
+      // No N+1 — cover came from the parent article query.
+      expect(prisma.mediaAsset.findUnique).not.toHaveBeenCalled();
+      expect(prisma.mediaAsset.findMany).not.toHaveBeenCalled();
+    });
+
+    it('resolves the OG descriptor on detail and retains ogImageId', async () => {
+      prisma.articleTranslation.findUnique.mockResolvedValue({
+        article: withMedia(
+          [{ locale: 'en', alt: 'Cover alt' }],
+          [{ locale: 'en', alt: 'OG alt' }],
+        ),
+      } as never);
+
+      const result = await service.getPublicBySlug('slug-en', 'en');
+
+      expect(result.ogImageId).toBe('og-1');
+      expect(result.ogImage?.id).toBe('og-1');
+      expect(result.ogImage?.url).toBe(
+        'https://media.test/media/og-1/1920-webp.webp',
+      );
+      expect(result.ogImage?.alt).toBe('OG alt');
+      expect(result.coverImage?.id).toBe('cover-1');
+    });
+
+    it('returns coverImage/ogImage null when there is no media', async () => {
+      prisma.articleTranslation.findUnique.mockResolvedValue({
+        article: articlePayload(ContentStatus.PUBLISHED),
+      } as never);
+
+      const result = await service.getPublicBySlug('slug-en', 'en');
+
+      expect(result.coverImageId).toBeNull();
+      expect(result.coverImage).toBeNull();
+      expect(result.ogImage).toBeNull();
+    });
+
+    it('returns alt: null for a missing-locale cover alt (no cross-locale fallback)', async () => {
+      prisma.articleTranslation.findUnique.mockResolvedValue({
+        article: withMedia([{ locale: 'en', alt: 'Cover alt' }], []),
+      } as never);
+
+      // Detail resolved to 'ar'; the cover has only an 'en' alt row.
+      const result = await service.getPublicBySlug('slug-ar', 'ar');
+      expect(result.coverImage?.alt).toBeNull();
+    });
+
+    it('preserves an empty-string cover alt (decorative)', async () => {
+      prisma.articleTranslation.findUnique.mockResolvedValue({
+        article: withMedia([{ locale: 'en', alt: '' }], []),
+      } as never);
+
+      const result = await service.getPublicBySlug('slug-en', 'en');
+      expect(result.coverImage?.alt).toBe('');
     });
   });
 

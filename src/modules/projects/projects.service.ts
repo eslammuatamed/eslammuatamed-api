@@ -10,6 +10,7 @@ import {
 } from '../../common/pagination/page-meta';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocalesService } from '../locales/locales.service';
+import { MediaDescriptorResolver } from '../media/media-descriptor.resolver';
 import {
   AdminProjectListQueryDto,
   ProjectListQueryDto,
@@ -30,13 +31,19 @@ import {
   PublicProjectListItemEntity,
 } from './entities/project.entities';
 
+// Media relations (per-translation OG + gallery item image) load with variants + alts so
+// descriptors resolve in the parent query — no N+1 (doc 20 §7, doc 10 §6).
+const MEDIA_INCLUDE = { include: { variants: true, alts: true } } as const;
+
 type ProjectPublicPayload = Prisma.ProjectGetPayload<{
   include: {
-    translations: true;
+    translations: { include: { ogImage: typeof MEDIA_INCLUDE } };
     technologies: {
       include: { skill: { include: { translations: true } } };
     };
-    gallery: { include: { translations: true } };
+    gallery: {
+      include: { translations: true; mediaAsset: typeof MEDIA_INCLUDE };
+    };
   };
 }>;
 
@@ -49,12 +56,12 @@ type ProjectAdminPayload = Prisma.ProjectGetPayload<{
 }>;
 
 const PUBLIC_INCLUDE = (locale: string) => ({
-  translations: true,
+  translations: { include: { ogImage: MEDIA_INCLUDE } },
   technologies: {
     include: { skill: { include: { translations: { where: { locale } } } } },
   },
   gallery: {
-    include: { translations: { where: { locale } } },
+    include: { translations: { where: { locale } }, mediaAsset: MEDIA_INCLUDE },
     orderBy: { order: 'asc' as const },
   },
 });
@@ -73,6 +80,7 @@ export class ProjectsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly locales: LocalesService,
+    private readonly mediaDescriptors: MediaDescriptorResolver,
   ) {}
 
   async listPublic(
@@ -333,12 +341,16 @@ export class ProjectsService {
       lessonsLearned: translation.lessonsLearned,
       gallery: project.gallery.map((item) => ({
         mediaAssetId: item.mediaAssetId,
+        mediaAsset: this.mediaDescriptors.resolveImage(item.mediaAsset, locale),
         order: item.order,
         caption: item.translations[0]?.caption ?? null,
       })),
       metaTitle: translation.metaTitle,
       metaDescription: translation.metaDescription,
       ogImageId: translation.ogImageId,
+      ogImage: translation.ogImage
+        ? this.mediaDescriptors.resolveImage(translation.ogImage, locale)
+        : null,
       canonicalUrl: translation.canonicalUrl,
     };
   }

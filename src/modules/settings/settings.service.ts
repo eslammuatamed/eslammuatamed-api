@@ -3,9 +3,10 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { Prisma, SiteSettings, SiteSettingsTranslation } from '@prisma/client';
+import { MediaKind, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocalesService } from '../locales/locales.service';
+import { MediaDescriptorResolver } from '../media/media-descriptor.resolver';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
 import {
   AdminSiteSettingsEntity,
@@ -15,15 +16,18 @@ import {
   SiteSettingsTranslationEntity,
 } from './entities/site-settings.entities';
 
-type SettingsWithTranslations = SiteSettings & {
-  translations: SiteSettingsTranslation[];
-};
+// The resume asset loads with the singleton so the public PDF descriptor resolves in the same
+// query (no N+1). It is a PDF, so no variants/alts are needed.
+type SettingsWithTranslations = Prisma.SiteSettingsGetPayload<{
+  include: { translations: true; resumeAsset: true };
+}>;
 
 @Injectable()
 export class SettingsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly locales: LocalesService,
+    private readonly mediaDescriptors: MediaDescriptorResolver,
   ) {}
 
   // Public resolved read (D10-6): translatable fields flattened to the requested locale, no
@@ -56,6 +60,12 @@ export class SettingsService {
             }
           : null,
       customMetas: toCustomMetas(settings.customMetas),
+      // Public résumé descriptor (FR-PUB-023): the download URL/filename/size only — never the bare
+      // asset id. The FK is PDF-guarded on write (T6); the kind check here is defence in depth.
+      resumeAsset:
+        settings.resumeAsset && settings.resumeAsset.kind === MediaKind.PDF
+          ? this.mediaDescriptors.resolvePdf(settings.resumeAsset)
+          : null,
       availableLocales: settings.translations.map((t) => t.locale).sort(),
     };
   }
@@ -76,6 +86,25 @@ export class SettingsService {
 
     for (const translation of dto.translations ?? []) {
       await this.locales.assertEnabled(translation.locale);
+    }
+
+    // The resume slot may only reference a PDF asset (service invariant, feature 003 T6). null
+    // clears it (the prior asset is retained). Setting a non-existent or non-PDF asset is a 422.
+    if (dto.resumeAssetId !== undefined && dto.resumeAssetId !== null) {
+      const asset = await this.prisma.mediaAsset.findUnique({
+        where: { id: dto.resumeAssetId },
+        select: { kind: true },
+      });
+      if (!asset) {
+        throw new UnprocessableEntityException(
+          'resumeAssetId does not reference an existing media asset.',
+        );
+      }
+      if (asset.kind !== MediaKind.PDF) {
+        throw new UnprocessableEntityException(
+          'resumeAssetId must reference a PDF asset.',
+        );
+      }
     }
 
     const careerStartYear =
@@ -129,7 +158,7 @@ export class SettingsService {
 
   private async loadSingletonOrThrow(): Promise<SettingsWithTranslations> {
     const settings = await this.prisma.siteSettings.findFirst({
-      include: { translations: true },
+      include: { translations: true, resumeAsset: true },
     });
     if (!settings) {
       throw new NotFoundException('Site settings have not been initialized.');
@@ -194,6 +223,13 @@ function buildSettingsUpdate(
       name: meta.name,
       content: meta.content,
     }));
+  }
+  // Repoint (connect) or clear (disconnect) the resume FK; the prior asset is never deleted here.
+  if (dto.resumeAssetId !== undefined) {
+    data.resumeAsset =
+      dto.resumeAssetId === null
+        ? { disconnect: true }
+        : { connect: { id: dto.resumeAssetId } };
   }
   return data;
 }

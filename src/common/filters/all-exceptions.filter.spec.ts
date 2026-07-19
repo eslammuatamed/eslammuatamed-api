@@ -1,5 +1,6 @@
 import {
   ArgumentsHost,
+  ConflictException,
   ForbiddenException,
   HttpStatus,
   NotFoundException,
@@ -113,6 +114,23 @@ describe('AllExceptionsFilter', () => {
     const result = capture(new ForbiddenException('Insufficient role'));
     expect(result.status).toBe(HttpStatus.FORBIDDEN);
     expect(result.body.type).toBe('/problems/forbidden');
+  });
+
+  it('carries a `usages` extension member from a 409 conflict response object', () => {
+    const usages = [{ type: 'article-cover', id: 'a1' }];
+    const result = capture(
+      new ConflictException({ message: 'Media asset is in use.', usages }),
+    );
+    expect(result.status).toBe(HttpStatus.CONFLICT);
+    expect(result.body.type).toBe('/problems/conflict');
+    expect(result.body.detail).toBe('Media asset is in use.');
+    expect(result.body.usages).toEqual(usages);
+  });
+
+  it('omits `usages` when the conflict response has none', () => {
+    const result = capture(new ConflictException('Plain conflict'));
+    expect(result.status).toBe(HttpStatus.CONFLICT);
+    expect(result.body.usages).toBeUndefined();
   });
 
   it('sanitizes an unknown error to 500 without leaking internals in production', () => {

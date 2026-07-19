@@ -77,4 +77,91 @@ describe('validate (environment schema)', () => {
 
     expect(() => validate(env)).not.toThrow();
   });
+
+  const validS3Env = (): Record<string, string> => ({
+    ...validEnv(),
+    STORAGE_DRIVER: 's3',
+    PUBLIC_MEDIA_URL: 'https://media.eslammuatamed.com',
+    S3_ENDPOINT: 'https://acct.r2.cloudflarestorage.com',
+    S3_BUCKET: 'media',
+    S3_ACCESS_KEY_ID: 'akid',
+    S3_SECRET_ACCESS_KEY: 'secret',
+    S3_REGION: 'auto',
+  });
+
+  it('accepts a local environment without any S3_* variables', () => {
+    expect(() => validate(validEnv())).not.toThrow();
+  });
+
+  it('accepts a complete s3 environment', () => {
+    expect(() => validate(validS3Env())).not.toThrow();
+  });
+
+  it('rejects an s3 environment missing a required S3_* value', () => {
+    const env = validS3Env();
+    delete env.S3_BUCKET;
+
+    expect(() => validate(env)).toThrow(/S3_BUCKET/);
+  });
+
+  it('rejects a malformed PUBLIC_MEDIA_URL', () => {
+    const env = validEnv();
+    env.PUBLIC_MEDIA_URL = 'not-a-url';
+
+    expect(() => validate(env)).toThrow(/PUBLIC_MEDIA_URL/);
+  });
+
+  it('strips a trailing slash from PUBLIC_MEDIA_URL', () => {
+    const env = validEnv();
+    env.PUBLIC_MEDIA_URL = 'http://localhost:3001/media/';
+
+    expect(validate(env).PUBLIC_MEDIA_URL).toBe('http://localhost:3001/media');
+  });
+
+  it('requires an https PUBLIC_MEDIA_URL in production', () => {
+    const env = validS3Env();
+    env.NODE_ENV = 'production';
+    env.PUBLIC_MEDIA_URL = 'http://media.eslammuatamed.com';
+    expect(() => validate(env)).toThrow(/PUBLIC_MEDIA_URL/);
+
+    env.PUBLIC_MEDIA_URL = 'https://media.eslammuatamed.com';
+    expect(() => validate(env)).not.toThrow();
+  });
+
+  it('rejects an unknown STORAGE_DRIVER (fails closed, no fallback)', () => {
+    const env = validEnv();
+    env.STORAGE_DRIVER = 'gcs';
+
+    expect(() => validate(env)).toThrow(/STORAGE_DRIVER/);
+  });
+
+  it('rejects local storage in production', () => {
+    const env = validEnv();
+    env.NODE_ENV = 'production';
+    env.STORAGE_DRIVER = 'local';
+    env.PUBLIC_MEDIA_URL = 'https://media.eslammuatamed.com';
+
+    expect(() => validate(env)).toThrow(/STORAGE_DRIVER/);
+  });
+
+  it('accepts s3 storage in production', () => {
+    const env = validS3Env();
+    env.NODE_ENV = 'production';
+
+    expect(() => validate(env)).not.toThrow();
+  });
+
+  it('accepts local storage in development', () => {
+    const env = validEnv();
+    env.NODE_ENV = 'development';
+
+    expect(() => validate(env)).not.toThrow();
+  });
+
+  it('accepts s3 storage in development when all S3 variables exist', () => {
+    const env = validS3Env();
+    env.NODE_ENV = 'development';
+
+    expect(() => validate(env)).not.toThrow();
+  });
 });

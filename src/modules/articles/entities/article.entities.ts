@@ -1,5 +1,6 @@
 import { ApiExtraModels, ApiProperty, getSchemaPath } from '@nestjs/swagger';
 import { ContentStatus } from '@prisma/client';
+import { PublicMediaImageDescriptor } from '../../media/entities/media-descriptor.entity';
 
 // Resolved category/tag reference embedded in a public article (single locale).
 export class ArticleTaxonomyRefEntity {
@@ -45,6 +46,15 @@ export class PublicArticleListItemEntity {
   })
   readonly coverImageId!: string | null;
 
+  // Nullable $ref: explicit allOf + sibling nullable, no `type: object` (which @nestjs/swagger adds
+  // and which makes strict jest-openapi/AJV reject `null`).
+  @ApiProperty({
+    nullable: true,
+    allOf: [{ $ref: getSchemaPath(PublicMediaImageDescriptor) }],
+    description: 'Resolved cover image (null when no cover is set).',
+  })
+  readonly coverImage!: PublicMediaImageDescriptor | null;
+
   @ApiProperty({ type: ArticleTaxonomyRefEntity })
   readonly category!: ArticleTaxonomyRefEntity;
 
@@ -81,6 +91,14 @@ export class PublicArticleDetailEntity extends PublicArticleListItemEntity {
 
   @ApiProperty({ type: String, nullable: true, format: 'uuid' })
   readonly ogImageId!: string | null;
+
+  // Nullable $ref: explicit allOf + sibling nullable, no `type: object` (jest-openapi/AJV null fix).
+  @ApiProperty({
+    nullable: true,
+    allOf: [{ $ref: getSchemaPath(PublicMediaImageDescriptor) }],
+    description: 'Resolved OG image (null when none is set).',
+  })
+  readonly ogImage!: PublicMediaImageDescriptor | null;
 
   @ApiProperty({ type: String, nullable: true, format: 'uri' })
   readonly canonicalUrl!: string | null;

@@ -132,14 +132,33 @@ export class AllExceptionsFilter implements ExceptionFilter {
   ): ProblemDetails {
     const status = exception.getStatus();
     const { type, title } = problemMetaForStatus(status);
-    return {
+    const problem: ProblemDetails = {
       type,
       title,
       status,
       detail: extractDetail(exception),
       instance,
     };
+    // A 409 media-in-use response carries its blocking references as an RFC 7807 extension
+    // member (doc 10 §6); duck-typed so this shared filter needs no dependency on the media module.
+    const usages = extractUsages(exception);
+    return usages ? { ...problem, usages } : problem;
   }
+}
+
+// An HttpException whose response object supplies a `usages` array surfaces it as a problem+json
+// extension member (the media 409 delete-in-use path). Any other exception is unaffected.
+function extractUsages(
+  exception: HttpException,
+): readonly unknown[] | undefined {
+  const response = exception.getResponse();
+  if (typeof response === 'object' && response !== null) {
+    const usages = (response as { usages?: unknown }).usages;
+    if (Array.isArray(usages)) {
+      return usages as readonly unknown[];
+    }
+  }
+  return undefined;
 }
 
 // Typed HttpStatus so the case labels compare enum-to-enum (no-unsafe-enum-comparison); the

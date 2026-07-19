@@ -20,6 +20,7 @@ import { TestimonialsController } from '../testimonials/testimonials.controller'
 import { TestimonialsAdminController } from '../testimonials/testimonials.admin.controller';
 import { ProjectsController } from '../projects/projects.controller';
 import { ProjectsAdminController } from '../projects/projects.admin.controller';
+import { MediaAdminController } from '../media/media.admin.controller';
 import { RolesAdminController } from './roles.admin.controller';
 import { UsersAdminController } from './users.admin.controller';
 import { REQUIRE_PERMISSION_KEY } from './decorators/require-permission.decorator';
@@ -48,6 +49,7 @@ const CONTROLLERS: Type[] = [
   TestimonialsAdminController,
   ProjectsController,
   ProjectsAdminController,
+  MediaAdminController,
   RolesAdminController,
   UsersAdminController,
 ];

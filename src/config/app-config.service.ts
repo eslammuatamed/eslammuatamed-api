@@ -74,15 +74,43 @@ export class AppConfigService {
     };
   }
 
+  // The public storage config — safe to log. Credentials are deliberately absent (doc 19 §7);
+  // the R2 adapter reads them through `s3Credentials`. `s3` is null under the local driver.
   get storage(): {
     readonly driver: StorageDriver;
     readonly localDir: string;
     readonly publicMediaUrl: string;
+    readonly s3: {
+      readonly endpoint: string;
+      readonly bucket: string;
+      readonly region: string;
+    } | null;
   } {
+    const driver = this.config.get('STORAGE_DRIVER', { infer: true });
     return {
-      driver: this.config.get('STORAGE_DRIVER', { infer: true }),
+      driver,
       localDir: this.config.get('STORAGE_LOCAL_DIR', { infer: true }),
       publicMediaUrl: this.config.get('PUBLIC_MEDIA_URL', { infer: true }),
+      s3:
+        driver === StorageDriver.S3
+          ? {
+              endpoint: this.config.get('S3_ENDPOINT', { infer: true }),
+              bucket: this.config.get('S3_BUCKET', { infer: true }),
+              region: this.config.get('S3_REGION', { infer: true }) ?? 'auto',
+            }
+          : null,
+    };
+  }
+
+  // Read ONLY by the R2 storage adapter factory; never placed on the public `storage` object and
+  // never logged (doc 19 §7). Isolated here so a config dump cannot leak the bucket credentials.
+  get s3Credentials(): {
+    readonly accessKeyId: string;
+    readonly secretAccessKey: string;
+  } {
+    return {
+      accessKeyId: this.config.get('S3_ACCESS_KEY_ID', { infer: true }),
+      secretAccessKey: this.config.get('S3_SECRET_ACCESS_KEY', { infer: true }),
     };
   }
 }

@@ -10,6 +10,7 @@ import {
 } from '../../common/pagination/page-meta';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocalesService } from '../locales/locales.service';
+import { MediaDescriptorResolver } from '../media/media-descriptor.resolver';
 import {
   AdminArticleListQueryDto,
   ArticleListQueryDto,
@@ -27,9 +28,14 @@ import {
   PublicArticleListItemEntity,
 } from './entities/article.entities';
 
+// Media relations (cover + per-translation OG) load with variants + alts so descriptors resolve in
+// the parent query — no N+1 (doc 20 §7, doc 10 §6).
+const MEDIA_INCLUDE = { include: { variants: true, alts: true } } as const;
+
 type ArticlePublicPayload = Prisma.ArticleGetPayload<{
   include: {
-    translations: true;
+    translations: { include: { ogImage: typeof MEDIA_INCLUDE } };
+    coverImage: typeof MEDIA_INCLUDE;
     category: { include: { translations: true } };
     tags: { include: { tag: { include: { translations: true } } } };
   };
@@ -40,7 +46,8 @@ type ArticleAdminPayload = Prisma.ArticleGetPayload<{
 }>;
 
 const PUBLIC_INCLUDE = (locale: string) => ({
-  translations: true,
+  translations: { include: { ogImage: MEDIA_INCLUDE } },
+  coverImage: MEDIA_INCLUDE,
   category: { include: { translations: { where: { locale } } } },
   tags: {
     include: { tag: { include: { translations: { where: { locale } } } } },
@@ -54,6 +61,7 @@ export class ArticlesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly locales: LocalesService,
+    private readonly mediaDescriptors: MediaDescriptorResolver,
   ) {}
 
   // Public list (D10-6): PUBLISHED only, resolved to ?locale=, with category/tag/q filters
@@ -425,6 +433,9 @@ export class ArticlesService {
       readingTimeMin: translation.readingTimeMin,
       publishAt: article.publishAt?.toISOString() ?? null,
       coverImageId: article.coverImageId,
+      coverImage: article.coverImage
+        ? this.mediaDescriptors.resolveImage(article.coverImage, locale)
+        : null,
       category: taxonomyRef(article.category.id, article.category.translations),
       tags: article.tags.map((link) =>
         taxonomyRef(link.tag.id, link.tag.translations),
@@ -452,6 +463,9 @@ export class ArticlesService {
       metaTitle: translation.metaTitle,
       metaDescription: translation.metaDescription,
       ogImageId: translation.ogImageId,
+      ogImage: translation.ogImage
+        ? this.mediaDescriptors.resolveImage(translation.ogImage, locale)
+        : null,
       canonicalUrl: translation.canonicalUrl,
     };
   }

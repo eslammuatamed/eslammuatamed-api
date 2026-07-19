@@ -1,5 +1,6 @@
 import { CallHandler, ExecutionContext } from '@nestjs/common';
 import { firstValueFrom, of } from 'rxjs';
+import { DataWithMeta } from '../http/data-with-meta';
 import { buildPageMeta, PaginatedResult } from '../pagination/page-meta';
 import { ResponseEnvelopeInterceptor } from './response-envelope.interceptor';
 
@@ -28,5 +29,15 @@ describe('ResponseEnvelopeInterceptor', () => {
   it('normalizes undefined return values to { data: null }', async () => {
     const result = await run(undefined);
     expect(result).toEqual({ data: null });
+  });
+
+  it('unwraps a DataWithMeta into { data, meta } for a single value', async () => {
+    const result = await run(
+      new DataWithMeta({ id: 'abc' }, { deduplicated: true }),
+    );
+    expect(result).toEqual({
+      data: { id: 'abc' },
+      meta: { deduplicated: true },
+    });
   });
 });

@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, Testimonial, TestimonialTranslation } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocalesService } from '../locales/locales.service';
+import { MediaDescriptorResolver } from '../media/media-descriptor.resolver';
 import {
   CreateTestimonialDto,
   UpdateTestimonialDto,
@@ -15,17 +16,30 @@ type TestimonialWithTranslations = Testimonial & {
   translations: TestimonialTranslation[];
 };
 
+// Public rows additionally load the avatar with its variants + alts so the descriptor resolves in
+// the same query (no N+1, doc 20 §7).
+type PublicTestimonialRow = Prisma.TestimonialGetPayload<{
+  include: {
+    translations: true;
+    avatar: { include: { variants: true; alts: true } };
+  };
+}>;
+
 @Injectable()
 export class TestimonialsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly locales: LocalesService,
+    private readonly mediaDescriptors: MediaDescriptorResolver,
   ) {}
   async listPublic(locale: string): Promise<PublicTestimonialEntity[]> {
     await this.locales.assertEnabled(locale);
     const rows = await this.prisma.testimonial.findMany({
       where: { isVisible: true },
-      include: { translations: true },
+      include: {
+        translations: true,
+        avatar: { include: { variants: true, alts: true } },
+      },
       orderBy: { order: 'asc' },
     });
     return [...rows]
@@ -110,7 +124,7 @@ export class TestimonialsService {
     return row;
   }
   private resolvePublic(
-    row: TestimonialWithTranslations,
+    row: PublicTestimonialRow,
     locale: string,
   ): PublicTestimonialEntity | null {
     const translation = row.translations.find((item) => item.locale === locale);
@@ -118,6 +132,9 @@ export class TestimonialsService {
     return {
       id: row.id,
       avatarId: row.avatarId,
+      avatar: row.avatar
+        ? this.mediaDescriptors.resolveImage(row.avatar, locale)
+        : null,
       order: row.order,
       quote: translation.quote,
       authorName: translation.authorName,

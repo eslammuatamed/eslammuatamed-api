@@ -8,10 +8,12 @@ import {
   IsOptional,
   IsString,
   IsUrl,
+  IsUUID,
   Max,
   Matches,
   MaxLength,
   Min,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 
@@ -101,8 +103,19 @@ export class UpdateSettingsDto {
   @MaxLength(200)
   readonly availabilityStatus?: string;
 
-  // resumeAssetId is intentionally not writable here: it is a MediaAsset FK, and the media
-  // module ships in feature 002+. It remains readable on the admin entity.
+  // The resume slot (FR-DSH-070, D02-7): a MediaAsset FK that must reference a PDF asset (enforced
+  // in the service). null clears it; the previously-referenced asset is retained in the library
+  // until deleted while unreferenced (doc 07 §6).
+  @ApiPropertyOptional({
+    type: String,
+    format: 'uuid',
+    nullable: true,
+    description: 'Resume PDF media asset id (must be a PDF), or null to clear.',
+  })
+  @IsOptional()
+  @ValidateIf((dto: UpdateSettingsDto) => dto.resumeAssetId !== null)
+  @IsUUID()
+  readonly resumeAssetId?: string | null;
 
   @ApiPropertyOptional({
     type: Number,

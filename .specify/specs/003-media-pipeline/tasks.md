@@ -1,0 +1,147 @@
+# Tasks 003 — Media Pipeline (API)
+
+Executor: Opus (Codex-assisted, coordinator-reviewed). Each task cites its governing doc; check
+off only with its verification done. `[P]` = parallelizable with siblings. **Tasks run only after
+the owner approves the spec + plan** (Q1–Q4 resolved 2026-07-18). Dependency spine:
+**T1 → T2 → T3 → {T4, T5} → T6 → T7 → T8 → T9 → T10 → T11** (T4/T5 parallel after T3; T6 needs both).
+
+- [x] T1 — Doc-first revisions (docs repo; doc 01 principle 1) **[gate]** — done: docs 2623b15, pushed as PR #2
+  - `eslammuatamed-docs` on branch `003-media-pipeline`: **doc 02** v1.4.0 (FR-DSH-030–034, D02-7),
+    **doc 07** v1.1.0 (§6 rewrite, D07-6), **doc 09** v1.4.0 (`MediaAsset` reconcile + `MediaAssetVariant`
+    + enums, D09-11/12/13), **doc 10** v1.3.0 (media endpoints + descriptor contract, D10-10), **doc 19**
+    v1.3.0 (§5/§6, D19-9; D19-6 unchanged), **doc 20** v1.2.0 (D20-6), **doc 23** v1.3.0 (D23-15) — each
+    with decision-log entries + version bumps. Roadmap untouched; no handoff/memory file.
+  - **Verify:** docs committed with decision IDs + version bumps **before** any API code lands. (Diffs
+    are staged now; commit on owner approval.)
+- [x] T2 — Dependencies (doc 16 §4 gate) — done: e828ebd
+  - Add `sharp`, `@aws-sdk/client-s3`, `blurhash` (runtime) and `@types/multer` (dev). `multer` +
+    `file-type` already present transitively; `file-type` used only via the framework validator.
+  - **Verify:** lockfile committed; `npm audit --audit-level=high` clean; `contract:export` still
+    DB-free; `sharp` loads on a linux/x64/glibc build (deploy-target match — plan Verification).
+- [x] T3 — Schema + migration (doc 09, D09-11/12/13) — done: 55d8f90 (amended; redundant index removed)
+  - `MediaAsset` + `kind` (`MediaKind`), `contentHash` (SHA-256 of the **original upload bytes**, **unique**), `originalFilename`;
+    `width`/`height`/`blurhash` image-only. New `MediaAssetVariant` (`format` `MediaVariantFormat`,
+    `width`, `height`, `storageKey` unique, `sizeBytes`, `overBudget` Boolean default false;
+    `@@unique([mediaAssetId, format, width])`; CASCADE). New enums `MediaKind`, `MediaVariantFormat`.
+    One additive migration (empty tables, no backfill).
+  - **Verify:** `prisma validate` + `format` clean; `migrate deploy` applies; M1/002 unit+e2e still green;
+    `contract:export` DB-free green.
+- [x] T4 [P] — StorageAdapter + config (doc 07 §6 D07-4, doc 23 §1 D23-15) — done: 56be678 (driver fails closed; prod requires s3)
+  - `StorageAdapter` interface + `LocalStorageAdapter` (dev/tests) + `S3StorageAdapter` (R2,
+    `@aws-sdk/client-s3`, region `auto`); provider factory on `STORAGE_DRIVER`. Add `S3_*` env
+    (conditional when `STORAGE_DRIVER=s3`) to `env.validation` + `.env.example`; dev static serving of
+    `STORAGE_LOCAL_DIR` at `/media`. Randomized immutable keys; media-origin URL builder; `put` writes
+    object metadata (content-type; immutable `Cache-Control: public, max-age=31536000, immutable` for
+    images; `Content-Disposition: attachment` for the resume PDF — so R2 serves each correctly on direct
+    fetch, D23-15).
+  - **Verify:** unit — local adapter round-trip, key randomization, URL composition, driver factory,
+    object metadata (image `Cache-Control` immutable; PDF `Content-Disposition`); S3 adapter unit with
+    mocked client; env boot rejects missing `S3_*` when `driver=s3`. **No** speculative R2 checksum
+    workaround unless a T10 integration test proves it needed.
+- [x] T5 [P] — Processing service (doc 20 §4 D20-6, doc 19 §5 D19-6/9) — done: 5ee7344 (magic-byte allowlist, 40 MP ceiling, WebP-q90 master, budget ladder + overBudget, PDF validation; unit tests via `--experimental-vm-modules`)
+  - Image: content-sniff (framework `ParseFilePipe` magic-byte validator), **40 MP `limitInputPixels`**
+    (explicit), `sharp` auto-orient + strip metadata → sanitized **WebP-q90 master** (full dims, no upscale;
+    the raw upload is never persisted; `MediaAsset` describes the master; `blurhash` from it) → **renditions**
+    640/1280/1920 ≤ master width (a <640 px source → one own-width rendition) × WebP+AVIF, each meeting its
+    doc 20 §4 width×format budget via the explicit ladder **`nextQuality = max(minQuality, currentQuality−8)`**
+    (floors WebP q55 / AVIF q40); a rendition still over at the floor is kept with **`overBudget=true`** on the
+    variant **and** a structured pino log event. PDF: validate (magic bytes + ext + size + integrity), **no** Sharp, no variants.
+  - **Verify:** unit with fixtures — master is WebP-q90 at source dims; rendition widths present + **none
+    above master** (no upscale); a <640 px source yields exactly one own-width rendition; `blurhash`
+    non-empty; EXIF stripped; renamed non-image + SVG → rejected; **40 MP boundary** accept(=)/reject(>);
+    each rendition ≤ budget or floor with `overBudget=true` persisted + a structured log line; PDF path produces no variants. Run with
+    `NODE_OPTIONS=--experimental-vm-modules`.
+- [x] T6 — Media module: admin endpoints, dedupe, usages, compensation (doc 10 §5, doc 07 §6 D07-6) — done: 31f9b25 (module+AppModule wiring; upload/dedup/race/compensation; usages+409; per-locale alt; 2-wide limiter+Retry-After; cross-module: `SiteSettings.resumeAssetId` PDF-only guard in settings PATCH)
+  - `POST /admin/media` (multipart, image or resume PDF → **201** new / **200** existing with `meta.deduplicated: true`),
+    `GET /admin/media` (paginated, search filename+alt, `kind` filter), `GET /admin/media/{id}`,
+    `PATCH /admin/media/{id}` (per-locale alt), `GET /admin/media/{id}/usages`, `DELETE /admin/media/{id}`
+    (409 + usages if referenced). Dedupe by `contentHash` of the original bytes (201 / 200 + `meta.deduplicated`), hash checked **before** Sharp on the fast path; **concurrent race**:
+    DB-unique loser deletes its objects + returns the winner. Usage aggregation across **every** FK (article
+    cover, article/project OG, project gallery, testimonial avatar, page-SEO OG, `SiteSettings.resumeAssetId`).
+    Compensation (objects-before-row, delete-on-failure, partial-variant cleanup). Wire the **2-wide processing
+    concurrency limiter** (429/`Retry-After`).
+  - **Verify:** unit — new→201; duplicate→200 + `meta.deduplicated`; concurrent-race loser leaves no orphan + returns
+    winner; usages across every relation incl resume; 409 on referenced delete; alt CRUD; PDF only to resume slot
+    (attachment metadata, T4); compensation tests for **partial-variant / DB-failure / dup-race**; 429 past the
+    concurrency limit.
+- [x] T7 — Public media descriptors (additive, doc 10 §6 D10-10) — done: 989f3e7 (reusable MediaDescriptorResolver exported from MediaModule; articles cover+OG, projects gallery+OG, testimonial avatar, settings résumé PDF; ids retained, no N+1. page-SEO deferred — no public endpoint exists; settings exposes résumé descriptor only, no bare resumeAssetId)
+  - Resolve `mediaAssetId` → descriptor on public `projects`/`articles`/`testimonials`/`settings`/`seo`
+    read shapes; **retain** existing `*Id` fields; resolve in the parent query (Prisma `include`);
+    media-origin URLs; image `url` = **widest WebP rendition**; `alt` = **`string | null`** per `?locale=`
+    (`null` = missing, no fallback; `""` = decorative) — distinction preserved in the DTO **and** OpenAPI.
+  - **Verify:** unit — descriptor shape (image `url`=widest WebP + `variants[]`; PDF); IDs retained;
+    **query-count assertion → no N+1**; `alt: null` on missing-locale **vs** `""` decorative both round-trip.
+- [x] T8 — Permission wiring + upload throttle (D19-8, doc 19 §6) — done: 7c8d3e4 (local, unpushed, pending owner review)
+  - Wire each new protected route to its existing `media.*` key (catalog already declares them); apply the
+    conservative upload throttle to `POST /admin/media` (Q3).
+  - **Done:** permission wiring already satisfied in T6 (every route declares `media.*`; controller in
+    `route-permissions.spec`) — verified, not re-done. Added the **route-local `UploadUserIpThrottlerGuard`**
+    (`@UseGuards` on the upload route, so it runs after the global auth+permission guards and can key by
+    **authenticated user + IP**, which the global throttle-before-auth guard cannot): its own `media-upload`
+    tier (10/min) via public `@nestjs/throttler` extension points, no double-count, standard `Retry-After`,
+    RFC 7807 429. The tracker builds only `user:<id>|ip:<trusted-ip>` and **fails closed (401)** if
+    `request.user` is absent (never an IP-only key). Owner-directed (per-user+IP, not per-IP; no global
+    guard reorder). Arabic folder docs
+    **deferred** per doc 16 §8.5 (no Feature 003 folder guides before T8–T11 are complete + merged); the §8
+    compatibility review + evidence are recorded in the session report. `openapi.json` re-export left to T9;
+    full `/admin/media` e2e to T10.
+  - **Verify:** `route-permissions.spec` green ✓; 401 without token / 403 on permission violation enforced by
+    the global guards ✓; **429 past the upload throttle** proven by `upload-user-ip-throttler.http.spec.ts`
+    (10→429, RFC 7807 + `Retry-After`, per-user bucket separation, **401 fail-closed when no user**) +
+    `.guard.spec.ts` (bucket-key matrix + fail-closed throw). tsc/eslint/249 unit tests/`git diff --check`
+    green; DB-free `contract:export` still boots.
+- [x] T9 — Swagger + contract export (doc 10 §1) — done: aaab13c (local, unpushed, pending owner review)
+  - Exhaustive `@nestjs/swagger` + class-validator decorators + realistic examples on every new DTO/entity
+    (incl. the descriptor with **nullable `alt`**, `variants[]`, and the upload **201 / 200** (200 carries `meta.deduplicated`)
+    responses; the **admin** variant shape carries `overBudget`, the **public** descriptor omits it);
+    `contract:export` emits valid OpenAPI **without a DB**; re-export `openapi.json`.
+  - **Done:** T5–T7 already decorated the entities/DTOs; T9 exported the first `openapi.json` since the media
+    additions and corrected two Swagger models to match the shipped code (Swagger metadata only, no runtime
+    change): `AdminMediaAssetEntity.width/height/blurhash` now declare explicit `type` (were `object` from the
+    `T|null` union), and the dedup **200** response models `{ data, meta: { deduplicated: true } }` via an inline
+    `@ApiOkResponse` (the generic `{ data }` helper omitted `meta`). Descriptors verified: `url` = widest WebP,
+    `alt` `string|null`, admin variant carries `overBudget` / public omits it, PDF shape per doc 10 §6.
+  - **Verify:** `contract:export` green DB-free **and idempotent** (stable fixed point); OpenAPI models
+    `alt: string|null` and the 201/200 upload shapes; **diff reviewed vs `346a07a` — purely additive** (3 media
+    paths + 8 media schemas added; every `*Id` retained, D10-1; 0 removed paths/schemas/props; 0 semantic
+    changes to any feature-002 schema/response — line-diff "deletions" are pretty-print key-reordering).
+    tsc/eslint/249 unit tests/`git diff --check` green.
+- [x] T10 — E2e suites + CI (doc 18 §2) — done: e2e `d1a3811`, contract fix `07b128a` (local, unpushed, pending owner review)
+  - Supertest e2e: upload happy path (real image fixture → asset + WebP-q90 master described + renditions),
+    **201** new / **200** duplicate (`meta.deduplicated`), 422 (renamed non-image / SVG / bad locale / PDF to
+    non-resume), 401/403 authz, **429** past 10/min **and** past 2 concurrent (with `Retry-After`), 409
+    delete-in-use, public descriptor present (widest-WebP `url`, `alt` null vs ""), **40 MP** boundary
+    accept/reject, object headers on fetch (image immutable `Cache-Control`; PDF `Content-Disposition`).
+    One R2 integration test decides whether any checksum config is actually required (owner directive).
+    jest-openapi assertions; `NODE_OPTIONS=--experimental-vm-modules` in the e2e job.
+  - **Done (owner-scoped T10):** `test/media.e2e-spec.ts` against a fresh migrated/seeded
+    `eslammuatamed_test` (real AppModule, local storage, jest-openapi oracle): 401, 403, authorized
+    upload (master + WebP/AVIF renditions), 200 dedup, 409 delete-in-use + usages / 204, 422 no-orphan,
+    429 + `Retry-After` (RFC 7807), public descriptor present-object **and** null both contract-valid,
+    and real D07-6 compensation (storage fails after master → `deleteMany` + no orphan row). `test:e2e`
+    now sets the ESM flag. **A T10 contract assertion exposed a T9 defect** (nullable descriptor `$ref`
+    rejected `null`) — fixed contract-only in `07b128a` (owner-approved).
+  - **Deferred (not in owner's T10 scope / gated):** 40 MP boundary and object-headers-on-fetch e2e
+    (unit-covered; not requested this pass); the R2 checksum integration test (real R2 forbidden without
+    explicit approval); the 2-concurrent limiter is unit-covered (T6). Full e2e **13/13 suites, 56 tests**
+    green; `contract:export` DB-free + idempotent; tsc/eslint/249 unit/`git diff --check` green.
+  - **Verify:** e2e compiles + passes against `eslammuatamed_test`; unit-tier CI green locally.
+- [x] T11 — Integration verification (coordinator) — verified at feature tip `1bb2add` (local, unpushed, pending owner merge decision)
+  - `migrate deploy` + `db:seed` + full e2e green on the test DB; compensation/orphan check; contract
+    re-exported + committed; final `lint`/`typecheck`/`unit` green DB-free.
+  - **Verified (read-only review + matrix):** test DB migrated (3 migrations) + seeded, **seed re-run is a
+    no-op** (OWNER stays 1); full **e2e 13/13 suites / 56 tests**, media **e2e 9/9** (authz 401/403, upload,
+    dedup, usage-guarded delete 409+204, compensation cleanup, throttle 429, public descriptor present+null);
+    **unit 249**; tsc/eslint/`git diff --check` green; `contract:export` DB-free + idempotent; contract
+    **purely additive** vs pre-feature `2a6a3a3` (0 removed paths/schemas/props), **no dangling refs**, all 6
+    nullable descriptor fields null-accepting. Clean API tree; Web untouched; Docs PR #2 open/untouched;
+    `.env` untracked; no R2 op. **Feature 003 ready for the integration/merge decision.**
+  - **Verify:** re-run seed is a no-op ✓; all gates green ✓; ready for PR ✓.
+
+## Not in this feature
+
+General document/PDF library (resume-only); media population / real content (M3 content track);
+dashboard media UI (web M3); redirects `resolve` + contact + preview (004); throttle audit / backup
+workflow / NFR-006 latency smoke (005); per-article generated OG images / OG templates (M4/backlog);
+on-the-fly transformation / image-transform CDN (rejected, D23-15); `<NuxtImg>` descriptor consumption
+(web M4).

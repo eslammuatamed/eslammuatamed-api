@@ -1,31 +1,83 @@
-import { Testimonial, TestimonialTranslation } from '@prisma/client';
+import { MediaKind, MediaVariantFormat } from '@prisma/client';
 import { DeepMockProxy, mockDeep } from 'jest-mock-extended';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocalesService } from '../locales/locales.service';
+import { MediaDescriptorResolver } from '../media/media-descriptor.resolver';
+import { StorageAdapter } from '../media/storage/storage-adapter.interface';
 import { TestimonialsService } from './testimonials.service';
 
-type TestimonialRow = Testimonial & { translations: TestimonialTranslation[] };
+const storage = {
+  put: jest.fn(),
+  delete: jest.fn(),
+  deleteMany: jest.fn(),
+  publicUrl: (key: string) => `https://media.test/${key}`,
+} as unknown as StorageAdapter;
 
-const row = (isVisible: boolean, id: string): TestimonialRow => ({
-  id,
-  avatarId: null,
-  order: 1,
-  isVisible,
+const avatarAsset = (): Record<string, unknown> => ({
+  id: 'avatar-1',
+  kind: MediaKind.IMAGE,
+  storageKey: 'media/px/master.webp',
+  originalFilename: 'face.jpg',
+  mimeType: 'image/webp',
+  sizeBytes: 5000,
+  contentHash: 'h',
+  width: 512,
+  height: 512,
+  blurhash: 'LKO2',
   createdAt: new Date(),
   updatedAt: new Date(),
-  translations: [
+  variants: [
     {
-      id: `${id}-en`,
-      testimonialId: id,
+      id: 'v1',
+      mediaAssetId: 'avatar-1',
+      format: MediaVariantFormat.WEBP,
+      width: 512,
+      height: 512,
+      storageKey: 'media/px/512-webp.webp',
+      sizeBytes: 3000,
+      overBudget: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  ],
+  alts: [
+    {
+      id: 'a1',
+      mediaAssetId: 'avatar-1',
       locale: 'en',
-      quote: 'Great work',
-      authorName: 'Alex',
-      authorRole: 'CTO',
+      alt: 'Portrait of Alex',
       createdAt: new Date(),
       updatedAt: new Date(),
     },
   ],
 });
+
+const row = (
+  isVisible: boolean,
+  id: string,
+  avatar: Record<string, unknown> | null = null,
+): never =>
+  ({
+    id,
+    avatarId: avatar ? 'avatar-1' : null,
+    order: 1,
+    isVisible,
+    avatar,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    translations: [
+      {
+        id: `${id}-en`,
+        testimonialId: id,
+        locale: 'en',
+        quote: 'Great work',
+        authorName: 'Alex',
+        authorRole: 'CTO',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ],
+  }) as never;
 
 describe('TestimonialsService', () => {
   let prisma: DeepMockProxy<PrismaService>;
@@ -35,12 +87,16 @@ describe('TestimonialsService', () => {
   beforeEach(() => {
     prisma = mockDeep<PrismaService>();
     locales = mockDeep<LocalesService>();
-    service = new TestimonialsService(prisma, locales);
+    service = new TestimonialsService(
+      prisma,
+      locales,
+      new MediaDescriptorResolver(storage),
+    );
   });
 
-  it('excludes hidden testimonials from the public list', async () => {
+  it('excludes hidden testimonials and loads the avatar in one query (no N+1)', async () => {
     prisma.testimonial.findMany.mockResolvedValue([
-      row(true, 't1'),
+      row(true, 't1', avatarAsset()),
       row(false, 't2'),
     ]);
 
@@ -48,10 +104,52 @@ describe('TestimonialsService', () => {
 
     expect(prisma.testimonial.findMany).toHaveBeenCalledWith({
       where: { isVisible: true },
-      include: { translations: true },
+      include: {
+        translations: true,
+        avatar: { include: { variants: true, alts: true } },
+      },
       orderBy: { order: 'asc' },
     });
+    // No per-item media query — the avatar came from the parent include.
+    expect(prisma.mediaAsset.findUnique).not.toHaveBeenCalled();
+    expect(prisma.mediaAsset.findMany).not.toHaveBeenCalled();
     expect(result).toHaveLength(1);
     expect(result[0]?.id).toBe('t1');
+  });
+
+  it('resolves the avatar descriptor and retains avatarId', async () => {
+    prisma.testimonial.findMany.mockResolvedValue([
+      row(true, 't1', avatarAsset()),
+    ]);
+
+    const [testimonial] = await service.listPublic('en');
+
+    expect(testimonial?.avatarId).toBe('avatar-1');
+    expect(testimonial?.avatar).toEqual({
+      id: 'avatar-1',
+      kind: MediaKind.IMAGE,
+      url: 'https://media.test/media/px/512-webp.webp',
+      width: 512,
+      height: 512,
+      blurhash: 'LKO2',
+      alt: 'Portrait of Alex',
+      variants: [
+        {
+          format: MediaVariantFormat.WEBP,
+          width: 512,
+          height: 512,
+          url: 'https://media.test/media/px/512-webp.webp',
+        },
+      ],
+    });
+  });
+
+  it('returns avatar: null and avatarId: null when no avatar is set', async () => {
+    prisma.testimonial.findMany.mockResolvedValue([row(true, 't1', null)]);
+
+    const [testimonial] = await service.listPublic('en');
+
+    expect(testimonial?.avatarId).toBeNull();
+    expect(testimonial?.avatar).toBeNull();
   });
 });

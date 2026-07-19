@@ -33,3 +33,12 @@ Docker in this project (owner directive). Env: copy `.env.example` → `.env` (b
 Doc-first: work contradicting an approved doc → revise the doc in
 `../eslammuatamed-docs` first (decision log + version bump). Conventional Commits on
 `main`. Contract changes follow doc 16 §3 (export → version → web adopts).
+
+## Tooling — Codex delegation
+
+Codex (the `codex` CLI / `codex:codex-rescue` subagent) **may** be used for
+implementation or investigation **while it is available and within its usage limit**.
+Treat its output as a draft, never authoritative: **review everything it produces and
+confirm it matches the direction of this codebase** — the constitution, the governing
+docs, and the conventions above — before it is committed. Anything that doesn't fit is
+rewritten, not accepted as-is. The reviewing engineer owns the result.
