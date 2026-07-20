@@ -77,9 +77,18 @@ export class RedirectService {
       this.prisma.slugRedirect.deleteMany({
         where: { locale, entityType, fromSlug: newSlug },
       }),
-      // 3. Record the old→new redirect.
-      this.prisma.slugRedirect.create({
-        data: { locale, entityType, fromSlug: oldSlug, toSlug: newSlug },
+      // 3. Record the old→new redirect. UPSERT (not create) on the unique
+      //    ([locale, entityType, fromSlug]) key: a redirect row that still uses this fromSlug can
+      //    survive when a *different* entity reused the freed slug (translation slugs are only
+      //    unique per-locale, so a vacated slug is reusable) — a plain create would hit P2002 and
+      //    abort the whole rename transaction (a spurious 422). Upsert overwrites it with the
+      //    current target, which is also the correct result (the slug now redirects to its latest home).
+      this.prisma.slugRedirect.upsert({
+        where: {
+          locale_entityType_fromSlug: { locale, entityType, fromSlug: oldSlug },
+        },
+        create: { locale, entityType, fromSlug: oldSlug, toSlug: newSlug },
+        update: { toSlug: newSlug },
       }),
     ];
   }

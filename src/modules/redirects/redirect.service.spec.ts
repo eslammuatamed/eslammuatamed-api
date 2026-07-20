@@ -115,7 +115,7 @@ describe('RedirectService', () => {
     it('emits exactly the 3 ops in collapse → clear → record order with correct args', () => {
       prisma.slugRedirect.updateMany.mockReturnValue('op-collapse' as never);
       prisma.slugRedirect.deleteMany.mockReturnValue('op-clear' as never);
-      prisma.slugRedirect.create.mockReturnValue('op-record' as never);
+      prisma.slugRedirect.upsert.mockReturnValue('op-record' as never);
 
       const ops = service.buildRedirectOps({
         locale: 'en',
@@ -136,21 +136,30 @@ describe('RedirectService', () => {
       expect(prisma.slugRedirect.deleteMany).toHaveBeenCalledWith({
         where: { locale: 'en', entityType: 'article', fromSlug: 'b' },
       });
-      // 3. Record the old→new redirect.
-      expect(prisma.slugRedirect.create).toHaveBeenCalledWith({
-        data: {
+      // 3. Record the old→new redirect via upsert on the unique key (overwrites a surviving
+      //    same-fromSlug row instead of colliding — the slug-reuse case, avoids P2002).
+      expect(prisma.slugRedirect.upsert).toHaveBeenCalledWith({
+        where: {
+          locale_entityType_fromSlug: {
+            locale: 'en',
+            entityType: 'article',
+            fromSlug: 'a',
+          },
+        },
+        create: {
           locale: 'en',
           entityType: 'article',
           fromSlug: 'a',
           toSlug: 'b',
         },
+        update: { toSlug: 'b' },
       });
     });
 
     it('threads locale + entityType through for a project rename', () => {
       prisma.slugRedirect.updateMany.mockReturnValue('op-collapse' as never);
       prisma.slugRedirect.deleteMany.mockReturnValue('op-clear' as never);
-      prisma.slugRedirect.create.mockReturnValue('op-record' as never);
+      prisma.slugRedirect.upsert.mockReturnValue('op-record' as never);
 
       const ops = service.buildRedirectOps({
         locale: 'ar',
@@ -160,20 +169,28 @@ describe('RedirectService', () => {
       });
 
       expect(ops).toHaveLength(3);
-      expect(prisma.slugRedirect.create).toHaveBeenCalledWith({
-        data: {
+      expect(prisma.slugRedirect.upsert).toHaveBeenCalledWith({
+        where: {
+          locale_entityType_fromSlug: {
+            locale: 'ar',
+            entityType: 'project',
+            fromSlug: 'x',
+          },
+        },
+        create: {
           locale: 'ar',
           entityType: 'project',
           fromSlug: 'x',
           toSlug: 'y',
         },
+        update: { toSlug: 'y' },
       });
     });
 
     it('does not execute the ops (pure builder — no transaction is run)', () => {
       prisma.slugRedirect.updateMany.mockReturnValue('op-collapse' as never);
       prisma.slugRedirect.deleteMany.mockReturnValue('op-clear' as never);
-      prisma.slugRedirect.create.mockReturnValue('op-record' as never);
+      prisma.slugRedirect.upsert.mockReturnValue('op-record' as never);
 
       // void: the builder returns un-awaited PrismaPromises by design (the caller runs them
       // in its $transaction); we assert only that the builder itself never executes them.
