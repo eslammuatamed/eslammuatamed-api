@@ -65,3 +65,8 @@ This is a **private repo on GitHub Free**: **branch protection, rulesets, and en
 - **Red PRs must not be merged** (procedural discipline).
 - **Adding a second write collaborator requires upgrading to GitHub Pro/rulesets (for real branch protection) or a policy redesign first.** The current model assumes **`eslammuatamed` is the sole writer** — verified: sole admin, no other collaborators, no deploy keys, no webhooks, read-only default `GITHUB_TOKEN`.
 - Do **not** use `[skip ci]` on a commit that reaches `main` — GitHub would skip the deploy workflow; recover with a `workflow_dispatch` run on `main`.
+
+## Local environment files — never touched by tests
+- `<repo-root>/.env` is the developer's real local environment: untracked (`.gitignore`), boot-validated, and possibly holding locally entered credentials. **No test, script, CI step, or contract-export check may overwrite, replace, or delete it.**
+- A check that needs a clean/template environment must use an **external temporary env file or directory** (e.g. a temp copy outside the working tree pointed at via the tool's env-path option) **or a trap-based backup/restore guard** that restores the original on success, failure, *and* interruption — a plain `cp .env.example .env … rm -f .env` sequence is forbidden in the real checkout.
+- Incident record (2026-07-19): an OpenAPI-idempotence check ran exactly that sequence in the primary checkout and destroyed the developer's `.env` (locally entered R2 values lost). This rule exists so that never recurs.
