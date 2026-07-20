@@ -2572,6 +2572,88 @@
         ]
       }
     },
+    "/api/v1/redirects/resolve": {
+      "get": {
+        "operationId": "RedirectsController_resolve_v1",
+        "parameters": [
+          {
+            "name": "locale",
+            "required": false,
+            "in": "query",
+            "description": "Two-letter locale code, validated against enabled locales.",
+            "schema": {
+              "default": "en",
+              "example": "ar",
+              "type": "string"
+            }
+          },
+          {
+            "name": "path",
+            "required": true,
+            "in": "query",
+            "description": "Section-relative website path to resolve (the front-end strips the /ar prefix). Grammar: /blog/{slug} → article, /projects/{slug} → project.",
+            "schema": {
+              "example": "/blog/old-slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The destination path for the matched redirect.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/RedirectResolveEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown or disabled locale.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No redirect for this path in the locale.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Malformed query parameters.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Resolve a website path to its current destination, or 404 when none exists.",
+        "tags": [
+          "redirects"
+        ]
+      }
+    },
     "/api/v1/admin/permissions": {
       "get": {
         "operationId": "RolesAdminController_getPermissions_v1",
@@ -5317,6 +5399,735 @@
           "projects"
         ]
       }
+    },
+    "/api/v1/contact": {
+      "post": {
+        "operationId": "ContactController_submit_v1",
+        "parameters": [
+          {
+            "name": "user-agent",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "referer",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateContactMessageDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The message was received (or silently dropped as spam).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ContactReceiptEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error (missing field, invalid email, or unknown property).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Contact rate limit exceeded (3 / hour or 10 / day per IP).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Submit a contact message. Returns an identical receipt whether the message is stored or silently dropped by anti-spam.",
+        "tags": [
+          "contact"
+        ]
+      }
+    },
+    "/api/v1/admin/messages": {
+      "get": {
+        "operationId": "MessagesAdminController_list_v1",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "perPage",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "default": 12,
+              "example": 12,
+              "type": "number"
+            }
+          },
+          {
+            "name": "isRead",
+            "required": false,
+            "in": "query",
+            "description": "Filter by read state.",
+            "schema": {
+              "example": false,
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "isArchived",
+            "required": false,
+            "in": "query",
+            "description": "Filter by archived state.",
+            "schema": {
+              "example": false,
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ContactMessageEntity"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMeta"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "List contact messages, unread-first, with read/archived filters.",
+        "tags": [
+          "messages"
+        ]
+      }
+    },
+    "/api/v1/admin/messages/{id}": {
+      "get": {
+        "operationId": "MessagesAdminController_get_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ContactMessageEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Message not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Get one contact message.",
+        "tags": [
+          "messages"
+        ]
+      },
+      "patch": {
+        "operationId": "MessagesAdminController_update_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMessageDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ContactMessageEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Message not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Toggle read/archived state on a contact message.",
+        "tags": [
+          "messages"
+        ]
+      }
+    },
+    "/api/v1/admin/articles/{id}/preview-token": {
+      "post": {
+        "operationId": "PreviewAdminController_mintArticleToken_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The minted token, its API-relative consume url, and its expiry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PreviewTokenEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Article not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Mint a preview token for an article of any status (drafts included).",
+        "tags": [
+          "preview"
+        ]
+      }
+    },
+    "/api/v1/admin/projects/{id}/preview-token": {
+      "post": {
+        "operationId": "PreviewAdminController_mintProjectToken_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The minted token, its API-relative consume url, and its expiry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PreviewTokenEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Mint a preview token for a project of any status (unpublished included).",
+        "tags": [
+          "preview"
+        ]
+      }
+    },
+    "/api/v1/preview/articles/{id}": {
+      "get": {
+        "operationId": "PreviewController_previewArticle_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "locale",
+            "required": false,
+            "in": "query",
+            "description": "Two-letter locale code, validated against enabled locales.",
+            "schema": {
+              "default": "en",
+              "example": "ar",
+              "type": "string"
+            }
+          },
+          {
+            "name": "token",
+            "required": false,
+            "in": "query",
+            "description": "Preview token minted via POST /admin/{articles|projects}/{id}/preview-token. A missing, expired, tampered, or wrong-type token yields 404 (never 401/403), so an unauthorized caller cannot tell a draft exists.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The draft article resolved to ?locale=.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PublicArticleDetailEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown or disabled locale.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Missing/invalid/expired token, or no such article.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Malformed query parameters.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Preview an article of any status with a valid token, else 404.",
+        "tags": [
+          "preview"
+        ]
+      }
+    },
+    "/api/v1/preview/projects/{id}": {
+      "get": {
+        "operationId": "PreviewController_previewProject_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "locale",
+            "required": false,
+            "in": "query",
+            "description": "Two-letter locale code, validated against enabled locales.",
+            "schema": {
+              "default": "en",
+              "example": "ar",
+              "type": "string"
+            }
+          },
+          {
+            "name": "token",
+            "required": false,
+            "in": "query",
+            "description": "Preview token minted via POST /admin/{articles|projects}/{id}/preview-token. A missing, expired, tampered, or wrong-type token yields 404 (never 401/403), so an unauthorized caller cannot tell a draft exists.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The unpublished project resolved to ?locale=.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PublicProjectDetailEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown or disabled locale.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Missing/invalid/expired token, or no such project.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Malformed query parameters.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Preview a project of any status with a valid token, else 404.",
+        "tags": [
+          "preview"
+        ]
+      }
     }
   },
   "info": {
@@ -7035,6 +7846,19 @@
           }
         }
       },
+      "RedirectResolveEntity": {
+        "type": "object",
+        "properties": {
+          "toPath": {
+            "type": "string",
+            "example": "/blog/new-slug",
+            "description": "Section-relative destination path for the matched redirect."
+          }
+        },
+        "required": [
+          "toPath"
+        ]
+      },
       "PermissionCatalogEntity": {
         "type": "object",
         "properties": {
@@ -8751,6 +9575,162 @@
             }
           }
         }
+      },
+      "ContactReceiptEntity": {
+        "type": "object",
+        "properties": {
+          "received": {
+            "type": "boolean",
+            "example": true,
+            "description": "Always true. Identical for accepted and silently-dropped submissions."
+          }
+        },
+        "required": [
+          "received"
+        ]
+      },
+      "CreateContactMessageDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Alex Morgan",
+            "maxLength": 200
+          },
+          "email": {
+            "type": "string",
+            "example": "alex@example.com",
+            "maxLength": 320
+          },
+          "subject": {
+            "type": "string",
+            "example": "Project inquiry",
+            "maxLength": 300
+          },
+          "body": {
+            "type": "string",
+            "example": "I'd like to discuss a Nuxt build.",
+            "maxLength": 5000
+          },
+          "website": {
+            "type": "string",
+            "description": "Anti-spam honeypot — leave empty. Any value flags the submission as spam. Never persisted.",
+            "example": ""
+          },
+          "elapsedMs": {
+            "type": "number",
+            "description": "Anti-spam time-trap — milliseconds between form render and submit. Below ~3000 flags the submission as spam. Never persisted.",
+            "example": 8200
+          }
+        },
+        "required": [
+          "name",
+          "email",
+          "subject",
+          "body"
+        ]
+      },
+      "ContactMessageEntity": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "example": "Alex Morgan"
+          },
+          "email": {
+            "type": "string",
+            "example": "alex@example.com"
+          },
+          "subject": {
+            "type": "string",
+            "example": "Project inquiry"
+          },
+          "body": {
+            "type": "string",
+            "example": "I'd like to discuss a Nuxt build."
+          },
+          "isRead": {
+            "type": "boolean",
+            "example": false
+          },
+          "isArchived": {
+            "type": "boolean",
+            "example": false
+          },
+          "meta": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Spam forensics captured at intake (userAgent / referrer). Empty object when absent.",
+            "example": {
+              "userAgent": "Mozilla/5.0",
+              "referrer": "https://example.com"
+            }
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email",
+          "subject",
+          "body",
+          "isRead",
+          "isArchived",
+          "meta",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "UpdateMessageDto": {
+        "type": "object",
+        "properties": {
+          "isRead": {
+            "type": "boolean",
+            "example": true,
+            "description": "Mark the message read (true) or unread (false)."
+          },
+          "isArchived": {
+            "type": "boolean",
+            "example": false,
+            "description": "Archive (true) or unarchive (false) the message."
+          }
+        }
+      },
+      "PreviewTokenEntity": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "example": "MTc1MzAxMjgwMDAwMA.q3n8p0Zx5t2Yc1Rk9f7wLmA6bd4eHsG2uVjOiN0pXyE",
+            "description": "Stateless HMAC preview token. Present it as ?token= on the returned url. Never logged."
+          },
+          "url": {
+            "type": "string",
+            "example": "/api/v1/preview/articles/2f1c8d9e-4a3b-4c5d-8e6f-7a8b9c0d1e2f?token=MTc1MzAxMjgwMDAwMA.q3n8p0Zx5t2Yc1Rk9f7wLmA6bd4eHsG2uVjOiN0pXyE",
+            "description": "API-relative consume path (/api/v1/preview/{articles|projects}/{id}?token=…) the dashboard fetches to load the draft. Not itself the rendered, shareable preview page (a web concern)."
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "When the token expires (mint time + 30 minutes)."
+          }
+        },
+        "required": [
+          "token",
+          "url",
+          "expiresAt"
+        ]
       }
     }
   }
