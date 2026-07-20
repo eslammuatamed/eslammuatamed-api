@@ -127,8 +127,14 @@ describe('Preview (e2e)', () => {
   });
 
   it('returns 404 for a tampered token (MAC no longer authentic)', async () => {
-    const last = validToken.slice(-1);
-    const tampered = `${validToken.slice(0, -1)}${last === 'A' ? 'B' : 'A'}`;
+    // Mutate the FIRST char of the MAC segment (after the `.`). The last base64url char of a
+    // 32-byte MAC carries padding bits, so flipping it (e.g. A<->B) can decode to the identical
+    // bytes — no real tampering. A front char has 6 significant bits, so changing it always
+    // changes the decoded MAC and the verifier must reject it.
+    const dot = validToken.indexOf('.');
+    const macFirst = validToken.charAt(dot + 1);
+    const flipped = macFirst === 'A' ? 'B' : 'A';
+    const tampered = `${validToken.slice(0, dot + 1)}${flipped}${validToken.slice(dot + 2)}`;
     const res = await request(httpServer(app))
       .get(`/api/v1/preview/articles/${articleId}?token=${tampered}&locale=en`)
       .expect(404);
