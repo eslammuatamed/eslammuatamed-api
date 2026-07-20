@@ -2,12 +2,18 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { ContentStatus, MediaKind, MediaVariantFormat } from '@prisma/client';
+import {
+  ContentStatus,
+  MediaKind,
+  MediaVariantFormat,
+  Prisma,
+} from '@prisma/client';
 import { DeepMockProxy, mockDeep } from 'jest-mock-extended';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocalesService } from '../locales/locales.service';
 import { MediaDescriptorResolver } from '../media/media-descriptor.resolver';
 import { StorageAdapter } from '../media/storage/storage-adapter.interface';
+import { RedirectService } from '../redirects/redirect.service';
 import { ArticlesService } from './articles.service';
 
 const storage = {
@@ -177,15 +183,21 @@ function relatedArticlePayload(options: {
 describe('ArticlesService', () => {
   let prisma: DeepMockProxy<PrismaService>;
   let locales: DeepMockProxy<LocalesService>;
+  let redirects: DeepMockProxy<RedirectService>;
   let service: ArticlesService;
 
   beforeEach(() => {
     prisma = mockDeep<PrismaService>();
     locales = mockDeep<LocalesService>();
+    redirects = mockDeep<RedirectService>();
+    // Default to an empty op-set so a spread never crashes; the "called" tests override this with a
+    // sentinel array and assert those ops land in the $transaction.
+    redirects.buildRedirectOps.mockReturnValue([]);
     service = new ArticlesService(
       prisma,
       locales,
       new MediaDescriptorResolver(storage),
+      redirects,
     );
   });
 
@@ -222,6 +234,33 @@ describe('ArticlesService', () => {
       expect(result.body).toContain('word');
       // Slug map covers every translation for locale switching (doc 10 §6).
       expect(result.slugs).toEqual({ en: 'slug-en', ar: 'slug-ar' });
+    });
+  });
+
+  describe('getPreviewById (D10-8 draft preview, status-agnostic)', () => {
+    it('returns an unpublished (DRAFT) article by id, bypassing the PUBLISHED filter', async () => {
+      prisma.article.findUnique.mockResolvedValue(
+        articlePayload(ContentStatus.DRAFT),
+      );
+
+      const result = await service.getPreviewById('a1', 'en');
+
+      expect(locales.assertEnabled).toHaveBeenCalledWith('en');
+      expect(prisma.article.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 'a1' } }),
+      );
+      // The draft resolves in the same shape a public read would produce.
+      expect(result.title).toBe('Title en');
+      expect(result.body).toContain('word');
+      expect(result.slugs).toEqual({ en: 'slug-en', ar: 'slug-ar' });
+    });
+
+    it('404s when the article id does not exist', async () => {
+      prisma.article.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.getPreviewById('missing', 'en'),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 
@@ -543,6 +582,122 @@ describe('ArticlesService', () => {
     it('is a no-op when nothing is due', async () => {
       prisma.article.updateMany.mockResolvedValue({ count: 0 });
       await expect(service.promoteScheduled()).resolves.toBe(0);
+    });
+  });
+
+  // D04-6 gating only. The 3-op DB behavior (chain-collapse, rename-back, atomicity across rows) is
+  // covered by the buildRedirectOps unit test (T4) and the e2e suite (T9); here we assert solely the
+  // publish-time predicate and that the returned ops land in the same $transaction as the rename.
+  describe('update (D04-6 auto-redirect on published slug rename)', () => {
+    // Sentinel op-set standing in for buildRedirectOps' 3 real ops; identity is asserted in the tx.
+    const redirectOps = [
+      { __redirectOp: 'updateMany' },
+      { __redirectOp: 'deleteMany' },
+      { __redirectOp: 'create' },
+    ] as unknown as Prisma.PrismaPromise<unknown>[];
+
+    const renameEn = {
+      locale: 'en',
+      title: 'T',
+      slug: 'slug-en-v2',
+      excerpt: 'e',
+      body: 'b',
+    };
+
+    it('creates one redirect op-set when a published article locale slug changes (a→b)', async () => {
+      prisma.article.findUnique.mockResolvedValue(
+        articlePayload(ContentStatus.PUBLISHED),
+      );
+      redirects.buildRedirectOps.mockReturnValue(redirectOps);
+
+      await service.update('a1', { translations: [renameEn] });
+
+      expect(redirects.buildRedirectOps).toHaveBeenCalledTimes(1);
+      expect(redirects.buildRedirectOps).toHaveBeenCalledWith({
+        locale: 'en',
+        entityType: 'article',
+        oldSlug: 'slug-en',
+        newSlug: 'slug-en-v2',
+      });
+      const txOps = prisma.$transaction.mock
+        .calls[0]![0] as unknown as unknown[];
+      expect(txOps).toEqual(expect.arrayContaining(redirectOps));
+    });
+
+    it('does not create a redirect when the article is not published (draft)', async () => {
+      prisma.article.findUnique.mockResolvedValue(
+        articlePayload(ContentStatus.DRAFT),
+      );
+
+      await service.update('a1', { translations: [renameEn] });
+
+      expect(redirects.buildRedirectOps).not.toHaveBeenCalled();
+    });
+
+    it('does not create a redirect when the slug is unchanged', async () => {
+      prisma.article.findUnique.mockResolvedValue(
+        articlePayload(ContentStatus.PUBLISHED),
+      );
+
+      await service.update('a1', {
+        translations: [{ ...renameEn, slug: 'slug-en' }],
+      });
+
+      expect(redirects.buildRedirectOps).not.toHaveBeenCalled();
+    });
+
+    it('does not create a redirect on a draft→published rename (old slug was never public)', async () => {
+      prisma.article.findUnique.mockResolvedValue(
+        articlePayload(ContentStatus.DRAFT),
+      );
+
+      await service.update('a1', {
+        status: ContentStatus.PUBLISHED,
+        translations: [renameEn],
+      });
+
+      expect(redirects.buildRedirectOps).not.toHaveBeenCalled();
+    });
+
+    it('does not create a redirect on a published→unpublished rename (new slug not live)', async () => {
+      prisma.article.findUnique.mockResolvedValue(
+        articlePayload(ContentStatus.PUBLISHED),
+      );
+
+      await service.update('a1', {
+        status: ContentStatus.ARCHIVED,
+        translations: [renameEn],
+      });
+
+      expect(redirects.buildRedirectOps).not.toHaveBeenCalled();
+    });
+
+    it('creates a redirect only for the changed locale (en changed, ar unchanged)', async () => {
+      prisma.article.findUnique.mockResolvedValue(
+        articlePayload(ContentStatus.PUBLISHED),
+      );
+      redirects.buildRedirectOps.mockReturnValue(redirectOps);
+
+      await service.update('a1', {
+        translations: [
+          renameEn,
+          {
+            locale: 'ar',
+            title: 'T',
+            slug: 'slug-ar',
+            excerpt: 'e',
+            body: 'b',
+          },
+        ],
+      });
+
+      expect(redirects.buildRedirectOps).toHaveBeenCalledTimes(1);
+      expect(redirects.buildRedirectOps).toHaveBeenCalledWith({
+        locale: 'en',
+        entityType: 'article',
+        oldSlug: 'slug-en',
+        newSlug: 'slug-en-v2',
+      });
     });
   });
 });
