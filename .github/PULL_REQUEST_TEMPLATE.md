@@ -8,6 +8,8 @@ Canonical rule: **doc 16 §5.1 / D16-8** ([`16-development-conventions.md`](../e
 
 - [ ] Documentation & Handoff Gate satisfied (doc 16 D16-8): Arabic module docs · SpecKit closeout · central docs/OpenAPI sync · feature-map + handoff — or justified below
 
+> **Release freeze (doc 17 D17-5):** `dev → main` promotion is blocked while the release freeze is active — do not promote or deploy until the owner opens the Website/Homepage phase.
+
 <!--
 Justify any intentionally omitted item here. The Arabic module docs and the SpecKit
 closeout are ALWAYS required; other doc changes may be justified as not materially affected.

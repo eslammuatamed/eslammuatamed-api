@@ -4,6 +4,9 @@
 - **`main`** — production, and the GitHub default branch. Every commit on `main` is deployed automatically (see below). Protected **by project policy**, not by GitHub (see the Free-plan note).
 - **`dev`** — development / integration. Feature work lands here first, then promotes to `main`.
 
+## Release freeze (active — until the Website/Homepage phase)
+`main` is **frozen at the current production baseline** by owner directive (2026-07-20) — canonical rule **doc 17 §4 / D17-5**, deployment hold **doc 23 §3 / D23-18**. `feature → PR → dev` merges continue as normal, but **no `dev → main` promotion and no production deployment** happen until the owner opens the Website/Homepage phase and explicitly authorizes it (deploy workflows are unchanged). The full rule lives in doc 17 / doc 23 and is **not restated here**.
+
 ## Normal flow
 ```
 feature/<slug>   (branch from dev)

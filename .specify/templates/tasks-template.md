@@ -178,6 +178,8 @@ here is checked. "Not requested in the prompt" is never a reason to skip it.
 
 **Checkpoint**: Gate passed — the feature is documented, synced, handed off, and only now cleared to push / PR / promote / deploy.
 
+> **Release freeze (doc 17 D17-5):** while the release freeze is active, a passed gate clears the feature to push / PR / merge to `dev` only — **`dev → main` promotion and deployment stay blocked** until the owner opens the Website/Homepage phase.
+
 ---
 
 ## Dependencies & Execution Order
