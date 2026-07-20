@@ -25,6 +25,7 @@ export class ContactMessageEntity {
   readonly isArchived!: boolean;
 
   @ApiProperty({
+    type: String,
     format: 'date-time',
     nullable: true,
     description:
