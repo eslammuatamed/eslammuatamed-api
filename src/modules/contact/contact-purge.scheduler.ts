@@ -8,7 +8,10 @@ export const RETENTION_MONTHS = 12;
 
 // The purge cutoff: `now` shifted back by the retention window. Computed on a copy so the caller's
 // Date is never mutated; the purge query uses a strict `<`, so a row archived exactly at the
-// boundary is retained (deleted only once it is strictly older than 12 months).
+// boundary is retained (deleted only once it is strictly older than 12 months). `setMonth(-12)` is
+// exact because RETENTION_MONTHS is a whole year (12) — the only drift is a Feb-29 → Mar-1 shift of
+// ±1 day every 4 years, immaterial to a 12-month retention boundary. A non-12 value would reintroduce
+// day-of-month overflow (e.g. Jan 31 − 1 month) and would need reconsidering.
 export function retentionCutoff(now: Date): Date {
   const cutoff = new Date(now.getTime());
   cutoff.setMonth(cutoff.getMonth() - RETENTION_MONTHS);

@@ -148,8 +148,9 @@ describe('AllExceptionsFilter', () => {
     expect(captured.body.detail).not.toContain('secret');
   });
 
-  // Middleware http-errors (body-parser: over-limit body -> 413 doc 19 §5, malformed JSON -> 400)
-  // are not Nest HttpExceptions; their exposable client-4xx status is honored, not turned into a 500.
+  // Body-parser's over-limit-body error (413, doc 19 §5) is an http-error, not a Nest HttpException,
+  // and is not pre-mapped by Nest — its exposable client-4xx status is honored, not turned into a 500.
+  // (Malformed JSON is mapped to a BadRequestException upstream, so it takes the HttpException path.)
   it('maps a body-parser 413 (payload too large) http-error to 413, generic detail (no message leak)', () => {
     const httpError = Object.assign(new Error('request entity too large'), {
       status: HttpStatus.PAYLOAD_TOO_LARGE,
@@ -164,22 +165,6 @@ describe('AllExceptionsFilter', () => {
     expect(result.body.detail).toBe('The request payload is too large.');
     // The http-error's own message is never echoed.
     expect(result.body.detail).not.toContain('entity');
-  });
-
-  it('maps a malformed-JSON 400 http-error to 400 with a generic detail (never echoing the parse message)', () => {
-    const httpError = Object.assign(
-      new Error('Unexpected token x in JSON at position 5'),
-      {
-        status: HttpStatus.BAD_REQUEST,
-        expose: true,
-        type: 'entity.parse.failed',
-      },
-    );
-    const result = capture(httpError);
-
-    expect(result.status).toBe(HttpStatus.BAD_REQUEST);
-    expect(result.body.type).toBe('/problems/bad-request');
-    expect(result.body.detail).not.toContain('position');
   });
 
   it('does NOT honor a 5xx http-error — it stays a sanitized 500', () => {

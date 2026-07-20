@@ -18,7 +18,7 @@ const PUBLIC_READ_PATHS = [
 ] as const;
 
 const WARMUP_PER_PATH = 3;
-const SAMPLES_PER_PATH = 12; // 4 paths * (3 + 12) = 60 measured + 12 warmup = 72 requests (< 120/min)
+const SAMPLES_PER_PATH = 12; // 4 paths x (3 warmup + 12 measured) = 12 warmup + 48 measured = 60 requests (< 120/min)
 const P95_BUDGET_MS = Number(process.env.LATENCY_SMOKE_P95_MS ?? 500);
 
 function p95(samplesMs: number[]): number {

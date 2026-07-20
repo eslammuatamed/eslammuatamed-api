@@ -27,7 +27,7 @@ describe('Hardening (e2e)', () => {
   describe('request body size limit (doc 19 §5, AD-7 — 1 MiB JSON)', () => {
     // A payload under 1 MiB must reach the app (parsed): it is rejected by field validation (422),
     // NOT by the body parser (413). Before AD-7 the framework default (~100 kB) would 413 this.
-    it('accepts a JSON body under 1 MiB (parsed, not 413)', async () => {
+    it('accepts a JSON body under 1 MiB (parsed by the transport, not 413)', async () => {
       const halfMebibyteBody = 'x'.repeat(500 * 1024);
 
       const res = await request(httpServer(app))
@@ -41,12 +41,12 @@ describe('Hardening (e2e)', () => {
           elapsedMs: 9000,
         });
 
-      // The parser accepted it (no 413). Field-length validation may still reject the oversized
-      // body field with 422 — that is the DTO's concern, not the transport limit's.
-      expect(res.status).not.toBe(413);
+      // The parser accepted it (no 413): the 500 KB `body` field then fails @MaxLength(5000) with a
+      // 422 — a DTO concern, not the transport limit's. Asserted as 200|422 so a 5xx cannot pass.
+      expect([200, 422]).toContain(res.status);
     });
 
-    it('rejects a JSON body over 1 MiB with 413 (payload too large)', async () => {
+    it('rejects a JSON body over 1 MiB as a 413 RFC 7807 problem+json', async () => {
       const overOneMebibyteBody = 'x'.repeat(1200 * 1024);
 
       const res = await request(httpServer(app))
@@ -60,7 +60,25 @@ describe('Hardening (e2e)', () => {
           elapsedMs: 9000,
         });
 
+      // Not merely 413 — the exception filter renders it as sanitized RFC 7807 (locks AD-7's
+      // client-http-error branch, not a bare Express 413).
       expect(res.status).toBe(413);
+      expect(res.headers['content-type']).toContain('application/problem+json');
+      expect((res.body as { type?: string }).type).toBe(
+        '/problems/payload-too-large',
+      );
+    });
+
+    it('renders malformed JSON as a 400 RFC 7807 problem+json', async () => {
+      // Nest maps the body-parser SyntaxError to a BadRequestException upstream; the filter still
+      // emits application/problem+json (not a bare Express 400). Locks the envelope, not the detail.
+      const res = await request(httpServer(app))
+        .post('/api/v1/contact')
+        .set('Content-Type', 'application/json')
+        .send('{"name": "Alex", "email": ');
+
+      expect(res.status).toBe(400);
+      expect(res.headers['content-type']).toContain('application/problem+json');
     });
   });
 
