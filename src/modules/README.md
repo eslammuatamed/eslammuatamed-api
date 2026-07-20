@@ -4,9 +4,9 @@
 
 ## الوحدات على هذا الأساس (`Shipped`)
 
-`health` · `locales` · `auth` · `users` · `access-control` · `settings` · `taxonomy` · `articles` · `projects` · `experiences` · `skills` · `testimonials`.
+`health` · `locales` · `auth` · `users` · `access-control` · `settings` · `taxonomy` · `articles` · `projects` · `experiences` · `skills` · `testimonials` · `media`.
 
-> **`Planned` (غير موجودة على `main`):** `media` (Feature 003)، `redirects`/`contact`/preview (Feature 004)، `seo`. الجداول موجودة في المخطّط، الوحدات لا. لا توجد ملفّات `README.md` لوحدات غير مبنيّة.
+> **`Planned` (غير موجودة على `main`):** `redirects`/`contact`/preview (Feature 004)، `seo`. الجداول موجودة في المخطّط، الوحدات لا. لا توجد ملفّات `README.md` لوحدات غير مبنيّة.
 
 ## الشكل الداخلي القانوني
 
@@ -67,7 +67,7 @@ POST/PATCH/DELETE /admin/<resource>
 
 ## الوسائط بالمرجع فقط (على هذا الأساس)
 
-الكيانات تشير إلى وسائط بمُعرّف خام: `Article.coverImageId`, `*.ogImageId`, gallery `mediaAssetId`, `Testimonial.avatarId`, `SiteSettings.resumeAssetId`. **لا وحدة رفع ولا تحويل descriptor على `main`** — تُرجَع الـ ids كما هي. الرفع والـ descriptors عمل Feature 003 (`In Progress`، خارج الأساس).
+الكيانات تشير إلى وسائط بمُعرّف خام: `Article.coverImageId`, `*.ogImageId`, gallery `mediaAssetId`, `Testimonial.avatarId`, `SiteSettings.resumeAssetId`. وحدة `media` (Feature 003، **مُسلَّمة على `main`** — PR #7) تُدير الرفع والمعالجة والتخزين وحلّ الـ descriptors: القراءات العامّة تُبقي الـ `*Id` الخام وتُضيف بجانبها descriptor مُحلّلًا (URL على أصل الوسائط + أبعاد + `blurhash` + نصّ بديل). التفاصيل في [`media/README.md`](media/README.md).
 
 ## ملاحظة عن `health`
 
