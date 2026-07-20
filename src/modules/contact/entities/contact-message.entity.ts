@@ -25,6 +25,16 @@ export class ContactMessageEntity {
   readonly isArchived!: boolean;
 
   @ApiProperty({
+    format: 'date-time',
+    nullable: true,
+    description:
+      'The archival instant (D09-14): set when the message is archived, cleared when un-archived. ' +
+      'Null while the message has never been archived. Basis for the 12-month retention purge (doc 19 §6).',
+    example: null,
+  })
+  readonly archivedAt!: Date | null;
+
+  @ApiProperty({
     type: 'object',
     additionalProperties: true,
     description:

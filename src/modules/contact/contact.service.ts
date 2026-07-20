@@ -90,16 +90,42 @@ export class ContactService {
   }
 
   // Read/archive triage only (D02-4). Undefined fields are no-ops in the Prisma update.
+  // Maintains `archivedAt` (D09-14) on the archive transition — the retention-purge basis
+  // (doc 19 §6, D19-10): set to now when a message is archived (false->true), cleared when it
+  // is un-archived (true->false), and left untouched when `isArchived` is absent or unchanged.
+  // `archivedAt` is server-managed and never accepted from the client DTO.
   async update(
     id: string,
     dto: UpdateMessageDto,
   ): Promise<ContactMessageEntity> {
-    await this.getOrThrow(id);
+    const existing = await this.getOrThrow(id);
+
+    const data: Prisma.ContactMessageUpdateInput = {
+      isRead: dto.isRead,
+      isArchived: dto.isArchived,
+    };
+    if (dto.isArchived === true && !existing.isArchived) {
+      data.archivedAt = new Date();
+    } else if (dto.isArchived === false && existing.isArchived) {
+      data.archivedAt = null;
+    }
+
     const row = await this.prisma.contactMessage.update({
       where: { id },
-      data: { isRead: dto.isRead, isArchived: dto.isArchived },
+      data,
     });
     return toEntity(row);
+  }
+
+  // Retention purge (doc 19 §6, D19-10): hard-delete archived messages whose archival instant is
+  // older than `cutoff`. Keyed on `archivedAt` (D09-14) so only genuinely-archived rows are
+  // eligible; unarchived rows (archivedAt = null) are always retained. Returns the deleted count
+  // for the scheduler's count-only log line (no PII, D07-5). Invoked by ContactPurgeScheduler.
+  async purgeArchivedOlderThan(cutoff: Date): Promise<number> {
+    const { count } = await this.prisma.contactMessage.deleteMany({
+      where: { isArchived: true, archivedAt: { not: null, lt: cutoff } },
+    });
+    return count;
   }
 
   private async getOrThrow(id: string): Promise<ContactMessage> {
@@ -120,6 +146,7 @@ function toEntity(row: ContactMessage): ContactMessageEntity {
     body: row.body,
     isRead: row.isRead,
     isArchived: row.isArchived,
+    archivedAt: row.archivedAt,
     meta: (row.meta ?? {}) as Prisma.JsonObject,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,

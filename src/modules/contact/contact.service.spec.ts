@@ -13,6 +13,7 @@ const message = (overrides: Partial<ContactMessage> = {}): ContactMessage => ({
   body: 'I would like to discuss a Nuxt build.',
   isRead: false,
   isArchived: false,
+  archivedAt: null,
   meta: {},
   createdAt: new Date('2026-01-01T00:00:00.000Z'),
   updatedAt: new Date('2026-01-01T00:00:00.000Z'),
@@ -188,11 +189,11 @@ describe('ContactService', () => {
     });
   });
 
-  describe('update — read/archive toggle', () => {
+  describe('update — read/archive toggle + archivedAt maintenance (D09-14)', () => {
     it('toggles isRead / isArchived and returns the updated entity', async () => {
       prisma.contactMessage.findUnique.mockResolvedValue(message());
       prisma.contactMessage.update.mockResolvedValue(
-        message({ isRead: true, isArchived: true }),
+        message({ isRead: true, isArchived: true, archivedAt: new Date() }),
       );
 
       const result = await service.update('msg-1', {
@@ -200,12 +201,78 @@ describe('ContactService', () => {
         isArchived: true,
       });
 
+      expect(result.isRead).toBe(true);
+      expect(result.isArchived).toBe(true);
+    });
+
+    it('sets archivedAt to now when archiving a previously-unarchived message (false->true)', async () => {
+      prisma.contactMessage.findUnique.mockResolvedValue(
+        message({ isArchived: false, archivedAt: null }),
+      );
+      prisma.contactMessage.update.mockResolvedValue(
+        message({ isArchived: true, archivedAt: new Date() }),
+      );
+
+      await service.update('msg-1', { isArchived: true });
+
+      expect(prisma.contactMessage.update).toHaveBeenCalledWith({
+        where: { id: 'msg-1' },
+        data: {
+          isRead: undefined,
+          isArchived: true,
+          archivedAt: expect.any(Date),
+        },
+      });
+    });
+
+    it('clears archivedAt to null when un-archiving (true->false)', async () => {
+      prisma.contactMessage.findUnique.mockResolvedValue(
+        message({
+          isArchived: true,
+          archivedAt: new Date('2026-01-01T00:00:00.000Z'),
+        }),
+      );
+      prisma.contactMessage.update.mockResolvedValue(
+        message({ isArchived: false, archivedAt: null }),
+      );
+
+      await service.update('msg-1', { isArchived: false });
+
+      expect(prisma.contactMessage.update).toHaveBeenCalledWith({
+        where: { id: 'msg-1' },
+        data: { isRead: undefined, isArchived: false, archivedAt: null },
+      });
+    });
+
+    it('does not touch archivedAt when isArchived is unchanged (already archived, re-sent true)', async () => {
+      const archivedAt = new Date('2026-01-01T00:00:00.000Z');
+      prisma.contactMessage.findUnique.mockResolvedValue(
+        message({ isArchived: true, archivedAt }),
+      );
+      prisma.contactMessage.update.mockResolvedValue(
+        message({ isRead: true, isArchived: true, archivedAt }),
+      );
+
+      await service.update('msg-1', { isRead: true, isArchived: true });
+
       expect(prisma.contactMessage.update).toHaveBeenCalledWith({
         where: { id: 'msg-1' },
         data: { isRead: true, isArchived: true },
       });
-      expect(result.isRead).toBe(true);
-      expect(result.isArchived).toBe(true);
+    });
+
+    it('does not touch archivedAt when isArchived is omitted (isRead-only update)', async () => {
+      prisma.contactMessage.findUnique.mockResolvedValue(
+        message({ isArchived: false, archivedAt: null }),
+      );
+      prisma.contactMessage.update.mockResolvedValue(message({ isRead: true }));
+
+      await service.update('msg-1', { isRead: true });
+
+      expect(prisma.contactMessage.update).toHaveBeenCalledWith({
+        where: { id: 'msg-1' },
+        data: { isRead: true, isArchived: undefined },
+      });
     });
 
     it('throws NotFound when updating a missing message', async () => {
@@ -215,6 +282,31 @@ describe('ContactService', () => {
         service.update('missing', { isRead: true }),
       ).rejects.toBeInstanceOf(NotFoundException);
       expect(prisma.contactMessage.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('purgeArchivedOlderThan — retention (doc 19 §6, D19-10)', () => {
+    it('hard-deletes only archived rows whose archivedAt is before the cutoff, and returns the count', async () => {
+      const cutoff = new Date('2025-07-20T00:00:00.000Z');
+      prisma.contactMessage.deleteMany.mockResolvedValue({ count: 3 });
+
+      const deleted = await service.purgeArchivedOlderThan(cutoff);
+
+      expect(prisma.contactMessage.deleteMany).toHaveBeenCalledWith({
+        where: { isArchived: true, archivedAt: { not: null, lt: cutoff } },
+      });
+      expect(deleted).toBe(3);
+    });
+
+    it('returns 0 when nothing is eligible (no delete side effects beyond the scoped query)', async () => {
+      prisma.contactMessage.deleteMany.mockResolvedValue({ count: 0 });
+
+      const deleted = await service.purgeArchivedOlderThan(
+        new Date('2025-07-20T00:00:00.000Z'),
+      );
+
+      expect(deleted).toBe(0);
+      expect(prisma.contactMessage.deleteMany).toHaveBeenCalledTimes(1);
     });
   });
 });
