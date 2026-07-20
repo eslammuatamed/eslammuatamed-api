@@ -52,7 +52,7 @@ T1 (doc-first) gates all code. T2 (migration) precedes any schema use. T3 (archi
   - Run security-reviewer (retention/PII deletion correctness incl. AD-1 archivedAt basis; no weakened control; no PII in logs), code-reviewer (architecture/thin-controllers/idioms), contract/back-compat (additive-only), test-quality (determinism of the latency smoke; purge boundary coverage; no skipped/flaky). Treat valid findings as work: reproduce → fix in scope → regression cover → rerun focused + relevant full gates. Reject requirement-less scope expansion with recorded rationale.
   - **Verify:** all confirmed findings resolved with regression coverage; gates re-green; review outcomes recorded for the final report.
 
-- [ ] **T11 — Final Documentation, Contract Sync & Handoff Gate [mandatory — DoD, doc 16 §5.1 / D16-8]** *(needs T10)*
+- [x] **T11 — Final Documentation, Contract Sync & Handoff Gate [mandatory — DoD, doc 16 §5.1 / D16-8]** *(needs T10)*
   - The standing Definition-of-Done gate: the feature is **not complete** and must **not** be pushed/PR'd/merged until this passes. Reconcile:
     - **Arabic module docs** — update `src/modules/contact/README.md` (Arabic prose, English identifiers) to cover the new retention purge (`archivedAt`, scheduler, cadence, no-PII logging, env `LATENCY_SMOKE_P95_MS` if surfaced) + a short note on the NFR-006 smoke and audit coverage; no secrets, no speculation, shipped-to-dev behaviour only.
     - **Central Docs** — docs 09 (+D09-14) / 19 (+D19-10) / 20 (+D20-7) already on the docs branch (T1); confirm they match the shipped behaviour; feature-map row status → "Implemented on dev — pending Website/Homepage production release" (after dev merge).
