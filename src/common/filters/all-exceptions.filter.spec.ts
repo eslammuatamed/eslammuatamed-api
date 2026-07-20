@@ -147,4 +147,41 @@ describe('AllExceptionsFilter', () => {
     expect(captured.body.detail).toBe('An unexpected error occurred.');
     expect(captured.body.detail).not.toContain('secret');
   });
+
+  // Body-parser's over-limit-body error (413, doc 19 §5) is an http-error, not a Nest HttpException,
+  // and is not pre-mapped by Nest — its exposable client-4xx status is honored, not turned into a 500.
+  // (Malformed JSON is mapped to a BadRequestException upstream, so it takes the HttpException path.)
+  it('maps a body-parser 413 (payload too large) http-error to 413, generic detail (no message leak)', () => {
+    const httpError = Object.assign(new Error('request entity too large'), {
+      status: HttpStatus.PAYLOAD_TOO_LARGE,
+      statusCode: HttpStatus.PAYLOAD_TOO_LARGE,
+      type: 'entity.too.large',
+      expose: true,
+    });
+    const result = capture(httpError);
+
+    expect(result.status).toBe(HttpStatus.PAYLOAD_TOO_LARGE);
+    expect(result.body.type).toBe('/problems/payload-too-large');
+    expect(result.body.detail).toBe('The request payload is too large.');
+    // The http-error's own message is never echoed.
+    expect(result.body.detail).not.toContain('entity');
+  });
+
+  it('does NOT honor a 5xx http-error — it stays a sanitized 500', () => {
+    const serverHttpError = Object.assign(new Error('upstream boom'), {
+      status: HttpStatus.BAD_GATEWAY,
+      expose: false,
+    });
+    const result = capture(serverHttpError);
+
+    expect(result.status).toBe(HttpStatus.INTERNAL_SERVER_ERROR);
+    expect(result.body.type).toBe('/problems/internal');
+  });
+
+  it('does NOT honor a stray object that merely carries a numeric status without expose:true', () => {
+    const notAnHttpError = { status: HttpStatus.NOT_FOUND };
+    const result = capture(notAnHttpError);
+
+    expect(result.status).toBe(HttpStatus.INTERNAL_SERVER_ERROR);
+  });
 });

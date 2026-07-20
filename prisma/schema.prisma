@@ -585,6 +585,9 @@ model ContactMessage {
   body       String
   isRead     Boolean @default(false) @map("is_read")
   isArchived Boolean @default(false) @map("is_archived")
+  // Archival instant (D09-14): set when isArchived flips true, cleared when it flips back.
+  // The basis for the 12-month retention purge (doc 19 §6, D19-10) — see contact-purge.scheduler.ts.
+  archivedAt DateTime? @map("archived_at")
   meta       Json    @default("{}") // UA/referrer for spam forensics
 
   createdAt DateTime @default(now()) @map("created_at")

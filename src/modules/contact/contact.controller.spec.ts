@@ -17,6 +17,7 @@ const persisted: ContactMessage = {
   body: 'Hello there, this is a genuine message.',
   isRead: false,
   isArchived: false,
+  archivedAt: null,
   meta: {},
   createdAt: new Date(),
   updatedAt: new Date(),
