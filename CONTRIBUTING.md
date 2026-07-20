@@ -25,13 +25,27 @@ hotfix/<slug>   (branch from main)
 ## Merge strategy & branch synchronization
 - **Feature / fix / chore → `dev`:** **squash merge** (preferred) — keeps `dev` one complete commit per PR.
 - **Promotion `dev` → `main`:** **merge commit** — never squash or rebase a `dev → main` promotion. A squash gives `main` a fresh commit with no shared ancestry to `dev`, leaving the branches content-identical but historically divergent.
-- **After a successful `main` deployment:** **fast-forward `dev` to the new `main` merge commit**, so `dev` and `main` share history at their tips.
+- **After a successful `main` deployment** (and, for a `server-verification-required` promotion, after the predefined server checks pass): **fast-forward `dev` to the new `main` merge commit**, so `dev` and `main` share history at their tips.
 - **Hotfixes** merged into `main` must be **merged back into `dev`** (a merge, not a squash) to keep the branches synchronized.
 - **Never reset or force-push the shared `dev` branch**, and never recreate it.
 - **A zero-file content diff is not sufficient** — `dev` and `main` must also share ancestry (`git merge-base --is-ancestor origin/main origin/dev` is true after a sync). This synchronization rule applies **independently per repository**; coordinated API/Web releases still go **API first, then Web**.
 
+## Promotion cases — when `dev` → `main` is allowed
+Code may be promoted from `dev` to `main` in **exactly two cases**:
+
+**Case 1 — completed and verified work (the normal case).** The agreed scope is complete; all applicable unit/integration/E2E/contract/typecheck/lint/build checks pass; `dev` integration is green; documentation and configuration are accurate; no known blocker remains; the owner makes the final promotion decision.
+
+**Case 2 — controlled server-environment verification.** Allowed only when the remaining behavior **genuinely cannot be validated outside the real server environment** (systemd/service behavior; Caddy/TLS/DNS/proxy/cookie/CORS integration; production filesystem permissions; production-compatible native binaries; real R2/S3 or other external integration; release symlink/cutover/rollback behavior; production build/runtime differences not reproducible locally or in CI). This is a controlled production verification, **not** permission to publish unfinished work. Before such a promotion: complete every test that can run locally or in CI; explain exactly why server validation is necessary; define the expected result, health/smoke checks, and rollback procedure; confirm the change is minimal, reversible, and involves no destructive database/storage operation (additive/fix-forward migrations only); hide or disable incomplete user-facing behavior where practical; and **mark the `dev → main` PR as a `server-verification-required` promotion** — the owner merging it is the authorization. After deployment: run the predefined checks immediately, monitor service/proxy logs, verify the exact deployed SHA; on failure use the documented rollback and fix on a branch from `dev` (never patch production directly); sync the result back through `dev`; record the outcome in the PR or ops documentation.
+
+**Production is not a general testing environment.** Do not promote incomplete work because local testing is inconvenient. Stop and require a staging environment instead when server testing could damage or expose real data, require a destructive migration/reset/drop, interrupt production materially, expose incomplete or insecure functionality, send real external messages/transactions, alter existing R2 objects or user content unsafely, make rollback uncertain, or require experimenting with secrets/authentication.
+
 ## Automatic deployment (from green `main`)
-- **Triggers:** `push` to `main` (a merge or authorized push) and `workflow_dispatch` (recovery / redeploy). **No tags.**
+- **Triggers (three, converging on one exact-SHA path):**
+  - `push` to `main` — the **happy path** (a merged promotion or authorized push).
+  - **Merged-PR fallback** — `deploy-fallback.yml` fires on `pull_request: closed` into `main` (merged only), validates the exact merge SHA against the current `main` tip, and dispatches `deploy.yml` with `target_sha`. It exists because the `push` event is **empirically dropped by GitHub at times** (proven in the trigger audit); the merged-PR event is delivered independently, so both events missing is far less likely than one. The dispatcher holds **no production secrets** and never runs PR-branch code.
+  - `workflow_dispatch` — **manual recovery** / redeploy.
+  - **No tags. No scheduled reconciliation** (Actions-minute cost on the Free plan, and schedules can themselves be delayed/dropped).
+- **Idempotent duplicates:** when both the push and the fallback fire for the same SHA, the shared production concurrency group serializes them and a `preflight` job reads the live release SHA — one path **releases**, the other exits **already-current** with no server mutation. A stale SHA exits **superseded**. Main-tip lookups use the **git backend** (`ls-remote` + retries), not the REST API, which can lag or 503 during GitHub incidents.
 - The `deploy` job cannot start unless the **same workflow run** re-verifies the **exact `github.sha`** — it does **not** rely only on the pre-merge PR checks (`needs: [verify, e2e]`). Before any server mutation it asserts `github.ref == refs/heads/main` **and** `HEAD == github.sha`.
 - No manual approval gate (see Free-plan note).
 - **Verification:** lint · typecheck · unit · OpenAPI contract idempotence · PostgreSQL E2E.
