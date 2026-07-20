@@ -111,8 +111,23 @@ jobs:
             echo "- result: **superseded** (target_sha != github.sha)" >> "$GITHUB_STEP_SUMMARY"
             echo "action=superseded" >> "$GITHUB_OUTPUT"; exit 0
           fi
-          # github.sha must be the current main tip.
-          MAIN="$(gh api "repos/$REPO/commits/heads/main" --jq '.sha')"
+          # github.sha must be the current main tip. Resolve it from the GIT backend
+          # (ls-remote), NOT the REST API: during GitHub incidents the REST replica can
+          # lag or 503 while the git backend stays healthy (observed 2026-07-20 — both
+          # trigger runs failed on this very lookup in the web repo). Retries ride out blips.
+          AUTH="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          MAIN=""
+          for attempt in 1 2 3 4 5; do
+            if MAIN="$(git -c http.extraHeader="$AUTH" ls-remote "https://github.com/${REPO}.git" refs/heads/main 2>/dev/null | cut -f1)" && [ -n "$MAIN" ]; then
+              break
+            fi
+            echo "main-tip lookup attempt $attempt failed; retrying in $((attempt * 5))s..."
+            sleep "$((attempt * 5))"
+          done
+          if [ -z "$MAIN" ]; then
+            echo "::error::could not resolve the current main tip from the git backend."
+            echo "action=abort" >> "$GITHUB_OUTPUT"; exit 1
+          fi
           if [ "$SHA" != "$MAIN" ]; then
             echo "github.sha ($SHA) != current main ($MAIN) — superseded."
             echo "- result: **superseded** (github.sha != current main)" >> "$GITHUB_STEP_SUMMARY"
@@ -302,7 +317,20 @@ jobs:
           SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          MAIN="$(gh api "repos/$REPO/commits/heads/main" --jq '.sha')"
+          # Git-backend lookup with retries (not REST — see the preflight comment).
+          AUTH="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          MAIN=""
+          for attempt in 1 2 3 4 5; do
+            if MAIN="$(git -c http.extraHeader="$AUTH" ls-remote "https://github.com/${REPO}.git" refs/heads/main 2>/dev/null | cut -f1)" && [ -n "$MAIN" ]; then
+              break
+            fi
+            echo "main-tip lookup attempt $attempt failed; retrying in $((attempt * 5))s..."
+            sleep "$((attempt * 5))"
+          done
+          if [ -z "$MAIN" ]; then
+            echo "::error::could not resolve the current main tip; refusing to cut over blind."
+            exit 1
+          fi
           if [ "$MAIN" != "$SHA" ]; then
             echo "::warning::main moved to $MAIN since preflight; aborting cutover (superseded)."
             echo "proceed=false" >> "$GITHUB_OUTPUT"
