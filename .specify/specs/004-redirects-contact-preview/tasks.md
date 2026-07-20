@@ -14,51 +14,75 @@ the token util (T3) + reuses the redirects resolve pattern; T7 (articles/project
 **No new tables/migration, no new runtime dependency, no `permissions.ts` change** (keys reserved). `contract:export`
 stays DB-free.
 
-- [ ] **T1 — Doc-first revisions (docs repo; constitution principle 1) [gate]**
+- [x] **T1 — Doc-first revisions (docs repo; constitution principle 1) [gate]**
   - On `eslammuatamed-docs` feature branch off `main` @ `4045282`:
     - **doc 04** → +**D04-6** ("Published slug renames automatically create `SlugRedirect` records" — realizes D04-3; published-only, per-locale, transactional, no manual CRUD, owned by `RedirectService`; alternatives: resolve-only / manual admin CRUD) + version bump.
     - **doc 10** → +**D10-11** ("Dedicated per-type preview-token mint endpoints"; alternatives: generic mint / embed-in-admin-reads; rationale: explicit resource authz, one permission per guarded function, clean OpenAPI, no token leakage in admin reads, no GET side effects) + version bump. **§5 catalog** gains `POST /admin/articles/{id}/preview-token`, `POST /admin/projects/{id}/preview-token`, `GET /admin/messages`, `GET /admin/messages/{id}`; **§6** wording notes redirects are auto-populated on qualifying published renames; **reconcile the "Full CRUD mirrors per module under `/admin/…`" line** — carve out `redirects` (public `resolve` only) and note `messages` has no create. **D10-7 resolve contract unchanged.**
     - **doc 19** → optional §8 one-line note that tokens are minted via the D10-11 endpoints (no new ID; D19-7 reused verbatim).
   - **Verify:** docs committed with decision-log entries (D04-6, D10-11) + version bumps **before** any API code; `D10-7` diff is zero; the "Full CRUD" line no longer implies admin-redirects CRUD. (Owner decides push/PR; the API T2+ tasks do not start until T1 is committed.)
 
-- [ ] **T2 [P] — `contact` throttle tier + route-local contact guard (doc 19 §6, D02-1)**
+- [x] **T2 [P] — `contact` throttle tier + route-local contact guard (doc 19 §6, D02-1)**
   - Add `contactHourly: { ttl: 3_600_000, limit: 3 }` + `contactDaily: { ttl: 86_400_000, limit: 10 }` to `src/common/throttling/throttle-tiers.ts`. Add `src/common/throttling/contact-throttler.guard.ts` — a **route-local** two-window `ThrottlerGuard` extension (applied via `@UseGuards` on `POST /contact` only, **not** a global named throttler), **IP-keyed**, reusing the **trusted-IP extraction** from `upload-user-ip-throttler.guard.ts` (prod `trust proxy`). RFC 7807 `429` + `Retry-After`.
   - **Verify:** unit (`contact-throttler.guard.spec.ts`) — 4th request in the hour → 429; 11th in the day → 429; `Retry-After` present; per-IP bucket separation; trusted-IP resolution matches the upload guard; the guard does not affect other routes (not globally registered). Confirm mechanism vs current `@nestjs/throttler` docs (nestjs-mentor).
 
-- [ ] **T3 [P] — Preview-token util (`PreviewTokenService`) (doc 19 §8 / D19-7)**
+- [x] **T3 [P] — Preview-token util (`PreviewTokenService`) (doc 19 §8 / D19-7)**
   - `src/modules/preview/preview-token.service.ts`: `mint(entityType, entityId): { token, expiresAt }` (`exp = now + 30 min`; `mac = HMAC_SHA256(previewTokenSecret, ` `${entityType}:${entityId}:${exp}` `)`; wire `base64url(exp).base64url(mac)`); `verify(entityType, entityId, token): boolean` (recompute + `crypto.timingSafeEqual` + `exp` check). Secret from `AppConfigService.auth.previewTokenSecret`. **Never logs token values.**
   - **Verify:** unit (`preview-token.service.spec.ts`) — round-trip valid; **expired** (`exp` in past) → false; **tampered** MAC → false; **wrong entityType/entityId** → false; **garbage / length-mismatched / non-base64url** token → **returns false, never throws** (`timingSafeEqual` length-mismatch + parse errors caught); 30-min `expiresAt` correct.
 
-- [ ] **T4 [P] — Redirects module: resolve + `buildRedirectOps` (doc 10 §5/§6 D10-7, doc 04 D04-6)**
+- [x] **T4 [P] — Redirects module: resolve + `buildRedirectOps` (doc 10 §5/§6 D10-7, doc 04 D04-6)**
   - `src/modules/redirects/`: `redirect.service.ts` (exported `RedirectService`): `resolve(locale, path): Promise<{ toPath } | null>` — `LocalesService.assertEnabled(locale)`, map website path → `(entityType, fromSlug)` via grammar (`/blog/{slug}`→`article`, `/projects/{slug}`→`project`), one-hop lookup on `@@unique([locale, entityType, fromSlug])`, compose `toPath = /{section}/{toSlug}`; unknown section / no record → `null`. `buildRedirectOps({ locale, entityType, oldSlug, newSlug }): Prisma.PrismaPromise[]` returning the **3-step** recipe (updateMany collapse `toSlug: old→new`; deleteMany `fromSlug: new`; create `old→new`) for the caller to push into its `$transaction`. `redirects.controller.ts` (`GET /redirects/resolve`, `@Public()`, public throttle, **`Cache-Control: no-store`** — override of the doc 10 §5 default; redirects are runtime data and a cached 404 miss would mask a just-created redirect, D10-7), `dto/redirect-resolve.query.dto.ts`, `entities/`, `redirects.module.ts` (imports `LocalesModule`, exports `RedirectService`), README.
   - **Verify:** unit (`redirect.service.spec.ts`, Prisma mocked) — resolve hit `/blog/a`→`{toPath:/blog/b}`; miss → null; unknown section → null; disabled locale → throws (→400); `buildRedirectOps` emits exactly the 3 ops in order with correct args; one-hop only (no transitive walk).
 
-- [ ] **T5 — Contact module: intake + anti-spam + inbox (FR-PUB-050/051/052, FR-DSH-060, D02-1/4)** *(needs T2)*
+- [x] **T5 — Contact module: intake + anti-spam + inbox (FR-PUB-050/051/052, FR-DSH-060, D02-1/4)** *(needs T2)*
   - `src/modules/contact/`: `contact.controller.ts` (`POST /contact`, `@Public()`, `@UseGuards(ContactThrottlerGuard)`), `messages.admin.controller.ts` (`/admin/messages`), `contact.service.ts`, `anti-spam.ts`, `dto/` (`create-contact-message.dto.ts` — `name`/`email`(`@IsEmail`)/`subject`/`body` length-capped, **plus** honeypot `website: @IsOptional() @IsString()` (no length cap) + time-trap `elapsedMs: @IsOptional() @IsNumber()` (no `@Min`), both **request-only, declared so `forbidNonWhitelisted` accepts them but permissive so a tripped trap isn't rejected with a distinguishable 422** — the service, not the pipe, drops them; `message-list.query.dto.ts` extends `PaginationQueryDto` + `isRead`/`isArchived` filters, `update-message.dto.ts` `{ isRead?, isArchived? }`), `entities/contact-message.entity.ts`, `contact.module.ts`, README.
   - Intake: validate → **anti-spam** (`website` non-empty **or** `elapsedMs < 3000`/absent ⇒ **drop-as-success**: 2xx receipt, persist nothing) → else persist `ContactMessage` with `meta = { userAgent, referrer }` (absent → `{}`). Inbox: `GET /admin/messages` (`messages.read`, unread-first `ORDER BY isRead ASC, createdAt DESC`, filters, `{data,meta}`), `GET /admin/messages/{id}` (`messages.read`), `PATCH /admin/messages/{id}` (`messages.update`). **No** create/reply route.
   - **Verify:** unit — valid → persisted + 2xx; invalid (missing field / bad email) → 422; honeypot filled → 2xx + **not persisted**; `elapsedMs < 3000` → 2xx + **not persisted**; `meta` captures UA/referrer, empty when headers absent; inbox unread-first + filters; PATCH toggles; every admin route declares `messages.*`; no `messages.create` key used.
 
-- [ ] **T6 — Preview module: mint + consume + `getPreviewById` (doc 10 §5/§6 D10-8/D10-11)** *(needs T3; **not `[P]` with T7** — shared service files)*
+- [x] **T6 — Preview module: mint + consume + `getPreviewById` (doc 10 §5/§6 D10-8/D10-11)** *(needs T3; **not `[P]` with T7** — shared service files)*
   - **Prereq edit (H#1):** add `exports: [ArticlesService]` to `articles.module.ts` and `exports: [ProjectsService]` to `projects.module.ts` — **neither exports today**, and `PreviewModule` injecting them any other way violates constitution rule 2.
   - `src/modules/preview/`: `preview.admin.controller.ts` (`POST /admin/articles/{id}/preview-token` `@RequirePermission('articles.update')`; `POST /admin/projects/{id}/preview-token` `@RequirePermission('projects.update')` → `{data:{token,url,expiresAt}}`, `@Header('Cache-Control','no-store')`, `url = /api/v1/preview/{type}/{id}?token=…`, existence check via exported `ArticlesService`/`ProjectsService`), `preview.controller.ts` (`GET /preview/articles/{id}?token=&locale=`, `GET /preview/projects/{id}?token=&locale=`, `@Public()`, `no-store` — **`locale` is a validated query param** (`LocaleQueryDto` pattern) needed by `getPreviewById` for the resolved single-locale shape), `dto/`/`entities/preview-token.entity.ts`, `preview.module.ts` (imports `ArticlesModule`, `ProjectsModule`; provides `PreviewTokenService`), README. Add `getPreviewById(id, locale)` to **`ArticlesService`** + **`ProjectsService`** (reuse status-agnostic `resolveDetail()`, bypass the public status filter, keyed by `id`).
   - Consume flow: `PreviewTokenService.verify(type, id, token)` false → **404**; true → `getPreviewById(id, locale)` (404 if truly absent) with `no-store`.
   - **Verify:** unit + controller — mint 200 `{token,url,expiresAt}` + `no-store` with `*.update`; 401 no token; 403 wrong permission; consume returns **draft** (unpublished) with `no-store` on valid token; **expired / tampered / absent / garbage** token → **404** (never 500); **cross-type** token (article token on projects route / vice-versa) → 404; token never appears in logs or in any admin GET/list response.
 
-- [ ] **T7 — Auto-on-rename integration in articles + projects (doc 04 D04-6)** *(needs T4; **not `[P]` with T6** — both edit `articles.service.ts` + `projects.service.ts`, so T6 and T7 are sequential)*
+- [x] **T7 — Auto-on-rename integration in articles + projects (doc 04 D04-6)** *(needs T4; **not `[P]` with T6** — both edit `articles.service.ts` + `projects.service.ts`, so T6 and T7 are sequential)*
   - `articles.module.ts` / `projects.module.ts` import `RedirectsModule`. In `ArticlesService.update()` (articles.service.ts:323) and `ProjectsService.update()` (projects.service.ts:191): for each incoming translation, when **the old slug was publicly live AND the new slug stays publicly live** (articles: `existing.status === ContentStatus.PUBLISHED && nextStatus === PUBLISHED`; projects: `existing.isPublished === true && nextIsPublished === true`, `nextIsPublished = dto.isPublished ?? existing.isPublished`) **and** `oldSlug !== newSlug`, push `RedirectService.buildRedirectOps({...})` (the 3 ops) into the existing `operations[]` **before** `$transaction` — atomic with the rename. **`ProjectsService.update()` must capture `const existing = await this.getAdminOrThrow(id)` (it currently discards it at projects.service.ts:192)** to read old slugs + `existing.isPublished`; articles already captures `existing`. Skip draft/scheduled/archived, unchanged, self, and draft→publish / publish→unpublish renames. No circular deps (articles/projects → redirects only).
   - **Verify:** unit (articles + projects service specs, Prisma mocked) — **published article** `a→b` → 1 redirect `(en,article,a,b)` in the same `$transaction` array; **published project rename with `dto.isPublished` OMITTED** (slug-only update) → **1 redirect** (guards against the `dto.isPublished===true` regression); **draft/unpublished** rename → none; **draft→published + rename in one update** → **none** (old slug never public); **published→unpublished + rename** → **none** (new slug not live); **unchanged** slug → none; `old===new` → none; **per-locale** — `en` change + `ar` unchanged → only the `en` row; **rename-back** `b→a` (given `a→b` exists) → deleteMany clears `a→*`, result is only `b→a` (no cycle); **slug-reuse** — entity Y taking now-live `a` clears stale `a→*`; **chain collapse** — after `a→b` then `b→c`, prior `a→b` row is repointed to `c` (updateMany); redirect write + slug update are **atomic** (one `$transaction`); existing article/project update behavior + tests remain green.
 
-- [ ] **T8 — Swagger + tags + contract export (doc 10 §1, doc 16 §3)** *(needs T4–T7)*
+- [x] **T8 — Swagger + tags + contract export (doc 10 §1, doc 16 §3)** *(needs T4–T7)*
   - Exhaustive `@nestjs/swagger` + `class-validator` decorators (realistic examples) on every new DTO/entity (resolve query + `{toPath}` response; contact create/list/update + `ContactMessage` entity; preview-token response). Add `redirects`/`contact`/`messages`/`preview` `@ApiTags` (+ `openapi.config.ts` tag list). Re-export `openapi.json`.
   - **Verify:** `npm run contract:export` green **DB-free** + **idempotent** (stable fixed point); `openapi.json` diff vs pre-feature tip is **purely additive** — 0 removed paths/schemas/props, no `/api/v1` break (D10-1); every new response models its envelope + status codes; no dangling `$ref`.
 
-- [ ] **T9 — E2e suites + route-permissions (doc 18 §2)** *(needs T8)*
+- [x] **T9 — E2e suites + route-permissions (doc 18 §2)** *(needs T8)*
   - `test/redirects.e2e-spec.ts`, `test/contact.e2e-spec.ts`, `test/preview.e2e-spec.ts` (supertest + `jest-openapi`, pattern from `test/articles.e2e-spec.ts`, against migrated+seeded `eslammuatamed_test`). Cover: contact 2xx/422/honeypot-drop/time-trap-drop/429+Retry-After; published-rename redirect created + resolve hit/miss/404 + locale-validate; inbox unread-first/filters/PATCH/401/403/no-create; mint 200+no-store/401/403; consume draft+no-store / expired+tampered+cross-type → 404 / draft still 404 on `/api/v1/articles/{slug}` public route; 30-min boundary. Ensure new admin routes appear in `route-permissions.spec`.
   - **Verify:** full e2e green; `jest-openapi` `toSatisfyApiSpec()` on every response; `route-permissions.spec` passes (401 without token, 403 on permission violation); `test:e2e` runs against `eslammuatamed_test` with `prisma migrate deploy` (no destructive reset).
 
-- [ ] **T10 — Integration verification (coordinator; verifier lane)** *(needs T9)*
+- [x] **T10 — Integration verification (coordinator; verifier lane)** *(needs T9)*
   - Full gate matrix with recorded output: `npm run lint`, `npx tsc --noEmit`, `npm test` (DB-free unit), `npm run contract:export` (DB-free + idempotent), `npx prisma migrate deploy` + `db:seed` on `eslammuatamed_test`, `npm run test:e2e`, `git diff --check`. Confirm contract purely additive; `.env` untouched/untracked; Web + Docs unchanged (beyond T1 docs branch); clean API tree.
   - **Verify:** all gates green with recorded results; re-run seed is a no-op; ready for PR `feature/004-redirects-contact-preview → dev`. Delegate the approval pass to `verifier`/`code-reviewer` (separate lane).
+
+## Completion — all tasks verified (2026-07-20, API `feature/004-redirects-contact-preview`)
+
+T1 doc-first → docs `5e7d5eb` (+ D10-11 url refinement `cc7db8b`); T2 `0380120`; T3 `506945e`;
+T4 `c1e52f1`; T5 `3dcc452`; T6 `51aebde`; T7 `73c2301`; T8 `d31e02e`; T9 e2e + HIGH upsert fix
+`882ceaf`; T10 verify (tsc + lint + **364 unit** DB-free + contract additive/idempotent + **e2e 16
+suites/82 tests** on `eslammuatamed_test` + `git diff --check`). Plus review-caught fixes: token-in-logs
+redaction `91f22c0`; owner url→absolute-Web-URL + `PUBLIC_WEB_URL` `9c67c17`; Arabic module docs `1656f4b`.
+Reviews: security = LOW/ship; code = REQUEST-CHANGES → all resolved. **Boxes checked only after the
+recorded gates confirmed each task done.**
+
+- [ ] **T11 — Final Documentation, Contract Sync & Handoff Gate [mandatory — DoD]**
+  - The standing Definition-of-Done gate (owner governance 2026-07-20): a feature is not complete and
+    must not be pushed/PR'd/merged/promoted/deployed until this passes. Reconcile, as applicable:
+    **Arabic module docs** (redirects/contact/preview — done `1656f4b`); **central Docs** (doc 04 v1.1.0
+    +D04-6, doc 10 v1.4.1 +D10-11 — docs `feature/004`); **OpenAPI** exported + additive + **Web
+    contract adoption** (D10-11 rendered-preview routes — Web `feature/004`); **SpecKit closeout** (this
+    file + spec/plan reconciled, incl. the url→absolute-Web correction); **feature-map** status;
+    **module index** (`src/modules/README.md`: redirects/contact/preview Planned→Shipped on this branch);
+    **READ-FIRST handoff** updated; no stale "planned/not-shipped" wording for shipped work; `git
+    diff --check` + contract checks pass; no secrets / `.env` in docs or git.
+  - **Verify:** Arabic docs match code; central Docs match the contract; feature-map + handoff updated;
+    Web rendered-preview implemented + gates green (or explicitly reported missing per owner option);
+    consolidated report produced. **Owner-gated: PRs opened only after this gate + owner review; no merge/promote/deploy.**
 
 ## Not in this feature
 

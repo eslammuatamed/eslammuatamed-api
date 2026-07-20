@@ -4,9 +4,11 @@
 
 ## الوحدات على هذا الأساس (`Shipped`)
 
-`health` · `locales` · `auth` · `users` · `access-control` · `settings` · `taxonomy` · `articles` · `projects` · `experiences` · `skills` · `testimonials`.
+`health` · `locales` · `auth` · `users` · `access-control` · `settings` · `taxonomy` · `articles` · `projects` · `experiences` · `skills` · `testimonials` · `redirects` · `contact` · `preview`.
 
-> **`Planned` (غير موجودة على `main`):** `media` (Feature 003)، `redirects`/`contact`/preview (Feature 004)، `seo`. الجداول موجودة في المخطّط، الوحدات لا. لا توجد ملفّات `README.md` لوحدات غير مبنيّة.
+> **`Planned` (غير موجودة على `main`):** `media` (Feature 003)، `seo`. الجداول موجودة في المخطّط، الوحدات لا. لا توجد ملفّات `README.md` لوحدات غير مبنيّة.
+>
+> ملاحظة: `redirects`/`contact`/`preview` انتقلت إلى `Shipped` مع Feature 004 (ولها ملفّات `README.md`). أمّا `media` (Feature 003) فمُسلَّمة فعليًّا على `main` لكن هذا الفهرس تأخّر عن تحديثها — يُصحَّح في فرع استرجاع توثيقي منفصل (audit Fix #1).
 
 ## الشكل الداخلي القانوني
 
