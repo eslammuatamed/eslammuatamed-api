@@ -11,6 +11,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocalesService } from '../locales/locales.service';
 import { MediaDescriptorResolver } from '../media/media-descriptor.resolver';
+import { RedirectService } from '../redirects/redirect.service';
 import {
   AdminArticleListQueryDto,
   ArticleListQueryDto,
@@ -62,6 +63,7 @@ export class ArticlesService {
     private readonly prisma: PrismaService,
     private readonly locales: LocalesService,
     private readonly mediaDescriptors: MediaDescriptorResolver,
+    private readonly redirects: RedirectService,
   ) {}
 
   // Public list (D10-6): PUBLISHED only, resolved to ?locale=, with category/tag/q filters
@@ -379,6 +381,30 @@ export class ArticlesService {
           update: translationWriteFields(translation),
         }),
       );
+
+      // D04-6: a locale-slug rename on a still-published article auto-creates its SlugRedirect in
+      // the SAME $transaction as the rename, so the old public URL keeps resolving (one op-set per
+      // changed locale). Gated on the old slug having been publicly live AND the new slug staying
+      // live — draft/scheduled/archived, publish-state flips (draft→publish, publish→unpublish),
+      // unchanged slugs, and new locales (no prior slug) are all skipped.
+      const oldSlug = existing.translations.find(
+        (t) => t.locale === translation.locale,
+      )?.slug;
+      if (
+        oldSlug !== undefined &&
+        oldSlug !== translation.slug &&
+        existing.status === ContentStatus.PUBLISHED &&
+        nextStatus === ContentStatus.PUBLISHED
+      ) {
+        operations.push(
+          ...this.redirects.buildRedirectOps({
+            locale: translation.locale,
+            entityType: 'article',
+            oldSlug,
+            newSlug: translation.slug,
+          }),
+        );
+      }
     }
 
     // A provided tagIds replaces the set wholesale (clear then re-link).

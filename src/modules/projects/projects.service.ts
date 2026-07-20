@@ -11,6 +11,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocalesService } from '../locales/locales.service';
 import { MediaDescriptorResolver } from '../media/media-descriptor.resolver';
+import { RedirectService } from '../redirects/redirect.service';
 import {
   AdminProjectListQueryDto,
   ProjectListQueryDto,
@@ -81,6 +82,7 @@ export class ProjectsService {
     private readonly prisma: PrismaService,
     private readonly locales: LocalesService,
     private readonly mediaDescriptors: MediaDescriptorResolver,
+    private readonly redirects: RedirectService,
   ) {}
 
   async listPublic(
@@ -209,8 +211,11 @@ export class ProjectsService {
   }
 
   async update(id: string, dto: UpdateProjectDto): Promise<AdminProjectEntity> {
-    await this.getAdminOrThrow(id);
+    // Capture `existing` (previously discarded) to read the old per-locale slugs and the current
+    // publish state — both needed for the D04-6 auto-redirect predicate below.
+    const existing = await this.getAdminOrThrow(id);
     await this.assertLocales(dto.translations ?? [], dto.gallery ?? []);
+    const nextIsPublished = dto.isPublished ?? existing.isPublished;
     const operations: Prisma.PrismaPromise<unknown>[] = [];
     const base: Prisma.ProjectUpdateInput = {
       featured: dto.featured,
@@ -236,6 +241,30 @@ export class ProjectsService {
           update: translationWriteFields(translation),
         }),
       );
+
+      // D04-6: a locale-slug rename on a still-published project auto-creates its SlugRedirect in
+      // the SAME $transaction as the rename, so the old public URL keeps resolving (one op-set per
+      // changed locale). Gated on the project having been published AND staying published
+      // (nextIsPublished = dto.isPublished ?? existing.isPublished) — draft/unpublished entities,
+      // publish-state flips, unchanged slugs, and new locales (no prior slug) are all skipped.
+      const oldSlug = existing.translations.find(
+        (t) => t.locale === translation.locale,
+      )?.slug;
+      if (
+        oldSlug !== undefined &&
+        oldSlug !== translation.slug &&
+        existing.isPublished === true &&
+        nextIsPublished === true
+      ) {
+        operations.push(
+          ...this.redirects.buildRedirectOps({
+            locale: translation.locale,
+            entityType: 'project',
+            oldSlug,
+            newSlug: translation.slug,
+          }),
+        );
+      }
     }
 
     if (dto.technologyIds !== undefined) {
