@@ -60,7 +60,21 @@ jobs:
           # The merge commit must still be the current main tip; otherwise a newer commit
           # already owns main and will be deployed by its own event (deploy.yml also
           # re-checks). This prevents deploying a stale/superseded SHA.
-          MAIN_SHA="$(gh api "repos/$REPO/commits/heads/main" --jq '.sha')"
+          # Resolved from the GIT backend with retries, not the REST API (which lags/503s
+          # during GitHub incidents — observed 2026-07-20).
+          AUTH="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          MAIN_SHA=""
+          for attempt in 1 2 3 4 5; do
+            if MAIN_SHA="$(git -c http.extraHeader="$AUTH" ls-remote "https://github.com/${REPO}.git" refs/heads/main 2>/dev/null | cut -f1)" && [ -n "$MAIN_SHA" ]; then
+              break
+            fi
+            echo "main-tip lookup attempt $attempt failed; retrying in $((attempt * 5))s..."
+            sleep "$((attempt * 5))"
+          done
+          if [ -z "$MAIN_SHA" ]; then
+            echo "::error::could not resolve the current main tip from the git backend."
+            exit 1
+          fi
           if [ "$MERGE_SHA" != "$MAIN_SHA" ]; then
             echo "merge_commit_sha ($MERGE_SHA) is no longer current main ($MAIN_SHA) — superseded; skipping dispatch."
             exit 0
