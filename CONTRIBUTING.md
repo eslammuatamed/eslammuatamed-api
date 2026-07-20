@@ -30,6 +30,9 @@ hotfix/<slug>   (branch from main)
 - **Never reset or force-push the shared `dev` branch**, and never recreate it.
 - **A zero-file content diff is not sufficient** — `dev` and `main` must also share ancestry (`git merge-base --is-ancestor origin/main origin/dev` is true after a sync). This synchronization rule applies **independently per repository**; coordinated API/Web releases still go **API first, then Web**.
 
+## Documentation & Handoff Gate (required before delivery)
+Every feature's **final task** is the mandatory **Documentation & Handoff Gate** — canonical rule **doc 16 §5.1 / D16-8** ([`16-development-conventions.md`](../eslammuatamed-docs/docs/16-development-conventions.md)). Until it passes, the feature must **not** be pushed, PR'd, merged to `dev`, promoted to `main`, or deployed — "not requested" is never a reason to skip it. The Arabic module docs and SpecKit closeout are always required; other doc changes may be justified. The full rule lives in doc 16 and is **not restated here**.
+
 ## Promotion cases — when `dev` → `main` is allowed
 Code may be promoted from `dev` to `main` in **exactly two cases**:
 
