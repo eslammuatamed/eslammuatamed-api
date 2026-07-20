@@ -66,6 +66,23 @@ export class AllExceptionsFilter implements ExceptionFilter {
       return this.fromHttpException(exception, instance);
     }
 
+    // Errors thrown by Express middleware before the Nest pipeline are http-errors, not Nest
+    // HttpExceptions — e.g. body-parser rejects an over-limit body (413, doc 19 §5) or malformed
+    // JSON (400). Honor their client 4xx status as RFC 7807 with a GENERIC detail, rather than
+    // mislabeling a client mistake as a 500 (which would also be logged as an unhandled server
+    // error). 5xx-class errors fall through to the sanitized 500 below (no internals — doc 19).
+    const clientStatus = clientHttpErrorStatus(exception);
+    if (clientStatus !== null) {
+      const { type, title } = problemMetaForStatus(clientStatus);
+      return {
+        type,
+        title,
+        status: clientStatus,
+        detail: genericClientErrorDetail(clientStatus),
+        instance,
+      };
+    }
+
     return {
       type: PROBLEM_TYPES.internal,
       title: 'Internal Server Error',
@@ -180,6 +197,11 @@ function problemMetaForStatus(status: HttpStatus): {
       return { type: PROBLEM_TYPES.conflict, title: 'Conflict' };
     case HttpStatus.UNPROCESSABLE_ENTITY:
       return { type: PROBLEM_TYPES.validation, title: 'Unprocessable Entity' };
+    case HttpStatus.PAYLOAD_TOO_LARGE:
+      return {
+        type: PROBLEM_TYPES.payloadTooLarge,
+        title: 'Payload Too Large',
+      };
     case HttpStatus.TOO_MANY_REQUESTS:
       return {
         type: PROBLEM_TYPES.tooManyRequests,
@@ -224,4 +246,43 @@ function uniqueTargetToFieldErrors(target: unknown): FieldError[] {
     return [{ field: target, message }];
   }
   return [{ field: 'unknown', message }];
+}
+
+// http-errors (thrown by Express body-parser and similar middleware) expose a numeric `status` /
+// `statusCode` and an `expose` flag. Recognize an exposable client-4xx so the filter can surface it
+// with its real status (413 over-limit body, 400 malformed JSON) instead of a 500. Only 4xx is
+// honored; 5xx stays sanitized. Requiring `expose === true` avoids mistaking a stray object that
+// merely carries a numeric `status` for a genuine http-error.
+function clientHttpErrorStatus(exception: unknown): HttpStatus | null {
+  if (typeof exception !== 'object' || exception === null) {
+    return null;
+  }
+  const candidate = exception as {
+    status?: unknown;
+    statusCode?: unknown;
+    expose?: unknown;
+  };
+  const code =
+    typeof candidate.status === 'number'
+      ? candidate.status
+      : typeof candidate.statusCode === 'number'
+        ? candidate.statusCode
+        : null;
+  if (code === null || code < 400 || code >= 500 || candidate.expose !== true) {
+    return null;
+  }
+  return code;
+}
+
+// A generic, internals-free detail per client status — the http-error's own message is deliberately
+// not echoed (a body-parser JSON error can contain fragments of the request body).
+function genericClientErrorDetail(status: HttpStatus): string {
+  switch (status) {
+    case HttpStatus.PAYLOAD_TOO_LARGE:
+      return 'The request payload is too large.';
+    case HttpStatus.BAD_REQUEST:
+      return 'The request could not be parsed.';
+    default:
+      return 'The request could not be processed.';
+  }
 }

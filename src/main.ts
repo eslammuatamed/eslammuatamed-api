@@ -3,6 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
+import { json, urlencoded } from 'express';
 import helmet from 'helmet';
 import { Logger, LoggerErrorInterceptor } from 'nestjs-pino';
 import { AppModule } from './app.module';
@@ -16,6 +17,9 @@ import { buildOpenApiConfig } from './contract/openapi.config';
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bufferLogs: true,
+    // Register the body parsers explicitly below so the doc 19 §5 limit is enforced (the framework
+    // default caps JSON at ~100 kB, which would 413 a valid large article — 256 KiB markdown fields).
+    bodyParser: false,
   });
   const config = app.get(AppConfigService);
 
@@ -31,6 +35,13 @@ async function bootstrap(): Promise<void> {
 
   app.use(helmet());
   app.use(cookieParser());
+
+  // Body parsers with the doc 19 §5 limit: 1 MiB JSON (holds the 256 KiB markdown fields; the
+  // framework default of ~100 kB would 413 a large-but-valid article). Registered explicitly because
+  // `bodyParser: false` above disabled the defaults. Multipart uploads use multer (ParseFilePipe,
+  // media 10 MiB, D19-9) — a separate parser that is unaffected by these limits.
+  app.use(json({ limit: '1mb' }));
+  app.use(urlencoded({ extended: true, limit: '1mb' }));
 
   // /api/v1 (D10-1): global prefix + URI versioning.
   app.setGlobalPrefix('api');

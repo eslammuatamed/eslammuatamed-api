@@ -12,6 +12,7 @@ export const PROBLEM_TYPES = {
   notFound: '/problems/not-found',
   conflict: '/problems/conflict',
   validation: '/problems/validation',
+  payloadTooLarge: '/problems/payload-too-large',
   tooManyRequests: '/problems/too-many-requests',
   serviceUnavailable: '/problems/service-unavailable',
   internal: '/problems/internal',
