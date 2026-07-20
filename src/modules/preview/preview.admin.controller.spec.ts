@@ -11,9 +11,11 @@ import { PreviewTokenService } from './preview-token.service';
 
 const ARTICLE_ID = '11111111-1111-4111-8111-111111111111';
 const PROJECT_ID = '22222222-2222-4222-8222-222222222222';
+const WEB_URL = 'https://eslammuatamed.com';
 
 const config = {
   auth: { previewTokenSecret: 'test-preview-secret-value' },
+  publicWebUrl: WEB_URL,
 } as AppConfigService;
 
 describe('PreviewAdminController — mint (D10-11)', () => {
@@ -29,7 +31,12 @@ describe('PreviewAdminController — mint (D10-11)', () => {
     // Existence checks resolve (entity present) by default; the not-found cases override.
     articles.getAdmin.mockResolvedValue({ id: ARTICLE_ID } as never);
     projects.getAdmin.mockResolvedValue({ id: PROJECT_ID } as never);
-    controller = new PreviewAdminController(previewTokens, articles, projects);
+    controller = new PreviewAdminController(
+      previewTokens,
+      articles,
+      projects,
+      config,
+    );
   });
 
   describe('permission metadata (one permission per guarded function)', () => {
@@ -59,14 +66,15 @@ describe('PreviewAdminController — mint (D10-11)', () => {
     });
   });
 
-  describe('response shape + url (plural route segment, singular entityType)', () => {
-    it('returns exactly {token,url,expiresAt}; url points at the public articles consume route', async () => {
+  describe('response shape + url (absolute web link, plural segment, singular entityType)', () => {
+    it('returns exactly {token,url,expiresAt}; url is the absolute rendered-Web articles link', async () => {
       const result = await controller.mintArticleToken(ARTICLE_ID);
 
       expect(Object.keys(result).sort()).toEqual(['expiresAt', 'token', 'url']);
       expect(result.token).toMatch(/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
+      // D10-11 v1.4.1: the mint url is the absolute Web origin + plural segment + id + the token.
       expect(result.url).toBe(
-        `/api/v1/preview/articles/${ARTICLE_ID}?token=${result.token}`,
+        `${WEB_URL}/preview/articles/${ARTICLE_ID}?token=${result.token}`,
       );
       expect(result.expiresAt).toBeInstanceOf(Date);
       // The minted token verifies for the SINGULAR entityType the route binds — proving mint and
@@ -80,7 +88,7 @@ describe('PreviewAdminController — mint (D10-11)', () => {
       const result = await controller.mintProjectToken(PROJECT_ID);
 
       expect(result.url).toBe(
-        `/api/v1/preview/projects/${PROJECT_ID}?token=${result.token}`,
+        `${WEB_URL}/preview/projects/${PROJECT_ID}?token=${result.token}`,
       );
       expect(previewTokens.verify('project', PROJECT_ID, result.token)).toBe(
         true,

@@ -19,6 +19,11 @@ interface MintedToken {
   readonly expiresAt: string;
 }
 
+// The mint `url` is now the ABSOLUTE rendered-Web link (D10-11 v1.4.1), so it is NOT fetchable via this
+// API test server. Consume tests below therefore hit the API route directly, built from the token. This
+// origin matches the PUBLIC_WEB_URL the e2e run sets (see the suite's run command).
+const WEB_URL = process.env.PUBLIC_WEB_URL ?? 'http://localhost:3000';
+
 describe('Preview (e2e)', () => {
   let app: INestApplication;
   let ownerToken: string;
@@ -26,7 +31,6 @@ describe('Preview (e2e)', () => {
   let articleId: string;
   let draftSlug: string;
   let validToken: string;
-  let consumeUrl: string;
   const unique = Date.now();
 
   const auth = (): Record<string, string> => ({
@@ -75,8 +79,11 @@ describe('Preview (e2e)', () => {
     const minted = await mintArticleToken().expect(200);
     const body = envelopeData<MintedToken>(minted);
     validToken = body.token;
-    consumeUrl = body.url;
   });
+
+  // The API consume route the Web preview page calls (built from the token, NOT from the web `url`).
+  const apiConsumePath = (): string =>
+    `/api/v1/preview/articles/${articleId}?token=${validToken}&locale=en`;
 
   afterAll(async () => {
     await app.close();
@@ -87,9 +94,15 @@ describe('Preview (e2e)', () => {
     expect(res).toSatisfyApiSpec();
     const body = envelopeData<MintedToken>(res);
     expect(body.token).toEqual(expect.any(String));
+    // D10-11 v1.4.1: `url` is the absolute rendered-Web link the dashboard shares verbatim.
     expect(body.url).toBe(
-      `/api/v1/preview/articles/${articleId}?token=${body.token}`,
+      `${WEB_URL}/preview/articles/${articleId}?token=${body.token}`,
     );
+    // Contract shape: an absolute URI on the configured web origin carrying the right type + id.
+    const parsedUrl = new URL(body.url);
+    expect(parsedUrl.origin).toBe(WEB_URL);
+    expect(parsedUrl.pathname).toBe(`/preview/articles/${articleId}`);
+    expect(parsedUrl.searchParams.get('token')).toBe(body.token);
     expect(new Date(body.expiresAt).getTime()).toBeGreaterThan(Date.now());
     // A credential must never land in a shared cache.
     expect(res.headers['cache-control']).toBe('no-store');
@@ -104,7 +117,7 @@ describe('Preview (e2e)', () => {
 
   it('returns the draft entity with no-store for a valid token', async () => {
     const res = await request(httpServer(app))
-      .get(`${consumeUrl}&locale=en`)
+      .get(apiConsumePath())
       .expect(200);
     expect(res).toSatisfyApiSpec();
     const detail = envelopeData<{ id: string; slug: string }>(res);

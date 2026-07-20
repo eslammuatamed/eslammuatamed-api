@@ -5,6 +5,7 @@ const validEnv = (): Record<string, string> => ({
   PORT: '3001',
   DATABASE_URL: 'postgresql://user:pass@localhost:5432/db',
   CORS_ORIGIN: 'http://localhost:3000',
+  PUBLIC_WEB_URL: 'http://localhost:3000',
   JWT_ACCESS_SECRET: 'a'.repeat(32),
   JWT_ACCESS_TTL: '15m',
   REFRESH_TOKEN_TTL_DAYS: '7',
@@ -162,6 +163,44 @@ describe('validate (environment schema)', () => {
     const env = validS3Env();
     env.NODE_ENV = 'development';
 
+    expect(() => validate(env)).not.toThrow();
+  });
+
+  it('defaults PUBLIC_WEB_URL to http://localhost:3000 outside production when unset (D10-11 v1.4.1)', () => {
+    const env = validEnv();
+    delete env.PUBLIC_WEB_URL;
+
+    expect(validate(env).PUBLIC_WEB_URL).toBe('http://localhost:3000');
+  });
+
+  it('accepts an explicit absolute PUBLIC_WEB_URL', () => {
+    const env = validEnv();
+    env.PUBLIC_WEB_URL = 'https://eslammuatamed.com';
+
+    expect(validate(env).PUBLIC_WEB_URL).toBe('https://eslammuatamed.com');
+  });
+
+  it('strips a trailing slash from PUBLIC_WEB_URL', () => {
+    const env = validEnv();
+    env.PUBLIC_WEB_URL = 'https://eslammuatamed.com/';
+
+    expect(validate(env).PUBLIC_WEB_URL).toBe('https://eslammuatamed.com');
+  });
+
+  it('rejects a non-URL PUBLIC_WEB_URL', () => {
+    const env = validEnv();
+    env.PUBLIC_WEB_URL = 'not-a-url';
+
+    expect(() => validate(env)).toThrow(/PUBLIC_WEB_URL/);
+  });
+
+  it('requires PUBLIC_WEB_URL in production (no default → boot fails)', () => {
+    const env = validS3Env();
+    env.NODE_ENV = 'production';
+    delete env.PUBLIC_WEB_URL;
+    expect(() => validate(env)).toThrow(/PUBLIC_WEB_URL/);
+
+    env.PUBLIC_WEB_URL = 'https://eslammuatamed.com';
     expect(() => validate(env)).not.toThrow();
   });
 });

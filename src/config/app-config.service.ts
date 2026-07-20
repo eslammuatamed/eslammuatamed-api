@@ -36,6 +36,12 @@ export class AppConfigService {
     return this.config.get('CORS_ORIGIN', { infer: true });
   }
 
+  // Absolute origin of the rendered Web app the signed preview link points at (D10-11 v1.4.1). Always
+  // present post-validation: defaulted outside production, required in production (see env.validation).
+  get publicWebUrl(): string {
+    return this.config.get('PUBLIC_WEB_URL', { infer: true });
+  }
+
   get database(): { readonly url: string } {
     return { url: this.config.get('DATABASE_URL', { infer: true }) };
   }

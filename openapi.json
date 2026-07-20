@@ -5795,7 +5795,7 @@
         ],
         "responses": {
           "200": {
-            "description": "The minted token, its API-relative consume url, and its expiry.",
+            "description": "The minted token, its absolute rendered-Web preview url, and its expiry.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5880,7 +5880,7 @@
         ],
         "responses": {
           "200": {
-            "description": "The minted token, its API-relative consume url, and its expiry.",
+            "description": "The minted token, its absolute rendered-Web preview url, and its expiry.",
             "content": {
               "application/json": {
                 "schema": {
@@ -9713,12 +9713,12 @@
           "token": {
             "type": "string",
             "example": "MTc1MzAxMjgwMDAwMA.q3n8p0Zx5t2Yc1Rk9f7wLmA6bd4eHsG2uVjOiN0pXyE",
-            "description": "Stateless HMAC preview token. Present it as ?token= on the returned url. Never logged."
+            "description": "Stateless HMAC preview token. Also embedded as ?token= in the returned url. Never logged."
           },
           "url": {
             "type": "string",
-            "example": "/api/v1/preview/articles/2f1c8d9e-4a3b-4c5d-8e6f-7a8b9c0d1e2f?token=MTc1MzAxMjgwMDAwMA.q3n8p0Zx5t2Yc1Rk9f7wLmA6bd4eHsG2uVjOiN0pXyE",
-            "description": "API-relative consume path (/api/v1/preview/{articles|projects}/{id}?token=…) the dashboard fetches to load the draft. Not itself the rendered, shareable preview page (a web concern)."
+            "example": "https://eslammuatamed.com/preview/articles/2f1c8d9e-4a3b-4c5d-8e6f-7a8b9c0d1e2f?token=MTc1MzAxMjgwMDAwMA.q3n8p0Zx5t2Yc1Rk9f7wLmA6bd4eHsG2uVjOiN0pXyE",
+            "description": "Absolute rendered-Web preview link (${PUBLIC_WEB_URL}/preview/{articles|projects}/{id}?token=…) the dashboard shares verbatim as a clean-browser link. The Web page renders the draft by calling the consuming GET /api/v1/preview/… API route (D10-11 v1.4.1: the API signs, the Web renders)."
           },
           "expiresAt": {
             "format": "date-time",

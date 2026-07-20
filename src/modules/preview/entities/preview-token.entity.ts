@@ -1,24 +1,25 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-// Mint response for a preview token (D10-11, D19-7). `token` is the stateless HMAC credential;
-// `url` is the API-relative consume path the dashboard fetches to render the draft — NOT a
-// human-shareable web-page URL, because the API describes only its own routes (constitution rule 1,
-// no web origin hard-coded). `expiresAt` bounds the leak window (mint time + 30 min). The envelope
-// interceptor wraps this as { data: { token, url, expiresAt } }.
+// Mint response for a preview token (D10-11 v1.4.1, D19-7). `token` is the stateless HMAC credential;
+// `url` is the ABSOLUTE rendered-Web preview link (${PUBLIC_WEB_URL}/preview/{articles|projects}/{id}
+// ?token=…) the dashboard shares verbatim — the API signs, the Web renders the page (which then calls
+// the consuming GET /api/v1/preview/… API route to load the draft). `expiresAt` bounds the leak window
+// (mint time + 30 min). The envelope interceptor wraps this as { data: { token, url, expiresAt } }.
 export class PreviewTokenEntity {
   @ApiProperty({
     example: 'MTc1MzAxMjgwMDAwMA.q3n8p0Zx5t2Yc1Rk9f7wLmA6bd4eHsG2uVjOiN0pXyE',
     description:
-      'Stateless HMAC preview token. Present it as ?token= on the returned url. Never logged.',
+      'Stateless HMAC preview token. Also embedded as ?token= in the returned url. Never logged.',
   })
   readonly token!: string;
 
   @ApiProperty({
     example:
-      '/api/v1/preview/articles/2f1c8d9e-4a3b-4c5d-8e6f-7a8b9c0d1e2f?token=MTc1MzAxMjgwMDAwMA.q3n8p0Zx5t2Yc1Rk9f7wLmA6bd4eHsG2uVjOiN0pXyE',
+      'https://eslammuatamed.com/preview/articles/2f1c8d9e-4a3b-4c5d-8e6f-7a8b9c0d1e2f?token=MTc1MzAxMjgwMDAwMA.q3n8p0Zx5t2Yc1Rk9f7wLmA6bd4eHsG2uVjOiN0pXyE',
     description:
-      'API-relative consume path (/api/v1/preview/{articles|projects}/{id}?token=…) the dashboard ' +
-      'fetches to load the draft. Not itself the rendered, shareable preview page (a web concern).',
+      'Absolute rendered-Web preview link (${PUBLIC_WEB_URL}/preview/{articles|projects}/{id}?token=…) ' +
+      'the dashboard shares verbatim as a clean-browser link. The Web page renders the draft by calling ' +
+      'the consuming GET /api/v1/preview/… API route (D10-11 v1.4.1: the API signs, the Web renders).',
   })
   readonly url!: string;
 
