@@ -14,7 +14,8 @@
 |---|---|
 | `contact.controller.ts` | `POST /api/v1/contact` عامّ (`@Public`) + `@UseGuards(ContactThrottlerGuard)` |
 | `messages.admin.controller.ts` | `GET /api/v1/admin/messages` · `GET :id` (`messages.read`) · `PATCH :id` (`messages.update`) |
-| `contact.service.ts` | مكافحة السبام + `meta` + الترقيم (unread-first) + الفرز |
+| `contact.service.ts` | مكافحة السبام + `meta` + الترقيم (unread-first) + الفرز + ضبط `archivedAt` عند الأرشفة + `purgeArchivedOlderThan` |
+| `contact-purge.scheduler.ts` | مهمّة `@Cron` يوميّة داخل العمليّة (`D07-3`): حذف نهائيّ للرسائل المؤرشفة منذ أكثر من ١٢ شهرًا (`D19-10`) |
 | `anti-spam.ts` | مُساعد نقيّ `isSpam(...)` — مصيدة العسل + فخّ الزمن |
 | `dto/*` · `entities/*` | مدخلات الطلب + أشكال الردّ (Swagger) |
 
@@ -23,6 +24,29 @@
 - **يعتمد على:** `PrismaService` فقط (لا `LocalesService` — الرسائل مستقلّة عن اللغة).
 - **`ContactThrottlerGuard`** مُسجَّل كـ provider ليُشغَّل `onModuleInit` (بناء نافذتَي المعدّل) ويُحلّ من
   DI عند `@UseGuards` — نفس أسلوب `UploadUserIpThrottlerGuard` في `MediaModule` (`T2`).
+- **`ContactPurgeScheduler`** مُسجَّل كـ provider ليكتشف `ScheduleModule` (المُسجَّل في `AppModule`) مُعالِج
+  `@Cron` الخاصّ به — نفس أسلوب `ArticlesScheduler` في `ArticlesModule` (`D07-3`).
+
+## الاحتفاظ والتطهير (F005 — `D09-14` / `D19-10`)
+
+يُنفِّذ وعد doc 19 §6: «الرسائل تُطهَّر بعد ١٢ شهرًا من الأرشفة».
+
+- **`archivedAt` (عمود `DateTime?` قابل للتصفير، `D09-14`):** أساس الاحتفاظ. تضبطه `ContactService.update`
+  على اللحظة الحاليّة عند الأرشفة (`isArchived` من `false` إلى `true`)، وتُصفّره إلى `null` عند إلغاء
+  الأرشفة (`true` إلى `false`)، ولا تمسّه إذا لم يتغيّر `isArchived`. **مُدار من الخادم**؛ لا يُقبل من الـ DTO.
+- **لماذا عمود مخصَّص لا `updatedAt`؟** `@updatedAt` تعني «آخر تعديل» (تبديل `isRead` أو إعادة الأرشفة يحرّكها)،
+  فتُعيد تعريف نافذة الاحتفاظ ضمنًا وقد تحذف بيانات الزائر مبكّرًا أو متأخّرًا (`AD-1`). العمود المخصَّص هو
+  الأساس الدقيق القابل للتدقيق، إضافيّ (بلا backfill، بلا فهرس جديد — جدول صغير ومهمّة يوميّة، مبدأ ١٥).
+- **`purgeArchivedOlderThan(cutoff)`:** حذف نهائيّ (`deleteMany`) حيث
+  `isArchived = true AND archivedAt != null AND archivedAt < cutoff`؛ يُرجِع العدد فقط. الصفوف غير المؤرشفة
+  (`archivedAt = null`) والمؤرشفة حديثًا محفوظة دائمًا.
+- **`ContactPurgeScheduler`:** `@Cron(EVERY_DAY_AT_MIDNIGHT)` داخل العمليّة، نسخة واحدة (`D07-3`). يحسب
+  `cutoff = now − 12 شهرًا` (حدّ صارم `<`: المؤرشف قبل ١٢ شهرًا بالضبط يبقى)، ويُسجّل **العدد فقط** — لا
+  محتوى رسالة أبدًا (`name/email/subject/body` بيانات شخصيّة، `D07-5`). `@nestjs/schedule` يلفّ المُعالِج
+  بـ try/catch، فخطأ قاعدة بيانات عابر يُسجَّل ويُعاد في الدورة التالية دون إسقاط العمليّة.
+- **الهجرة إضافيّة فقط** (`ADD COLUMN archived_at`)، مكتوبة يدويًّا (لا `prisma migrate dev` — لأنّه سيحاول
+  إسقاط عمود الـ FTS المُولَّد `search_vector`، `D09-6`). طُبِّقت على قاعدة الاختبار؛ **هجرة الإنتاج مؤجَّلة
+  تحت تجميد الإصدار** (`D17-5`/`D23-18`).
 
 ## ما يميّز هذه الوحدة عن النموذج
 
@@ -53,13 +77,16 @@
 ## القيود المقبولة والمؤجَّل
 
 - **لا إنشاء ولا ردّ إداريّ** (`D02-4`): الرسالة تُنشأ حصرًا عبر الاستقبال العام؛ مفتاح `messages.create` محجوز غير مُستخدَم، والصندوق قراءة + فرز فقط.
-- **تطهير الرسائل بعد ١٢ شهرًا مؤجَّل إلى F005** — لا حذف دوريّ في F004.
+- **تطهير الرسائل بعد ١٢ شهرًا مُنفَّذ في F005** (قسم «الاحتفاظ والتطهير» أعلاه، `D19-10`) — استبدل تأجيل F004.
 
 ## الاختبارات
 
-`contact.service.spec.ts` (Prisma مُموَّه) · `anti-spam.spec.ts` (حدود المصيدتَين) ·
+`contact.service.spec.ts` (Prisma مُموَّه — يشمل مصفوفة انتقال `archivedAt` وحدود `purgeArchivedOlderThan`) ·
+`contact-purge.scheduler.spec.ts` (حدّ `retentionCutoff` ١٣/١٢/١١ شهرًا + تفويض المجدول + تسجيل العدد فقط بلا PII) ·
+`anti-spam.spec.ts` (حدود المصيدتَين) ·
 `create-contact-message.dto.spec.ts` (تفاعل البوابة: الفخّ لا يُنتج 422، والحقل المجهول يُرفَض) ·
-`contact.controller.spec.ts` (تطابق الإيصال محفوظ/مُسقَط + ميتاداتا الصلاحيات) · `test/contact.e2e-spec.ts` (`T9`).
+`contact.controller.spec.ts` (تطابق الإيصال محفوظ/مُسقَط + ميتاداتا الصلاحيات) ·
+`test/contact.e2e-spec.ts` · `test/contact-retention.e2e-spec.ts` (انتقال `archivedAt` عبر HTTP + التطهير على Postgres).
 
 ## المرجع الرسمي وحالة التوافق
 

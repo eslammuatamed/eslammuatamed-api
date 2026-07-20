@@ -7,7 +7,7 @@
 
 ## Summary
 
-Two behaviours over existing infra plus a durable audit: (1) **retention** — a nullable `ContactMessage.archivedAt` (set/cleared on the archive transition) + an in-process daily `@Cron` purge that hard-deletes messages archived > 12 months ago (doc 19 §6); (2) **NFR-006 latency smoke** — a coarse p95 + deterministic bounded-query-count e2e check wired into the `ci.yml` Postgres lane (doc 20 §5/§7); (3) **audit pass** — regression assertions that lock the already-shipped doc 19 controls (throttle tiers, RFC 7807, redaction, trust-proxy IP, health). The only contract change is the additive `archivedAt` field → minor `openapi.json` bump (D10-1). Backup workflow is deferred (D23-5 superseded by D23-12; freeze-blocked, D23-18).
+Two behaviours over existing infra plus a durable audit: (1) **retention** — a nullable `ContactMessage.archivedAt` (set/cleared on the archive transition) + an in-process daily `@Cron` purge that hard-deletes messages archived > 12 months ago (doc 19 §6); (2) **NFR-006 latency smoke** — a coarse warmup-discarded p95 e2e check (generous env-budget tripwire; the deterministic query-count is deferred — D20-7) running in the existing `ci.yml` Postgres lane (doc 20 §5/§7); (3) **audit pass** — regression assertions that lock the already-shipped doc 19 controls (throttle tiers, RFC 7807, redaction, trust-proxy IP, health) plus the one evidenced fix, the doc 19 §5 body limit (AD-7). The only contract change is the additive `archivedAt` field → minor `openapi.json` bump (D10-1). Backup workflow is deferred (D23-5 superseded by D23-12; freeze-blocked, D23-18).
 
 ## Technical Context
 
@@ -47,8 +47,9 @@ Two behaviours over existing infra plus a durable audit: (1) **retention** — a
 
 - **Placement:** a dedicated e2e spec `test/latency.e2e-spec.ts` (or a `test:e2e:latency` script) that boots its own Nest app (fresh in-memory throttle bucket) against the migrated + seeded `eslammuatamed_test`. Runs in `ci.yml`'s existing `e2e` job as an added step (Postgres + seed already present).
 - **Measurement (coarse p95):** for each sampled public read endpoint (`GET /api/v1/health` liveness, `GET /api/v1/articles`, `GET /api/v1/projects`, plus one detail read) — a **warmup pass** (a few requests, discarded, absorbs cold-start/JIT), then **N steady-state samples** (bounded so total requests stay < the public 120/min tier per app instance — e.g. warmup 5 + 30 measured per endpoint). Compute p95 = the 95th-percentile latency across steady-state samples; assert `p95 < LATENCY_SMOKE_P95_MS`. **Budget:** env-overridable `LATENCY_SMOKE_P95_MS`, **generous default (e.g. 400–500 ms)** — a regression tripwire, explicitly **not** the literal 200 ms prod SLO on shared CI hardware (doc 20 §5 "coarse guard, not a load test"; rationale recorded in D20-7). Every sampled response asserted 2xx.
-- **Deterministic anti-N+1 (doc 20 §7):** attach a Prisma **query counter** (subscribe to the `query` event on a dedicated PrismaClient/logging, or wrap `PrismaService` for the test) and assert that a single request to a representative public **list** endpoint (articles list) issues **≤ a fixed ceiling** of DB queries — a loop-of-queries regression fails deterministically regardless of CI jitter. This is the reliable NFR-006 regression signal; the wall-clock p95 is the coarse tripwire.
-- **Throttle interaction:** the smoke's bounded sample volume in its own app instance stays under the public tier — **no throttle-config change** (AD-3). If a larger sample is ever wanted, `LATENCY_SMOKE_P95_MS` and sample counts are env-tunable without touching production throttle config.
+- **Deterministic anti-N+1 (doc 20 §7) — deferred (D20-7).** The advisor-recommended per-request query-count gate was **not** shipped: the app's `PrismaService` is constructed without query-event logging, so counting the app's queries would require either a production change (adding `log:['query']`) or a heavy test-only override, and the current seed has **no multi-row relational public read** to make an N+1 count meaningful (locales are 2 rows without relations; articles/projects lists are empty). N+1 remains prevented **structurally** and caught **at review** (doc 20 §7); the coarse p95 additionally trips on a gross blow-up. Recorded as a future enhancement once seeded relational fixtures exist.
+- **Throttle interaction:** the smoke's bounded sample volume (warmup 3 + 12 samples × 4 paths = 72 requests) in its own app instance stays under the public tier (120/min) — **no throttle-config change** (AD-3). If a larger sample is ever wanted, `LATENCY_SMOKE_P95_MS` and sample counts are env-tunable without touching production throttle config.
+- **CI wiring:** `test/latency.e2e-spec.ts` is a standard `.e2e-spec.ts`, so `npm run test:e2e` (the CI `e2e` job) already runs it — **no ci.yml change needed**.
 
 ## Decision — Audit pass: verify + regression-lock (US3, no rewrite)
 
@@ -89,8 +90,8 @@ The controls below are **already shipped** (evidence in the spec/§Problem). F00
 - `src/modules/contact/contact.module.ts` (+`ContactPurgeScheduler` provider).
 - `src/modules/contact/entities/contact-message.entity.ts` (+`archivedAt` nullable ISO, `@ApiProperty`).
 - `src/modules/contact/dto/update-message.dto.ts` — unchanged (still `{isRead?, isArchived?}`; `archivedAt` is server-managed, never client-set).
-- `src/main.ts` (+ explicit 1 MiB JSON/urlencoded body limit — AD-7, doc 19 §5; only if the empirical check confirms the default is stricter).
-- `.github/workflows/ci.yml` (+ latency-smoke step in the `e2e` job; env `LATENCY_SMOKE_P95_MS` if surfaced).
+- `src/main.ts` (+ explicit 1 MiB JSON/urlencoded body limit — AD-7, doc 19 §5; empirical check confirmed the default is stricter) + `test/utils/e2e-app.ts` mirrors it so e2e exercises the real limit.
+- **No `.github/workflows/ci.yml` change** — the latency smoke is a `.e2e-spec.ts` already run by the `e2e` job's `npm run test:e2e`; `LATENCY_SMOKE_P95_MS` is read test-locally with a generous default (owner can override in CI later).
 - `src/contract/openapi.config.ts` — unchanged tags; re-export `openapi.json` (additive `archivedAt`).
 - `test/` — purge/transition assertions in the contact/messages e2e; latency smoke.
 
@@ -100,7 +101,7 @@ The controls below are **already shipped** (evidence in the spec/§Problem). F00
 
 ## Cross-repo & doc-first sequencing
 
-1. **Docs repo first (T1 gate, principle 1):** on a docs feature branch off `main` @ `7a790a6` — **doc 09** (+D09-14, §3 `ContactMessage` gains `archivedAt`, version bump), **doc 19** (+D19-10, §6 concretises the retention purge; version bump), **doc 20** (+D20-7, §5 concretises the latency smoke as coarse+query-count; version bump), and the **feature-map** 005 row correction (backup → D23-12 deferred under D23-18; status → in-progress/dev). Decision-log entries + version bumps. Committed **before** any API code.
+1. **Docs repo first (T1 gate, principle 1):** on a docs feature branch off `main` @ `7a790a6` — **doc 09** (+D09-14, §3 `ContactMessage` gains `archivedAt`, version bump), **doc 19** (+D19-10, §6 concretises the retention purge; version bump), **doc 20** (+D20-7, §5 concretises the latency smoke as a coarse warmup p95 tripwire — query-count deferred; version bump), and the **feature-map** 005 row correction (backup → D23-12 deferred under D23-18; status → in-progress/dev). Decision-log entries + version bumps. Committed **before** any API code.
 2. **API repo:** the build order above, on `feature/005-api-hardening` off `dev` @ `c1493a1`.
 3. **Contract adoption:** the `archivedAt` field is additive; the web repo adopts during M3 dashboard (doc 16 §3) — **not** part of this API feature. No Web change now.
 
