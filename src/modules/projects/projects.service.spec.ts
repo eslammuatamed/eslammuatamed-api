@@ -376,6 +376,29 @@ describe('ProjectsService', () => {
     });
   });
 
+  describe('getPreviewById (D10-8 draft preview, status-agnostic)', () => {
+    it('returns an unpublished project by id, bypassing the isPublished filter', async () => {
+      prisma.project.findUnique.mockResolvedValue(projectPayload(false));
+
+      const result = await service.getPreviewById('project-1', 'en');
+
+      expect(locales.assertEnabled).toHaveBeenCalledWith('en');
+      expect(prisma.project.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 'project-1' } }),
+      );
+      expect(result.title).toBe('English project');
+      expect(result.slug).toBe('english-project');
+    });
+
+    it('404s when the project id does not exist', async () => {
+      prisma.project.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.getPreviewById('missing', 'en'),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
   describe('create', () => {
     it('maps a per-locale slug collision to 422', async () => {
       prisma.$transaction.mockRejectedValue({ code: 'P2002' });

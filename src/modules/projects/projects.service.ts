@@ -125,6 +125,26 @@ export class ProjectsService {
     return this.resolveDetail(translation.project, locale);
   }
 
+  // Draft preview by id (D10-8): status-agnostic fetch keyed by id, BYPASSING the isPublished filter
+  // that getPublicBySlug enforces — so an unpublished project resolves here. Only reachable behind a
+  // verified preview token (PreviewTokenService); the token, not this method, is the visibility gate
+  // (FR-PUB-046). Reuses the same resolveDetail() as public reads, so the draft renders in the
+  // identical single-locale shape. A genuinely absent id still 404s.
+  async getPreviewById(
+    id: string,
+    locale: string,
+  ): Promise<PublicProjectDetailEntity> {
+    await this.locales.assertEnabled(locale);
+    const project = await this.prisma.project.findUnique({
+      where: { id },
+      include: PUBLIC_INCLUDE(locale),
+    });
+    if (!project) {
+      throw new NotFoundException('Project not found.');
+    }
+    return this.resolveDetail(project, locale);
+  }
+
   async listAdmin(
     query: AdminProjectListQueryDto,
   ): Promise<PaginatedResult<AdminProjectEntity>> {

@@ -190,6 +190,26 @@ export class ArticlesService {
     return this.resolveDetail(translation.article, locale);
   }
 
+  // Draft preview by id (D10-8): status-agnostic fetch keyed by id, BYPASSING the PUBLISHED filter
+  // that getPublicBySlug enforces — so a DRAFT/scheduled/archived article resolves here. This is only
+  // reachable behind a verified preview token (PreviewTokenService); the token, not this method, is
+  // the visibility gate (FR-PUB-046). Reuses the same resolveDetail() as public reads, so the draft
+  // renders in the identical single-locale shape. A genuinely absent id still 404s.
+  async getPreviewById(
+    id: string,
+    locale: string,
+  ): Promise<PublicArticleDetailEntity> {
+    await this.locales.assertEnabled(locale);
+    const article = await this.prisma.article.findUnique({
+      where: { id },
+      include: PUBLIC_INCLUDE(locale),
+    });
+    if (!article) {
+      throw new NotFoundException('Article not found.');
+    }
+    return this.resolveDetail(article, locale);
+  }
+
   // Public related articles (D04-5/D10-6): published articles sharing the source category
   // and/or tags, ranked same-category FIRST, then shared-tag count, then publish recency
   // (doc 04 §5: "same category first, shared tags second, recency as tiebreaker").

@@ -225,6 +225,33 @@ describe('ArticlesService', () => {
     });
   });
 
+  describe('getPreviewById (D10-8 draft preview, status-agnostic)', () => {
+    it('returns an unpublished (DRAFT) article by id, bypassing the PUBLISHED filter', async () => {
+      prisma.article.findUnique.mockResolvedValue(
+        articlePayload(ContentStatus.DRAFT),
+      );
+
+      const result = await service.getPreviewById('a1', 'en');
+
+      expect(locales.assertEnabled).toHaveBeenCalledWith('en');
+      expect(prisma.article.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 'a1' } }),
+      );
+      // The draft resolves in the same shape a public read would produce.
+      expect(result.title).toBe('Title en');
+      expect(result.body).toContain('word');
+      expect(result.slugs).toEqual({ en: 'slug-en', ar: 'slug-ar' });
+    });
+
+    it('404s when the article id does not exist', async () => {
+      prisma.article.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.getPreviewById('missing', 'en'),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
   describe('media descriptors (T7)', () => {
     const withMedia = (
       coverAlts: { locale: string; alt: string }[],
