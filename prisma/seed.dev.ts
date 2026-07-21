@@ -976,6 +976,46 @@ async function ensureTestimonials(): Promise<number> {
   return created;
 }
 
+// Populate the SiteSettings singleton's profile chrome (social links + availability) so the home hero,
+// footer, and contact section render their settings-driven parts. The base seed creates the singleton
+// but leaves profileLinks empty; this sets demo values idempotently (overwriting with the same values is
+// a no-op in effect). No résumé asset is set (that needs the media pipeline) — the footer résumé link
+// simply stays hidden, which is the intended graceful-degradation path. `availabilityStatus` is a single
+// scalar in the contract (not per-locale), so the same string shows in both locales — a demo limitation.
+async function ensureSiteSettingsProfile(): Promise<boolean> {
+  const settings = await prisma.siteSettings.findFirst({
+    select: { id: true },
+  });
+  if (!settings) {
+    return false;
+  }
+  await prisma.siteSettings.update({
+    where: { id: settings.id },
+    data: {
+      availabilityStatus: 'Open to senior frontend roles',
+      profileLinks: [
+        {
+          label: 'GitHub',
+          url: 'https://github.com/example',
+          icon: 'i-simple-icons-github',
+        },
+        {
+          label: 'LinkedIn',
+          url: 'https://www.linkedin.com/in/example',
+          icon: 'i-simple-icons-linkedin',
+        },
+        { label: 'X', url: 'https://x.com/example', icon: 'i-simple-icons-x' },
+        {
+          label: 'Email',
+          url: 'mailto:hello@example.com',
+          icon: 'i-lucide-mail',
+        },
+      ],
+    },
+  });
+  return true;
+}
+
 async function main(): Promise<void> {
   const skills = await ensureSkills();
   const projectsCreated = await ensureProjects(skills.map);
@@ -984,6 +1024,7 @@ async function main(): Promise<void> {
   const tagMap = await ensureTags();
   const articlesCreated = await ensureArticles(categoryMap, tagMap);
   const testimonialsCreated = await ensureTestimonials();
+  const profileSet = await ensureSiteSettingsProfile();
 
   console.log(
     'Dev/demo seed complete (idempotent; en + ar translations for every entity):\n' +
@@ -993,7 +1034,8 @@ async function main(): Promise<void> {
       `  Categories:   ${CATEGORIES.length} ensured\n` +
       `  Tags:         ${TAGS.length} ensured\n` +
       `  Articles:     ${ARTICLES.length} total (created ${articlesCreated}) — all PUBLISHED\n` +
-      `  Testimonials: ${TESTIMONIALS.length} total (created ${testimonialsCreated}) — all visible`,
+      `  Testimonials: ${TESTIMONIALS.length} total (created ${testimonialsCreated}) — all visible\n` +
+      `  SiteSettings: profile links + availability ${profileSet ? 'set' : 'skipped (run base seed first)'}`,
   );
 }
 
