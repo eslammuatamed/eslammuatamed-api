@@ -152,6 +152,13 @@ export class SiteSettingsTranslationEntity {
   })
   readonly tagline!: string | null;
 
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    example: 'Open to select consulting engagements',
+  })
+  readonly availabilityStatus!: string | null;
+
   @ApiProperty({ type: String, nullable: true })
   readonly defaultMetaTitle!: string | null;
 
@@ -169,9 +176,6 @@ export class AdminSiteSettingsEntity {
 
   @ApiProperty({ type: [ProfileLinkEntity] })
   readonly profileLinks!: ProfileLinkEntity[];
-
-  @ApiProperty({ type: String, nullable: true })
-  readonly availabilityStatus!: string | null;
 
   @ApiProperty({ type: String, nullable: true, format: 'uuid' })
   readonly resumeAssetId!: string | null;

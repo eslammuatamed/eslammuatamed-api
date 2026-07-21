@@ -52,6 +52,7 @@ function translation(
     locale,
     siteName: `Site ${locale}`,
     tagline: `Tagline ${locale}`,
+    availabilityStatus: `Avail ${locale}`,
     defaultMetaTitle: `Title ${locale}`,
     defaultMetaDescription: `Desc ${locale}`,
     createdAt: new Date(),
@@ -66,7 +67,6 @@ function settingsRow(overrides: Partial<SettingsRow> = {}): SettingsRow {
     profileLinks: [
       { label: 'GitHub', url: 'https://github.com/x', icon: 'gh' },
     ],
-    availabilityStatus: 'Open',
     resumeAssetId: null,
     careerStartYear: null,
     careerStartMonth: null,
@@ -108,6 +108,7 @@ describe('SettingsService', () => {
       expect(locales.assertEnabled).toHaveBeenCalledWith('ar');
       expect(result.siteName).toBe('Site ar');
       expect(result.tagline).toBe('Tagline ar');
+      expect(result.availabilityStatus).toBe('Avail ar');
       expect(result.analytics).toBeNull();
       expect(result.profileLinks).toEqual([
         { label: 'GitHub', url: 'https://github.com/x', icon: 'gh' },
@@ -138,6 +139,7 @@ describe('SettingsService', () => {
       const result = await service.getPublicSettings('ar');
 
       expect(result.siteName).toBeNull();
+      expect(result.availabilityStatus).toBeNull();
       expect(result.availableLocales).toEqual(['en']);
     });
 
@@ -214,7 +216,7 @@ describe('SettingsService', () => {
 
       const result = await service.getPublicSettings('en');
 
-      expect(result.availabilityStatus).toBe('Open');
+      expect(result.availabilityStatus).toBe('Avail en');
       expect(result.careerStartYear).toBe(2023);
       expect(result.careerStartMonth).toBe(5);
       expect(result.availableLocales).toEqual(['ar', 'en']);
@@ -229,6 +231,10 @@ describe('SettingsService', () => {
 
       expect(Object.keys(result.translations).sort()).toEqual(['ar', 'en']);
       expect(result.translations.en?.siteName).toBe('Site en');
+      // availabilityStatus is per-locale (007): it lives in the translation map, not at the top level.
+      expect(result.translations.en?.availabilityStatus).toBe('Avail en');
+      expect(result.translations.ar?.availabilityStatus).toBe('Avail ar');
+      expect('availabilityStatus' in result).toBe(false);
       expect(result.analyticsEnabled).toBe(false);
       expect(result.careerStartYear).toBeNull();
       expect(result.careerStartMonth).toBeNull();
