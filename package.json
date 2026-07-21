@@ -28,6 +28,7 @@
     "db:migrate": "prisma migrate deploy",
     "db:migrate:dev": "prisma migrate dev",
     "db:seed": "prisma db seed",
+    "db:seed:dev": "ts-node --transpile-only prisma/seed.dev.ts",
     "db:studio": "prisma studio",
     "prepare": "husky"
   },
