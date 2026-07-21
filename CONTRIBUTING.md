@@ -36,6 +36,9 @@ hotfix/<slug>   (branch from main)
 ## Documentation & Handoff Gate (required before delivery)
 Every feature's **final task** is the mandatory **Documentation & Handoff Gate** — canonical rule **doc 16 §5.1 / D16-8** ([`16-development-conventions.md`](../eslammuatamed-docs/docs/16-development-conventions.md)). Until it passes, the feature must **not** be pushed, PR'd, merged to `dev`, promoted to `main`, or deployed — "not requested" is never a reason to skip it. The Arabic module docs and SpecKit closeout are always required; other doc changes may be justified. The full rule lives in doc 16 and is **not restated here**.
 
+## Development/demo seed data (required for data-backed flows)
+Every feature that adds or changes a data-backed flow ships **deterministic development/demo seed data** before it is complete — canonical rule **doc 16 §5.2 / D16-9**, mechanics in **doc 09 §6 / D09-15**. The production seed is `prisma/seed.ts` (`npm run db:seed`); the **development-only overlay** is `prisma/seed.dev.ts` (`npm run db:seed:dev`), which runs on top of it and is **never wired to the Prisma `seed` key** — so `prisma db seed` / migrations never trigger it and it never runs in production. It must be idempotent (existence-guarded creates / upserts on stable slugs — no `deleteMany`, no reset), bilingual (`en` + `ar`), and grounded in the owner profile with no invented metrics. Clean-environment checks run against a **throwaway test database with an external temporary environment**; **never** read, overwrite, delete, print, or regenerate the real local `.env`. The full rule lives in doc 16 and is **not restated here**.
+
 ## Promotion cases — when `dev` → `main` is allowed
 Code may be promoted from `dev` to `main` in **exactly two cases**:
 
