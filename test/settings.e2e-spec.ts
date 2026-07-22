@@ -11,6 +11,7 @@ import { loadApiSpec } from './utils/contract';
 
 interface PublicSettings {
   siteName: string | null;
+  availabilityStatus: string | null;
   availableLocales: string[];
   analytics: { provider: string; measurementId: string } | null;
   careerStartYear: number | null;
@@ -72,6 +73,23 @@ describe('Settings (e2e)', () => {
     expect(data).toHaveProperty('siteName');
     expect(data).toHaveProperty('availableLocales');
   });
+
+  it.each([
+    ['en', 'Open to frontend opportunities'],
+    ['ar', 'متاح لفرص عمل في تطوير الواجهات الأمامية'],
+  ] as const)(
+    'returns the deterministic %s availability translation',
+    async (locale, expectedAvailability) => {
+      const res = await request(httpServer(app))
+        .get(`/api/v1/settings/site?locale=${locale}`)
+        .expect(200);
+
+      expect(res).toSatisfyApiSpec();
+      expect(envelopeData<PublicSettings>(res).availabilityStatus).toBe(
+        expectedAvailability,
+      );
+    },
+  );
 
   it('rejects an unknown locale with a contract-valid 400', async () => {
     const res = await request(httpServer(app))
