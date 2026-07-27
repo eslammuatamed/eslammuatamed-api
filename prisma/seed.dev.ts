@@ -1171,8 +1171,8 @@ async function ensureTestimonials(): Promise<number> {
 // footer, and contact section render their settings-driven parts. The base seed creates the singleton
 // but leaves profileLinks empty; this sets demo values idempotently (overwriting with the same values is
 // a no-op in effect). No résumé asset is set (that needs the media pipeline) — the footer résumé link
-// simply stays hidden, which is the intended graceful-degradation path. `availabilityStatus` is a single
-// scalar in the contract (not per-locale), so the same string shows in both locales — a demo limitation.
+// simply stays hidden, which is the intended graceful-degradation path. `availabilityStatus` is now
+// per-locale (feature 007): its EN/AR values are set on the translation rows below, like tagline.
 async function ensureSiteSettingsProfile(): Promise<boolean> {
   const settings = await prisma.siteSettings.findFirst({
     select: { id: true },
@@ -1183,13 +1183,9 @@ async function ensureSiteSettingsProfile(): Promise<boolean> {
   // Real owner links (HR-8, owner-profile §8): GitHub grounded in the actual repo host, canonical
   // LinkedIn (R7), canonical contact email (R5 — the "muatemed" spelling is intentional, not a typo).
   // X/Twitter is omitted: the profile lists no handle and one must not be invented.
-  // `availabilityStatus` is a dashboard-managed demo value (the profile has no availability field) and
-  // is a single non-localized scalar, so it renders the same string in both locales (a known contract
-  // gap carried by HR-4).
   await prisma.siteSettings.update({
     where: { id: settings.id },
     data: {
-      availabilityStatus: 'Open to senior frontend roles',
       profileLinks: [
         {
           label: 'GitHub',
@@ -1211,18 +1207,21 @@ async function ensureSiteSettingsProfile(): Promise<boolean> {
   });
 
   // Identity translations (HR-8): the base seed sets the tagline but leaves siteName null; set both so
-  // the hero renders real identity rather than the i18n brand fallback. Idempotent upsert on
+  // the hero renders real identity rather than the i18n brand fallback. `availabilityStatus` is set here
+  // per-locale (feature 007) so /ar renders the Arabic value, not the English one. Idempotent upsert on
   // [siteSettingsId, locale].
   const identity = [
     {
       locale: 'en',
       siteName: 'Eslam Muatamed',
       tagline: 'Frontend Engineer — Vue.js & Nuxt.js',
+      availabilityStatus: 'Open to frontend opportunities',
     },
     {
       locale: 'ar',
       siteName: 'إسلام معتمد',
       tagline: 'مهندس واجهات أمامية — Vue.js و Nuxt.js',
+      availabilityStatus: 'متاح لفرص عمل في تطوير الواجهات الأمامية',
     },
   ] as const;
   for (const tr of identity) {
@@ -1233,12 +1232,17 @@ async function ensureSiteSettingsProfile(): Promise<boolean> {
           locale: tr.locale,
         },
       },
-      update: { siteName: tr.siteName, tagline: tr.tagline },
+      update: {
+        siteName: tr.siteName,
+        tagline: tr.tagline,
+        availabilityStatus: tr.availabilityStatus,
+      },
       create: {
         siteSettingsId: settings.id,
         locale: tr.locale,
         siteName: tr.siteName,
         tagline: tr.tagline,
+        availabilityStatus: tr.availabilityStatus,
       },
     });
   }

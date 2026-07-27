@@ -44,7 +44,7 @@ export class SettingsService {
       defaultMetaTitle: translation?.defaultMetaTitle ?? null,
       defaultMetaDescription: translation?.defaultMetaDescription ?? null,
       profileLinks: toProfileLinks(settings.profileLinks),
-      availabilityStatus: settings.availabilityStatus,
+      availabilityStatus: translation?.availabilityStatus ?? null,
       careerStartYear: settings.careerStartYear,
       careerStartMonth: settings.careerStartMonth,
       googleSiteVerification: settings.googleSiteVerification,
@@ -138,6 +138,7 @@ export class SettingsService {
             locale: translation.locale,
             siteName: translation.siteName,
             tagline: translation.tagline,
+            availabilityStatus: translation.availabilityStatus,
             defaultMetaTitle: translation.defaultMetaTitle,
             defaultMetaDescription: translation.defaultMetaDescription,
           },
@@ -145,6 +146,7 @@ export class SettingsService {
           update: {
             siteName: translation.siteName,
             tagline: translation.tagline,
+            availabilityStatus: translation.availabilityStatus,
             defaultMetaTitle: translation.defaultMetaTitle,
             defaultMetaDescription: translation.defaultMetaDescription,
           },
@@ -174,6 +176,7 @@ export class SettingsService {
       translations[translation.locale] = {
         siteName: translation.siteName,
         tagline: translation.tagline,
+        availabilityStatus: translation.availabilityStatus,
         defaultMetaTitle: translation.defaultMetaTitle,
         defaultMetaDescription: translation.defaultMetaDescription,
       };
@@ -181,7 +184,6 @@ export class SettingsService {
     return {
       id: settings.id,
       profileLinks: toProfileLinks(settings.profileLinks),
-      availabilityStatus: settings.availabilityStatus,
       resumeAssetId: settings.resumeAssetId,
       careerStartYear: settings.careerStartYear,
       careerStartMonth: settings.careerStartMonth,
@@ -202,7 +204,6 @@ function buildSettingsUpdate(
   dto: UpdateSettingsDto,
 ): Prisma.SiteSettingsUpdateInput {
   const data: Prisma.SiteSettingsUpdateInput = {
-    availabilityStatus: dto.availabilityStatus,
     careerStartYear: dto.careerStartYear,
     careerStartMonth: dto.careerStartMonth,
     googleSiteVerification: dto.googleSiteVerification,

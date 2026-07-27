@@ -125,6 +125,7 @@ async function seedSiteSettings(): Promise<void> {
             locale: 'en',
             siteName: 'Eslam Muatamed',
             tagline: 'Frontend Engineer — Vue.js & Nuxt.js',
+            availabilityStatus: 'Open to frontend opportunities',
             defaultMetaTitle: 'Eslam Muatamed',
             defaultMetaDescription:
               'Frontend engineer specializing in Vue.js and Nuxt.js, building fast, accessible, SEO-focused web interfaces.',
@@ -133,6 +134,7 @@ async function seedSiteSettings(): Promise<void> {
             locale: 'ar',
             siteName: 'إسلام معتمد',
             tagline: 'مهندس واجهات أمامية — Vue.js و Nuxt.js',
+            availabilityStatus: 'متاح لفرص عمل في تطوير الواجهات الأمامية',
             defaultMetaTitle: 'إسلام معتمد',
             defaultMetaDescription:
               'مهندس واجهات أمامية متخصص في Vue.js و Nuxt.js، أبني واجهات ويب سريعة وسهلة الوصول ومهيأة لمحركات البحث.',

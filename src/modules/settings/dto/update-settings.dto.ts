@@ -72,6 +72,13 @@ export class SettingsTranslationDto {
   @MaxLength(200)
   readonly tagline?: string;
 
+  // Per-locale from feature 007 (was a base scalar): localized like tagline so /ar renders Arabic.
+  @ApiPropertyOptional({ example: 'Open to select consulting engagements' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  readonly availabilityStatus?: string;
+
   // Meta length is editor guidance (character counters), not hard validation (doc 22 §3):
   // search engines truncate, they don't reject. The cap here only bounds abuse.
   @ApiPropertyOptional({ example: 'Eslam Muatamed' })
@@ -96,12 +103,6 @@ export class UpdateSettingsDto {
   @ValidateNested({ each: true })
   @Type(() => ProfileLinkDto)
   readonly profileLinks?: ProfileLinkDto[];
-
-  @ApiPropertyOptional({ example: 'Open to select consulting engagements' })
-  @IsOptional()
-  @IsString()
-  @MaxLength(200)
-  readonly availabilityStatus?: string;
 
   // The resume slot (FR-DSH-070, D02-7): a MediaAsset FK that must reference a PDF asset (enforced
   // in the service). null clears it; the previously-referenced asset is retained in the library

@@ -600,7 +600,6 @@ model ContactMessage {
 model SiteSettings {
   id                 String  @id @default(uuid(7))
   profileLinks       Json    @default("[]") @map("profile_links") // [{ label, url, icon }]
-  availabilityStatus String? @map("availability_status")
   resumeAssetId      String? @map("resume_asset_id")
   careerStartYear    Int?    @map("career_start_year")
   careerStartMonth   Int?    @map("career_start_month")
@@ -628,6 +627,7 @@ model SiteSettingsTranslation {
   locale                 String
   siteName               String? @map("site_name")
   tagline                String?
+  availabilityStatus     String? @map("availability_status") // per-locale (007): localized like tagline, resolved with no cross-locale fallback
   defaultMetaTitle       String? @map("default_meta_title")
   defaultMetaDescription String? @map("default_meta_description")
 
