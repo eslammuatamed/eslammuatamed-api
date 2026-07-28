@@ -5,6 +5,7 @@ import {
 import {
   MediaAsset,
   MediaKind,
+  MediaVariantFormat,
   SiteSettings,
   SiteSettingsTranslation,
 } from '@prisma/client';
@@ -37,10 +38,58 @@ const pdfAsset = (): MediaAsset => ({
   updatedAt: new Date(),
 });
 
+type PortraitRow = MediaAsset & {
+  variants: {
+    format: MediaVariantFormat;
+    width: number;
+    height: number;
+    storageKey: string;
+  }[];
+  alts: { locale: string; alt: string }[];
+};
+
 type SettingsRow = SiteSettings & {
   translations: SiteSettingsTranslation[];
   resumeAsset: MediaAsset | null;
+  portraitAsset: PortraitRow | null;
 };
+
+// IMAGE asset shaped as the settings include loads it — variants + per-locale alts, so the
+// descriptor resolves in the same query (no N+1, doc 10 §6).
+const portraitAsset = (
+  alts: { locale: string; alt: string }[] = [
+    { locale: 'en', alt: 'Portrait of Eslam' },
+    { locale: 'ar', alt: 'صورة إسلام' },
+  ],
+): PortraitRow => ({
+  id: 'portrait-1',
+  kind: MediaKind.IMAGE,
+  storageKey: 'media/portrait-1/master.png',
+  originalFilename: 'portrait.png',
+  mimeType: 'image/png',
+  sizeBytes: 120_000,
+  contentHash: 'ph',
+  width: 1200,
+  height: 1500,
+  blurhash: 'LEHV6n',
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  variants: [
+    {
+      format: MediaVariantFormat.WEBP,
+      width: 640,
+      height: 800,
+      storageKey: 'media/portrait-1/640.webp',
+    },
+    {
+      format: MediaVariantFormat.WEBP,
+      width: 1200,
+      height: 1500,
+      storageKey: 'media/portrait-1/1200.webp',
+    },
+  ],
+  alts,
+});
 
 function translation(
   locale: string,
@@ -55,6 +104,9 @@ function translation(
     availabilityStatus: `Avail ${locale}`,
     defaultMetaTitle: `Title ${locale}`,
     defaultMetaDescription: `Desc ${locale}`,
+    aboutBio: `Bio ${locale}`,
+    engineeringPhilosophy: `Philosophy ${locale}`,
+    currentFocus: `Focus ${locale}`,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
@@ -68,6 +120,9 @@ function settingsRow(overrides: Partial<SettingsRow> = {}): SettingsRow {
       { label: 'GitHub', url: 'https://github.com/x', icon: 'gh' },
     ],
     resumeAssetId: null,
+    portraitAssetId: null,
+    professionalEmail: 'hello@eslammuatamed.com',
+    contactEmail: 'contact@eslammuatamed.com',
     careerStartYear: null,
     careerStartMonth: null,
     googleSiteVerification: 'google-token',
@@ -80,6 +135,7 @@ function settingsRow(overrides: Partial<SettingsRow> = {}): SettingsRow {
     updatedAt: new Date(),
     translations: [translation('en'), translation('ar')],
     resumeAsset: null,
+    portraitAsset: null,
     ...overrides,
   };
 }
@@ -385,6 +441,161 @@ describe('SettingsService', () => {
       );
       expect(result.careerStartYear).toBeNull();
       expect(result.careerStartMonth).toBeNull();
+    });
+  });
+
+  // ── Profile contract (D09-18, D10-13) ──────────────────────────────────────────────────────
+  describe('profile fields', () => {
+    it('exposes both the portrait id and the resolved descriptor, with requested-locale alt', async () => {
+      prisma.siteSettings.findFirst.mockResolvedValue(
+        settingsRow({
+          portraitAssetId: 'portrait-1',
+          portraitAsset: portraitAsset(),
+        }),
+      );
+
+      const result = await service.getPublicSettings('ar');
+
+      // The raw id stays available alongside the additive descriptor (D10-10 pattern).
+      expect(result.portraitAssetId).toBe('portrait-1');
+      expect(result.portrait).toEqual({
+        id: 'portrait-1',
+        kind: MediaKind.IMAGE,
+        url: 'https://media.test/media/portrait-1/1200.webp',
+        width: 1200,
+        height: 1500,
+        blurhash: 'LEHV6n',
+        alt: 'صورة إسلام',
+        variants: [
+          {
+            format: MediaVariantFormat.WEBP,
+            width: 640,
+            height: 800,
+            url: 'https://media.test/media/portrait-1/640.webp',
+          },
+          {
+            format: MediaVariantFormat.WEBP,
+            width: 1200,
+            height: 1500,
+            url: 'https://media.test/media/portrait-1/1200.webp',
+          },
+        ],
+      });
+    });
+
+    it('returns a null alt for a locale with no alt row rather than falling back', async () => {
+      prisma.siteSettings.findFirst.mockResolvedValue(
+        settingsRow({
+          portraitAssetId: 'portrait-1',
+          portraitAsset: portraitAsset([
+            { locale: 'en', alt: 'Portrait of Eslam' },
+          ]),
+        }),
+      );
+
+      const result = await service.getPublicSettings('ar');
+
+      expect(result.portrait?.alt).toBeNull();
+    });
+
+    it('keeps an intentionally decorative empty alt distinct from a missing one', async () => {
+      prisma.siteSettings.findFirst.mockResolvedValue(
+        settingsRow({
+          portraitAssetId: 'portrait-1',
+          portraitAsset: portraitAsset([{ locale: 'ar', alt: '' }]),
+        }),
+      );
+
+      const result = await service.getPublicSettings('ar');
+
+      expect(result.portrait?.alt).toBe('');
+    });
+
+    it('returns a null portrait when none is configured', async () => {
+      prisma.siteSettings.findFirst.mockResolvedValue(settingsRow());
+
+      const result = await service.getPublicSettings('en');
+
+      expect(result.portraitAssetId).toBeNull();
+      expect(result.portrait).toBeNull();
+    });
+
+    it('exposes the public email addresses', async () => {
+      prisma.siteSettings.findFirst.mockResolvedValue(settingsRow());
+
+      const result = await service.getPublicSettings('en');
+
+      expect(result.professionalEmail).toBe('hello@eslammuatamed.com');
+      expect(result.contactEmail).toBe('contact@eslammuatamed.com');
+    });
+
+    it('resolves About content for the requested locale', async () => {
+      prisma.siteSettings.findFirst.mockResolvedValue(settingsRow());
+
+      const result = await service.getPublicSettings('ar');
+
+      expect(result.aboutBio).toBe('Bio ar');
+      expect(result.engineeringPhilosophy).toBe('Philosophy ar');
+      expect(result.currentFocus).toBe('Focus ar');
+    });
+
+    it('returns null About fields for a missing translation without cross-locale fallback', async () => {
+      prisma.siteSettings.findFirst.mockResolvedValue(
+        settingsRow({ translations: [translation('en')] }),
+      );
+
+      const result = await service.getPublicSettings('ar');
+
+      expect(result.aboutBio).toBeNull();
+      expect(result.engineeringPhilosophy).toBeNull();
+      expect(result.currentFocus).toBeNull();
+    });
+
+    it('returns the full per-locale About map to admin', async () => {
+      prisma.siteSettings.findFirst.mockResolvedValue(settingsRow());
+
+      const result = await service.getAdminSettings();
+
+      expect(result.portraitAssetId).toBeNull();
+      expect(result.professionalEmail).toBe('hello@eslammuatamed.com');
+      expect(result.contactEmail).toBe('contact@eslammuatamed.com');
+      expect(result.translations.en?.aboutBio).toBe('Bio en');
+      expect(result.translations.ar?.currentFocus).toBe('Focus ar');
+    });
+
+    it('rejects a portrait that is not an IMAGE asset', async () => {
+      prisma.siteSettings.findFirst.mockResolvedValue(settingsRow());
+      prisma.mediaAsset.findUnique.mockResolvedValue({
+        kind: MediaKind.PDF,
+      } as MediaAsset);
+
+      await expect(
+        service.updateSettings({ portraitAssetId: 'resume-1' }),
+      ).rejects.toBeInstanceOf(UnprocessableEntityException);
+    });
+
+    it('rejects a portrait asset that does not exist', async () => {
+      prisma.siteSettings.findFirst.mockResolvedValue(settingsRow());
+      prisma.mediaAsset.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.updateSettings({ portraitAssetId: 'missing' }),
+      ).rejects.toBeInstanceOf(UnprocessableEntityException);
+    });
+
+    it('clears the portrait by disconnecting without deleting the asset', async () => {
+      prisma.siteSettings.findFirst.mockResolvedValue(
+        settingsRow({
+          portraitAssetId: 'portrait-1',
+          portraitAsset: portraitAsset(),
+        }),
+      );
+
+      await service.updateSettings({ portraitAssetId: null });
+
+      const update = prisma.siteSettings.update.mock.calls[0]?.[0];
+      expect(update?.data.portraitAsset).toEqual({ disconnect: true });
+      expect(prisma.mediaAsset.delete).not.toHaveBeenCalled();
     });
   });
 });

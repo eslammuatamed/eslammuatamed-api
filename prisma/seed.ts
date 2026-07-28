@@ -98,6 +98,11 @@ async function seedOwner(
   });
 }
 
+// Approved public addresses (owner-profile §8). About prose is deliberately NOT seeded: it is
+// authored content and waits for owner-reviewed EN/AR copy (D18-7).
+const PROFESSIONAL_EMAIL = 'hello@eslammuatamed.com';
+const CONTACT_EMAIL = 'contact@eslammuatamed.com';
+
 async function seedSiteSettings(): Promise<void> {
   const existing = await prisma.siteSettings.findFirst({
     select: { id: true },
@@ -108,6 +113,10 @@ async function seedSiteSettings(): Promise<void> {
       data: {
         careerStartYear: 2023,
         careerStartMonth: 11,
+        // Operational addresses (owner-profile §8, confirmed 2026-07-29). portraitAssetId stays
+        // null — a real MediaAsset is never invented by a seed (D18-7).
+        professionalEmail: PROFESSIONAL_EMAIL,
+        contactEmail: CONTACT_EMAIL,
       },
     });
     return;
@@ -117,6 +126,8 @@ async function seedSiteSettings(): Promise<void> {
       analyticsEnabled: false,
       careerStartYear: 2023,
       careerStartMonth: 11,
+      professionalEmail: PROFESSIONAL_EMAIL,
+      contactEmail: CONTACT_EMAIL,
       translations: {
         create: [
           // Positioning per the content source of truth (owner-profile §2/§6): frontend-first,
