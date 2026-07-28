@@ -248,23 +248,96 @@ describe('Profile contract (e2e)', () => {
   });
 
   describe('experience technologies', () => {
+    // Self-contained: CI seeds only the base seed, which has no experiences or skills. These
+    // tests build and tear down their own fixtures so they never depend on the dev/demo layer.
+    let skillA: string;
+    let skillB: string;
+    let experienceId: string;
+
+    beforeAll(async () => {
+      const a = await prisma.skill.create({
+        data: {
+          group: 'FRAMEWORK',
+          order: 10,
+          translations: {
+            create: [
+              { locale: 'en', label: `E2E Alpha ${RUN}` },
+              { locale: 'ar', label: `ألفا ${RUN}` },
+            ],
+          },
+        },
+      });
+      const b = await prisma.skill.create({
+        data: {
+          group: 'FRAMEWORK',
+          order: 20,
+          translations: {
+            create: [
+              { locale: 'en', label: `E2E Beta ${RUN}` },
+              { locale: 'ar', label: `بيتا ${RUN}` },
+            ],
+          },
+        },
+      });
+      skillA = a.id;
+      skillB = b.id;
+
+      const experience = await prisma.experience.create({
+        data: {
+          startDate: new Date('2019-01-01'),
+          isCurrent: false,
+          employmentType: 'FULL_TIME',
+          order: 900,
+          translations: {
+            create: [
+              {
+                locale: 'en',
+                role: 'E2E Role',
+                company: `E2E Co ${RUN}`,
+                location: 'Remote',
+                impact: '- probe',
+              },
+              {
+                locale: 'ar',
+                role: 'دور اختباري',
+                company: `شركة ${RUN}`,
+                location: 'عن بُعد',
+                impact: '- اختبار',
+              },
+            ],
+          },
+          // Linked in reverse order on purpose: the response must sort by Skill.order, not by
+          // insertion order.
+          technologies: { create: [{ skillId: b.id }, { skillId: a.id }] },
+        },
+      });
+      experienceId = experience.id;
+    });
+
+    afterAll(async () => {
+      await prisma.experience.deleteMany({ where: { id: experienceId } });
+      await prisma.skill.deleteMany({
+        where: { id: { in: [skillA, skillB] } },
+      });
+    });
+
     it('restricts deleting a Skill referenced by an experience', async () => {
-      const link = await prisma.experienceTechnology.findFirst();
-      expect(link).toBeTruthy();
-      // RESTRICT surfaces as a Prisma foreign-key error rather than a silent unlink.
+      // RESTRICT surfaces as a foreign-key error rather than a silent unlink.
       await expect(
-        prisma.skill.delete({ where: { id: link!.skillId } }),
+        prisma.skill.delete({ where: { id: skillA } }),
       ).rejects.toThrow();
+      await expect(
+        prisma.experienceTechnology.count({ where: { skillId: skillA } }),
+      ).resolves.toBe(1);
     });
 
     it('cascades link removal when the experience is deleted', async () => {
-      const skill = await prisma.skill.findFirst({ select: { id: true } });
-      const created = await prisma.experience.create({
+      const throwaway = await prisma.experience.create({
         data: {
-          startDate: new Date('2020-01-01'),
+          startDate: new Date('2018-01-01'),
           isCurrent: false,
           employmentType: 'FULL_TIME',
-          order: 99,
+          order: 901,
           translations: {
             create: {
               locale: 'en',
@@ -274,16 +347,21 @@ describe('Profile contract (e2e)', () => {
               impact: '- probe',
             },
           },
-          technologies: { create: { skillId: skill!.id } },
+          technologies: { create: { skillId: skillA } },
         },
       });
 
-      await prisma.experience.delete({ where: { id: created.id } });
+      await prisma.experience.delete({ where: { id: throwaway.id } });
+
       await expect(
         prisma.experienceTechnology.count({
-          where: { experienceId: created.id },
+          where: { experienceId: throwaway.id },
         }),
       ).resolves.toBe(0);
+      // The skill itself survives its experience.
+      await expect(
+        prisma.skill.findUnique({ where: { id: skillA } }),
+      ).resolves.toBeTruthy();
     });
 
     it('returns localized {id,label} ordered by Skill.order', async () => {
@@ -293,25 +371,20 @@ describe('Profile contract (e2e)', () => {
       expect(res).toSatisfyApiSpec();
 
       const rows =
-        envelopeData<{ technologies: { id: string; label: string }[] }[]>(res);
-      const withTech = rows.find((row) => row.technologies.length > 1);
-      expect(withTech).toBeDefined();
-      for (const technology of withTech!.technologies) {
+        envelopeData<
+          { id: string; technologies: { id: string; label: string }[] }[]
+        >(res);
+      const row = rows.find((item) => item.id === experienceId);
+      expect(row).toBeDefined();
+
+      for (const technology of row!.technologies) {
         expect(Object.keys(technology).sort()).toEqual(['id', 'label']);
       }
-
-      const orders = await Promise.all(
-        withTech!.technologies.map(
-          async (technology) =>
-            (
-              await prisma.skill.findUnique({
-                where: { id: technology.id },
-                select: { order: true },
-              })
-            )?.order,
-        ),
-      );
-      expect(orders).toEqual([...orders].sort((a, b) => (a ?? 0) - (b ?? 0)));
+      // Arabic labels, ordered by Skill.order (10 before 20) despite reverse insertion.
+      expect(row!.technologies).toEqual([
+        { id: skillA, label: `ألفا ${RUN}` },
+        { id: skillB, label: `بيتا ${RUN}` },
+      ]);
     });
   });
 
