@@ -23,6 +23,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
     "test:cov": "NODE_OPTIONS=--experimental-vm-modules jest --coverage",
     "test:e2e": "NODE_OPTIONS=--experimental-vm-modules jest --config ./test/jest-e2e.json --runInBand",
+    "guard:fts": "node scripts/check-fts-migration-safety.mjs",
     "contract:export": "ts-node --transpile-only -r tsconfig-paths/register src/contract/export-openapi.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",

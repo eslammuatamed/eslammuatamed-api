@@ -563,6 +563,29 @@ describe('SettingsService', () => {
       expect(result.translations.ar?.currentFocus).toBe('Focus ar');
     });
 
+    it('resolves the portrait inside the settings query — no N+1', async () => {
+      prisma.siteSettings.findFirst.mockResolvedValue(
+        settingsRow({
+          portraitAssetId: 'portrait-1',
+          portraitAsset: portraitAsset(),
+        }),
+      );
+
+      await service.getPublicSettings('en');
+
+      // One singleton read, and no per-asset lookup: variants and alts arrive via the include,
+      // so adding the portrait cannot degrade into a second round trip (doc 10 §6, D10-10).
+      expect(prisma.siteSettings.findFirst).toHaveBeenCalledTimes(1);
+      expect(prisma.mediaAsset.findUnique).not.toHaveBeenCalled();
+      expect(prisma.mediaAsset.findMany).not.toHaveBeenCalled();
+      const include = prisma.siteSettings.findFirst.mock.calls[0]?.[0]?.include;
+      expect(include).toMatchObject({
+        translations: true,
+        resumeAsset: true,
+        portraitAsset: { include: { variants: true, alts: true } },
+      });
+    });
+
     it('rejects a portrait that is not an IMAGE asset', async () => {
       prisma.siteSettings.findFirst.mockResolvedValue(settingsRow());
       prisma.mediaAsset.findUnique.mockResolvedValue({
