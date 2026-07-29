@@ -336,12 +336,16 @@ describe('ProjectsService', () => {
       const result = await service.getPublicBySlug('english-project', 'en');
 
       expect(result.gallery[0]?.mediaAssetId).toBe('media-1');
+      // D10-14: width/height describe the file `url` points at (the 1280 WebP), NOT the 1600×900
+      // master. The fixture deliberately keeps them different so this stays a real assertion; the
+      // aspect ratio is identical either way (1.778), which is why the gallery's intrinsic-box
+      // reservation is unaffected by the change.
       expect(result.gallery[0]?.mediaAsset).toEqual({
         id: 'media-1',
         kind: MediaKind.IMAGE,
         url: 'https://media.test/media/media-1/1280-webp.webp',
-        width: 1600,
-        height: 900,
+        width: 1280,
+        height: 720,
         blurhash: 'BH',
         alt: 'Dashboard shot',
         variants: [
