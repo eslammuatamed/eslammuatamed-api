@@ -5,6 +5,7 @@ import { PrismaClient } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { ARGON2_OPTIONS } from '../src/modules/auth/hashing/argon2.options';
 import { validate } from '../src/config/env.validation';
+import { ABOUT_COPY } from './content/about-copy';
 
 // Idempotent seed (doc 09 §6): locales, the OWNER system role (+ its reserved '*' grant), the
 // OWNER user, the SiteSettings singleton, and the initial categories. Re-running is a no-op —
@@ -98,62 +99,84 @@ async function seedOwner(
   });
 }
 
-// Approved public addresses (owner-profile §8). About prose is deliberately NOT seeded: it is
-// authored content and waits for owner-reviewed EN/AR copy (D18-7).
+// Approved public addresses (owner-profile §8). The About prose is seeded from
+// `content/about-copy.ts` now that final owner-reviewed EN/AR copy exists — the condition
+// D18-7 already attaches to seeding these fields, so this is the policy taking effect, not a
+// change to it. The same decision still forbids an arbitrary portrait or a fabricated
+// MediaAsset, both of which remain absent.
 const PROFESSIONAL_EMAIL = 'hello@eslammuatamed.com';
 const CONTACT_EMAIL = 'contact@eslammuatamed.com';
+
+// Positioning per the content source of truth (owner-profile §2/§6): frontend-first,
+// Vue.js/Nuxt.js primary — never generic "software engineer".
+const SETTINGS_IDENTITY = [
+  {
+    locale: 'en',
+    siteName: 'Eslam Muatamed',
+    tagline: 'Frontend Engineer — Vue.js & Nuxt.js',
+    availabilityStatus: 'Open to frontend opportunities',
+    defaultMetaTitle: 'Eslam Muatamed',
+    defaultMetaDescription:
+      'Frontend engineer specializing in Vue.js and Nuxt.js, building fast, accessible, SEO-focused web interfaces.',
+  },
+  {
+    locale: 'ar',
+    siteName: 'إسلام معتمد',
+    tagline: 'مهندس واجهات أمامية — Vue.js و Nuxt.js',
+    availabilityStatus: 'متاح لفرص عمل في تطوير الواجهات الأمامية',
+    defaultMetaTitle: 'إسلام معتمد',
+    defaultMetaDescription:
+      'مهندس واجهات أمامية متخصص في Vue.js و Nuxt.js، أبني واجهات ويب سريعة وسهلة الوصول ومهيأة لمحركات البحث.',
+  },
+] as const;
 
 async function seedSiteSettings(): Promise<void> {
   const existing = await prisma.siteSettings.findFirst({
     select: { id: true },
   });
-  if (existing) {
-    await prisma.siteSettings.update({
-      where: { id: existing.id },
-      data: {
-        careerStartYear: 2023,
-        careerStartMonth: 11,
-        // Operational addresses (owner-profile §8, confirmed 2026-07-29). portraitAssetId stays
-        // null — a real MediaAsset is never invented by a seed (D18-7).
-        professionalEmail: PROFESSIONAL_EMAIL,
-        contactEmail: CONTACT_EMAIL,
+  // Operational addresses (owner-profile §8, confirmed 2026-07-29). portraitAssetId stays null —
+  // a real MediaAsset is never invented by a seed (D18-7).
+  const settings = existing
+    ? await prisma.siteSettings.update({
+        where: { id: existing.id },
+        data: {
+          careerStartYear: 2023,
+          careerStartMonth: 11,
+          professionalEmail: PROFESSIONAL_EMAIL,
+          contactEmail: CONTACT_EMAIL,
+        },
+        select: { id: true },
+      })
+    : await prisma.siteSettings.create({
+        data: {
+          analyticsEnabled: false,
+          careerStartYear: 2023,
+          careerStartMonth: 11,
+          professionalEmail: PROFESSIONAL_EMAIL,
+          contactEmail: CONTACT_EMAIL,
+        },
+        select: { id: true },
+      });
+
+  // Translations are upserted on every run, not created only alongside a new singleton: an
+  // already-provisioned database would otherwise keep the About fields null forever, since the
+  // singleton branch above never reaches a nested create. Identity and meta values stay
+  // create-only — an operator may have edited them. The three About fields are re-asserted on
+  // every run because about-copy.md §4 makes the governed file authoritative over any diverging
+  // seeded value. Locale-complete, no cross-locale fallback (D10-6).
+  for (const identity of SETTINGS_IDENTITY) {
+    const about = ABOUT_COPY[identity.locale];
+    await prisma.siteSettingsTranslation.upsert({
+      where: {
+        siteSettingsId_locale: {
+          siteSettingsId: settings.id,
+          locale: identity.locale,
+        },
       },
+      create: { siteSettingsId: settings.id, ...identity, ...about },
+      update: about,
     });
-    return;
   }
-  await prisma.siteSettings.create({
-    data: {
-      analyticsEnabled: false,
-      careerStartYear: 2023,
-      careerStartMonth: 11,
-      professionalEmail: PROFESSIONAL_EMAIL,
-      contactEmail: CONTACT_EMAIL,
-      translations: {
-        create: [
-          // Positioning per the content source of truth (owner-profile §2/§6): frontend-first,
-          // Vue.js/Nuxt.js primary — never generic "software engineer".
-          {
-            locale: 'en',
-            siteName: 'Eslam Muatamed',
-            tagline: 'Frontend Engineer — Vue.js & Nuxt.js',
-            availabilityStatus: 'Open to frontend opportunities',
-            defaultMetaTitle: 'Eslam Muatamed',
-            defaultMetaDescription:
-              'Frontend engineer specializing in Vue.js and Nuxt.js, building fast, accessible, SEO-focused web interfaces.',
-          },
-          {
-            locale: 'ar',
-            siteName: 'إسلام معتمد',
-            tagline: 'مهندس واجهات أمامية — Vue.js و Nuxt.js',
-            availabilityStatus: 'متاح لفرص عمل في تطوير الواجهات الأمامية',
-            defaultMetaTitle: 'إسلام معتمد',
-            defaultMetaDescription:
-              'مهندس واجهات أمامية متخصص في Vue.js و Nuxt.js، أبني واجهات ويب سريعة وسهلة الوصول ومهيأة لمحركات البحث.',
-          },
-        ],
-      },
-    },
-  });
 }
 
 async function seedCategories(): Promise<void> {

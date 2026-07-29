@@ -13,6 +13,7 @@ import {
   EmploymentType,
   ContentStatus,
 } from '@prisma/client';
+import { ABOUT_COPY } from './content/about-copy';
 
 const prisma = new PrismaClient();
 
@@ -1222,7 +1223,9 @@ async function ensureSiteSettingsProfile(): Promise<boolean> {
   // Identity translations (HR-8): the base seed sets the tagline but leaves siteName null; set both so
   // the hero renders real identity rather than the i18n brand fallback. `availabilityStatus` is set here
   // per-locale (feature 007) so /ar renders the Arabic value, not the English one. Idempotent upsert on
-  // [siteSettingsId, locale].
+  // [siteSettingsId, locale]. The About fields carry the same owner-approved copy as the base seed and
+  // are set on both branches, so a demo database provisioned by this seed alone is still locale-complete
+  // rather than holding a translation row with null About content.
   const identity = [
     {
       locale: 'en',
@@ -1238,6 +1241,7 @@ async function ensureSiteSettingsProfile(): Promise<boolean> {
     },
   ] as const;
   for (const tr of identity) {
+    const about = ABOUT_COPY[tr.locale];
     await prisma.siteSettingsTranslation.upsert({
       where: {
         siteSettingsId_locale: {
@@ -1249,6 +1253,7 @@ async function ensureSiteSettingsProfile(): Promise<boolean> {
         siteName: tr.siteName,
         tagline: tr.tagline,
         availabilityStatus: tr.availabilityStatus,
+        ...about,
       },
       create: {
         siteSettingsId: settings.id,
@@ -1256,6 +1261,7 @@ async function ensureSiteSettingsProfile(): Promise<boolean> {
         siteName: tr.siteName,
         tagline: tr.tagline,
         availabilityStatus: tr.availabilityStatus,
+        ...about,
       },
     });
   }
