@@ -14,6 +14,7 @@ import {
   ContentStatus,
 } from '@prisma/client';
 import { ABOUT_COPY } from './content/about-copy';
+import { PUBLIC_TAGLINE } from './content/public-tagline';
 
 const prisma = new PrismaClient();
 
@@ -1230,13 +1231,13 @@ async function ensureSiteSettingsProfile(): Promise<boolean> {
     {
       locale: 'en',
       siteName: 'Eslam Muatamed',
-      tagline: 'Frontend Engineer — Vue.js & Nuxt.js',
+      tagline: PUBLIC_TAGLINE.en,
       availabilityStatus: 'Open to frontend opportunities',
     },
     {
       locale: 'ar',
       siteName: 'إسلام معتمد',
-      tagline: 'مهندس واجهات أمامية — Vue.js و Nuxt.js',
+      tagline: PUBLIC_TAGLINE.ar,
       availabilityStatus: 'متاح لفرص عمل في تطوير الواجهات الأمامية',
     },
   ] as const;

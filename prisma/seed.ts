@@ -6,6 +6,7 @@ import * as argon2 from 'argon2';
 import { ARGON2_OPTIONS } from '../src/modules/auth/hashing/argon2.options';
 import { validate } from '../src/config/env.validation';
 import { ABOUT_COPY } from './content/about-copy';
+import { PUBLIC_TAGLINE } from './content/public-tagline';
 
 // Idempotent seed (doc 09 §6): locales, the OWNER system role (+ its reserved '*' grant), the
 // OWNER user, the SiteSettings singleton, and the initial categories. Re-running is a no-op —
@@ -107,13 +108,13 @@ async function seedOwner(
 const PROFESSIONAL_EMAIL = 'hello@eslammuatamed.com';
 const CONTACT_EMAIL = 'contact@eslammuatamed.com';
 
-// Positioning per the content source of truth (owner-profile §2/§6): frontend-first,
-// Vue.js/Nuxt.js primary — never generic "software engineer".
+// Positioning per the content source of truth. `tagline` is the approved public title, governed
+// literally by positioning-strategy.md §2/§3 (v1.1.0) and imported rather than written here.
 const SETTINGS_IDENTITY = [
   {
     locale: 'en',
     siteName: 'Eslam Muatamed',
-    tagline: 'Frontend Engineer — Vue.js & Nuxt.js',
+    tagline: PUBLIC_TAGLINE.en,
     availabilityStatus: 'Open to frontend opportunities',
     defaultMetaTitle: 'Eslam Muatamed',
     defaultMetaDescription:
@@ -122,7 +123,7 @@ const SETTINGS_IDENTITY = [
   {
     locale: 'ar',
     siteName: 'إسلام معتمد',
-    tagline: 'مهندس واجهات أمامية — Vue.js و Nuxt.js',
+    tagline: PUBLIC_TAGLINE.ar,
     availabilityStatus: 'متاح لفرص عمل في تطوير الواجهات الأمامية',
     defaultMetaTitle: 'إسلام معتمد',
     defaultMetaDescription:
@@ -159,11 +160,16 @@ async function seedSiteSettings(): Promise<void> {
       });
 
   // Translations are upserted on every run, not created only alongside a new singleton: an
-  // already-provisioned database would otherwise keep the About fields null forever, since the
-  // singleton branch above never reaches a nested create. Identity and meta values stay
-  // create-only — an operator may have edited them. The three About fields are re-asserted on
-  // every run because about-copy.md §4 makes the governed file authoritative over any diverging
-  // seeded value. Locale-complete, no cross-locale fallback (D10-6).
+  // already-provisioned database would otherwise keep the governed fields stale forever, since the
+  // singleton branch above never reaches a nested create.
+  //
+  // Two classes of field, deliberately: `siteName`, `availabilityStatus` and the default meta
+  // strings stay CREATE-ONLY, because an operator may have edited them in the CMS. The About copy
+  // and the public `tagline` are RE-ASSERTED on every run, because their governing documents —
+  // about-copy.md §4 and positioning-strategy.md §2/§3 — are authoritative over any diverging
+  // seeded value. The tagline moved into this class with positioning-strategy v1.1.0: leaving it
+  // create-only would have left every already-provisioned database on the superseded title.
+  // Locale-complete, no cross-locale fallback (D10-6).
   for (const identity of SETTINGS_IDENTITY) {
     const about = ABOUT_COPY[identity.locale];
     await prisma.siteSettingsTranslation.upsert({
@@ -174,7 +180,7 @@ async function seedSiteSettings(): Promise<void> {
         },
       },
       create: { siteSettingsId: settings.id, ...identity, ...about },
-      update: about,
+      update: { ...about, tagline: identity.tagline },
     });
   }
 }
