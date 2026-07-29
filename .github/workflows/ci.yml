@@ -89,6 +89,9 @@ jobs:
       - name: Typecheck
         run: npx tsc --noEmit
 
+      - name: FTS migration guard (protects article search — D09-6/D02-3)
+        run: npm run guard:fts
+
       - name: Unit tests
         run: npm test
 

@@ -659,6 +659,7 @@ describe('MediaService', () => {
         testimonialAvatars: [{ id: 't-1' }],
         pageSeoOgImages: [{ id: 'ps-1', pageKey: 'home', locale: 'en' }],
         resumeForSettings: [{ id: 's-1' }],
+        portraitForSettings: [{ id: 's-1' }],
       } as never);
 
       const usages = await service.usages('asset-1');
@@ -669,6 +670,7 @@ describe('MediaService', () => {
         'page-seo-og',
         'project-gallery',
         'project-og',
+        'settings-portrait',
         'settings-resume',
         'testimonial-avatar',
       ]);
@@ -699,6 +701,7 @@ describe('MediaService', () => {
         testimonialAvatars: [],
         pageSeoOgImages: [],
         resumeForSettings: [],
+        portraitForSettings: [],
       }) as never;
 
     it('409s a referenced asset and touches no data', async () => {
@@ -713,6 +716,7 @@ describe('MediaService', () => {
         testimonialAvatars: [],
         pageSeoOgImages: [],
         resumeForSettings: [],
+        portraitForSettings: [],
       } as never);
 
       await expect(service.remove('asset-1')).rejects.toBeInstanceOf(

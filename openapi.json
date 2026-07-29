@@ -6457,6 +6457,97 @@
           "sizeBytes"
         ]
       },
+      "PublicMediaVariantDescriptor": {
+        "type": "object",
+        "properties": {
+          "format": {
+            "type": "string",
+            "enum": [
+              "WEBP",
+              "AVIF"
+            ],
+            "example": "WEBP"
+          },
+          "width": {
+            "type": "number",
+            "example": 1280
+          },
+          "height": {
+            "type": "number",
+            "example": 720
+          },
+          "url": {
+            "type": "string",
+            "example": "https://media.eslammuatamed.com/media/8f…/1280-webp.webp"
+          }
+        },
+        "required": [
+          "format",
+          "width",
+          "height",
+          "url"
+        ]
+      },
+      "PublicMediaImageDescriptor": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "IMAGE",
+              "PDF"
+            ],
+            "example": "IMAGE"
+          },
+          "url": {
+            "type": "string",
+            "description": "Widest WebP rendition (never the sanitized master).",
+            "example": "https://media.eslammuatamed.com/media/8f…/1920-webp.webp"
+          },
+          "width": {
+            "type": "number",
+            "example": 2400,
+            "description": "Intrinsic image width (px)."
+          },
+          "height": {
+            "type": "number",
+            "example": 1350
+          },
+          "blurhash": {
+            "type": "string",
+            "nullable": true,
+            "example": "LEHV6nWB2yk8pyo0adR*.7kCMdnj",
+            "description": "BlurHash LQIP."
+          },
+          "alt": {
+            "type": "string",
+            "nullable": true,
+            "example": "A laptop on a wooden desk",
+            "description": "Alt for the requested ?locale=: null = no translation (no fallback), \"\" = intentionally decorative."
+          },
+          "variants": {
+            "description": "Every WebP/AVIF rendition (width asc, format asc).",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicMediaVariantDescriptor"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "url",
+          "width",
+          "height",
+          "blurhash",
+          "alt",
+          "variants"
+        ]
+      },
       "ProfileLinkEntity": {
         "type": "object",
         "properties": {
@@ -6591,6 +6682,47 @@
             ],
             "description": "Resolved résumé PDF descriptor (FR-PUB-023); null when no résumé is configured. The bare asset id stays admin-only."
           },
+          "portraitAssetId": {
+            "type": "string",
+            "nullable": true,
+            "format": "uuid"
+          },
+          "portrait": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PublicMediaImageDescriptor"
+              }
+            ],
+            "description": "Resolved About portrait descriptor (FR-PUB-020); null when no portrait is configured."
+          },
+          "professionalEmail": {
+            "type": "string",
+            "nullable": true,
+            "example": "hello@eslammuatamed.com",
+            "description": "Professional address (CV, resume, outreach)."
+          },
+          "contactEmail": {
+            "type": "string",
+            "nullable": true,
+            "example": "contact@eslammuatamed.com",
+            "description": "Public website contact address."
+          },
+          "aboutBio": {
+            "type": "string",
+            "nullable": true,
+            "description": "Markdown source."
+          },
+          "engineeringPhilosophy": {
+            "type": "string",
+            "nullable": true,
+            "description": "Markdown source."
+          },
+          "currentFocus": {
+            "type": "string",
+            "nullable": true,
+            "description": "Plain text."
+          },
           "availableLocales": {
             "example": [
               "en",
@@ -6616,6 +6748,13 @@
           "bingSiteVerification",
           "customMetas",
           "resumeAsset",
+          "portraitAssetId",
+          "portrait",
+          "professionalEmail",
+          "contactEmail",
+          "aboutBio",
+          "engineeringPhilosophy",
+          "currentFocus",
           "availableLocales"
         ]
       },
@@ -6644,6 +6783,21 @@
           "defaultMetaDescription": {
             "type": "string",
             "nullable": true
+          },
+          "aboutBio": {
+            "type": "string",
+            "nullable": true,
+            "description": "Markdown source."
+          },
+          "engineeringPhilosophy": {
+            "type": "string",
+            "nullable": true,
+            "description": "Markdown source."
+          },
+          "currentFocus": {
+            "type": "string",
+            "nullable": true,
+            "description": "Plain text."
           }
         },
         "required": [
@@ -6651,7 +6805,10 @@
           "tagline",
           "availabilityStatus",
           "defaultMetaTitle",
-          "defaultMetaDescription"
+          "defaultMetaDescription",
+          "aboutBio",
+          "engineeringPhilosophy",
+          "currentFocus"
         ]
       },
       "AdminSiteSettingsEntity": {
@@ -6671,6 +6828,28 @@
             "type": "string",
             "nullable": true,
             "format": "uuid"
+          },
+          "portraitAssetId": {
+            "type": "string",
+            "nullable": true,
+            "format": "uuid"
+          },
+          "portrait": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PublicMediaImageDescriptor"
+              }
+            ],
+            "description": "Resolved portrait descriptor for the media picker; null when unset. Read-only — write via portraitAssetId."
+          },
+          "professionalEmail": {
+            "type": "string",
+            "nullable": true
+          },
+          "contactEmail": {
+            "type": "string",
+            "nullable": true
           },
           "careerStartYear": {
             "type": "number",
@@ -6724,6 +6903,10 @@
           "id",
           "profileLinks",
           "resumeAssetId",
+          "portraitAssetId",
+          "portrait",
+          "professionalEmail",
+          "contactEmail",
           "careerStartYear",
           "careerStartMonth",
           "googleSiteVerification",
@@ -6792,6 +6975,18 @@
           "defaultMetaDescription": {
             "type": "string",
             "example": "Portfolio, case studies, and writing."
+          },
+          "aboutBio": {
+            "type": "string",
+            "description": "Markdown source."
+          },
+          "engineeringPhilosophy": {
+            "type": "string",
+            "description": "Markdown source."
+          },
+          "currentFocus": {
+            "type": "string",
+            "example": "Building bilingual product platforms."
           }
         }
       },
@@ -6809,6 +7004,22 @@
             "format": "uuid",
             "nullable": true,
             "description": "Resume PDF media asset id (must be a PDF), or null to clear."
+          },
+          "portraitAssetId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "About portrait media asset id (must be an IMAGE), or null to clear."
+          },
+          "professionalEmail": {
+            "type": "string",
+            "nullable": true,
+            "example": "hello@eslammuatamed.com"
+          },
+          "contactEmail": {
+            "type": "string",
+            "nullable": true,
+            "example": "contact@eslammuatamed.com"
           },
           "careerStartYear": {
             "type": "number",
@@ -7084,7 +7295,8 @@
               "project-gallery",
               "testimonial-avatar",
               "page-seo-og",
-              "settings-resume"
+              "settings-resume",
+              "settings-portrait"
             ],
             "example": "article-cover"
           },
@@ -8273,6 +8485,23 @@
           }
         }
       },
+      "ExperienceTechnologyEntity": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "label": {
+            "type": "string",
+            "example": "Nuxt.js"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ]
+      },
       "PublicExperienceEntity": {
         "type": "object",
         "properties": {
@@ -8317,6 +8546,12 @@
             "type": "number",
             "example": 1
           },
+          "technologies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExperienceTechnologyEntity"
+            }
+          },
           "availableLocales": {
             "example": [
               "en",
@@ -8339,6 +8574,7 @@
           "startDate",
           "endDate",
           "order",
+          "technologies",
           "availableLocales"
         ]
       },
@@ -8368,6 +8604,13 @@
       "AdminExperienceEntity": {
         "type": "object",
         "properties": {
+          "technologyIds": {
+            "description": "Selected Skill ids; write via technologyIds.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "id": {
             "type": "string",
             "format": "uuid"
@@ -8404,6 +8647,7 @@
           }
         },
         "required": [
+          "technologyIds",
           "id",
           "startDate",
           "endDate",
@@ -8491,6 +8735,13 @@
             "items": {
               "$ref": "#/components/schemas/ExperienceTranslationDto"
             }
+          },
+          "technologyIds": {
+            "description": "Skill ids; replaces the full set. Empty array clears.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "required": [
@@ -8546,6 +8797,13 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ExperienceTranslationDto"
+            }
+          },
+          "technologyIds": {
+            "description": "Skill ids; replaces the full set. Empty array clears.",
+            "type": "array",
+            "items": {
+              "type": "string"
             }
           }
         }
@@ -8826,97 +9084,6 @@
           "year",
           "technologies",
           "availableLocales"
-        ]
-      },
-      "PublicMediaVariantDescriptor": {
-        "type": "object",
-        "properties": {
-          "format": {
-            "type": "string",
-            "enum": [
-              "WEBP",
-              "AVIF"
-            ],
-            "example": "WEBP"
-          },
-          "width": {
-            "type": "number",
-            "example": 1280
-          },
-          "height": {
-            "type": "number",
-            "example": 720
-          },
-          "url": {
-            "type": "string",
-            "example": "https://media.eslammuatamed.com/media/8f…/1280-webp.webp"
-          }
-        },
-        "required": [
-          "format",
-          "width",
-          "height",
-          "url"
-        ]
-      },
-      "PublicMediaImageDescriptor": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "kind": {
-            "type": "string",
-            "enum": [
-              "IMAGE",
-              "PDF"
-            ],
-            "example": "IMAGE"
-          },
-          "url": {
-            "type": "string",
-            "description": "Widest WebP rendition (never the sanitized master).",
-            "example": "https://media.eslammuatamed.com/media/8f…/1920-webp.webp"
-          },
-          "width": {
-            "type": "number",
-            "example": 2400,
-            "description": "Intrinsic image width (px)."
-          },
-          "height": {
-            "type": "number",
-            "example": 1350
-          },
-          "blurhash": {
-            "type": "string",
-            "nullable": true,
-            "example": "LEHV6nWB2yk8pyo0adR*.7kCMdnj",
-            "description": "BlurHash LQIP."
-          },
-          "alt": {
-            "type": "string",
-            "nullable": true,
-            "example": "A laptop on a wooden desk",
-            "description": "Alt for the requested ?locale=: null = no translation (no fallback), \"\" = intentionally decorative."
-          },
-          "variants": {
-            "description": "Every WebP/AVIF rendition (width asc, format asc).",
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PublicMediaVariantDescriptor"
-            }
-          }
-        },
-        "required": [
-          "id",
-          "kind",
-          "url",
-          "width",
-          "height",
-          "blurhash",
-          "alt",
-          "variants"
         ]
       },
       "PublicProjectGalleryItemEntity": {

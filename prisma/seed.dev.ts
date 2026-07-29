@@ -409,6 +409,9 @@ interface ExperienceSeed {
   readonly order: number;
   readonly en: ExperienceTranslationContent;
   readonly ar: ExperienceTranslationContent;
+  // labelEn of seeded skills — resolved to Skill ids at seed time (D09-17). Technologies come
+  // from the Skill registry; no free-text labels are stored on the experience.
+  readonly techKeys: readonly string[];
 }
 
 // Real employers from owner-profile §3 (HR-8). Impact bullets are grounded in the profile and carry NO
@@ -431,6 +434,7 @@ const EXPERIENCES: readonly ExperienceSeed[] = [
       impact:
         '- Build new Vue.js features inside Zidni, a large e-learning SaaS codebase, and modernize its dashboard\n- Built SAMT from scratch — a Nuxt institution website, a NestJS backend, and the admin/CMS — owning the frontend architecture and API integration (the UI/UX was designed in Figma by a designer)\n- Own component design, reusable UI patterns, and the Figma-to-production workflow; joined part-time and transitioned to a full-time role',
     },
+    techKeys: ['Vue.js', 'Nuxt', 'NestJS', 'TypeScript'],
     ar: {
       role: 'مطوّر واجهات أمامية',
       company: 'Findropica',
@@ -452,6 +456,7 @@ const EXPERIENCES: readonly ExperienceSeed[] = [
       impact:
         '- Built a multi-portal logistics platform — administrators, merchants, intercity operators, drivers, and last-mile partners — with Vue and Inertia.js on a Laravel backend\n- Translated requirements into tasks directly with the client and owned the architecture, code review, and validation\n- Practiced disciplined, AI-assisted engineering with full ownership of the delivery',
     },
+    techKeys: ['Vue.js', 'Tailwind CSS'],
     ar: {
       role: 'مطوّر متكامل',
       company: 'WaveX',
@@ -473,6 +478,7 @@ const EXPERIENCES: readonly ExperienceSeed[] = [
       impact:
         '- Led Nuxt implementations across products for international clients\n- Built the customer storefront, vendor dashboard, and admin dashboard for Lure Stores, a multi-vendor e-commerce platform\n- Led the frontend for Nexa (event booking) and built core functionality for Vora; focused on SEO, SSR, i18n, and performance',
     },
+    techKeys: ['Nuxt', 'Vue.js', 'SEO', 'Web Performance'],
     ar: {
       role: 'مطوّر واجهات أمامية',
       company: 'WeblyTech',
@@ -1006,7 +1012,9 @@ async function ensureProjects(
   return created;
 }
 
-async function ensureExperiences(): Promise<number> {
+async function ensureExperiences(
+  skillMap: ReadonlyMap<string, string>,
+): Promise<number> {
   let created = 0;
   for (const experience of EXPERIENCES) {
     // No natural unique key; the English role+company pair is unique across the demo set.
@@ -1033,6 +1041,11 @@ async function ensureExperiences(): Promise<number> {
             { locale: LOCALE_EN, ...experience.en },
             { locale: LOCALE_AR, ...experience.ar },
           ],
+        },
+        technologies: {
+          create: experience.techKeys.map((key) => ({
+            skillId: mustGet(skillMap, key, 'skill'),
+          })),
         },
       },
     });
@@ -1252,7 +1265,7 @@ async function ensureSiteSettingsProfile(): Promise<boolean> {
 async function main(): Promise<void> {
   const skills = await ensureSkills();
   const projectsCreated = await ensureProjects(skills.map);
-  const experiencesCreated = await ensureExperiences();
+  const experiencesCreated = await ensureExperiences(skills.map);
   const categoryMap = await ensureCategories();
   const tagMap = await ensureTags();
   const articlesCreated = await ensureArticles(categoryMap, tagMap);

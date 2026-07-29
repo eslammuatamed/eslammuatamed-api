@@ -4,7 +4,10 @@ import {
   ApiPropertyOptional,
   getSchemaPath,
 } from '@nestjs/swagger';
-import { PublicMediaPdfDescriptor } from '../../media/entities/media-descriptor.entity';
+import {
+  PublicMediaImageDescriptor,
+  PublicMediaPdfDescriptor,
+} from '../../media/entities/media-descriptor.entity';
 
 // Profile link JSON payload (doc 09 SiteSettings.profileLinks). Stored opaque as JSONB; the
 // shape is enforced on write by ProfileLinkDto.
@@ -48,7 +51,7 @@ export class PublicAnalyticsEntity {
 // `Object`, which would document the flat string values as `type: object` (contract defect).
 // Registers PublicMediaPdfDescriptor into components.schemas: resumeAsset now references it via an
 // explicit $ref (not `type:`), so @nestjs/swagger no longer auto-registers it (its only such use).
-@ApiExtraModels(PublicMediaPdfDescriptor)
+@ApiExtraModels(PublicMediaPdfDescriptor, PublicMediaImageDescriptor)
 export class PublicSiteSettingsEntity {
   @ApiProperty({ type: String, nullable: true, example: 'Eslam Muatamed' })
   readonly siteName!: string | null;
@@ -132,6 +135,56 @@ export class PublicSiteSettingsEntity {
   })
   readonly resumeAsset!: PublicMediaPdfDescriptor | null;
 
+  // Profile contract (D10-13). The bare portrait id is kept alongside the resolved descriptor —
+  // additive, matching D10-10 — so a client can reference the asset without a second lookup.
+  @ApiProperty({ type: String, nullable: true, format: 'uuid' })
+  readonly portraitAssetId!: string | null;
+
+  // Nullable $ref, same shape as every other public image (no portrait-specific media shape).
+  // `alt` inside is the requested locale's value: null = no alt row, "" = decorative (doc 10 §6).
+  @ApiProperty({
+    nullable: true,
+    allOf: [{ $ref: getSchemaPath(PublicMediaImageDescriptor) }],
+    description:
+      'Resolved About portrait descriptor (FR-PUB-020); null when no portrait is configured.',
+  })
+  readonly portrait!: PublicMediaImageDescriptor | null;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    example: 'hello@eslammuatamed.com',
+    description: 'Professional address (CV, resume, outreach).',
+  })
+  readonly professionalEmail!: string | null;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    example: 'contact@eslammuatamed.com',
+    description: 'Public website contact address.',
+  })
+  readonly contactEmail!: string | null;
+
+  // About content resolved to the requested locale (FR-PUB-020). Markdown stays an opaque
+  // string here; null means not authored for this locale — the page omits the section.
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description: 'Markdown source.',
+  })
+  readonly aboutBio!: string | null;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description: 'Markdown source.',
+  })
+  readonly engineeringPhilosophy!: string | null;
+
+  @ApiProperty({ type: String, nullable: true, description: 'Plain text.' })
+  readonly currentFocus!: string | null;
+
   @ApiProperty({
     type: [String],
     example: ['en', 'ar'],
@@ -164,12 +217,30 @@ export class SiteSettingsTranslationEntity {
 
   @ApiProperty({ type: String, nullable: true })
   readonly defaultMetaDescription!: string | null;
+
+  // About content per locale (FR-PUB-020, D09-18).
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description: 'Markdown source.',
+  })
+  readonly aboutBio!: string | null;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description: 'Markdown source.',
+  })
+  readonly engineeringPhilosophy!: string | null;
+
+  @ApiProperty({ type: String, nullable: true, description: 'Plain text.' })
+  readonly currentFocus!: string | null;
 }
 
 // Full admin view (D10-6): every stored field plus the per-locale translation map, powering
 // side-by-side editing. @ApiExtraModels registers the map's value type so its $ref resolves in
 // the exported document (current @nestjs/swagger guidance for map/dictionary properties).
-@ApiExtraModels(SiteSettingsTranslationEntity)
+@ApiExtraModels(SiteSettingsTranslationEntity, PublicMediaImageDescriptor)
 export class AdminSiteSettingsEntity {
   @ApiProperty({ format: 'uuid' })
   readonly id!: string;
@@ -179,6 +250,25 @@ export class AdminSiteSettingsEntity {
 
   @ApiProperty({ type: String, nullable: true, format: 'uuid' })
   readonly resumeAssetId!: string | null;
+
+  // The writable portrait relation. The admin read also carries the resolved descriptor below,
+  // mirroring how the media picker already consumes the resume asset.
+  @ApiProperty({ type: String, nullable: true, format: 'uuid' })
+  readonly portraitAssetId!: string | null;
+
+  @ApiProperty({
+    nullable: true,
+    allOf: [{ $ref: getSchemaPath(PublicMediaImageDescriptor) }],
+    description:
+      'Resolved portrait descriptor for the media picker; null when unset. Read-only — write via portraitAssetId.',
+  })
+  readonly portrait!: PublicMediaImageDescriptor | null;
+
+  @ApiProperty({ type: String, nullable: true })
+  readonly professionalEmail!: string | null;
+
+  @ApiProperty({ type: String, nullable: true })
+  readonly contactEmail!: string | null;
 
   @ApiProperty({ type: Number, nullable: true, example: 2023 })
   readonly careerStartYear!: number | null;
