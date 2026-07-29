@@ -15,6 +15,7 @@ import {
   PDF_MIME_TYPE,
   QUALITY_LADDER,
   QUALITY_STEP,
+  budgetTierFor,
   RENDITION_BUDGETS,
   RENDITION_WIDTHS,
 } from './media-processing.constants';
@@ -54,8 +55,9 @@ function loadFileType(): Promise<FileTypeModule> {
   return fileTypeModule;
 }
 
-// One rendition target: the output width plus the budget-table tier it is measured against (a
-// sub-640 rendition borrows the 640 tier — the smallest).
+// One rendition target: the output width plus the budget-table tier it is measured against. An
+// off-tier width (a sub-640 source rendition, or a D20-20 terminal rendition) borrows the smallest
+// configured tier ≥ its own width — see `budgetTierFor`.
 interface RenditionTarget {
   readonly width: number;
   readonly budgetKey: number;
@@ -265,14 +267,35 @@ export class MediaProcessingService {
     return variants;
   }
 
-  // Doc 20 §4: the {640,1280,1920} widths ≤ the master width; a source narrower than 640 yields one
-  // rendition at its own width so every image has ≥ 1. Never upscales.
+  // Doc 20 §4: the configured {640,1280,1920} widths ≤ the master width, plus the D20-20 source-bound
+  // terminal rendition when the source falls STRICTLY between two configured tiers. Never upscales.
+  //
+  // The configured tiers are round numbers; real sources are not. Without the terminal rendition a
+  // 1086px source delivered only 640px, discarding 446px of real detail and leaving every 2×/3× slot
+  // to upscale. Binding the extra rendition to the source width keeps it truthful by construction: it
+  // is the largest rendition that can exist without enlarging.
+  //
+  // The two exclusions are deliberate. A source EQUAL to a tier is already covered — adding it again
+  // would duplicate a width. A source ABOVE the largest tier gets nothing extra: 1920 is a delivery
+  // ceiling, and emitting a full-source rendition there would trade a bounded payload for unbounded
+  // bytes. So the terminal rendition only ever fills a gap BELOW the ceiling.
   private planRenditions(masterWidth: number): RenditionTarget[] {
     const tiers = RENDITION_WIDTHS.filter((width) => width <= masterWidth);
     if (tiers.length === 0) {
-      return [{ width: masterWidth, budgetKey: 640 }];
+      // Source narrower than the smallest tier: one rendition at its own width, so every image has ≥ 1.
+      return [{ width: masterWidth, budgetKey: budgetTierFor(masterWidth) }];
     }
-    return tiers.map((width) => ({ width, budgetKey: width }));
+
+    const widths = [...tiers];
+    const largestTier = RENDITION_WIDTHS[RENDITION_WIDTHS.length - 1] ?? 0;
+    const widestPlanned = tiers[tiers.length - 1] ?? 0;
+    // `masterWidth > widestPlanned` means it is not equal to any tier; `< largestTier` keeps it under
+    // the ceiling. Together: strictly between two configured tiers.
+    if (masterWidth > widestPlanned && masterWidth < largestTier) {
+      widths.push(masterWidth);
+    }
+
+    return widths.map((width) => ({ width, budgetKey: budgetTierFor(width) }));
   }
 
   private async buildRendition(

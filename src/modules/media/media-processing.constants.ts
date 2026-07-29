@@ -43,14 +43,14 @@ export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 export const MASTER_QUALITY = 90;
 
 // ── Rendition widths (doc 20 §4, D20-6) ─────────────────────────────────────────────────────────
-// Delivered widths, never upscaled. A source narrower than the smallest width yields a single
-// rendition at its own width (see the service), so every image has at least one rendition.
+// Configured delivered widths, never upscaled. A source narrower than the smallest width yields a
+// single rendition at its own width, and a source strictly between two of these widths additionally
+// yields a terminal rendition at its own width (D20-20) — both live in the service's planner.
 export const RENDITION_WIDTHS: readonly number[] = [640, 1280, 1920];
 
 // ── Per-width×format byte budgets (doc 20 §4 table, D20-6) ──────────────────────────────────────
 // "KB" in the doc is decimal (1000 B) — written distinctly from the binary "MiB" upload cap, so the
-// unit is intentional. Budgets are keyed to the rendition-width tier (a sub-640 rendition uses the
-// 640 tier — the smallest — since a smaller image is expected to sit comfortably under it).
+// unit is intentional. Budgets are keyed to the configured rendition-width tiers.
 export const RENDITION_BUDGETS: Readonly<
   Record<number, Readonly<Record<ImageVariantFormat, number>>>
 > = {
@@ -58,6 +58,18 @@ export const RENDITION_BUDGETS: Readonly<
   1280: { webp: 150_000, avif: 100_000 },
   1920: { webp: 200_000, avif: 140_000 },
 };
+
+// The budget tier a rendition is measured against: the SMALLEST configured tier ≥ its own width
+// (doc 20 §4, D20-20). One rule covers both off-tier cases. The sub-640 rendition already borrowed
+// the 640 row because a smaller image sits comfortably under it; a D20-20 terminal rendition extends
+// that upward, so an 1086px rendition is measured against the 1280 row. Borrowing the tier ABOVE the
+// width — never below — is what keeps the ceiling honest: measuring 1086px against the 640 row would
+// fail renditions that are entirely reasonable for their size. A width above every tier clamps to the
+// largest row; the planner never emits one, so this is a total-function guard, not a live path.
+export function budgetTierFor(width: number): number {
+  const tier = RENDITION_WIDTHS.find((candidate) => candidate >= width);
+  return tier ?? RENDITION_WIDTHS[RENDITION_WIDTHS.length - 1] ?? 0;
+}
 
 // ── Quality ladder (doc 20 §4, D20-6) ───────────────────────────────────────────────────────────
 // Per codec: start quality, floor, and the shared step. The stepping rule itself lives in

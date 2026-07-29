@@ -264,10 +264,114 @@ describe('MediaProcessingService', () => {
     }, 30000);
 
     it('never upscales beyond the master width', async () => {
-      // 1000 px master → only the 640 tier qualifies (1280/1920 exceed it).
+      // 1000 px master → the 640 tier qualifies; 1280/1920 exceed it. Since 1000 falls strictly
+      // between two configured tiers it also gets a D20-20 terminal rendition at its own width —
+      // which is still, by construction, no upscale.
       const result = await service.processImage(await pngImage(1000, 700));
       expect(result.variants.every((v) => v.width <= 1000)).toBe(true);
-      expect([...new Set(result.variants.map((v) => v.width))]).toEqual([640]);
+      expect(
+        [...new Set(result.variants.map((v) => v.width))].sort((a, b) => a - b),
+      ).toEqual([640, 1000]);
+    }, 30000);
+
+    // ── D20-20: source-bound terminal renditions ────────────────────────────────────────────────
+    // The whole rule as one table. Each case states the source width and the public widths it must
+    // produce; the boundary cases (equal to a tier, above the ceiling) are what keep the rule from
+    // over-firing. 3:2 aspect throughout so heights are unambiguous.
+    describe('source-bound terminal renditions (D20-20)', () => {
+      const cases: ReadonlyArray<{
+        readonly source: number;
+        readonly expected: readonly number[];
+        readonly why: string;
+      }> = [
+        { source: 400, expected: [400], why: 'below the smallest tier' },
+        { source: 640, expected: [640], why: 'exactly a tier — no duplicate' },
+        { source: 1086, expected: [640, 1086], why: 'strictly between tiers' },
+        {
+          source: 1280,
+          expected: [640, 1280],
+          why: 'exactly a tier — no duplicate',
+        },
+        {
+          source: 1700,
+          expected: [640, 1280, 1700],
+          why: 'strictly between tiers',
+        },
+        {
+          source: 1920,
+          expected: [640, 1280, 1920],
+          why: 'exactly the largest tier — no duplicate',
+        },
+        {
+          source: 2400,
+          expected: [640, 1280, 1920],
+          why: 'above the ceiling — no terminal rendition',
+        },
+      ];
+
+      it.each(cases)(
+        'a $source px source yields widths $expected ($why)',
+        async ({ source, expected }) => {
+          const height = Math.round((source * 2) / 3);
+          const result = await service.processImage(
+            await pngImage(source, height),
+          );
+
+          const widths = [...new Set(result.variants.map((v) => v.width))].sort(
+            (a, b) => a - b,
+          );
+          expect(widths).toEqual([...expected]);
+
+          // Deterministic ascending plan, no duplicate width, never enlarged.
+          expect(widths).toEqual([...widths].sort((a, b) => a - b));
+          expect(new Set(widths).size).toBe(widths.length);
+          expect(widths.every((w) => w <= source)).toBe(true);
+
+          // Every planned width exists in BOTH public formats — the terminal tier is not special.
+          for (const width of expected) {
+            const formats = result.variants
+              .filter((v) => v.width === width)
+              .map((v) => v.format)
+              .sort();
+            expect(formats).toEqual(['avif', 'webp']);
+          }
+        },
+        60000,
+      );
+
+      // The defect this whole change exists to fix.
+      it('gives the 1086 px portrait a real 1086 rendition rather than a 640 ceiling', async () => {
+        const result = await service.processImage(await pngImage(1086, 1448));
+        const widths = [...new Set(result.variants.map((v) => v.width))].sort(
+          (a, b) => a - b,
+        );
+        expect(widths).toEqual([640, 1086]);
+        expect(widths).not.toContain(1280); // never invented
+      }, 30000);
+
+      // Truthfulness is the point: a descriptor width that does not match its own bytes would
+      // reintroduce the falsely-labelled source, just at a different width.
+      it('reports widths read back from the encoded bytes, not the requested target', async () => {
+        const result = await service.processImage(await pngImage(1086, 1448));
+        for (const variant of result.variants) {
+          const meta = await sharp(variant.buffer).metadata();
+          expect(meta.width).toBe(variant.width);
+          expect(meta.height).toBe(variant.height);
+        }
+      }, 30000);
+
+      it('measures the terminal rendition against the next tier up, not the tier below', async () => {
+        // 1086 sits between 640 (90 KB WebP) and 1280 (150 KB WebP). Against the 640 row a
+        // legitimate 1086 rendition could be pushed down the quality ladder or flagged overBudget;
+        // against 1280 it passes at start quality. A smooth solid image must not be over budget.
+        const result = await service.processImage(await pngImage(1086, 1448));
+        const terminal = result.variants.filter((v) => v.width === 1086);
+        expect(terminal).toHaveLength(2);
+        expect(terminal.every((v) => v.overBudget)).toBe(false);
+        expect(terminal.find((v) => v.format === 'webp')?.quality).toBe(
+          QUALITY_LADDER.webp.start,
+        );
+      }, 30000);
     });
 
     it('yields exactly one own-width rendition per format for a sub-640 source', async () => {

@@ -30,15 +30,23 @@ export class PublicMediaImageDescriptor {
   readonly kind!: MediaKind;
 
   @ApiProperty({
-    description: 'Widest WebP rendition (never the sanitized master).',
+    description:
+      'Widest PUBLIC WebP rendition (never the sanitized master). `width`/`height` are this exact file’s dimensions (D10-14).',
     example: 'https://media.eslammuatamed.com/media/8f…/1920-webp.webp',
   })
   readonly url!: string;
 
-  @ApiProperty({ example: 2400, description: 'Intrinsic image width (px).' })
+  @ApiProperty({
+    example: 1920,
+    description:
+      'Width (px) of the file served by `url` — NOT the private master’s. Safe to use as that candidate’s width descriptor (D10-14).',
+  })
   readonly width!: number;
 
-  @ApiProperty({ example: 1350 })
+  @ApiProperty({
+    example: 1080,
+    description: 'Height (px) of the file served by `url` (D10-14).',
+  })
   readonly height!: number;
 
   @ApiProperty({
