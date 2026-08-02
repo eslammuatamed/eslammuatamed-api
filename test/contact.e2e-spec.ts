@@ -8,6 +8,7 @@ import {
   OWNER_PASSWORD,
 } from './utils/e2e-app';
 import { loadApiSpec } from './utils/contract';
+import { PrismaService } from '../src/prisma/prisma.service';
 
 // Contact intake + inbox (doc 18 §2, FR-PUB-050/051/052, FR-DSH-060, D02-1/4). Requires a
 // migrated + seeded eslammuatamed_test database.
@@ -23,7 +24,8 @@ import { loadApiSpec } from './utils/contract';
 interface Msg {
   readonly id: string;
   readonly name: string;
-  readonly email: string;
+  readonly email: string | null;
+  readonly phone: string | null;
   readonly subject: string;
   readonly body: string;
   readonly isRead: boolean;
@@ -490,6 +492,115 @@ describe('Contact (e2e)', () => {
         (m) => m.subject === subject,
       );
       expect(matches).toHaveLength(1);
+    });
+  });
+
+  // Email-or-phone visitor contact (D10-16) through the whole pipeline, plus the database CHECK
+  // constraint that backs it independently of this DTO (D09-19).
+  describe('contact methods (D10-16)', () => {
+    it('accepts a phone-only submission and stores the phone with a null email', async () => {
+      const subject = subjectFor('phone-only');
+      const body = validBody(subject);
+      delete body.email;
+      const res = await submitContact({
+        ...body,
+        phone: '+20 100 278 5408',
+      }).expect(200);
+      expect(res).toSatisfyApiSpec();
+
+      const row = (await listNewestUnread()).find((m) => m.subject === subject);
+      expect(row).toBeDefined();
+      expect(row?.email).toBeNull();
+      // Normalized to E.164 — the human spacing never reaches storage.
+      expect(row?.phone).toBe('+201002785408');
+    });
+
+    it('accepts an email-only submission and stores a null phone', async () => {
+      const subject = subjectFor('email-only');
+      const res = await submitContact(validBody(subject)).expect(200);
+      expect(res).toSatisfyApiSpec();
+
+      const row = (await listNewestUnread()).find((m) => m.subject === subject);
+      expect(row?.email).toBe('alex@example.com');
+      expect(row?.phone).toBeNull();
+    });
+
+    it('accepts both and stores both', async () => {
+      const subject = subjectFor('both-methods');
+      await submitContact({
+        ...validBody(subject),
+        phone: '+201002785408',
+      }).expect(200);
+
+      const row = (await listNewestUnread()).find((m) => m.subject === subject);
+      expect(row?.email).toBe('alex@example.com');
+      expect(row?.phone).toBe('+201002785408');
+    });
+
+    it('rejects a submission with neither method (contract-valid 422)', async () => {
+      const body = validBody(subjectFor('no-method'));
+      delete body.email;
+      const res = await submitContact(body).expect(422);
+      expect(res).toSatisfyApiSpec();
+      expect(res.headers['content-type']).toContain('application/problem+json');
+    });
+
+    it('rejects both-blank-after-trimming and persists nothing', async () => {
+      const subject = subjectFor('blank-methods');
+      await submitContact({
+        ...validBody(subject),
+        email: '   ',
+        phone: '  ',
+      }).expect(422);
+      expect(
+        (await listNewestUnread()).some((m) => m.subject === subject),
+      ).toBe(false);
+    });
+
+    // The rule that stops a mistyped address being thrown away because the other method is valid.
+    it('rejects a malformed email even when a valid phone is supplied', async () => {
+      const res = await submitContact({
+        ...validBody(subjectFor('bad-email-good-phone')),
+        email: 'not-an-email',
+        phone: '+201002785408',
+      }).expect(422);
+      expect(res).toSatisfyApiSpec();
+    });
+
+    it('rejects a malformed phone even when a valid email is supplied', async () => {
+      const res = await submitContact({
+        ...validBody(subjectFor('good-email-bad-phone')),
+        phone: 'not-a-phone',
+      }).expect(422);
+      expect(res).toSatisfyApiSpec();
+    });
+
+    it('rejects a phone missing its leading +', async () => {
+      await submitContact({
+        ...validBody(subjectFor('phone-no-plus')),
+        phone: '201002785408',
+      }).expect(422);
+    });
+
+    // The database backstop: even bypassing the DTO entirely, an unanswerable row cannot exist.
+    it('the database refuses a message with no contact method (D09-19)', async () => {
+      const prisma = app.get(PrismaService);
+      await expect(
+        prisma.$executeRawUnsafe(
+          `INSERT INTO contact_messages (id, name, subject, body, updated_at)
+           VALUES (gen_random_uuid(), 'Bypass', 'Bypass ${unique}', 'B', now())`,
+        ),
+      ).rejects.toThrow(/contact_messages_contact_method_present/);
+    });
+
+    it('the database refuses whitespace-only contact methods (D09-19)', async () => {
+      const prisma = app.get(PrismaService);
+      await expect(
+        prisma.$executeRawUnsafe(
+          `INSERT INTO contact_messages (id, name, email, phone, subject, body, updated_at)
+           VALUES (gen_random_uuid(), 'Bypass', '  ', '  ', 'Bypass2 ${unique}', 'B', now())`,
+        ),
+      ).rejects.toThrow(/contact_messages_contact_method_present/);
     });
   });
 });
