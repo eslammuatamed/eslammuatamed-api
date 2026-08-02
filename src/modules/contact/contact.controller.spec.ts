@@ -13,6 +13,7 @@ const persisted: ContactMessage = {
   id: 'msg-1',
   name: 'Alex',
   email: 'alex@example.com',
+  phone: null,
   subject: 'Hi',
   body: 'Hello there, this is a genuine message.',
   isRead: false,

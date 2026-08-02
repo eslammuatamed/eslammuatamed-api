@@ -9,8 +9,26 @@ export class ContactMessageEntity {
   @ApiProperty({ example: 'Alex Morgan' })
   readonly name!: string;
 
-  @ApiProperty({ example: 'alex@example.com' })
-  readonly email!: string;
+  // Nullable as of D10-16: a visitor supplies email, phone, or both. A dashboard consumer renders
+  // each reply affordance only when its own value is non-null, must never print the literal string
+  // `null`, and must not assume an email is present.
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    example: 'alex@example.com',
+    description:
+      'The visitor email, or null when they supplied only a phone number (D10-16).',
+  })
+  readonly email!: string | null;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    example: '+201002785408',
+    description:
+      'The visitor phone in E.164, or null when they supplied only an email address (D10-16).',
+  })
+  readonly phone!: string | null;
 
   @ApiProperty({ example: 'Project inquiry' })
   readonly subject!: string;

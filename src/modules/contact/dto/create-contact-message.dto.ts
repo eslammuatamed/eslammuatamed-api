@@ -4,9 +4,11 @@ import {
   IsEmail,
   IsNumber,
   IsOptional,
+  IsPhoneNumber,
   IsString,
   MaxLength,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
 
 // Trims surrounding whitespace ahead of validation (D10-15). String-only by design: a non-string
@@ -16,6 +18,36 @@ const TrimIfString = (): PropertyDecorator =>
   Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : value,
   );
+
+// Collapses a human-entered number to canonical E.164 (D10-16): strip every character that is not a
+// digit or the leading `+`, so `"+20 100 278 5408"`, `"+20-100-278-5408"` and `"+20 (100) 2785408"`
+// all reduce to `"+201002785408"`. The API stores an INTERNATIONAL number, never a display-formatted
+// one — grouping is a rendering convention and storing it would make two identical numbers unequal.
+//
+// This normalizes SHAPE only; it never repairs a number, and — critically — it never makes a
+// supplied value look UNSUPPLIED. A value like `"not-a-phone"` contains no digits and would collapse
+// to `""`, which the pair rule would then read as "no phone given" and wave through on the strength
+// of a valid email. That is the silent discard D10-16 forbids: the visitor typed something and is
+// entitled to be told it is wrong. So when normalization empties a non-blank input, the trimmed
+// ORIGINAL is returned instead, and it goes on to fail `@IsPhoneNumber` as a 422 of its own.
+const NormalizePhoneIfString = (): PropertyDecorator =>
+  Transform(({ value }: { value: unknown }) => {
+    if (typeof value !== 'string') {
+      return value;
+    }
+    const trimmed = value.trim();
+    const compact = trimmed.replace(/[^\d+]/g, '');
+    const normalized = compact.startsWith('+')
+      ? `+${compact.slice(1).replace(/\+/g, '')}`
+      : compact;
+    return normalized === '' && trimmed !== '' ? trimmed : normalized;
+  });
+
+// Treats an absent, non-string or blank-after-normalization value as "not supplied", so the pair
+// rule below sees the same emptiness the database CHECK constraint does (D09-19).
+function isSupplied(value: unknown): boolean {
+  return typeof value === 'string' && value.trim().length > 0;
+}
 
 // Public contact intake body (FR-PUB-050/051/052). The four real fields are trimmed (D10-15),
 // length-capped and whitelisted; the two anti-spam fields are declared but permissive by design
@@ -39,18 +71,52 @@ export class CreateContactMessageDto {
   @MaxLength(200)
   readonly name!: string;
 
+  // Optional as of D10-16 — but only in the sense that PHONE may stand in for it. Exactly one of
+  // the pair is required, enforced here and, independently, by the database CHECK constraint
+  // (D09-19).
+  //
+  // `@ValidateIf` and NOT `@IsOptional()`: `@IsOptional()` skips every other validator whenever the
+  // value is null/undefined, which would silently defeat the pair rule below.
+  //
+  // The pair rule lives on `email` so the "no contact method" 422 names the first field of the pair
+  // rather than the second. It fires when the visitor supplied an email (validate what they typed)
+  // OR supplied no usable phone (something must be here). A supplied-but-malformed address is
+  // therefore a 422 in its own right, never waved through because a phone happens to be valid —
+  // silently discarding it would throw away the correction they would have made, on the platform's
+  // single conversion point (D10-16).
+  //
   // No `minLength`: the binding constraint is the email format itself, so exporting a redundant 1
   // would document a rule that is not the one doing the rejecting (D10-15).
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: 'alex@example.com',
     maxLength: 320,
     description:
-      'Trimmed of surrounding whitespace before validation, so a padded but otherwise valid address is accepted (D10-15).',
+      'Optional. Trimmed before validation. At least one of `email` or `phone` is required; a supplied but malformed value is rejected rather than ignored (D10-16).',
   })
   @TrimIfString()
+  @ValidateIf(
+    (dto: { phone?: unknown }, value: unknown) =>
+      isSupplied(value) || !isSupplied(dto.phone),
+  )
   @IsEmail()
   @MaxLength(320)
-  readonly email!: string;
+  readonly email?: string;
+
+  // The other half of the pair, transported and stored in E.164 only (D10-16). Validated only when
+  // the visitor actually supplied something — the "neither method" case is reported on `email`
+  // above, so a blank form yields one clear error rather than two competing ones.
+  //
+  // `@IsPhoneNumber()` with no region argument requires a full international number and comes from
+  // the already-installed `class-validator`, so no dependency is added (D10-16, D13-6).
+  @ApiPropertyOptional({
+    example: '+201002785408',
+    description:
+      'Optional. E.164 international format — the API stores an international number, never a display-formatted one; human spacing is normalized away before validation. At least one of `email` or `phone` is required (D10-16).',
+  })
+  @NormalizePhoneIfString()
+  @ValidateIf((_, value: unknown) => isSupplied(value))
+  @IsPhoneNumber()
+  readonly phone?: string;
 
   @ApiProperty({
     example: 'Project inquiry',

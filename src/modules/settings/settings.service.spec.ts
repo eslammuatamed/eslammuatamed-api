@@ -123,6 +123,8 @@ function settingsRow(overrides: Partial<SettingsRow> = {}): SettingsRow {
     portraitAssetId: null,
     professionalEmail: 'hello@eslammuatamed.com',
     contactEmail: 'contact@eslammuatamed.com',
+    contactPhone: '+201002785408',
+    whatsappPhone: '+201002785408',
     careerStartYear: null,
     careerStartMonth: null,
     googleSiteVerification: 'google-token',

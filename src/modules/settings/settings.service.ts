@@ -88,6 +88,8 @@ export class SettingsService {
           : null,
       professionalEmail: settings.professionalEmail,
       contactEmail: settings.contactEmail,
+      contactPhone: settings.contactPhone,
+      whatsappPhone: settings.whatsappPhone,
       // About content resolved to the requested locale — no cross-locale fallback (D10-6).
       aboutBio: translation?.aboutBio ?? null,
       engineeringPhilosophy: translation?.engineeringPhilosophy ?? null,
@@ -252,6 +254,8 @@ export class SettingsService {
           : null,
       professionalEmail: settings.professionalEmail,
       contactEmail: settings.contactEmail,
+      contactPhone: settings.contactPhone,
+      whatsappPhone: settings.whatsappPhone,
       careerStartYear: settings.careerStartYear,
       careerStartMonth: settings.careerStartMonth,
       googleSiteVerification: settings.googleSiteVerification,
@@ -297,6 +301,12 @@ function buildSettingsUpdate(
   }
   if (dto.contactEmail !== undefined) {
     data.contactEmail = dto.contactEmail;
+  }
+  if (dto.contactPhone !== undefined) {
+    data.contactPhone = dto.contactPhone;
+  }
+  if (dto.whatsappPhone !== undefined) {
+    data.whatsappPhone = dto.whatsappPhone;
   }
   // Repoint (connect) or clear (disconnect) the portrait FK; the asset itself is never deleted.
   if (dto.portraitAssetId !== undefined) {

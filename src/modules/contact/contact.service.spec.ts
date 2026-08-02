@@ -9,6 +9,7 @@ const message = (overrides: Partial<ContactMessage> = {}): ContactMessage => ({
   id: 'msg-1',
   name: 'Alex Morgan',
   email: 'alex@example.com',
+  phone: null,
   subject: 'Project inquiry',
   body: 'I would like to discuss a Nuxt build.',
   isRead: false,
@@ -72,6 +73,9 @@ describe('ContactService', () => {
         data: {
           name: validDto.name,
           email: validDto.email,
+          // An absent method is written as SQL NULL, never left undefined (D09-19): the column is
+          // nullable and the CHECK constraint reads NULL, not "key omitted".
+          phone: null,
           subject: validDto.subject,
           body: validDto.body,
           meta: { userAgent: 'Mozilla/5.0', referrer: 'https://example.com' },

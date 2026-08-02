@@ -608,7 +608,12 @@ model SlugRedirect {
 model ContactMessage {
   id         String    @id @default(uuid(7))
   name       String
-  email      String
+  // Visitor contact methods (D09-19, D10-16): BOTH nullable, with at least one non-null enforced by
+  // the `contact_messages_contact_method_present` CHECK constraint. Prisma cannot model a CHECK, so
+  // the constraint lives in the migration SQL only and is invisible here — doc 09 D09-19 records it
+  // for exactly that reason. `phone` is stored in E.164 (leading `+`, digits only), never formatted.
+  email      String?
+  phone      String?
   subject    String
   body       String
   isRead     Boolean   @default(false) @map("is_read")
@@ -638,6 +643,12 @@ model SiteSettings {
   portraitAssetId   String? @map("portrait_asset_id")
   professionalEmail String? @map("professional_email")
   contactEmail      String? @map("contact_email")
+  // Public owner contact numbers (D09-19, D10-16), E.164. INDEPENDENTLY nullable and never derived
+  // from one another: not every telephone number has WhatsApp, so a consumer that inferred one from
+  // the other would publish a link that silently fails. They happen to hold the same value in the
+  // owner seed; that coincidence is deliberately not modelled as one column.
+  contactPhone      String? @map("contact_phone")
+  whatsappPhone     String? @map("whatsapp_phone")
 
   // Global head/tag fields (FR-DSH-052) — verification, analytics, constrained custom metas.
   googleSiteVerification String? @map("google_site_verification")

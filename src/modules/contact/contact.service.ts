@@ -43,10 +43,14 @@ export class ContactService {
       meta.referrer = context.referrer;
     }
 
+    // `?? null` rather than leaving `undefined`: the columns are nullable (D09-19) and an absent
+    // method must be stored as SQL NULL, not omitted. The database CHECK constraint independently
+    // guarantees at least one is present, so a validation bypass cannot write an unanswerable row.
     await this.prisma.contactMessage.create({
       data: {
         name: dto.name,
-        email: dto.email,
+        email: dto.email ?? null,
+        phone: dto.phone ?? null,
         subject: dto.subject,
         body: dto.body,
         meta,
@@ -142,6 +146,7 @@ function toEntity(row: ContactMessage): ContactMessageEntity {
     id: row.id,
     name: row.name,
     email: row.email,
+    phone: row.phone,
     subject: row.subject,
     body: row.body,
     isRead: row.isRead,

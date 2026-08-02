@@ -86,6 +86,7 @@ describe('request serializer — no contact PII reaches the logs (D07-5)', () =>
       email: 'alex@example.com',
       subject: 'Project inquiry',
       body: 'A confidential message about a Nuxt build.',
+      phone: '+201002785408',
       website: '',
       elapsedMs: 8200,
     },
@@ -108,6 +109,8 @@ describe('request serializer — no contact PII reaches the logs (D07-5)', () =>
       'alex@example.com',
       'Project inquiry',
       'A confidential message about a Nuxt build.',
+      // A submitted visitor phone is PII of the same class as the email (doc 19 §6).
+      '+201002785408',
     ]) {
       expect(line).not.toContain(secret);
     }

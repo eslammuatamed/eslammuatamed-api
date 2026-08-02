@@ -20,6 +20,13 @@ const validBody = (): Record<string, unknown> => ({
   body: 'I would like to discuss a Nuxt build.',
 });
 
+/** A body carrying neither contact method, for the pair rule below. */
+const withoutContact = (): Record<string, unknown> => {
+  const body = validBody();
+  delete body.email;
+  return body;
+};
+
 describe('CreateContactMessageDto validation', () => {
   it('accepts a valid message', async () => {
     expect(await validateBody(validBody())).toHaveLength(0);
@@ -212,5 +219,142 @@ describe('CreateContactMessageDto normalization (D10-15)', () => {
     expect(await validateBody({ ...validBody(), name: 42 })).not.toHaveLength(
       0,
     );
+  });
+});
+
+// The email-or-phone pair rule (D10-16) and E.164 normalization. The invariant is ALSO enforced by
+// a database CHECK constraint (D09-19); these tests cover the layer that produces the friendly 422.
+describe('CreateContactMessageDto contact methods (D10-16)', () => {
+  const transform = (body: Record<string, unknown>): CreateContactMessageDto =>
+    plainToInstance(CreateContactMessageDto, body);
+
+  describe('accepts any combination that yields at least one usable method', () => {
+    it('email only', async () => {
+      expect(await validateBody(validBody())).toHaveLength(0);
+    });
+
+    it('phone only', async () => {
+      expect(
+        await validateBody({ ...withoutContact(), phone: '+201002785408' }),
+      ).toHaveLength(0);
+    });
+
+    it('both', async () => {
+      expect(
+        await validateBody({ ...validBody(), phone: '+201002785408' }),
+      ).toHaveLength(0);
+    });
+  });
+
+  describe('rejects a submission with no usable method (→ 422)', () => {
+    it('neither field present', async () => {
+      expect(await validateBody(withoutContact())).not.toHaveLength(0);
+    });
+
+    it('both present but blank after trimming', async () => {
+      expect(
+        await validateBody({ ...withoutContact(), email: '   ', phone: '  ' }),
+      ).not.toHaveLength(0);
+    });
+
+    it('both present but empty strings', async () => {
+      expect(
+        await validateBody({ ...withoutContact(), email: '', phone: '' }),
+      ).not.toHaveLength(0);
+    });
+  });
+
+  // The load-bearing rule: a value the visitor actually typed is judged on its own merits. Accepting
+  // the message because the OTHER method is valid would discard the correction they would have made.
+  describe('rejects a supplied-but-malformed value even when the other method is valid', () => {
+    it('malformed email alongside a valid phone', async () => {
+      const errors = await validateBody({
+        ...withoutContact(),
+        email: 'not-an-email',
+        phone: '+201002785408',
+      });
+      expect(errors.map((e) => e.property)).toContain('email');
+    });
+
+    it('malformed phone alongside a valid email', async () => {
+      const errors = await validateBody({
+        ...validBody(),
+        phone: 'not-a-phone',
+      });
+      expect(errors.map((e) => e.property)).toContain('phone');
+    });
+
+    it('phone missing its leading + alongside a valid email', async () => {
+      const errors = await validateBody({
+        ...validBody(),
+        phone: '201002785408',
+      });
+      expect(errors.map((e) => e.property)).toContain('phone');
+    });
+
+    it('phone with a zero country code', async () => {
+      expect(
+        await validateBody({ ...validBody(), phone: '+0123456789' }),
+      ).not.toHaveLength(0);
+    });
+
+    it('phone that is too long to be dialable', async () => {
+      expect(
+        await validateBody({ ...validBody(), phone: '+9661234567890123456' }),
+      ).not.toHaveLength(0);
+    });
+  });
+
+  describe('normalizes a supplied phone to E.164 before validation', () => {
+    it.each([
+      ['spaces', '+20 100 278 5408'],
+      ['dashes', '+20-100-278-5408'],
+      ['parentheses', '+20 (100) 278 5408'],
+      ['mixed punctuation', ' +20.100.278.5408 '],
+    ])('%s', async (_label, input) => {
+      const body = { ...withoutContact(), phone: input };
+      expect(await validateBody(body)).toHaveLength(0);
+      expect(transform(body).phone).toBe('+201002785408');
+    });
+
+    it('leaves an already-canonical number untouched', () => {
+      expect(
+        transform({ ...withoutContact(), phone: '+201002785408' }).phone,
+      ).toBe('+201002785408');
+    });
+
+    // Shape only — normalization must never repair an invalid number into a valid one.
+    it('does not repair a number that is invalid after normalization', async () => {
+      expect(
+        await validateBody({ ...withoutContact(), phone: '+1 2' }),
+      ).not.toHaveLength(0);
+    });
+
+    it('leaves a non-string phone alone so the type error still fires', async () => {
+      expect(
+        await validateBody({ ...withoutContact(), phone: 42 }),
+      ).not.toHaveLength(0);
+    });
+  });
+
+  // The anti-spam layers are untouched by the pair rule.
+  it('still lets a filled honeypot through validation with a phone-only body', async () => {
+    expect(
+      await validateBody({
+        ...withoutContact(),
+        phone: '+201002785408',
+        website: 'http://spam.example',
+      }),
+    ).toHaveLength(0);
+  });
+
+  it('still lets a sub-threshold elapsedMs through with a phone-only body', async () => {
+    expect(
+      await validateBody({
+        ...withoutContact(),
+        phone: '+201002785408',
+        elapsedMs: 10,
+      }),
+    ).toHaveLength(0);
   });
 });

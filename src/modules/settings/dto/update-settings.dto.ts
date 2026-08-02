@@ -5,6 +5,7 @@ import {
   IsArray,
   IsBoolean,
   IsEmail,
+  IsPhoneNumber,
   IsInt,
   IsIn,
   IsOptional,
@@ -191,6 +192,34 @@ export class UpdateSettingsDto {
   @MaxLength(EMAIL_MAX)
   readonly contactEmail?: string | null;
 
+  // Public owner numbers (D10-16). Normalized to E.164 on the way in, mirroring the public intake:
+  // the stored value is an international number, never a display-formatted one. `null` withdraws a
+  // number, which is why the Web never hard-codes either — withdrawal stays a data edit.
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    example: '+201002785408',
+    description: 'Public contact number in E.164; null withdraws it.',
+  })
+  @IsOptional()
+  @ValidateIf((dto: UpdateSettingsDto) => dto.contactPhone !== null)
+  @Transform(({ value }: { value: unknown }) => normalizeE164(value))
+  @IsPhoneNumber()
+  readonly contactPhone?: string | null;
+
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    example: '+201002785408',
+    description:
+      'Public WhatsApp number in E.164; null withdraws it. Independent of contactPhone.',
+  })
+  @IsOptional()
+  @ValidateIf((dto: UpdateSettingsDto) => dto.whatsappPhone !== null)
+  @Transform(({ value }: { value: unknown }) => normalizeE164(value))
+  @IsPhoneNumber()
+  readonly whatsappPhone?: string | null;
+
   @ApiPropertyOptional({
     type: Number,
     nullable: true,
@@ -266,4 +295,17 @@ export class UpdateSettingsDto {
   @ValidateNested({ each: true })
   @Type(() => SettingsTranslationDto)
   readonly translations?: SettingsTranslationDto[];
+}
+
+// Shared with the public contact intake in spirit: strip everything that is not a digit or the
+// leading `+`, so human spacing and grouping never reach storage (D10-16). Shape only — a number
+// that is still invalid after this fails `@IsPhoneNumber` rather than being repaired.
+function normalizeE164(value: unknown): unknown {
+  if (typeof value !== 'string') {
+    return value;
+  }
+  const compact = value.replace(/[^\d+]/g, '');
+  return compact.startsWith('+')
+    ? `+${compact.slice(1).replace(/\+/g, '')}`
+    : compact;
 }

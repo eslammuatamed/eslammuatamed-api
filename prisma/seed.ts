@@ -107,6 +107,11 @@ async function seedOwner(
 // MediaAsset, both of which remain absent.
 const PROFESSIONAL_EMAIL = 'hello@eslammuatamed.com';
 const CONTACT_EMAIL = 'contact@eslammuatamed.com';
+// Owner-approved public numbers (D10-16), stored in E.164. Deliberately two constants holding the
+// same value rather than one shared constant: `contactPhone` and `whatsappPhone` are independently
+// governed, and collapsing them here would quietly reintroduce the inference the contract forbids.
+const CONTACT_PHONE = '+201002785408';
+const WHATSAPP_PHONE = '+201002785408';
 
 // Positioning per the content source of truth. `tagline` is the approved public title, governed
 // literally by positioning-strategy.md §2/§3 (v1.1.0) and imported rather than written here.
@@ -145,6 +150,8 @@ async function seedSiteSettings(): Promise<void> {
           careerStartMonth: 11,
           professionalEmail: PROFESSIONAL_EMAIL,
           contactEmail: CONTACT_EMAIL,
+          contactPhone: CONTACT_PHONE,
+          whatsappPhone: WHATSAPP_PHONE,
         },
         select: { id: true },
       })
@@ -155,6 +162,8 @@ async function seedSiteSettings(): Promise<void> {
           careerStartMonth: 11,
           professionalEmail: PROFESSIONAL_EMAIL,
           contactEmail: CONTACT_EMAIL,
+          contactPhone: CONTACT_PHONE,
+          whatsappPhone: WHATSAPP_PHONE,
         },
         select: { id: true },
       });

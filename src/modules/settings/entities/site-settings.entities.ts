@@ -166,6 +166,28 @@ export class PublicSiteSettingsEntity {
   })
   readonly contactEmail!: string | null;
 
+  // Public owner numbers (D10-16), E.164. INDEPENDENTLY nullable and never derived from one
+  // another: not every telephone number has WhatsApp, so a consumer that inferred one from the
+  // other would publish a link that silently fails. Both are approved for publication; neither may
+  // be hard-coded in a consumer, so withdrawing a number stays a data edit rather than a redeploy.
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    example: '+201002785408',
+    description:
+      'Public contact number in E.164 for a call action; null when not published. Display grouping is a rendering concern this contract does not carry.',
+  })
+  readonly contactPhone!: string | null;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    example: '+201002785408',
+    description:
+      'Public WhatsApp number in E.164; null when not published. Independent of contactPhone — never infer one from the other.',
+  })
+  readonly whatsappPhone!: string | null;
+
   // About content resolved to the requested locale (FR-PUB-020). Markdown stays an opaque
   // string here; null means not authored for this locale — the page omits the section.
   @ApiProperty({
@@ -269,6 +291,13 @@ export class AdminSiteSettingsEntity {
 
   @ApiProperty({ type: String, nullable: true })
   readonly contactEmail!: string | null;
+
+  // E.164, independently nullable — see the public entity above (D10-16).
+  @ApiProperty({ type: String, nullable: true, example: '+201002785408' })
+  readonly contactPhone!: string | null;
+
+  @ApiProperty({ type: String, nullable: true, example: '+201002785408' })
+  readonly whatsappPhone!: string | null;
 
   @ApiProperty({ type: Number, nullable: true, example: 2023 })
   readonly careerStartYear!: number | null;
