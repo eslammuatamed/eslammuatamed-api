@@ -5461,7 +5461,18 @@
             }
           },
           "429": {
-            "description": "Contact rate limit exceeded (3 / hour or 10 / day per IP).",
+            "description": "Contact rate limit exceeded (3 / hour or 10 / day per IP). Carries `Retry-After` in seconds.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying (delta-seconds, never an HTTP-date). Exposed via CORS so browser clients can read it.",
+                "schema": {
+                  "type": "integer",
+                  "format": "int32",
+                  "minimum": 1,
+                  "example": 3600
+                }
+              }
+            },
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -9764,26 +9775,33 @@
           "name": {
             "type": "string",
             "example": "Alex Morgan",
-            "maxLength": 200
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "Trimmed of surrounding whitespace before validation; a value empty after trimming is rejected (D10-15)."
           },
           "email": {
             "type": "string",
             "example": "alex@example.com",
-            "maxLength": 320
+            "maxLength": 320,
+            "description": "Trimmed of surrounding whitespace before validation, so a padded but otherwise valid address is accepted (D10-15)."
           },
           "subject": {
             "type": "string",
             "example": "Project inquiry",
-            "maxLength": 300
+            "minLength": 1,
+            "maxLength": 300,
+            "description": "Trimmed of surrounding whitespace before validation; a value empty after trimming is rejected (D10-15)."
           },
           "body": {
             "type": "string",
             "example": "I'd like to discuss a Nuxt build.",
-            "maxLength": 5000
+            "minLength": 1,
+            "maxLength": 5000,
+            "description": "Trimmed of surrounding whitespace before validation; a value empty after trimming is rejected (D10-15)."
           },
           "website": {
             "type": "string",
-            "description": "Anti-spam honeypot — leave empty. Any value flags the submission as spam. Never persisted.",
+            "description": "Anti-spam honeypot — leave empty. Any value flags the submission as spam. Never trimmed, never persisted.",
             "example": ""
           },
           "elapsedMs": {

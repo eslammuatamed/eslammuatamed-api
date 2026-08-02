@@ -10,6 +10,7 @@ import { json, urlencoded } from 'express';
 import type { Response } from 'supertest';
 import type { App } from 'supertest/types';
 import { AppModule } from '../../src/app.module';
+import { buildCorsOptions } from '../../src/common/http/cors.options';
 import {
   flattenValidationErrors,
   ValidationProblemException,
@@ -19,12 +20,22 @@ import {
 // the whitelist/forbid/transform ValidationPipe, cookie parsing, and the doc 19 §5 1 MiB body
 // limit). Guards, the RFC 7807 filter, and the envelope interceptor come from the APP_* providers
 // in AppModule, so the e2e app exercises the real request pipeline. Requires a running Postgres.
-export async function createE2eApp(): Promise<INestApplication> {
+// `corsOrigin` opts a suite into the real CORS layer. It is off by default because CORS is inert
+// for supertest's same-process requests and every existing suite is written without it; the one
+// suite that asserts the policy (cors.e2e-spec.ts) passes the origin so it exercises
+// buildCorsOptions() — the same object main.ts installs — rather than a hand-copied approximation.
+export async function createE2eApp(
+  options: { readonly corsOrigin?: string } = {},
+): Promise<INestApplication> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: false,
     // Mirror main.ts: register body parsers explicitly with the doc 19 §5 1 MiB limit.
     bodyParser: false,
   });
+
+  if (options.corsOrigin !== undefined) {
+    app.enableCors(buildCorsOptions(options.corsOrigin));
+  }
 
   app.use(cookieParser());
   app.use(json({ limit: '1mb' }));

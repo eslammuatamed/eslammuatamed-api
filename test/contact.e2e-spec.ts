@@ -379,4 +379,117 @@ describe('Contact (e2e)', () => {
     expect(res).toSatisfyApiSpec();
     expect(res.headers['content-type']).toContain('application/problem+json');
   });
+
+  // Intake normalization end-to-end (D10-15, doc 10 §6). The DTO unit spec proves the transform;
+  // this proves the whole request pipeline honours it — the pipe validates the trimmed value and
+  // the row the dashboard later reads is the trimmed one, not the padded one.
+  describe('intake normalization (D10-15)', () => {
+    it('persists the four real fields trimmed, and the inbox serves them trimmed', async () => {
+      const subject = subjectFor('trim-persist');
+      const res = await submitContact({
+        name: '   Alex Morgan   ',
+        email: '  alex@example.com  ',
+        subject: `   ${subject}   `,
+        body: '\n  A padded enquiry about a Nuxt build.  \n',
+        elapsedMs: 8200,
+      }).expect(200);
+      expect(res).toSatisfyApiSpec();
+
+      const row = (await listNewestUnread()).find((m) => m.subject === subject);
+      expect(row).toBeDefined();
+      expect(row?.name).toBe('Alex Morgan');
+      expect(row?.email).toBe('alex@example.com');
+      expect(row?.subject).toBe(subject);
+      expect(row?.body).toBe('A padded enquiry about a Nuxt build.');
+    });
+
+    // The correction's point: `@MinLength(1)` alone accepted these and wrote a blank inbox row.
+    it.each([['name'], ['subject'], ['body'], ['email']])(
+      'rejects a whitespace-only %s with a contract-valid 422',
+      async (field) => {
+        const subject = subjectFor(`blank-${field}`);
+        const res = await submitContact({
+          ...validBody(subject),
+          [field]: '   ',
+        }).expect(422);
+        expect(res).toSatisfyApiSpec();
+        expect(res.headers['content-type']).toContain(
+          'application/problem+json',
+        );
+      },
+    );
+
+    it('persists nothing when a field is whitespace-only', async () => {
+      const subject = subjectFor('blank-not-persisted');
+      await submitContact({ ...validBody(subject), body: '   ' }).expect(422);
+      expect(
+        (await listNewestUnread()).some((m) => m.subject === subject),
+      ).toBe(false);
+    });
+
+    // Previously a false REJECT: `@IsEmail()` saw the surrounding whitespace and 422'd a real address.
+    it('accepts a valid email carrying surrounding whitespace and stores it trimmed', async () => {
+      const subject = subjectFor('padded-email');
+      const res = await submitContact({
+        ...validBody(subject),
+        email: '  alex@example.com  ',
+      }).expect(200);
+      expect(res).toSatisfyApiSpec();
+
+      const row = (await listNewestUnread()).find((m) => m.subject === subject);
+      expect(row?.email).toBe('alex@example.com');
+    });
+
+    it('still rejects a value that exceeds its cap after trimming', async () => {
+      const res = await submitContact({
+        ...validBody(subjectFor('over-cap')),
+        name: `  ${'a'.repeat(201)}  `,
+      }).expect(422);
+      expect(res).toSatisfyApiSpec();
+    });
+
+    // The regression a blanket trim would have caused: `"   "` would become `""` and the honeypot,
+    // whose emptiness test is length 0 and nothing else (D02-1), would stop firing.
+    it('keeps a whitespace-only honeypot tripping — neutral 200, nothing persisted', async () => {
+      const subject = subjectFor('honeypot-whitespace');
+      const res = await submitContact({
+        ...validBody(subject),
+        website: '   ',
+      }).expect(200);
+      expect(res).toSatisfyApiSpec();
+      expect(envelopeData<{ received: boolean }>(res)).toEqual({
+        received: true,
+      });
+
+      expect(
+        (await listNewestUnread()).some((m) => m.subject === subject),
+      ).toBe(false);
+    });
+
+    it('leaves the time-trap semantics unchanged — sub-threshold still drops as success', async () => {
+      const subject = subjectFor('elapsed-unchanged');
+      const res = await submitContact({
+        ...validBody(subject),
+        elapsedMs: 10,
+      }).expect(200);
+      expect(res).toSatisfyApiSpec();
+      expect(envelopeData<{ received: boolean }>(res)).toEqual({
+        received: true,
+      });
+
+      expect(
+        (await listNewestUnread()).some((m) => m.subject === subject),
+      ).toBe(false);
+    });
+
+    it('persists an accepted submission exactly once', async () => {
+      const subject = subjectFor('exactly-once');
+      await submitContact(validBody(subject)).expect(200);
+
+      const matches = (await collectUntil([subject])).filter(
+        (m) => m.subject === subject,
+      );
+      expect(matches).toHaveLength(1);
+    });
+  });
 });

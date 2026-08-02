@@ -8,6 +8,7 @@ import helmet from 'helmet';
 import { Logger, LoggerErrorInterceptor } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { AppConfigService } from './config/app-config.service';
+import { buildCorsOptions } from './common/http/cors.options';
 import {
   flattenValidationErrors,
   ValidationProblemException,
@@ -58,8 +59,10 @@ async function bootstrap(): Promise<void> {
     }),
   );
 
-  // Exact-origin CORS with credentials for the refresh cookie (doc 19 §2) — never "*".
-  app.enableCors({ origin: config.corsOrigin, credentials: true });
+  // Exact-origin CORS with credentials for the refresh cookie (doc 19 §2) — never "*". The
+  // allowlist restricts origins, not what a permitted origin may read: `Retry-After` is exposed so
+  // a throttled browser client can actually read the delay doc 19 §6 requires us to send (D10-15).
+  app.enableCors(buildCorsOptions(config.corsOrigin));
 
   // Fires Nest lifecycle hooks (PrismaService.onModuleDestroy → $disconnect) on SIGTERM/SIGINT.
   // Current Prisma-with-NestJS guidance uses lifecycle hooks, not the removed $on('beforeExit').
