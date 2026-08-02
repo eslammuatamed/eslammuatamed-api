@@ -11,7 +11,10 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Public } from '../../common/decorators/public.decorator';
 import { ContactThrottlerGuard } from '../../common/throttling/contact-throttler.guard';
 import { ApiOkEnvelope } from '../../common/swagger/api-envelope';
-import { ApiProblemResponse } from '../../common/swagger/api-problem-response';
+import {
+  ApiProblemResponse,
+  RETRY_AFTER_HEADER,
+} from '../../common/swagger/api-problem-response';
 import { ContactService } from './contact.service';
 import { CreateContactMessageDto } from './dto/create-contact-message.dto';
 import { ContactReceiptEntity } from './entities/contact-receipt.entity';
@@ -44,7 +47,8 @@ export class ContactController {
   )
   @ApiProblemResponse(
     HttpStatus.TOO_MANY_REQUESTS,
-    'Contact rate limit exceeded (3 / hour or 10 / day per IP).',
+    'Contact rate limit exceeded (3 / hour or 10 / day per IP). Carries `Retry-After` in seconds.',
+    RETRY_AFTER_HEADER,
   )
   submit(
     @Body() dto: CreateContactMessageDto,
