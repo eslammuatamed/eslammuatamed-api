@@ -19,6 +19,28 @@ const TrimIfString = (): PropertyDecorator =>
     typeof value === 'string' ? value.trim() : value,
   );
 
+// The ONE normalization boundary for the two OPTIONAL visitor contact methods (D10-16 (a), D09-19).
+// `isSupplied` below already defines what the pair rule — and the database CHECK constraint — count
+// as "a contact method". These transforms make PERSISTENCE agree with that same predicate by
+// resolving anything it rejects to `undefined`, which the service maps to SQL NULL with its existing
+// `?? null`. Previously a blank string satisfied neither side: the pair rule read it as absence and
+// skipped validation, while `??` (nullish, not falsy) passed the `''` straight through to a nullable
+// column. An empty string is not a contact method, and the column's whole point (D09-19) is that an
+// absent method is NULL.
+//
+// The guard is keyed on the TRIMMED ORIGINAL — never on a post-normalization result. That
+// distinction is load-bearing: see NormalizePhoneIfString below.
+const absentIfBlank = (trimmed: string): string | undefined =>
+  trimmed === '' ? undefined : trimmed;
+
+// Trims an optional string and resolves blank-after-trim to absence (see above). Distinct from
+// `TrimIfString`, which the REQUIRED fields keep: there, `''` must survive so `@MinLength(1)` is the
+// rule that rejects it.
+const TrimOptionalIfString = (): PropertyDecorator =>
+  Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? absentIfBlank(value.trim()) : value,
+  );
+
 // Collapses a human-entered number to canonical E.164 (D10-16): strip every character that is not a
 // digit or the leading `+`, so `"+20 100 278 5408"`, `"+20-100-278-5408"` and `"+20 (100) 2785408"`
 // all reduce to `"+201002785408"`. The API stores an INTERNATIONAL number, never a display-formatted
@@ -30,17 +52,27 @@ const TrimIfString = (): PropertyDecorator =>
 // of a valid email. That is the silent discard D10-16 forbids: the visitor typed something and is
 // entitled to be told it is wrong. So when normalization empties a non-blank input, the trimmed
 // ORIGINAL is returned instead, and it goes on to fail `@IsPhoneNumber` as a 422 of its own.
+//
+// Hence the blank check happens FIRST, against the trimmed original, and the stripped result is
+// never consulted for emptiness. Two distinct inputs strip to `''` while being genuinely supplied:
+// `"not-a-phone"` (no digits at all) and `"٠١٠٠٢٧٨٥٤٠٨"` (Arabic-Indic digits, which are not ASCII
+// `\d`). Reading absence off the stripped value would turn both into a silent NULL — discarding a
+// correction the visitor was entitled to make, and quietly relocating the digit-folding boundary
+// that the Web owns and the API does not (D13-6). Both must stay 422s.
 const NormalizePhoneIfString = (): PropertyDecorator =>
   Transform(({ value }: { value: unknown }) => {
     if (typeof value !== 'string') {
       return value;
     }
     const trimmed = value.trim();
+    if (absentIfBlank(trimmed) === undefined) {
+      return undefined;
+    }
     const compact = trimmed.replace(/[^\d+]/g, '');
     const normalized = compact.startsWith('+')
       ? `+${compact.slice(1).replace(/\+/g, '')}`
       : compact;
-    return normalized === '' && trimmed !== '' ? trimmed : normalized;
+    return normalized === '' ? trimmed : normalized;
   });
 
 // Treats an absent, non-string or blank-after-normalization value as "not supplied", so the pair
@@ -93,7 +125,7 @@ export class CreateContactMessageDto {
     description:
       'Optional. Trimmed before validation. At least one of `email` or `phone` is required; a supplied but malformed value is rejected rather than ignored (D10-16).',
   })
-  @TrimIfString()
+  @TrimOptionalIfString()
   @ValidateIf(
     (dto: { phone?: unknown }, value: unknown) =>
       isSupplied(value) || !isSupplied(dto.phone),

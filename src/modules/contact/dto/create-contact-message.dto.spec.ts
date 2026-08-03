@@ -337,6 +337,77 @@ describe('CreateContactMessageDto contact methods (D10-16)', () => {
     });
   });
 
+  // A blank optional method is ABSENCE, and absence must reach the service as `undefined` so its
+  // `?? null` writes SQL NULL (D10-16 (a) "including blank-after-trim", D09-19 "both nullable").
+  // The regression this pins: the pair rule read `''` as absence and skipped validation, but `??`
+  // is nullish — not falsy — so the `''` travelled on and was persisted into a nullable column.
+  // A stored `''` is not a contact method; it is an unanswerable row the column exists to prevent.
+  describe('resolves a blank optional method to absence, not an empty string', () => {
+    it.each([
+      ['empty email', { email: '', phone: '+201002785408' }, 'email'],
+      ['whitespace email', { email: '   ', phone: '+201002785408' }, 'email'],
+      ['empty phone', { email: 'alex@example.com', phone: '' }, 'phone'],
+      ['whitespace phone', { email: 'alex@example.com', phone: '  ' }, 'phone'],
+    ])('%s becomes undefined', (_label, patch, blankField) => {
+      const dto = transform({
+        ...withoutContact(),
+        ...patch,
+      }) as unknown as Record<string, unknown>;
+      expect(dto[blankField]).toBeUndefined();
+      // Never the empty string — that is the exact value that used to be persisted.
+      expect(dto[blankField]).not.toBe('');
+    });
+
+    it.each([
+      ['valid email + blank phone', { email: 'alex@example.com', phone: '' }],
+      ['valid phone + blank email', { email: '', phone: '+201002785408' }],
+    ])(
+      '%s is accepted (the surviving method carries the submission)',
+      async (_label, patch) => {
+        expect(
+          await validateBody({ ...withoutContact(), ...patch }),
+        ).toHaveLength(0);
+      },
+    );
+  });
+
+  // The blank guard is keyed on the TRIMMED ORIGINAL, never on the digit-stripped result. These two
+  // inputs both strip to `''` while being genuinely supplied — if absence were read off the stripped
+  // value they would become silent NULLs instead of the 422 the visitor is owed (D10-16).
+  describe('a supplied value that strips to empty stays a 422, never a silent absence', () => {
+    it('a non-blank phone with no digits keeps its trimmed original for validation', () => {
+      const dto = transform({ ...withoutContact(), phone: ' not-a-phone ' });
+      expect(dto.phone).toBe('not-a-phone');
+    });
+
+    it('rejects a digitless phone even alongside a valid email', async () => {
+      expect(
+        await validateBody({
+          ...withoutContact(),
+          email: 'alex@example.com',
+          phone: 'not-a-phone',
+        }),
+      ).not.toHaveLength(0);
+    });
+
+    // Boundary guard for D13-6: the WEB folds Arabic-Indic/Persian digits to ASCII before sending
+    // E.164; the API accepts normalized ASCII international values only. Arabic-Indic digits are not
+    // ASCII `\d`, so they strip to `''` — they must remain a 422, NOT become a silent NULL. This
+    // pins the approved split; it does not change API behaviour.
+    it('rejects Arabic-Indic digits rather than treating them as absent', async () => {
+      const dto = transform({ ...withoutContact(), phone: '٠١٠٠٢٧٨٥٤٠٨' });
+      expect(dto.phone).toBeDefined();
+      expect(dto.phone).not.toBe('');
+      expect(
+        await validateBody({
+          ...withoutContact(),
+          email: 'alex@example.com',
+          phone: '٠١٠٠٢٧٨٥٤٠٨',
+        }),
+      ).not.toHaveLength(0);
+    });
+  });
+
   // The anti-spam layers are untouched by the pair rule.
   it('still lets a filled honeypot through validation with a phone-only body', async () => {
     expect(
