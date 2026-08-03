@@ -537,6 +537,74 @@ describe('Contact (e2e)', () => {
       expect(row?.phone).toBe('+201002785408');
     });
 
+    // Regression (D10-16 (a) "including blank-after-trim", D09-19 "both nullable"): a blank optional
+    // method is ABSENCE and must land in the column as SQL NULL. It previously persisted as `''` —
+    // the pair rule read the blank as absent and skipped validation, while the service's `??` is
+    // nullish rather than falsy, so the empty string travelled all the way to storage. These assert
+    // the value actually in the database, not merely that the request was accepted.
+    it.each([
+      ['empty', ''],
+      ['whitespace-only', '   '],
+    ])(
+      'accepts a valid email with a %s phone and stores the phone as NULL',
+      async (label, blank) => {
+        const subject = subjectFor(`blank-phone-${label}`);
+        const res = await submitContact({
+          ...validBody(subject),
+          phone: blank,
+        }).expect(200);
+        expect(res).toSatisfyApiSpec();
+
+        const row = (await listNewestUnread()).find(
+          (m) => m.subject === subject,
+        );
+        expect(row).toBeDefined();
+        expect(row?.email).toBe('alex@example.com');
+        expect(row?.phone).toBeNull();
+        expect(row?.phone).not.toBe('');
+      },
+    );
+
+    it.each([
+      ['empty', ''],
+      ['whitespace-only', '   '],
+    ])(
+      'accepts a valid phone with an %s email and stores the email as NULL',
+      async (label, blank) => {
+        const subject = subjectFor(`blank-email-${label}`);
+        const res = await submitContact({
+          ...validBody(subject),
+          email: blank,
+          phone: '+201002785408',
+        }).expect(200);
+        expect(res).toSatisfyApiSpec();
+
+        const row = (await listNewestUnread()).find(
+          (m) => m.subject === subject,
+        );
+        expect(row).toBeDefined();
+        expect(row?.phone).toBe('+201002785408');
+        expect(row?.email).toBeNull();
+        expect(row?.email).not.toBe('');
+      },
+    );
+
+    // The blank guard reads the TRIMMED ORIGINAL, never the digit-stripped result. Arabic-Indic
+    // digits are not ASCII `\d`, so they strip to `''` — they must stay a 422 rather than becoming
+    // a silent NULL. This pins the approved D13-6 split (the WEB folds Arabic/Persian digits to
+    // ASCII before sending E.164; the API accepts normalized ASCII international values) and does
+    // NOT change API behaviour.
+    it('rejects an Arabic-Indic-digit phone rather than storing it as absent', async () => {
+      const subject = subjectFor('arabic-indic-phone');
+      await submitContact({
+        ...validBody(subject),
+        phone: '٠١٠٠٢٧٨٥٤٠٨',
+      }).expect(422);
+      expect(
+        (await listNewestUnread()).some((m) => m.subject === subject),
+      ).toBe(false);
+    });
+
     it('rejects a submission with neither method (contract-valid 422)', async () => {
       const body = validBody(subjectFor('no-method'));
       delete body.email;
@@ -601,6 +669,31 @@ describe('Contact (e2e)', () => {
            VALUES (gen_random_uuid(), 'Bypass', '  ', '  ', 'Bypass2 ${unique}', 'B', now())`,
         ),
       ).rejects.toThrow(/contact_messages_contact_method_present/);
+    });
+
+    // The exact value the normalization defect used to persist. The CHECK already rejected it, so
+    // the empty string could only ever have arrived on ONE side of the pair — which is precisely why
+    // the bug survived: `('', '+2010...')` satisfies the constraint while still storing a non-value.
+    it('the database refuses empty-string contact methods (D09-19)', async () => {
+      const prisma = app.get(PrismaService);
+      await expect(
+        prisma.$executeRawUnsafe(
+          `INSERT INTO contact_messages (id, name, email, phone, subject, body, updated_at)
+           VALUES (gen_random_uuid(), 'Bypass', '', '', 'Bypass3 ${unique}', 'B', now())`,
+        ),
+      ).rejects.toThrow(/contact_messages_contact_method_present/);
+    });
+
+    // The invariant the fix now guarantees at the application boundary: no stored row carries an
+    // empty-string contact method. The CHECK cannot express this (it only requires ONE method to be
+    // present), so it is asserted directly against the table.
+    it('no persisted row carries an empty-string contact method', async () => {
+      const prisma = app.get(PrismaService);
+      const rows = await prisma.$queryRawUnsafe<{ count: bigint }[]>(
+        `SELECT count(*)::bigint AS count FROM contact_messages
+         WHERE email = '' OR phone = ''`,
+      );
+      expect(Number(rows[0]?.count)).toBe(0);
     });
   });
 });

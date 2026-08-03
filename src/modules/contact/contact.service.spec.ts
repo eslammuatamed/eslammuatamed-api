@@ -1,8 +1,10 @@
 import { NotFoundException } from '@nestjs/common';
 import { ContactMessage } from '@prisma/client';
+import { plainToInstance } from 'class-transformer';
 import { DeepMockProxy, mockDeep } from 'jest-mock-extended';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ContactService } from './contact.service';
+import { CreateContactMessageDto } from './dto/create-contact-message.dto';
 import { MessageListQueryDto } from './dto/message-list.query.dto';
 
 const message = (overrides: Partial<ContactMessage> = {}): ContactMessage => ({
@@ -118,6 +120,50 @@ describe('ContactService', () => {
 
       expect(receipt).toEqual({ received: true });
       expect(prisma.contactMessage.create).not.toHaveBeenCalled();
+    });
+
+    // Regression: a blank optional method must reach the column as SQL NULL, never as `''`
+    // (D10-16 (a), D09-19). These drive the REAL DTO transform rather than a hand-built object, so
+    // they prove the actual pipe→service path the controller uses — the defect lived in the seam
+    // between the two (`@ValidateIf` skipped the blank, and `??` is nullish so `''` travelled on).
+    describe('persists a blank optional contact method as NULL, never an empty string', () => {
+      const throughPipe = (
+        body: Record<string, unknown>,
+      ): CreateContactMessageDto =>
+        plainToInstance(CreateContactMessageDto, {
+          ...body,
+          elapsedMs: 9000,
+        });
+
+      it.each([
+        ['empty phone', { ...validDto, phone: '' }, 'phone', 'email'],
+        ['whitespace phone', { ...validDto, phone: '   ' }, 'phone', 'email'],
+        [
+          'empty email',
+          { ...validDto, email: '', phone: '+201002785408' },
+          'email',
+          'phone',
+        ],
+        [
+          'whitespace email',
+          { ...validDto, email: '  ', phone: '+201002785408' },
+          'email',
+          'phone',
+        ],
+      ])('%s → null', async (_label, body, blankField, survivingField) => {
+        prisma.contactMessage.create.mockResolvedValue(message());
+
+        await service.create(throughPipe(body), {});
+
+        expect(prisma.contactMessage.create).toHaveBeenCalledTimes(1);
+        const call = prisma.contactMessage.create.mock.calls[0];
+        const data = call?.[0].data as Record<string, unknown>;
+        expect(data[blankField]).toBeNull();
+        expect(data[blankField]).not.toBe('');
+        // The other method survives intact, so the row stays answerable and satisfies the CHECK.
+        expect(data[survivingField]).toEqual(expect.any(String));
+        expect(data[survivingField]).not.toBe('');
+      });
     });
   });
 
