@@ -2,26 +2,34 @@
 // governed content source:
 //
 //   repository : eslammuatamed-docs
-//   commit     : 64a0f07510171083d2c7c3b533a8d9bd3d78e198
-//   file       : content/positioning-strategy.md  (Approved · v1.1.0 · 2026-07-29)
-//   sections   : §2 "Approved canonical CMS tagline — English"
-//                §3 "Approved canonical CMS tagline — Arabic"
+//   commit     : 393c3897d02d65c18c1066288e53911aa71ec5f8
+//   file       : content/positioning-strategy.md  (Approved · v2.0.0 · 2026-08-05)
+//   sections   : §2 "Approved canonical CMS tagline"
 //
-// These supersede the pre-v1.0.0 values (`Frontend Engineer — Vue.js & Nuxt.js` and its Arabic
-// counterpart), which still carried the superseded primary title.
+// This supersedes the v1.1.0 pair (`JavaScript Product Engineer — Frontend Engineer specializing
+// in Vue.js & Nuxt.js` and its Arabic counterpart), which carried the superseded primary title.
 //
-// ONE VALUE, SEVERAL CONSUMERS. §8 of that document records that the homepage hero, the footer,
-// the public settings response and `Person.jobTitle` all render this one governed tagline, and
-// that no surface may hard-code its own title. That is why the strings live here rather than
-// beside any single consumer.
+// TWO DELIBERATE PROPERTIES, BOTH OWNER-APPROVED:
 //
-// Wording changes require owner review. Do not rewrite, normalise, translate or "fix" punctuation
-// here — the em dash, the `&` in the English string, and the Arabic `و` prefix on `Nuxt.js` are all
-// part of the approved bytes. `test/public-tagline.e2e-spec.ts` compares the values a seeded
-// database actually holds against digests recorded independently of this module, so a typo fails
-// CI rather than shipping.
+// 1. THE SAME ENGLISH STRING IN BOTH LOCALES. The professional title is kept in English on the
+//    Arabic site too (§3). This is not a missing translation and not a locale fallback — the
+//    `ar` row holds this value on purpose. Every other localized field still differs per locale,
+//    which is what continues to prove per-locale resolution is real.
+//
+// 2. THE NEWLINE IS PART OF THE APPROVED COPY. The title is a two-line composition:
+//    `Full-Stack JavaScript` over `Product Engineer`. Storing the break here keeps §8's rule
+//    intact — one governed value, several consumers, no surface hard-coding its own title.
+//    HTML collapses the newline to a space everywhere except the hero, which opts in with
+//    `white-space: pre-line`; the two JSON-LD `jobTitle` emitters normalise it back to a space.
+//
+// Wording changes require owner review. Do not rewrite, normalise, translate or "fix" this —
+// including the newline. `test/public-tagline.e2e-spec.ts` compares the values a seeded database
+// actually holds against digests recorded independently of this module, so a typo fails CI
+// rather than shipping.
+
+const APPROVED_TITLE = 'Full-Stack JavaScript\nProduct Engineer';
 
 export const PUBLIC_TAGLINE: Readonly<Record<'en' | 'ar', string>> = {
-  en: 'JavaScript Product Engineer — Frontend Engineer specializing in Vue.js & Nuxt.js',
-  ar: 'مهندس برمجيات للمنتجات — متخصص في هندسة الواجهات الأمامية باستخدام Vue.js وNuxt.js',
+  en: APPROVED_TITLE,
+  ar: APPROVED_TITLE,
 } as const;

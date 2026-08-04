@@ -8356,9 +8356,9 @@
             "type": "string",
             "enum": [
               "LANGUAGE",
-              "FRAMEWORK",
-              "TOOLING",
-              "PRACTICE"
+              "FRONTEND",
+              "BACKEND",
+              "DELIVERY"
             ]
           },
           "order": {
@@ -8413,9 +8413,9 @@
             "type": "string",
             "enum": [
               "LANGUAGE",
-              "FRAMEWORK",
-              "TOOLING",
-              "PRACTICE"
+              "FRONTEND",
+              "BACKEND",
+              "DELIVERY"
             ]
           },
           "order": {
@@ -8425,6 +8425,10 @@
           "brandColor": {
             "type": "string",
             "nullable": true
+          },
+          "isPublic": {
+            "type": "boolean",
+            "description": "Whether the skill appears in public listings. Hidden skills keep their project and experience links."
           },
           "translations": {
             "type": "object",
@@ -8438,6 +8442,7 @@
           "group",
           "order",
           "brandColor",
+          "isPublic",
           "translations"
         ]
       },
@@ -8465,9 +8470,9 @@
             "type": "string",
             "enum": [
               "LANGUAGE",
-              "FRAMEWORK",
-              "TOOLING",
-              "PRACTICE"
+              "FRONTEND",
+              "BACKEND",
+              "DELIVERY"
             ],
             "example": "LANGUAGE"
           },
@@ -8479,6 +8484,11 @@
             "type": "object",
             "example": "#3178C6",
             "nullable": true
+          },
+          "isPublic": {
+            "type": "boolean",
+            "default": true,
+            "description": "Whether the skill appears in public listings. Hidden skills stay linked to their projects and experiences."
           },
           "translations": {
             "example": [
@@ -8506,9 +8516,9 @@
             "type": "string",
             "enum": [
               "LANGUAGE",
-              "FRAMEWORK",
-              "TOOLING",
-              "PRACTICE"
+              "FRONTEND",
+              "BACKEND",
+              "DELIVERY"
             ],
             "example": "LANGUAGE"
           },
@@ -8520,6 +8530,11 @@
             "type": "object",
             "example": "#3178C6",
             "nullable": true
+          },
+          "isPublic": {
+            "type": "boolean",
+            "default": true,
+            "description": "Whether the skill appears in public listings. Hidden skills stay linked to their projects and experiences."
           },
           "translations": {
             "example": [

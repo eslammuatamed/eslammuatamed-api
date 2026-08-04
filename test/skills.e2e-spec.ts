@@ -49,6 +49,69 @@ describe('Skills (e2e)', () => {
     expect(Array.isArray(envelopeData<unknown[]>(res))).toBe(true);
   });
 
+  it('hides a non-public skill from the public list while keeping it in the admin list', async () => {
+    // The visibility mechanism a taxonomy change depends on: a skill dropped from the public
+    // taxonomy is hidden, never deleted, because projects and experiences link to it. If this
+    // filter regressed, removing a skill from the taxonomy would mean deleting it — and taking
+    // its relations down with it.
+    const label = `Hidden E2E Skill ${unique}`;
+    const created = await request(httpServer(app))
+      .post('/api/v1/admin/skills')
+      .set(auth())
+      .send({
+        group: 'DELIVERY',
+        order: 9001,
+        isPublic: false,
+        translations: [{ locale: 'en', label }],
+      })
+      .expect(201);
+    const hiddenId = envelopeData<{ id: string }>(created).id;
+    expect(created).toSatisfyApiSpec();
+    expect(envelopeData<{ isPublic: boolean }>(created).isPublic).toBe(false);
+
+    try {
+      const publicList = await request(httpServer(app))
+        .get('/api/v1/skills?locale=en')
+        .expect(200);
+      expect(
+        envelopeData<{ id: string }[]>(publicList).some(
+          (skill) => skill.id === hiddenId,
+        ),
+      ).toBe(false);
+
+      const adminList = await request(httpServer(app))
+        .get('/api/v1/admin/skills')
+        .set(auth())
+        .expect(200);
+      expect(
+        envelopeData<{ id: string }[]>(adminList).some(
+          (skill) => skill.id === hiddenId,
+        ),
+      ).toBe(true);
+
+      // ...and unhiding it puts it back on the public surface, so the flag is the whole switch.
+      await request(httpServer(app))
+        .patch(`/api/v1/admin/skills/${hiddenId}`)
+        .set(auth())
+        .send({ isPublic: true })
+        .expect(200);
+
+      const relisted = await request(httpServer(app))
+        .get('/api/v1/skills?locale=en')
+        .expect(200);
+      expect(
+        envelopeData<{ id: string }[]>(relisted).some(
+          (skill) => skill.id === hiddenId,
+        ),
+      ).toBe(true);
+    } finally {
+      await request(httpServer(app))
+        .delete(`/api/v1/admin/skills/${hiddenId}`)
+        .set(auth())
+        .expect(204);
+    }
+  });
+
   it('denies an admin route without a token', async () => {
     const res = await request(httpServer(app))
       .get('/api/v1/admin/skills')
@@ -62,7 +125,7 @@ describe('Skills (e2e)', () => {
       .post('/api/v1/admin/skills')
       .set(auth())
       .send({
-        group: 'FRAMEWORK',
+        group: 'FRONTEND',
         order: 9000,
         brandColor: '#7c3aed',
         translations: [{ locale: 'en', label: `E2E Skill ${unique}` }],
@@ -117,7 +180,7 @@ describe('Skills (e2e)', () => {
       .post('/api/v1/admin/skills')
       .set(auth())
       .send({
-        group: 'FRAMEWORK',
+        group: 'FRONTEND',
         order: 'first',
         translations: { locale: 'en', label: 'Invalid shape' },
       })

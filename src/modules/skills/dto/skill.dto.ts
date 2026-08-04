@@ -4,6 +4,7 @@ import { Type } from 'class-transformer';
 import {
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsEnum,
   IsInt,
   IsOptional,
@@ -36,6 +37,14 @@ export class CreateSkillDto {
   @IsString()
   @MaxLength(32)
   readonly brandColor?: string | null;
+  @ApiPropertyOptional({
+    default: true,
+    description:
+      'Whether the skill appears in public listings. Hidden skills stay linked to their projects and experiences.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  readonly isPublic?: boolean;
   @ApiProperty({
     type: [SkillTranslationDto],
     example: [{ locale: 'en', label: 'TypeScript' }],

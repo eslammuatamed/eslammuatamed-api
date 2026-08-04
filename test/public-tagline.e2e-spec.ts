@@ -9,11 +9,15 @@ import { createE2eApp, envelopeData, httpServer } from './utils/e2e-app';
 // Approved public tagline — seed adoption guard.
 //
 // The expected side is a LITERAL recorded independently of `prisma/content/public-tagline.ts`,
-// from the governing document (eslammuatamed-docs @ 64a0f07510171083d2c7c3b533a8d9bd3d78e198,
-// content/positioning-strategy.md §2/§3, Approved v1.1.0). Importing the seed's own module would
+// from the governing document (eslammuatamed-docs @ 393c3897d02d65c18c1066288e53911aa71ec5f8,
+// content/positioning-strategy.md §2/§3, Approved v2.0.0). Importing the seed's own module would
 // prove self-consistency and nothing about the approved wording — the same reason the About guard
 // records its digests separately. Values are read back from a seeded database, so this covers the
 // seed end to end.
+//
+// The approved title is TWO LINES and is kept in English in both locales (§2/§3), so the newline
+// is part of the guarded bytes and `en` and `ar` hold the same string by decision. Per-locale
+// resolution is proven below on a field that genuinely differs.
 //
 // A failure means the seeded bytes and the approved title have diverged: fix the transcription,
 // never these constants, unless the owner has approved new wording — which is a Docs change first.
@@ -28,15 +32,15 @@ interface TaglineExpectation {
 const EXPECTED: readonly TaglineExpectation[] = [
   {
     locale: 'en',
-    text: 'JavaScript Product Engineer — Frontend Engineer specializing in Vue.js & Nuxt.js',
-    sha256: 'c5591132681f71a1e5fe1f156c599934da6b76616cac3b168ed52ea2d998471d',
-    chars: 80,
+    text: 'Full-Stack JavaScript\nProduct Engineer',
+    sha256: 'a52665a69e97c6f2bc409ce35b6a1b5e10e6aa30decc50a1ac5c4f00b677665c',
+    chars: 38,
   },
   {
     locale: 'ar',
-    text: 'مهندس برمجيات للمنتجات — متخصص في هندسة الواجهات الأمامية باستخدام Vue.js وNuxt.js',
-    sha256: 'ef6bf3a332d9721eb36ded90379c6b53b8ef74777cbf0e06467bf295ad4c1e87',
-    chars: 82,
+    text: 'Full-Stack JavaScript\nProduct Engineer',
+    sha256: 'a52665a69e97c6f2bc409ce35b6a1b5e10e6aa30decc50a1ac5c4f00b677665c',
+    chars: 38,
   },
 ];
 
@@ -44,6 +48,8 @@ const EXPECTED: readonly TaglineExpectation[] = [
 const SUPERSEDED = [
   'Frontend Engineer — Vue.js & Nuxt.js',
   'مهندس واجهات أمامية — Vue.js و Nuxt.js',
+  'JavaScript Product Engineer — Frontend Engineer specializing in Vue.js & Nuxt.js',
+  'مهندس برمجيات للمنتجات — متخصص في هندسة الواجهات الأمامية باستخدام Vue.js وNuxt.js',
 ];
 
 const sha256 = (value: string): string =>
@@ -52,6 +58,7 @@ const sha256 = (value: string): string =>
 interface PublicSettings {
   tagline: string | null;
   siteName: string | null;
+  availabilityStatus: string | null;
 }
 
 describe('Public tagline seed adoption (e2e)', () => {
@@ -114,7 +121,7 @@ describe('Public tagline seed adoption (e2e)', () => {
     }
   });
 
-  it('resolves the tagline per locale with no cross-locale fallback', async () => {
+  it('keeps the professional title in English in both locales, without collapsing locale resolution', async () => {
     const [en, ar] = await Promise.all(
       (['en', 'ar'] as const).map(async (locale) =>
         envelopeData<PublicSettings>(
@@ -125,6 +132,29 @@ describe('Public tagline seed adoption (e2e)', () => {
       ),
     );
 
-    expect(en!.tagline).not.toBe(ar!.tagline);
+    // Identical BY DECISION (§2/§3): the professional title stays in English on the Arabic site.
+    expect(en!.tagline).toBe(ar!.tagline);
+
+    // ...which is why the no-cross-locale-fallback proof moves to a field that really is
+    // per-locale. If resolution were falling back, this would collapse too (D10-12).
+    expect(en!.availabilityStatus).toBeTruthy();
+    expect(ar!.availabilityStatus).toBeTruthy();
+    expect(en!.availabilityStatus).not.toBe(ar!.availabilityStatus);
+  });
+
+  it('stores the two-line title as one governed value carrying its approved break', async () => {
+    const settings = await prisma.siteSettings.findFirst({
+      select: { id: true },
+    });
+    const translation = await prisma.siteSettingsTranslation.findFirst({
+      where: { siteSettingsId: settings!.id, locale: 'en' },
+      select: { tagline: true },
+    });
+
+    // The line break is approved copy, not formatting the hero invents for itself (§8).
+    expect(translation!.tagline!.split('\n')).toEqual([
+      'Full-Stack JavaScript',
+      'Product Engineer',
+    ]);
   });
 });

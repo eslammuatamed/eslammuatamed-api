@@ -24,6 +24,11 @@ export class AdminSkillEntity {
   @ApiProperty({ type: String, nullable: true }) readonly brandColor!:
     string | null;
   @ApiProperty({
+    description:
+      'Whether the skill appears in public listings. Hidden skills keep their project and experience links.',
+  })
+  readonly isPublic!: boolean;
+  @ApiProperty({
     type: 'object',
     additionalProperties: { $ref: getSchemaPath(SkillTranslationEntity) },
   })

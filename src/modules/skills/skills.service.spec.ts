@@ -12,6 +12,7 @@ const row = (group: SkillGroup, order: number, id = 's1'): SkillRow => ({
   group,
   order,
   brandColor: '#fff',
+  isPublic: true,
   createdAt: new Date(),
   updatedAt: new Date(),
   translations: [
@@ -37,15 +38,18 @@ describe('SkillsService', () => {
     service = new SkillsService(prisma, locales);
   });
 
-  it('orders the public list by group then order and resolves its locale', async () => {
+  it('orders the public list by group then order, filters hidden skills, and resolves its locale', async () => {
     prisma.skill.findMany.mockResolvedValue([
-      row(SkillGroup.FRAMEWORK, 2),
+      row(SkillGroup.FRONTEND, 2),
       row(SkillGroup.LANGUAGE, 1, 's2'),
     ]);
 
     const result = await service.listPublic('en');
 
+    // The hidden-skill filter is the whole visibility mechanism: a skill dropped from the public
+    // taxonomy is kept (its project/experience links depend on it) but must not be served here.
     expect(prisma.skill.findMany).toHaveBeenCalledWith({
+      where: { isPublic: true },
       include: { translations: true },
       orderBy: [{ group: 'asc' }, { order: 'asc' }],
     });
@@ -53,8 +57,19 @@ describe('SkillsService', () => {
     expect(locales.assertEnabled).toHaveBeenCalledWith('en');
   });
 
+  it('leaves the admin list unfiltered so hidden skills stay manageable', async () => {
+    prisma.skill.findMany.mockResolvedValue([row(SkillGroup.LANGUAGE, 0)]);
+
+    await service.listAdmin();
+
+    expect(prisma.skill.findMany).toHaveBeenCalledWith({
+      include: { translations: true },
+      orderBy: [{ group: 'asc' }, { order: 'asc' }],
+    });
+  });
+
   it('maps a foreign-key delete failure to conflict', async () => {
-    prisma.skill.findUnique.mockResolvedValue(row(SkillGroup.TOOLING, 0));
+    prisma.skill.findUnique.mockResolvedValue(row(SkillGroup.BACKEND, 0));
     prisma.skill.delete.mockRejectedValue({ code: 'P2003' });
 
     await expect(service.remove('s1')).rejects.toBeInstanceOf(
