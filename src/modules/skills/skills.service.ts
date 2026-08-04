@@ -20,7 +20,10 @@ export class SkillsService {
 
   async listPublic(locale: string): Promise<PublicSkillEntity[]> {
     await this.locales.assertEnabled(locale);
+    // Hidden skills stay in the registry for project/experience relations but never reach a
+    // public surface (homepage capabilities, résumé). Admin listings are unfiltered.
     const rows = await this.prisma.skill.findMany({
+      where: { isPublic: true },
       include: { translations: true },
       orderBy: [{ group: 'asc' }, { order: 'asc' }],
     });
@@ -49,6 +52,7 @@ export class SkillsService {
         group: dto.group,
         order: dto.order,
         brandColor: dto.brandColor,
+        isPublic: dto.isPublic ?? true,
         translations: { create: dto.translations },
       },
       include: { translations: true },
@@ -64,6 +68,7 @@ export class SkillsService {
       group: dto.group,
       order: dto.order,
       brandColor: dto.brandColor,
+      isPublic: dto.isPublic,
     };
     if (Object.values(base).some((value) => value !== undefined))
       ops.push(this.prisma.skill.update({ where: { id }, data: base }));
@@ -133,6 +138,7 @@ function toAdminEntity(row: SkillWithTranslations): AdminSkillEntity {
     group: row.group,
     order: row.order,
     brandColor: row.brandColor,
+    isPublic: row.isPublic,
     translations,
   };
 }

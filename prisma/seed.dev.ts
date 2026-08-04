@@ -29,11 +29,32 @@ interface SkillSeed {
   readonly brandColor: string | null; // null where no brand color exists (e.g. practices)
   readonly labelEn: string; // stable lookup key + project-technology link key
   readonly labelAr: string;
+  // Omitted = visible. `false` keeps the record (and every project/experience link it carries)
+  // while removing it from public listings — the approved taxonomy dropped it from display, and
+  // deleting a linked skill would take its relations with it.
+  readonly isPublic?: boolean;
+  // Previous `labelEn`, when this entry renames an existing record. `ensureSkills` resolves it so
+  // the row is RENAMED rather than duplicated — the English label is the link key, so creating a
+  // second record would silently orphan the first one's project and experience relations.
+  readonly renamedFrom?: string;
 }
 
-// Brand colors per doc 03. Proper-noun product names stay Latin in both locales (authentic);
-// practices carry genuine Arabic labels. Covers all four SkillGroup values.
+// The approved public skills taxonomy — Docs `content/positioning-strategy.md` §5, owner decision
+// 2026-08-05. Groups and order are the approved ones and are load-bearing: `SkillGroup`'s
+// declaration order drives group sequence, `order` drives sequence inside a group.
+//
+// No levels, percentages, years or progress bars — the taxonomy names capabilities, it does not
+// rate them. Brand colors per doc 03. Technology names keep their official Latin spelling in both
+// locales; delivery practices carry genuine Arabic labels.
+//
+// Laravel is last inside Backend Engineering by decision: real, evidenced, supporting — never a
+// primary positioning technology.
+//
+// The last three entries are HIDDEN, not deleted (`isPublic: false`). They left the public
+// taxonomy but remain in the registry because project and experience relations resolve through
+// them; `Web Performance`/`SEO`/`Vue.js` are renamed in place for the same reason.
 const SKILLS: readonly SkillSeed[] = [
+  // ===== Languages =====
   {
     group: SkillGroup.LANGUAGE,
     order: 0,
@@ -49,88 +70,153 @@ const SKILLS: readonly SkillSeed[] = [
     labelAr: 'JavaScript',
   },
   {
-    group: SkillGroup.FRAMEWORK,
+    group: SkillGroup.LANGUAGE,
+    order: 2,
+    brandColor: '#777BB4',
+    labelEn: 'PHP',
+    labelAr: 'PHP',
+  },
+
+  // ===== Frontend Engineering =====
+  {
+    group: SkillGroup.FRONTEND,
     order: 0,
     brandColor: '#42B883',
-    labelEn: 'Vue.js',
-    labelAr: 'Vue.js',
+    labelEn: 'Vue',
+    labelAr: 'Vue',
+    renamedFrom: 'Vue.js',
   },
   {
-    group: SkillGroup.FRAMEWORK,
+    group: SkillGroup.FRONTEND,
     order: 1,
     brandColor: '#00DC82',
     labelEn: 'Nuxt',
     labelAr: 'Nuxt',
   },
   {
-    group: SkillGroup.FRAMEWORK,
+    group: SkillGroup.FRONTEND,
     order: 2,
-    brandColor: '#5FA04E',
-    labelEn: 'Node.js',
-    labelAr: 'Node.js',
-  },
-  {
-    group: SkillGroup.FRAMEWORK,
-    order: 3,
-    brandColor: '#E0234E',
-    labelEn: 'NestJS',
-    labelAr: 'NestJS',
-  },
-  {
-    group: SkillGroup.TOOLING,
-    order: 0,
-    brandColor: '#646CFF',
-    labelEn: 'Vite',
-    labelAr: 'Vite',
-  },
-  {
-    group: SkillGroup.TOOLING,
-    order: 1,
     brandColor: '#FFD859',
     labelEn: 'Pinia',
     labelAr: 'Pinia',
   },
   {
-    group: SkillGroup.TOOLING,
-    order: 2,
+    group: SkillGroup.FRONTEND,
+    order: 3,
     brandColor: '#06B6D4',
     labelEn: 'Tailwind CSS',
     labelAr: 'Tailwind CSS',
   },
+
+  // ===== Backend Engineering =====
   {
-    group: SkillGroup.TOOLING,
+    group: SkillGroup.BACKEND,
+    order: 0,
+    brandColor: '#5FA04E',
+    labelEn: 'Node.js',
+    labelAr: 'Node.js',
+  },
+  {
+    group: SkillGroup.BACKEND,
+    order: 1,
+    brandColor: '#E0234E',
+    labelEn: 'NestJS',
+    labelAr: 'NestJS',
+  },
+  {
+    group: SkillGroup.BACKEND,
+    order: 2,
+    brandColor: '#2D3748',
+    labelEn: 'Prisma',
+    labelAr: 'Prisma',
+  },
+  {
+    group: SkillGroup.BACKEND,
     order: 3,
+    brandColor: '#4945FF',
+    labelEn: 'Strapi',
+    labelAr: 'Strapi',
+  },
+  {
+    group: SkillGroup.BACKEND,
+    order: 4,
+    brandColor: '#FF2D20',
+    labelEn: 'Laravel',
+    labelAr: 'Laravel',
+  },
+
+  // ===== Delivery & Quality =====
+  {
+    group: SkillGroup.DELIVERY,
+    order: 0,
+    brandColor: null,
+    labelEn: 'Requirements Analysis',
+    labelAr: 'تحليل المتطلبات',
+  },
+  {
+    group: SkillGroup.DELIVERY,
+    order: 1,
+    brandColor: null,
+    labelEn: 'Feature Ownership',
+    labelAr: 'امتلاك الميزة من البداية إلى النهاية',
+  },
+  {
+    group: SkillGroup.DELIVERY,
+    order: 2,
+    brandColor: null,
+    labelEn: 'Testing',
+    labelAr: 'الاختبار',
+  },
+  {
+    group: SkillGroup.DELIVERY,
+    order: 3,
+    brandColor: null,
+    labelEn: 'Performance',
+    labelAr: 'الأداء',
+    renamedFrom: 'Web Performance',
+  },
+  {
+    group: SkillGroup.DELIVERY,
+    order: 4,
+    brandColor: null,
+    labelEn: 'Technical SEO',
+    labelAr: 'تحسين محركات البحث التقني',
+    renamedFrom: 'SEO',
+  },
+  {
+    group: SkillGroup.DELIVERY,
+    order: 5,
+    brandColor: null,
+    labelEn: 'Deployment',
+    labelAr: 'النشر',
+  },
+
+  // ===== Retained but hidden =====
+  // Off the public taxonomy, kept in the registry so existing and future project/experience
+  // relations survive. High `order` values keep them out of the way of the curated sequence.
+  {
+    group: SkillGroup.FRONTEND,
+    order: 90,
+    brandColor: '#646CFF',
+    labelEn: 'Vite',
+    labelAr: 'Vite',
+    isPublic: false,
+  },
+  {
+    group: SkillGroup.DELIVERY,
+    order: 90,
     brandColor: '#F05032',
     labelEn: 'Git',
     labelAr: 'Git',
+    isPublic: false,
   },
   {
-    group: SkillGroup.PRACTICE,
-    order: 0,
+    group: SkillGroup.DELIVERY,
+    order: 91,
     brandColor: null,
     labelEn: 'Accessibility (a11y)',
     labelAr: 'إتاحة الوصول (a11y)',
-  },
-  {
-    group: SkillGroup.PRACTICE,
-    order: 1,
-    brandColor: null,
-    labelEn: 'Web Performance',
-    labelAr: 'أداء الويب',
-  },
-  {
-    group: SkillGroup.PRACTICE,
-    order: 2,
-    brandColor: null,
-    labelEn: 'SEO',
-    labelAr: 'تحسين محركات البحث (SEO)',
-  },
-  {
-    group: SkillGroup.PRACTICE,
-    order: 3,
-    brandColor: null,
-    labelEn: 'Testing',
-    labelAr: 'الاختبارات',
+    isPublic: false,
   },
 ];
 
@@ -171,7 +257,7 @@ const PROJECTS: readonly ProjectSeed[] = [
     // Not yet publicly deployed (Release Freeze); repos are not linked here. No placeholder URLs (HR-9).
     liveUrl: null,
     repoUrl: null,
-    techKeys: ['Nuxt', 'Vue.js', 'TypeScript', 'Tailwind CSS', 'NestJS'],
+    techKeys: ['Nuxt', 'Vue', 'TypeScript', 'Tailwind CSS', 'NestJS'],
     en: {
       title: 'Personal Platform & Portfolio',
       slug: 'personal-platform',
@@ -228,7 +314,7 @@ const PROJECTS: readonly ProjectSeed[] = [
     year: 2025,
     liveUrl: null,
     repoUrl: null,
-    techKeys: ['Nuxt', 'Vue.js', 'TypeScript', 'NestJS', 'Tailwind CSS'],
+    techKeys: ['Nuxt', 'Vue', 'TypeScript', 'NestJS', 'Tailwind CSS'],
     en: {
       title: 'SAMT — Institution Website & CMS',
       slug: 'samt-institution-website',
@@ -285,7 +371,7 @@ const PROJECTS: readonly ProjectSeed[] = [
     year: 2025,
     liveUrl: null,
     repoUrl: null,
-    techKeys: ['Nuxt', 'Vue.js', 'TypeScript', 'Tailwind CSS'],
+    techKeys: ['Nuxt', 'Vue', 'TypeScript', 'Tailwind CSS'],
     en: {
       title: 'Lure Stores — Multi-vendor Commerce',
       slug: 'lure-stores-multivendor-commerce',
@@ -342,7 +428,7 @@ const PROJECTS: readonly ProjectSeed[] = [
     year: 2026,
     liveUrl: null,
     repoUrl: null,
-    techKeys: ['Vue.js', 'TypeScript', 'Tailwind CSS'],
+    techKeys: ['Vue', 'TypeScript', 'Tailwind CSS'],
     en: {
       title: 'WaveX — Multi-portal Logistics Platform',
       slug: 'wavex-logistics-platform',
@@ -436,7 +522,7 @@ const EXPERIENCES: readonly ExperienceSeed[] = [
       impact:
         '- Build new Vue.js features inside Zidni, a large e-learning SaaS codebase, and modernize its dashboard\n- Built SAMT from scratch — a Nuxt institution website, a NestJS backend, and the admin/CMS — owning the frontend architecture and API integration (the UI/UX was designed in Figma by a designer)\n- Own component design, reusable UI patterns, and the Figma-to-production workflow; joined part-time and transitioned to a full-time role',
     },
-    techKeys: ['Vue.js', 'Nuxt', 'NestJS', 'TypeScript'],
+    techKeys: ['Vue', 'Nuxt', 'NestJS', 'TypeScript'],
     ar: {
       role: 'مطوّر واجهات أمامية',
       company: 'Findropica',
@@ -458,7 +544,7 @@ const EXPERIENCES: readonly ExperienceSeed[] = [
       impact:
         '- Built a multi-portal logistics platform — administrators, merchants, intercity operators, drivers, and last-mile partners — with Vue and Inertia.js on a Laravel backend\n- Translated requirements into tasks directly with the client and owned the architecture, code review, and validation\n- Practiced disciplined, AI-assisted engineering with full ownership of the delivery',
     },
-    techKeys: ['Vue.js', 'Tailwind CSS'],
+    techKeys: ['Vue', 'Tailwind CSS'],
     ar: {
       role: 'مطوّر متكامل',
       company: 'WaveX',
@@ -480,7 +566,7 @@ const EXPERIENCES: readonly ExperienceSeed[] = [
       impact:
         '- Led Nuxt implementations across products for international clients\n- Built the customer storefront, vendor dashboard, and admin dashboard for Lure Stores, a multi-vendor e-commerce platform\n- Led the frontend for Nexa (event booking) and built core functionality for Vora; focused on SEO, SSR, i18n, and performance',
     },
-    techKeys: ['Nuxt', 'Vue.js', 'SEO', 'Web Performance'],
+    techKeys: ['Nuxt', 'Vue', 'Technical SEO', 'Performance'],
     ar: {
       role: 'مطوّر واجهات أمامية',
       company: 'WeblyTech',
@@ -940,39 +1026,98 @@ function mustGet<T>(map: ReadonlyMap<string, T>, key: string, kind: string): T {
 
 // ===== Ensure functions (idempotent — each guarded by an existence check) =====
 
+/**
+ * Reconciles the skills registry to `SKILLS` — create what is missing, and bring what already
+ * exists up to the approved taxonomy (group, order, brand color, visibility, both labels).
+ *
+ * It RECONCILES rather than only creating, because this seed now carries a taxonomy change:
+ * skills that already exist have moved group, been reordered, been renamed, or been hidden. A
+ * create-if-absent pass would leave every one of those rows on the superseded taxonomy.
+ *
+ * Nothing is ever deleted. A record dropped from the public taxonomy is hidden instead, so the
+ * `ProjectTechnology` / `ExperienceTechnology` rows pointing at it survive untouched, and a
+ * renamed record is matched through `renamedFrom` and updated in place — never re-created, which
+ * would strand the original's relations behind a duplicate.
+ *
+ * Idempotent: a second run matches the same rows by their new labels and writes identical values.
+ */
 async function ensureSkills(): Promise<{
   map: Map<string, string>;
   created: number;
+  updated: number;
 }> {
   const map = new Map<string, string>();
   let created = 0;
+  let updated = 0;
+
+  const findByLabel = async (label: string): Promise<string | null> =>
+    (
+      await prisma.skillTranslation.findFirst({
+        where: { locale: LOCALE_EN, label },
+        select: { skillId: true },
+      })
+    )?.skillId ?? null;
+
   for (const skill of SKILLS) {
-    const existing = await prisma.skillTranslation.findFirst({
-      where: { locale: LOCALE_EN, label: skill.labelEn },
-      select: { skillId: true },
-    });
-    if (existing) {
-      map.set(skill.labelEn, existing.skillId);
+    const current = await findByLabel(skill.labelEn);
+    const previous = skill.renamedFrom
+      ? await findByLabel(skill.renamedFrom)
+      : null;
+
+    // Both labels resolving to different records means a rename would merge two identities and
+    // silently drop one side's relations. Refuse rather than guess.
+    if (current && previous && current !== previous) {
+      throw new Error(
+        `Skill rename conflict: both "${skill.renamedFrom}" and "${skill.labelEn}" exist as ` +
+          `separate records. Resolve manually before re-running the seed.`,
+      );
+    }
+
+    const id = current ?? previous;
+    if (!id) {
+      const record = await prisma.skill.create({
+        data: {
+          group: skill.group,
+          order: skill.order,
+          brandColor: skill.brandColor,
+          isPublic: skill.isPublic ?? true,
+          translations: {
+            create: [
+              { locale: LOCALE_EN, label: skill.labelEn },
+              { locale: LOCALE_AR, label: skill.labelAr },
+            ],
+          },
+        },
+        select: { id: true },
+      });
+      map.set(skill.labelEn, record.id);
+      created += 1;
       continue;
     }
-    const record = await prisma.skill.create({
+
+    await prisma.skill.update({
+      where: { id },
       data: {
         group: skill.group,
         order: skill.order,
         brandColor: skill.brandColor,
-        translations: {
-          create: [
-            { locale: LOCALE_EN, label: skill.labelEn },
-            { locale: LOCALE_AR, label: skill.labelAr },
-          ],
-        },
+        isPublic: skill.isPublic ?? true,
       },
-      select: { id: true },
     });
-    map.set(skill.labelEn, record.id);
-    created += 1;
+    for (const [locale, label] of [
+      [LOCALE_EN, skill.labelEn],
+      [LOCALE_AR, skill.labelAr],
+    ] as const) {
+      await prisma.skillTranslation.upsert({
+        where: { skillId_locale: { skillId: id, locale } },
+        create: { skillId: id, locale, label },
+        update: { label },
+      });
+    }
+    map.set(skill.labelEn, id);
+    updated += 1;
   }
-  return { map, created };
+  return { map, created, updated };
 }
 
 async function ensureProjects(
@@ -1281,7 +1426,7 @@ async function main(): Promise<void> {
 
   console.log(
     'Dev/demo seed complete (idempotent; en + ar translations for every entity):\n' +
-      `  Skills:       ${SKILLS.length} total (created ${skills.created})\n` +
+      `  Skills:       ${SKILLS.length} total (created ${skills.created}, reconciled ${skills.updated})\n` +
       `  Projects:     ${PROJECTS.length} total (created ${projectsCreated}) — ${PROJECTS.filter((p) => p.featured).length} featured, all published\n` +
       `  Experiences:  ${EXPERIENCES.length} total (created ${experiencesCreated})\n` +
       `  Categories:   ${CATEGORIES.length} ensured\n` +

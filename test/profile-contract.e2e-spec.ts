@@ -257,7 +257,7 @@ describe('Profile contract (e2e)', () => {
     beforeAll(async () => {
       const a = await prisma.skill.create({
         data: {
-          group: 'FRAMEWORK',
+          group: 'FRONTEND',
           order: 10,
           translations: {
             create: [
@@ -269,7 +269,7 @@ describe('Profile contract (e2e)', () => {
       });
       const b = await prisma.skill.create({
         data: {
-          group: 'FRAMEWORK',
+          group: 'FRONTEND',
           order: 20,
           translations: {
             create: [

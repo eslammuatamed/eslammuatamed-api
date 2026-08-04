@@ -22,11 +22,15 @@ enum ContentStatus {
   ARCHIVED
 }
 
+// Public skills taxonomy. Declaration order IS display order: `SkillsService.compareSkills`
+// ranks groups by `Object.values(SkillGroup).indexOf(...)`, and Web renders them in that
+// sequence on both the homepage and the résumé. Renaming a value therefore keeps its position;
+// appending one puts it last.
 enum SkillGroup {
   LANGUAGE
-  FRAMEWORK
-  TOOLING
-  PRACTICE
+  FRONTEND
+  BACKEND
+  DELIVERY
 }
 
 enum EmploymentType {
@@ -400,6 +404,10 @@ model Skill {
   group      SkillGroup
   order      Int        @default(0)
   brandColor String?    @map("brand_color")
+  // Visibility, not deletion. A skill that leaves the public taxonomy is still referenced by
+  // projects and experiences, so it is hidden rather than removed: the public listing filters
+  // on this flag while the admin listing and every relation stay intact.
+  isPublic   Boolean    @default(true) @map("is_public")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

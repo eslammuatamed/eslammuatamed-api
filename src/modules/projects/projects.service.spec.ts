@@ -126,7 +126,7 @@ function projectPayload(isPublished: boolean) {
         skillId: 'skill-1',
         skill: {
           id: 'skill-1',
-          group: 'FRAMEWORK',
+          group: 'FRONTEND',
           order: 1,
           brandColor: null,
           createdAt: now,
