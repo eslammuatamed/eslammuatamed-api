@@ -14,6 +14,7 @@
 | `settings.admin.controller.ts` | قراءة كاملة + تحديث جزئي محروس |
 | `settings.service.ts` | تحميل الـ singleton، التحليل، التحديث الجزئي، تحقّق الحقول |
 | `dto/update-settings.dto.ts` · `entities/site-settings.entities.ts` | مدخلات/مخرجات |
+| `site-settings.examples.ts` | أمثلة استجابة مُسمّاة (`en`/`ar`) لـ `GET /settings/site` — حمولات كاملة مُمثِّلة لكلّ لغة. أمثلة الـ schema على مستوى الخاصيّة لا تعرف اللغة، فكان أيّ mock يُعيد الهويّة الإنجليزيّة لكلّ `?locale=`. القيم المحكومة مأخوذة من مجموعة البيانات القانونيّة ومربوطة بها عبر `site-settings.examples.spec.ts` |
 
 ## خريطة الاتصال
 
