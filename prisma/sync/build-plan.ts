@@ -901,9 +901,17 @@ export async function buildPlan(db: ReadOnlyDb): Promise<Plan> {
     });
   }
 
-  // A stale Category still referenced by an article that SURVIVES the run cannot be deleted
-  // (`Article.category` is `onDelete: Restrict`). Detected here rather than discovered as a
-  // constraint violation mid-transaction.
+  // A stale Category still referenced AFTER the run cannot be deleted (`Article.category` is
+  // `onDelete: Restrict`). Detected here rather than discovered as a constraint violation
+  // mid-transaction.
+  //
+  // "After the run" is the load-bearing part. Two groups of article stop referencing a stale
+  // category: the ones this plan DELETES, and the ones it REPOINTS — every canonical article is
+  // updated to its canonical category, and a canonical category is by definition never one of the
+  // stale ones. Counting only the deletions would refuse a perfectly safe run whenever a canonical
+  // article happened to be sitting in a stale category, which is precisely the situation this tool
+  // exists to repair. The guard stays as a backstop against a bug elsewhere; it should not fire in
+  // normal operation.
   const deletedArticleIds = new Set(
     records
       .filter(
@@ -911,12 +919,19 @@ export async function buildPlan(db: ReadOnlyDb): Promise<Plan> {
       )
       .map((record) => record.id),
   );
+  const repointedArticleIds = new Set(
+    [...articleBySlug]
+      .filter(([articleSlug]) => canonicalArticleSlugs.has(articleSlug))
+      .map(([, article]) => article.id),
+  );
   for (const [slug, category] of [...categoryBySlug].sort(([a], [b]) =>
     a.localeCompare(b),
   )) {
     if (canonicalCategorySlugs.has(slug)) continue;
     const survivors = category.articles.filter(
-      (article) => !deletedArticleIds.has(article.id),
+      (article) =>
+        !deletedArticleIds.has(article.id) &&
+        !repointedArticleIds.has(article.id),
     );
     if (survivors.length) {
       problems.push(

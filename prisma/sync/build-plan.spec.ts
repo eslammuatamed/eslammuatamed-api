@@ -209,6 +209,34 @@ describe('buildPlan', () => {
       );
     });
 
+    it('deletes a stale Category whose only articles this run REPOINTS', async () => {
+      // The situation this tool exists to repair: a canonical article sitting in a category that
+      // is no longer canonical. The run updates the article to its canonical category, so the
+      // stale one ends the run unreferenced and IS safely deletable. Counting only the deleted
+      // articles would refuse the whole run here — fail-closed, but wrong.
+      const state = canonicalState();
+      const canonicalArticle = state.articles[0]!;
+      state.categories.push({
+        id: 'category-stale',
+        translations: [{ locale: 'en', name: 'Old', slug: 'old-category' }],
+        articles: [{ id: canonicalArticle.id }],
+      });
+      canonicalArticle.categoryId = 'category-stale';
+
+      const plan = await planFor(state);
+
+      expect(plan.problems).toEqual([]);
+      expect(recordFor(plan, 'Category', 'old-category')?.action).toBe(
+        'delete',
+      );
+      // ...and the article is repointed, which is what makes the delete safe.
+      expect(
+        recordFor(plan, 'Article', ARTICLES[0]!.en.slug)?.fields.map(
+          (field) => field.field,
+        ),
+      ).toContain('category');
+    });
+
     it('deletes a stale Category once nothing references it', async () => {
       const state = canonicalState();
       state.categories.push({
