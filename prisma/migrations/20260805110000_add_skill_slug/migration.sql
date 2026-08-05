@@ -131,3 +131,22 @@ END $$;
 -- ===== 4. Enforce =====
 ALTER TABLE "skills" ALTER COLUMN "slug" SET NOT NULL;
 CREATE UNIQUE INDEX "skills_slug_key" ON "skills"("slug");
+
+-- Format as a DATABASE INVARIANT, not merely an input rule.
+--
+-- The validation in step 3 runs once, over the rows that existed at migration time. Every LATER
+-- write — the content seed, an admin create, a console session, a future migration — would be
+-- unconstrained without this. That matters more than usual here because `?technology=` accepts a
+-- slug OR a legacy Skill uuid and separates them by SHAPE: a uuid satisfies the kebab-case rule on
+-- its own, so a uuid-shaped slug would be routed to the id column forever and answer with an empty
+-- page. `CreateSkillDto` refuses one at the API boundary; this refuses one at the column, which is
+-- the only place that also covers the seed and raw SQL.
+--
+-- Second CHECK constraint in the schema, after D09-19's contact at-least-one rule, and added for
+-- the same reason recorded there: application validation is bypassable by whoever writes next.
+-- Prisma cannot model CHECK constraints, so like that one it lives in migration SQL and is
+-- invisible in `schema.prisma`.
+ALTER TABLE "skills" ADD CONSTRAINT "skills_slug_format_check" CHECK (
+  "slug" ~ '^[a-z0-9]+(-[a-z0-9]+)*$'
+  AND "slug" !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+);

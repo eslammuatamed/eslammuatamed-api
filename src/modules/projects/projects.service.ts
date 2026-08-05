@@ -435,9 +435,10 @@ function buildPublicWhere(
 //
 // The discrimination is total in BOTH directions, and neither direction rests on convention:
 //   - every Skill id matches, so a legacy link is never read as a slug;
-//   - no Skill slug can match, because a uuid-shaped slug is refused at both points where one can
-//     be created — `CreateSkillDto` (admin writes) and the migration's format guard (the column
-//     itself). Without those two rules this function would be a heuristic; with them it is exact.
+//   - no Skill slug can match, because a uuid-shaped slug is refused by `CreateSkillDto` at the API
+//     boundary AND by the `skills_slug_format_check` CHECK constraint at the column — the latter
+//     being what also covers the content seed, raw SQL and any future writer.
+// Without those rules this function would be a heuristic; with them it is exact.
 const SKILL_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
