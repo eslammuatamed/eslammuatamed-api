@@ -9,6 +9,15 @@ import {
 import { renderPlan, renderPlanJson, renderValue } from './report';
 import type { Plan, RecordChange } from './types';
 
+/** The SiteSettings singleton every valid plan must carry exactly once (see validatePlan). */
+const SETTINGS_RECORD = {
+  model: 'SiteSettings',
+  action: 'unchanged',
+  naturalKey: 'singleton',
+  id: 'settings-1',
+  fields: [],
+} as RecordChange;
+
 const basePlan = (overrides: Partial<Plan> = {}): Plan => ({
   records: [],
   relations: [],
@@ -29,7 +38,16 @@ const record = (overrides: Partial<RecordChange> = {}): RecordChange => ({
 
 describe('validatePlan — the gate every apply must pass', () => {
   it('accepts a well-formed plan', () => {
-    expect(() => validatePlan(basePlan({ records: [record()] }))).not.toThrow();
+    expect(() =>
+      validatePlan(basePlan({ records: [SETTINGS_RECORD, record()] })),
+    ).not.toThrow();
+  });
+
+  it('accepts a plan whose only record is the settings singleton', () => {
+    // The no-op shape: nothing to do, but the singleton is still named.
+    expect(() =>
+      validatePlan(basePlan({ records: [SETTINGS_RECORD] })),
+    ).not.toThrow();
   });
 
   it('rejects a plan naming a protected model', () => {
@@ -79,6 +97,29 @@ describe('validatePlan — the gate every apply must pass', () => {
         basePlan({ records: [record({ action: 'delete', id: undefined })] }),
       ),
     ).toThrow(/carries no row id/);
+  });
+
+  it('rejects a plan that omits the SiteSettings singleton', () => {
+    // Without this, the apply path's create branch would produce a SECOND settings row, which
+    // would falsify doc 09 §6.1's "never created twice". The builder always emits the record, so
+    // only a hand-edited --json plan reaches here — but a guarantee worth stating is worth
+    // enforcing rather than qualifying.
+    expect(() => validatePlan(basePlan({ records: [record()] }))).toThrow(
+      /names it 0 time\(s\)/,
+    );
+  });
+
+  it('rejects a plan that names the SiteSettings singleton twice', () => {
+    expect(() =>
+      validatePlan(
+        basePlan({
+          records: [
+            record({ model: 'SiteSettings', naturalKey: 'singleton' }),
+            record({ model: 'SiteSettings', naturalKey: 'singleton' }),
+          ],
+        }),
+      ),
+    ).toThrow(/names it 2 time\(s\)/);
   });
 
   it('rejects a plan that already reports problems', () => {

@@ -230,10 +230,10 @@ interface SlugSubject {
  * other. Both would abort the transaction on a raw 23505 AFTER the dry-run called the plan
  * applicable.
  *
- * That is a dry-run FIDELITY defect rather than a destructive one — the transaction rolls back and
- * nothing is lost — but "the preview predicts the apply" is the property that makes this tool
- * safe to authorize, so the collision is detected here and refused with an explanation instead of
- * surfacing as a Postgres error code.
+ * That is a dry-run FIDELITY defect rather than a destructive one — the transaction rolls back, so
+ * none of the run's own changes are applied — but "the preview predicts the apply" is the property
+ * that makes this tool safe to authorize, so the collision is detected here and refused with an
+ * explanation instead of surfacing as a Postgres error code.
  */
 function detectSlugCollisions(subjects: readonly SlugSubject[]): string[] {
   const problems: string[] = [];

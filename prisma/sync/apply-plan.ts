@@ -141,6 +141,19 @@ export function validatePlan(plan: Plan): void {
         `"${cascade.model}" is disclosed as a cascade but is not a cascade-only model.`,
       );
 
+  // The singleton must be named exactly once. Without this, a hand-edited `--json` plan that simply
+  // omitted the record would reach the create branch and produce a SECOND SiteSettings row —
+  // falsifying doc 09 §6.1's "never created twice". The builder always emits it, so this is only
+  // reachable via a malformed plan; the guarantee is cheap to make real rather than to qualify.
+  const settingsRecords = plan.records.filter(
+    (record) => record.model === 'SiteSettings',
+  );
+  if (settingsRecords.length !== 1)
+    reasons.push(
+      `A plan must name the SiteSettings singleton exactly once; this one names it ` +
+        `${settingsRecords.length} time(s). Refusing rather than risking a second settings row.`,
+    );
+
   if (reasons.length) throw new PlanRejectedError([...new Set(reasons)]);
 }
 
