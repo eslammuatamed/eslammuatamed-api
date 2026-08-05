@@ -147,6 +147,22 @@ describe('SiteSettings field partition', () => {
     expect(ungoverned).toEqual([]);
   });
 
+  it('writes exactly the governed translation fields — no more, no less', () => {
+    // `apply-plan.ts` writes a settings translation as `const { locale, ...governed }`, so the
+    // canonical object's shape IS the write. If it drifted from the list the builder diffs, one of
+    // two silent failures would follow: a diffed-but-never-written field would be reported as an
+    // update on every run (so the zero-change second run becomes unreachable), or a
+    // written-but-never-diffed field would mutate the row on every run while the report said
+    // "unchanged". The scalar side is coupled by the type system; this is the translation side.
+    const written = Object.keys(SETTINGS_TRANSLATIONS[0]!).filter(
+      (key) => key !== 'locale',
+    );
+
+    expect(written.sort()).toEqual(
+      [...GOVERNED_SETTINGS_TRANSLATION_FIELDS].sort(),
+    );
+  });
+
   it('never governs a media reference on SiteSettings', () => {
     // The synchronization must not be able to point the résumé or portrait at anything: no
     // canonical source states a value, and inventing a MediaAsset is forbidden (D18-7).

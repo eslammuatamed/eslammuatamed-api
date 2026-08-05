@@ -17,7 +17,11 @@ import {
 } from '../content/canonical/site-settings';
 import { SKILLS } from '../content/canonical/skills';
 import { TAGS } from '../content/canonical/tags';
-import { isCascadeOnly, isGoverned } from './allowlist';
+import {
+  GOVERNED_SETTINGS_SCALARS,
+  isCascadeOnly,
+  isGoverned,
+} from './allowlist';
 import {
   countProtected,
   experienceKey,
@@ -583,7 +587,24 @@ function canonicalTagSlug(key: string): string {
   return tag.en.slug;
 }
 
-function toSettingsData() {
+/**
+ * Typed so the compiler enforces that this object holds EXACTLY the governed scalars — every one
+ * present (missing key = error) and no others (excess property check on the literal).
+ *
+ * This matters more than it looks. `build-plan.ts` diffs `GOVERNED_SETTINGS_SCALARS`; if this
+ * hand-written object drifted from that list, one of two silent failures would follow: a field the
+ * builder diffs but apply never writes would be reported as an update on EVERY run and the
+ * zero-change second run would become unreachable, or a field apply writes but the builder never
+ * diffs would mutate the row on every run while the report said "unchanged". Coupling the two by
+ * construction removes the failure mode instead of testing for it.
+ */
+type GovernedSettingsData = {
+  [K in (typeof GOVERNED_SETTINGS_SCALARS)[number]]: K extends 'profileLinks'
+    ? Prisma.InputJsonValue
+    : (typeof SETTINGS_SCALARS)[K];
+};
+
+function toSettingsData(): GovernedSettingsData {
   return {
     // Structurally cloned into a plain JSON value: `profileLinks` is a JSONB column, and the
     // canonical constant's interface type is not a Prisma `InputJsonValue`.
@@ -591,7 +612,7 @@ function toSettingsData() {
       label: link.label,
       url: link.url,
       icon: link.icon,
-    })) satisfies Prisma.InputJsonValue,
+    })),
     careerStartYear: SETTINGS_SCALARS.careerStartYear,
     careerStartMonth: SETTINGS_SCALARS.careerStartMonth,
     professionalEmail: SETTINGS_SCALARS.professionalEmail,
