@@ -59,6 +59,7 @@ describe('Skills (e2e)', () => {
       .post('/api/v1/admin/skills')
       .set(auth())
       .send({
+        slug: `hidden-e2e-skill-${unique}`,
         group: 'DELIVERY',
         order: 9001,
         isPublic: false,
@@ -125,6 +126,7 @@ describe('Skills (e2e)', () => {
       .post('/api/v1/admin/skills')
       .set(auth())
       .send({
+        slug: `e2e-skill-${unique}`,
         group: 'FRONTEND',
         order: 9000,
         brandColor: '#7c3aed',
@@ -166,6 +168,21 @@ describe('Skills (e2e)', () => {
       envelopeData<{ translations: { en: { label: string } } }>(updated)
         .translations.en.label,
     ).toBe(updatedLabel);
+
+    // The label just changed; the slug must not have. That is the whole point of a separate
+    // identity — public filter URLs survive a rename.
+    expect(envelopeData<{ slug: string }>(updated).slug).toBe(
+      `e2e-skill-${unique}`,
+    );
+
+    // And re-slugging is refused outright rather than quietly ignored, so a caller that tries is
+    // told instead of believing an already-shared URL still resolves.
+    const reslug = await request(httpServer(app))
+      .patch(`/api/v1/admin/skills/${createdSkillId}`)
+      .set(auth())
+      .send({ slug: `renamed-${unique}` })
+      .expect(422);
+    expect(reslug).toSatisfyApiSpec();
 
     const removed = await request(httpServer(app))
       .delete(`/api/v1/admin/skills/${createdSkillId}`)

@@ -1,14 +1,17 @@
 import { ApiExtraModels, ApiProperty, getSchemaPath } from '@nestjs/swagger';
 import { EmploymentType } from '@prisma/client';
 
-// Same {id, label} shape as ProjectTechnologyEntity (D10-13) so one client component serves
+// Same {id, slug, label} shape as ProjectTechnologyEntity (D10-13) so one client component serves
 // both surfaces. Declared here rather than imported to keep module independence; the exported
 // OpenAPI schema is structurally identical.
 export class ExperienceTechnologyEntity {
   @ApiProperty({ format: 'uuid' })
   readonly id!: string;
 
-  @ApiProperty({ example: 'Nuxt.js' })
+  @ApiProperty({ example: 'nuxt', pattern: '^[a-z0-9]+(-[a-z0-9]+)*$' })
+  readonly slug!: string;
+
+  @ApiProperty({ example: 'Nuxt' })
   readonly label!: string;
 }
 

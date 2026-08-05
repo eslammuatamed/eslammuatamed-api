@@ -27,16 +27,19 @@ interface SkillSeed {
   readonly group: SkillGroup;
   readonly order: number;
   readonly brandColor: string | null; // null where no brand color exists (e.g. practices)
-  readonly labelEn: string; // stable lookup key + project-technology link key
+  // The stable lookup key AND the project/experience link key — `Skill.slug`, which is also the
+  // public filter identity. It replaced `labelEn` in that role: matching on the English label
+  // meant that renaming a skill looked like a NEW skill, so the seed needed a `renamedFrom`
+  // escape hatch to avoid orphaning the original's relations. Matching on a slug that never
+  // changes removes the failure mode instead of compensating for it, so `renamedFrom` is gone
+  // and a label edit is now just a label edit.
+  readonly slug: string;
+  readonly labelEn: string;
   readonly labelAr: string;
   // Omitted = visible. `false` keeps the record (and every project/experience link it carries)
   // while removing it from public listings — the approved taxonomy dropped it from display, and
   // deleting a linked skill would take its relations with it.
   readonly isPublic?: boolean;
-  // Previous `labelEn`, when this entry renames an existing record. `ensureSkills` resolves it so
-  // the row is RENAMED rather than duplicated — the English label is the link key, so creating a
-  // second record would silently orphan the first one's project and experience relations.
-  readonly renamedFrom?: string;
 }
 
 // The approved public skills taxonomy — Docs `content/positioning-strategy.md` §5, owner decision
@@ -59,6 +62,7 @@ const SKILLS: readonly SkillSeed[] = [
     group: SkillGroup.LANGUAGE,
     order: 0,
     brandColor: '#3178C6',
+    slug: 'typescript',
     labelEn: 'TypeScript',
     labelAr: 'TypeScript',
   },
@@ -66,6 +70,7 @@ const SKILLS: readonly SkillSeed[] = [
     group: SkillGroup.LANGUAGE,
     order: 1,
     brandColor: '#F7DF1E',
+    slug: 'javascript',
     labelEn: 'JavaScript',
     labelAr: 'JavaScript',
   },
@@ -73,6 +78,7 @@ const SKILLS: readonly SkillSeed[] = [
     group: SkillGroup.LANGUAGE,
     order: 2,
     brandColor: '#777BB4',
+    slug: 'php',
     labelEn: 'PHP',
     labelAr: 'PHP',
   },
@@ -82,14 +88,15 @@ const SKILLS: readonly SkillSeed[] = [
     group: SkillGroup.FRONTEND,
     order: 0,
     brandColor: '#42B883',
+    slug: 'vue',
     labelEn: 'Vue',
     labelAr: 'Vue',
-    renamedFrom: 'Vue.js',
   },
   {
     group: SkillGroup.FRONTEND,
     order: 1,
     brandColor: '#00DC82',
+    slug: 'nuxt',
     labelEn: 'Nuxt',
     labelAr: 'Nuxt',
   },
@@ -97,6 +104,7 @@ const SKILLS: readonly SkillSeed[] = [
     group: SkillGroup.FRONTEND,
     order: 2,
     brandColor: '#FFD859',
+    slug: 'pinia',
     labelEn: 'Pinia',
     labelAr: 'Pinia',
   },
@@ -104,6 +112,7 @@ const SKILLS: readonly SkillSeed[] = [
     group: SkillGroup.FRONTEND,
     order: 3,
     brandColor: '#06B6D4',
+    slug: 'tailwind-css',
     labelEn: 'Tailwind CSS',
     labelAr: 'Tailwind CSS',
   },
@@ -113,6 +122,7 @@ const SKILLS: readonly SkillSeed[] = [
     group: SkillGroup.BACKEND,
     order: 0,
     brandColor: '#5FA04E',
+    slug: 'nodejs',
     labelEn: 'Node.js',
     labelAr: 'Node.js',
   },
@@ -120,6 +130,7 @@ const SKILLS: readonly SkillSeed[] = [
     group: SkillGroup.BACKEND,
     order: 1,
     brandColor: '#E0234E',
+    slug: 'nestjs',
     labelEn: 'NestJS',
     labelAr: 'NestJS',
   },
@@ -127,6 +138,7 @@ const SKILLS: readonly SkillSeed[] = [
     group: SkillGroup.BACKEND,
     order: 2,
     brandColor: '#2D3748',
+    slug: 'prisma',
     labelEn: 'Prisma',
     labelAr: 'Prisma',
   },
@@ -134,6 +146,7 @@ const SKILLS: readonly SkillSeed[] = [
     group: SkillGroup.BACKEND,
     order: 3,
     brandColor: '#4945FF',
+    slug: 'strapi',
     labelEn: 'Strapi',
     labelAr: 'Strapi',
   },
@@ -141,6 +154,7 @@ const SKILLS: readonly SkillSeed[] = [
     group: SkillGroup.BACKEND,
     order: 4,
     brandColor: '#FF2D20',
+    slug: 'laravel',
     labelEn: 'Laravel',
     labelAr: 'Laravel',
   },
@@ -150,6 +164,7 @@ const SKILLS: readonly SkillSeed[] = [
     group: SkillGroup.DELIVERY,
     order: 0,
     brandColor: null,
+    slug: 'requirements-analysis',
     labelEn: 'Requirements Analysis',
     labelAr: 'تحليل المتطلبات',
   },
@@ -157,6 +172,7 @@ const SKILLS: readonly SkillSeed[] = [
     group: SkillGroup.DELIVERY,
     order: 1,
     brandColor: null,
+    slug: 'feature-ownership',
     labelEn: 'Feature Ownership',
     labelAr: 'امتلاك الميزة من البداية إلى النهاية',
   },
@@ -164,6 +180,7 @@ const SKILLS: readonly SkillSeed[] = [
     group: SkillGroup.DELIVERY,
     order: 2,
     brandColor: null,
+    slug: 'testing',
     labelEn: 'Testing',
     labelAr: 'الاختبار',
   },
@@ -171,22 +188,23 @@ const SKILLS: readonly SkillSeed[] = [
     group: SkillGroup.DELIVERY,
     order: 3,
     brandColor: null,
+    slug: 'performance',
     labelEn: 'Performance',
     labelAr: 'الأداء',
-    renamedFrom: 'Web Performance',
   },
   {
     group: SkillGroup.DELIVERY,
     order: 4,
     brandColor: null,
+    slug: 'technical-seo',
     labelEn: 'Technical SEO',
     labelAr: 'تحسين محركات البحث التقني',
-    renamedFrom: 'SEO',
   },
   {
     group: SkillGroup.DELIVERY,
     order: 5,
     brandColor: null,
+    slug: 'deployment',
     labelEn: 'Deployment',
     labelAr: 'النشر',
   },
@@ -198,6 +216,7 @@ const SKILLS: readonly SkillSeed[] = [
     group: SkillGroup.FRONTEND,
     order: 90,
     brandColor: '#646CFF',
+    slug: 'vite',
     labelEn: 'Vite',
     labelAr: 'Vite',
     isPublic: false,
@@ -206,6 +225,7 @@ const SKILLS: readonly SkillSeed[] = [
     group: SkillGroup.DELIVERY,
     order: 90,
     brandColor: '#F05032',
+    slug: 'git',
     labelEn: 'Git',
     labelAr: 'Git',
     isPublic: false,
@@ -214,6 +234,7 @@ const SKILLS: readonly SkillSeed[] = [
     group: SkillGroup.DELIVERY,
     order: 91,
     brandColor: null,
+    slug: 'accessibility',
     labelEn: 'Accessibility (a11y)',
     labelAr: 'إتاحة الوصول (a11y)',
     isPublic: false,
@@ -244,7 +265,7 @@ interface ProjectSeed {
   readonly year: number;
   readonly liveUrl: string | null;
   readonly repoUrl: string | null;
-  readonly techKeys: readonly string[]; // labelEn of seeded skills (3-5, unique per project)
+  readonly techKeys: readonly string[]; // Skill.slug of seeded skills (3-5, unique per project)
   readonly en: ProjectTranslationContent;
   readonly ar: ProjectTranslationContent;
 }
@@ -257,7 +278,7 @@ const PROJECTS: readonly ProjectSeed[] = [
     // Not yet publicly deployed (Release Freeze); repos are not linked here. No placeholder URLs (HR-9).
     liveUrl: null,
     repoUrl: null,
-    techKeys: ['Nuxt', 'Vue', 'TypeScript', 'Tailwind CSS', 'NestJS'],
+    techKeys: ['nuxt', 'vue', 'typescript', 'tailwind-css', 'nestjs'],
     en: {
       title: 'Personal Platform & Portfolio',
       slug: 'personal-platform',
@@ -314,7 +335,7 @@ const PROJECTS: readonly ProjectSeed[] = [
     year: 2025,
     liveUrl: null,
     repoUrl: null,
-    techKeys: ['Nuxt', 'Vue', 'TypeScript', 'NestJS', 'Tailwind CSS'],
+    techKeys: ['nuxt', 'vue', 'typescript', 'nestjs', 'tailwind-css'],
     en: {
       title: 'SAMT — Institution Website & CMS',
       slug: 'samt-institution-website',
@@ -371,7 +392,7 @@ const PROJECTS: readonly ProjectSeed[] = [
     year: 2025,
     liveUrl: null,
     repoUrl: null,
-    techKeys: ['Nuxt', 'Vue', 'TypeScript', 'Tailwind CSS'],
+    techKeys: ['nuxt', 'vue', 'typescript', 'tailwind-css'],
     en: {
       title: 'Lure Stores — Multi-vendor Commerce',
       slug: 'lure-stores-multivendor-commerce',
@@ -428,7 +449,7 @@ const PROJECTS: readonly ProjectSeed[] = [
     year: 2026,
     liveUrl: null,
     repoUrl: null,
-    techKeys: ['Vue', 'TypeScript', 'Tailwind CSS'],
+    techKeys: ['vue', 'typescript', 'tailwind-css'],
     en: {
       title: 'WaveX — Multi-portal Logistics Platform',
       slug: 'wavex-logistics-platform',
@@ -497,7 +518,7 @@ interface ExperienceSeed {
   readonly order: number;
   readonly en: ExperienceTranslationContent;
   readonly ar: ExperienceTranslationContent;
-  // labelEn of seeded skills — resolved to Skill ids at seed time (D09-17). Technologies come
+  // Skill.slug of seeded skills — resolved to Skill ids at seed time (D09-17). Technologies come
   // from the Skill registry; no free-text labels are stored on the experience.
   readonly techKeys: readonly string[];
 }
@@ -522,7 +543,7 @@ const EXPERIENCES: readonly ExperienceSeed[] = [
       impact:
         '- Build new Vue.js features inside Zidni, a large e-learning SaaS codebase, and modernize its dashboard\n- Built SAMT from scratch — a Nuxt institution website, a NestJS backend, and the admin/CMS — owning the frontend architecture and API integration (the UI/UX was designed in Figma by a designer)\n- Own component design, reusable UI patterns, and the Figma-to-production workflow; joined part-time and transitioned to a full-time role',
     },
-    techKeys: ['Vue', 'Nuxt', 'NestJS', 'TypeScript'],
+    techKeys: ['vue', 'nuxt', 'nestjs', 'typescript'],
     ar: {
       role: 'مطوّر واجهات أمامية',
       company: 'Findropica',
@@ -544,7 +565,7 @@ const EXPERIENCES: readonly ExperienceSeed[] = [
       impact:
         '- Built a multi-portal logistics platform — administrators, merchants, intercity operators, drivers, and last-mile partners — with Vue and Inertia.js on a Laravel backend\n- Translated requirements into tasks directly with the client and owned the architecture, code review, and validation\n- Practiced disciplined, AI-assisted engineering with full ownership of the delivery',
     },
-    techKeys: ['Vue', 'Tailwind CSS'],
+    techKeys: ['vue', 'tailwind-css'],
     ar: {
       role: 'مطوّر متكامل',
       company: 'WaveX',
@@ -566,7 +587,7 @@ const EXPERIENCES: readonly ExperienceSeed[] = [
       impact:
         '- Led Nuxt implementations across products for international clients\n- Built the customer storefront, vendor dashboard, and admin dashboard for Lure Stores, a multi-vendor e-commerce platform\n- Led the frontend for Nexa (event booking) and built core functionality for Vora; focused on SEO, SSR, i18n, and performance',
     },
-    techKeys: ['Nuxt', 'Vue', 'Technical SEO', 'Performance'],
+    techKeys: ['nuxt', 'vue', 'technical-seo', 'performance'],
     ar: {
       role: 'مطوّر واجهات أمامية',
       company: 'WeblyTech',
@@ -1035,11 +1056,13 @@ function mustGet<T>(map: ReadonlyMap<string, T>, key: string, kind: string): T {
  * create-if-absent pass would leave every one of those rows on the superseded taxonomy.
  *
  * Nothing is ever deleted. A record dropped from the public taxonomy is hidden instead, so the
- * `ProjectTechnology` / `ExperienceTechnology` rows pointing at it survive untouched, and a
- * renamed record is matched through `renamedFrom` and updated in place — never re-created, which
- * would strand the original's relations behind a duplicate.
+ * `ProjectTechnology` / `ExperienceTechnology` rows pointing at it survive untouched.
  *
- * Idempotent: a second run matches the same rows by their new labels and writes identical values.
+ * Records are matched by `slug`, which is unique and never changes. That is what makes a rename
+ * safe: the row is found and updated in place, so both labels can be edited freely without ever
+ * stranding the original's relations behind a duplicate.
+ *
+ * Idempotent: a second run matches the same rows by the same slugs and writes identical values.
  */
 async function ensureSkills(): Promise<{
   map: Map<string, string>;
@@ -1050,33 +1073,27 @@ async function ensureSkills(): Promise<{
   let created = 0;
   let updated = 0;
 
-  const findByLabel = async (label: string): Promise<string | null> =>
-    (
-      await prisma.skillTranslation.findFirst({
-        where: { locale: LOCALE_EN, label },
-        select: { skillId: true },
-      })
-    )?.skillId ?? null;
+  // Two entries sharing a slug would collapse into one record and silently drop the other's
+  // relations. The database's unique index would catch it, but only after a partial write — this
+  // refuses before touching anything.
+  const duplicates = SKILLS.map((skill) => skill.slug).filter(
+    (slug, index, all) => all.indexOf(slug) !== index,
+  );
+  if (duplicates.length)
+    throw new Error(
+      `Duplicate skill slug(s) in the seed registry: ${[...new Set(duplicates)].join(', ')}.`,
+    );
 
   for (const skill of SKILLS) {
-    const current = await findByLabel(skill.labelEn);
-    const previous = skill.renamedFrom
-      ? await findByLabel(skill.renamedFrom)
-      : null;
+    const existing = await prisma.skill.findUnique({
+      where: { slug: skill.slug },
+      select: { id: true },
+    });
 
-    // Both labels resolving to different records means a rename would merge two identities and
-    // silently drop one side's relations. Refuse rather than guess.
-    if (current && previous && current !== previous) {
-      throw new Error(
-        `Skill rename conflict: both "${skill.renamedFrom}" and "${skill.labelEn}" exist as ` +
-          `separate records. Resolve manually before re-running the seed.`,
-      );
-    }
-
-    const id = current ?? previous;
-    if (!id) {
+    if (!existing) {
       const record = await prisma.skill.create({
         data: {
+          slug: skill.slug,
           group: skill.group,
           order: skill.order,
           brandColor: skill.brandColor,
@@ -1090,11 +1107,14 @@ async function ensureSkills(): Promise<{
         },
         select: { id: true },
       });
-      map.set(skill.labelEn, record.id);
+      map.set(skill.slug, record.id);
       created += 1;
       continue;
     }
 
+    const id = existing.id;
+    // `slug` is intentionally absent from the update: it is the identity this row was just found
+    // by, and it is the public filter URL. Labels below are the editable half.
     await prisma.skill.update({
       where: { id },
       data: {
@@ -1114,7 +1134,7 @@ async function ensureSkills(): Promise<{
         update: { label },
       });
     }
-    map.set(skill.labelEn, id);
+    map.set(skill.slug, id);
     updated += 1;
   }
   return { map, created, updated };

@@ -47,17 +47,29 @@ export class SkillsService {
 
   async create(dto: CreateSkillDto): Promise<AdminSkillEntity> {
     await this.assertTranslations(dto.translations);
-    const row = await this.prisma.skill.create({
-      data: {
-        group: dto.group,
-        order: dto.order,
-        brandColor: dto.brandColor,
-        isPublic: dto.isPublic ?? true,
-        translations: { create: dto.translations },
-      },
-      include: { translations: true },
-    });
-    return toAdminEntity(row);
+    try {
+      const row = await this.prisma.skill.create({
+        data: {
+          slug: dto.slug,
+          group: dto.group,
+          order: dto.order,
+          brandColor: dto.brandColor,
+          isPublic: dto.isPublic ?? true,
+          translations: { create: dto.translations },
+        },
+        include: { translations: true },
+      });
+      return toAdminEntity(row);
+    } catch (error) {
+      // A duplicate slug is a caller error, not a server fault: the unique constraint would
+      // otherwise surface as a 500. Two skills behind one public filter URL is exactly what the
+      // constraint exists to prevent, so it is reported as a conflict.
+      if (isPrismaCode(error, 'P2002'))
+        throw new ConflictException(
+          `Skill slug "${dto.slug}" is already taken.`,
+        );
+      throw error;
+    }
   }
 
   async update(id: string, dto: UpdateSkillDto): Promise<AdminSkillEntity> {
@@ -120,6 +132,7 @@ export class SkillsService {
     if (!translation) return null;
     return {
       id: row.id,
+      slug: row.slug,
       label: translation.label,
       group: row.group,
       order: row.order,
@@ -135,6 +148,7 @@ function toAdminEntity(row: SkillWithTranslations): AdminSkillEntity {
     translations[translation.locale] = { label: translation.label };
   return {
     id: row.id,
+    slug: row.slug,
     group: row.group,
     order: row.order,
     brandColor: row.brandColor,

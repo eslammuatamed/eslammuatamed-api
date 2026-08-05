@@ -189,4 +189,119 @@ describe('Projects (e2e)', () => {
 
     expect(collision).toSatisfyApiSpec();
   });
+
+  // The public technology filter, end to end over HTTP. Self-contained: it builds its own Skill and
+  // published Project so it never depends on the dev/demo seed layer, and removes both afterwards.
+  describe('technology filtering by Skill slug', () => {
+    const techSlug = `e2e-tech-${unique}`;
+    const filterSlug = `e2e-filtered-${unique}`;
+    let skillId: string;
+    let filteredProjectId: string;
+
+    beforeAll(async () => {
+      const skill = await request(httpServer(app))
+        .post('/api/v1/admin/skills')
+        .set(auth())
+        .send({
+          slug: techSlug,
+          group: 'BACKEND',
+          order: 50,
+          translations: [
+            { locale: 'en', label: `E2E Tech ${unique}` },
+            { locale: 'ar', label: `تقنية ${unique}` },
+          ],
+        })
+        .expect(201);
+      skillId = envelopeData<{ id: string }>(skill).id;
+
+      const created = await request(httpServer(app))
+        .post('/api/v1/admin/projects')
+        .set(auth())
+        .send({
+          ...project(),
+          isPublished: true,
+          technologyIds: [skillId],
+          translations: [
+            {
+              locale: 'en',
+              title: `E2E Filtered ${unique}`,
+              slug: filterSlug,
+              summary: `E2E filtered summary ${unique}.`,
+              ...sections,
+            },
+          ],
+        })
+        .expect(201);
+      filteredProjectId = envelopeData<{ id: string }>(created).id;
+    });
+
+    afterAll(async () => {
+      // Project first: the Skill relation is `onDelete: Restrict`, so the skill cannot go while a
+      // project still points at it.
+      await request(httpServer(app))
+        .delete(`/api/v1/admin/projects/${filteredProjectId}`)
+        .set(auth())
+        .expect(204);
+      await request(httpServer(app))
+        .delete(`/api/v1/admin/skills/${skillId}`)
+        .set(auth())
+        .expect(204);
+    });
+
+    it('returns the project when filtered by the technology slug', async () => {
+      const res = await request(httpServer(app))
+        .get(`/api/v1/projects?locale=en&technology=${techSlug}`)
+        .expect(200);
+
+      expect(res).toSatisfyApiSpec();
+      const items = envelopeData<ProjectListItem[]>(res);
+      expect(items.map((item) => item.slug)).toContain(filterSlug);
+    });
+
+    // Links published before `Skill.slug` existed carry the uuid. They must keep resolving to the
+    // same projects, otherwise the migration silently breaks every shared filter URL.
+    it('still resolves a legacy Skill uuid filter to the same project', async () => {
+      const res = await request(httpServer(app))
+        .get(`/api/v1/projects?locale=en&technology=${skillId}`)
+        .expect(200);
+
+      expect(res).toSatisfyApiSpec();
+      const items = envelopeData<ProjectListItem[]>(res);
+      expect(items.map((item) => item.slug)).toContain(filterSlug);
+    });
+
+    it('carries the slug on each listed technology so a client can build the filter URL', async () => {
+      const res = await request(httpServer(app))
+        .get(`/api/v1/projects/${filterSlug}?locale=en`)
+        .expect(200);
+
+      expect(res).toSatisfyApiSpec();
+      const detail = envelopeData<{
+        technologies: { id: string; slug: string; label: string }[];
+      }>(res);
+      expect(detail.technologies).toContainEqual(
+        expect.objectContaining({ id: skillId, slug: techSlug }),
+      );
+    });
+
+    // An unknown technology is a valid, empty page — not a 404 and not a 422. The value is a query
+    // parameter a visitor can edit or that can outlive a retired skill.
+    it('returns an empty but valid paginated collection for an unknown slug', async () => {
+      const res = await request(httpServer(app))
+        .get('/api/v1/projects?locale=en&technology=no-such-technology')
+        .expect(200);
+
+      expect(res).toSatisfyApiSpec();
+      expect(envelopeData<ProjectListItem[]>(res)).toEqual([]);
+      expect(res.body).toHaveProperty('meta.total', 0);
+    });
+
+    it('rejects a malformed technology value with a contract-valid 422', async () => {
+      const res = await request(httpServer(app))
+        .get('/api/v1/projects?locale=en&technology=Node.js')
+        .expect(422);
+
+      expect(res).toSatisfyApiSpec();
+    });
+  });
 });

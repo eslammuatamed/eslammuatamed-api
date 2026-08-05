@@ -412,9 +412,28 @@ function buildPublicWhere(
     isPublished: true,
     translations: { some: { locale: query.locale } },
     ...(query.technology
-      ? { technologies: { some: { skillId: query.technology } } }
+      ? {
+          technologies: {
+            some: isSkillId(query.technology)
+              ? // Backward compatibility only — the uuid form is what this endpoint documented
+                // before `Skill.slug` existed, so links already published keep resolving.
+                { skillId: query.technology }
+              : { skill: { slug: query.technology } },
+          },
+        }
       : {}),
   };
+}
+
+// A Skill id is a uuid; a Skill slug can never be one, because `^[a-z0-9]+(-[a-z0-9]+)*$` forbids
+// the empty group between the doubled hyphens a uuid would need to collide — and no approved slug
+// is 36 characters of hex in 8-4-4-4-12 shape. So the two forms are unambiguous and no lookup
+// needs to guess or fall back.
+const SKILL_ID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+function isSkillId(value: string): boolean {
+  return SKILL_ID_PATTERN.test(value);
 }
 
 function translationWriteFields(translation: ProjectTranslationDto) {
@@ -466,7 +485,11 @@ function technologyRef(
     (item) => item.locale === locale,
   );
   if (!translation) return null;
-  return { id: technology.skill.id, label: translation.label };
+  return {
+    id: technology.skill.id,
+    slug: technology.skill.slug,
+    label: translation.label,
+  };
 }
 
 function toAdminEntity(project: ProjectAdminPayload): AdminProjectEntity {

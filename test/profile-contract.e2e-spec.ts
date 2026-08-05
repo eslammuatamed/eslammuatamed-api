@@ -257,6 +257,7 @@ describe('Profile contract (e2e)', () => {
     beforeAll(async () => {
       const a = await prisma.skill.create({
         data: {
+          slug: `e2e-alpha-${RUN}`.toLowerCase(),
           group: 'FRONTEND',
           order: 10,
           translations: {
@@ -269,6 +270,7 @@ describe('Profile contract (e2e)', () => {
       });
       const b = await prisma.skill.create({
         data: {
+          slug: `e2e-beta-${RUN}`.toLowerCase(),
           group: 'FRONTEND',
           order: 20,
           translations: {
@@ -364,26 +366,31 @@ describe('Profile contract (e2e)', () => {
       ).resolves.toBeTruthy();
     });
 
-    it('returns localized {id,label} ordered by Skill.order', async () => {
+    it('returns localized {id,slug,label} ordered by Skill.order', async () => {
       const res = await request(server)
         .get('/api/v1/experiences?locale=ar')
         .expect(200);
       expect(res).toSatisfyApiSpec();
 
-      const rows =
-        envelopeData<
-          { id: string; technologies: { id: string; label: string }[] }[]
-        >(res);
+      const rows = envelopeData<
+        {
+          id: string;
+          technologies: { id: string; slug: string; label: string }[];
+        }[]
+      >(res);
       const row = rows.find((item) => item.id === experienceId);
       expect(row).toBeDefined();
 
+      // The exact key set is the assertion, not a subset: D10-13 requires this shape to stay
+      // identical to the project technology shape so one client component serves both surfaces.
       for (const technology of row!.technologies) {
-        expect(Object.keys(technology).sort()).toEqual(['id', 'label']);
+        expect(Object.keys(technology).sort()).toEqual(['id', 'label', 'slug']);
       }
-      // Arabic labels, ordered by Skill.order (10 before 20) despite reverse insertion.
+      // Arabic labels with a locale-independent slug, ordered by Skill.order (10 before 20)
+      // despite reverse insertion.
       expect(row!.technologies).toEqual([
-        { id: skillA, label: `ألفا ${RUN}` },
-        { id: skillB, label: `بيتا ${RUN}` },
+        { id: skillA, slug: `e2e-alpha-${RUN}`, label: `ألفا ${RUN}` },
+        { id: skillB, slug: `e2e-beta-${RUN}`, label: `بيتا ${RUN}` },
       ]);
     });
   });
