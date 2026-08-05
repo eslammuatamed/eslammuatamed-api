@@ -499,6 +499,10 @@ describe('stale content converges', () => {
     expect(links.map((link) => link.skill.slug).sort()).toEqual(
       [...canonical.techKeys].sort(),
     );
+    // The project's own scalars never drifted, so its record was `unchanged` — relation
+    // replacement therefore must NOT be conditional on the record having scalar changes, or this
+    // drift would survive forever and the run below would never be a no-op.
+    expect(isNoOp(await plan())).toBe(true);
   });
 });
 
