@@ -9,9 +9,20 @@ import { createE2eApp, envelopeData, httpServer } from './utils/e2e-app';
 // Governed About copy — seed adoption guard.
 //
 // The expected side of every assertion below is a LITERAL recorded independently of
-// `prisma/content/about-copy.ts`. The digests were taken from the governing document
-// (eslammuatamed-docs @ 78bc945d32c8ab37a9a8ebfc3ac957489bd441df,
-// content/profile/about-copy.md §5, Approved v1.0.0) and are reproduced here as constants.
+// `prisma/content/about-copy.ts`. The digests were taken from the governing document and are
+// reproduced here as constants:
+//
+//   engineeringPhilosophy, currentFocus  — eslammuatamed-docs @ 78bc945d32c8ab37a9a8ebfc3ac957489bd441df,
+//                                          content/profile/about-copy.md §5, Approved v1.0.0
+//   aboutBio (EN + AR)                   — eslammuatamed-docs @ 1e3cd6a685c6dfa8a9ebf601a011e1a6ac4134af,
+//                                          content/profile/about-copy.md §5, Approved v1.1.0 (PR #45).
+//                                          The opening paragraph was replaced by owner directive on
+//                                          2026-08-05; the rest of each block is unchanged from v1.0.0.
+//
+// The v1.1.0 digests were recomputed FROM THE MARKDOWN, not from the seed module — computing them
+// from `about-copy.ts` would have made this suite prove self-consistency, which is the exact failure
+// the paragraph below warns about. They matched the seeded database on the first CI run after the
+// copy change, so document, seed module and stored bytes are known to agree.
 // Importing the seed's own module instead would make this suite prove self-consistency and
 // nothing about the approved wording — a typo introduced during transcription would pass. The
 // values under test are read back from a seeded database, so this covers the seed end to end.
@@ -32,15 +43,15 @@ const EXPECTED: readonly AboutExpectation[] = [
   {
     locale: 'en',
     field: 'aboutBio',
-    sha256: '83017e59e6a04772cee698b720632ca88be5301375b504d4e3806116c47ccbbc',
-    chars: 973,
+    sha256: '225340affdd6abb6b9dcaccecbadbd0acb3ad71551a800226bdffc39b62aa156',
+    chars: 1020,
     paragraphs: 3,
   },
   {
     locale: 'ar',
     field: 'aboutBio',
-    sha256: '0f8e23b5d4c11417a5f701386f03d595c111c8ba136a7009e12887b5e02063d5',
-    chars: 975,
+    sha256: 'e730d9979a0c1705e700c900964d43fb2e7b13b2217c1980f6f8bdf5cc3dcc5b',
+    chars: 994,
     paragraphs: 3,
   },
   {
