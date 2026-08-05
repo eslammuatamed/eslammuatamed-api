@@ -259,6 +259,27 @@ function toAdminEntity(row: ExperienceWithTranslations): AdminExperienceEntity {
   };
 }
 
+/**
+ * Canonical public ordering: CURRENT ROLES FIRST, then most-recent start date, then the
+ * owner-controlled `order`, then `id` as a total tie-breaker.
+ *
+ * `isCurrent` has to lead, and sorting by `startDate` alone got this wrong in production: a role
+ * that STARTED later but has already ENDED outranked the role the owner still holds. Observed
+ * live — WaveX (started 2026-03, ended 2026-07) sorted above Findropica (started 2025-01,
+ * `isCurrent: true`) — so `/experience` and `/resume`, which render the API order verbatim,
+ * disagreed with the Home page, which was re-sorting locally. Ordering is the API's job (the same
+ * rule `useProjects` documents on the Web side): a client that re-sorts silently overrides the
+ * ordering the owner controls from the dashboard.
+ *
+ * `id` last makes the sort TOTAL. Without it two roles sharing a start date and an `order` would
+ * compare equal, and `Array#sort` stability would leave their relative order at the mercy of the
+ * database's row order — a listing that can change between identical requests.
+ */
 function compareExperiences(a: Experience, b: Experience): number {
-  return b.startDate.getTime() - a.startDate.getTime() || a.order - b.order;
+  if (a.isCurrent !== b.isCurrent) return a.isCurrent ? -1 : 1;
+  return (
+    b.startDate.getTime() - a.startDate.getTime() ||
+    a.order - b.order ||
+    a.id.localeCompare(b.id)
+  );
 }
