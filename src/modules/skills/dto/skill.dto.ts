@@ -43,6 +43,17 @@ export class CreateSkillDto {
     message:
       'slug must be lowercase kebab-case: ^[a-z0-9]+(-[a-z0-9]+)*$ (e.g. "tailwind-css").',
   })
+  // A uuid-shaped slug is REJECTED, and this is load-bearing rather than fussy. `?technology=`
+  // carries either a slug or a legacy Skill uuid, and the service tells them apart by shape — a
+  // uuid satisfies the kebab-case rule above (lowercase hex groups joined by single hyphens), so
+  // without this rule a slug could be minted that the filter would forever route to the id column
+  // and answer with an empty page. This is the ONLY place that can prevent it: the migration's
+  // canonical mapping is hand-written and reviewed, but skills are also created through this
+  // endpoint, so the guarantee has to live where creation happens.
+  @Matches(/^(?![0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$)/, {
+    message:
+      'slug must not be shaped like a uuid — that form is reserved for the legacy technology filter.',
+  })
   @MaxLength(60)
   readonly slug!: string;
   @ApiProperty({ enum: SkillGroup, example: SkillGroup.LANGUAGE })

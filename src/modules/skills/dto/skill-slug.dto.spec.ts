@@ -50,6 +50,29 @@ describe('Skill slug contract', () => {
     it('is required — a skill cannot exist without a public identity', () => {
       expect(errorsFor(CreateSkillDto, validSkill)).toContain('slug');
     });
+
+    // A uuid satisfies the kebab-case rule, so without an explicit refusal a slug could be created
+    // that `?technology=` would route to the id column forever and answer with an empty page. This
+    // endpoint is the only place that can prevent it — the migration's mapping covers the rows that
+    // already exist, not the ones an admin creates later.
+    it('refuses a uuid-shaped slug, which the kebab-case rule alone would allow', () => {
+      const uuidShaped = '019fa4e9-2810-7f82-a537-6e3ea8ddcc67';
+
+      // Guard the premise: if this ever stops holding, the rule below is testing nothing.
+      expect(uuidShaped).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*$/);
+
+      expect(
+        errorsFor(CreateSkillDto, { ...validSkill, slug: uuidShaped }),
+      ).toContain('slug');
+    });
+
+    // Not over-broad: hex-looking slugs that are not uuid-SHAPED stay legal.
+    it.each(['abc123', 'a11y', 'web3', 'deadbeef'])(
+      'still accepts the hex-looking but non-uuid slug %s',
+      (slug) => {
+        expect(errorsFor(CreateSkillDto, { ...validSkill, slug })).toEqual([]);
+      },
+    );
   });
 
   describe('UpdateSkillDto', () => {

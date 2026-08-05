@@ -108,14 +108,22 @@ BEGIN
   END IF;
 
   -- 3c. Format is part of the contract, not a convention: lowercase kebab-case only.
+  --
+  -- A uuid-shaped slug is rejected by the SAME check, because `?technology=` accepts either a slug
+  -- or a legacy Skill uuid and tells them apart by shape. A uuid satisfies the kebab-case rule on
+  -- its own (lowercase hex groups joined by single hyphens), so a slug in that shape would be
+  -- routed to the id column forever and answer with an empty page. Enforced here as well as in
+  -- `CreateSkillDto` because this is where the data actually lands.
   SELECT string_agg("slug", ', ' ORDER BY "slug")
     INTO malformed
     FROM "skills"
-   WHERE "slug" !~ '^[a-z0-9]+(-[a-z0-9]+)*$';
+   WHERE "slug" !~ '^[a-z0-9]+(-[a-z0-9]+)*$'
+      OR "slug" ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';
 
   IF malformed IS NOT NULL THEN
     RAISE EXCEPTION
-      'Skill slug format invalid — must be lowercase kebab-case ^[a-z0-9]+(-[a-z0-9]+)*$: %',
+      'Skill slug format invalid — must be lowercase kebab-case ^[a-z0-9]+(-[a-z0-9]+)*$ '
+      'and must not be shaped like a uuid: %',
       malformed;
   END IF;
 END $$;

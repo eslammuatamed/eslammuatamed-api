@@ -425,10 +425,19 @@ function buildPublicWhere(
   };
 }
 
-// A Skill id is a uuid; a Skill slug can never be one, because `^[a-z0-9]+(-[a-z0-9]+)*$` forbids
-// the empty group between the doubled hyphens a uuid would need to collide — and no approved slug
-// is 36 characters of hex in 8-4-4-4-12 shape. So the two forms are unambiguous and no lookup
-// needs to guess or fall back.
+// Which column a `?technology=` value is matched against.
+//
+// A uuid DOES satisfy the query DTO's slug pattern (`^[a-z0-9]+(-[a-z0-9]+)*$` — lowercase hex in
+// 8-4-4-4-12 shape is a sequence of alphanumeric groups joined by single hyphens), which is exactly
+// why one parameter can carry both forms without a second parameter or a union type. This test is
+// what separates them, and it is deliberately the STRICT uuid shape rather than a loose
+// "looks like it has hyphens" heuristic.
+//
+// The discrimination is total in BOTH directions, and neither direction rests on convention:
+//   - every Skill id matches, so a legacy link is never read as a slug;
+//   - no Skill slug can match, because a uuid-shaped slug is refused at both points where one can
+//     be created — `CreateSkillDto` (admin writes) and the migration's format guard (the column
+//     itself). Without those two rules this function would be a heuristic; with them it is exact.
 const SKILL_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 

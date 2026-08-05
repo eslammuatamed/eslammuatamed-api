@@ -192,6 +192,24 @@ describe('Skills (e2e)', () => {
     createdSkillId = undefined;
   });
 
+  // Over HTTP, because this is the guarantee the `?technology=` filter's slug/uuid discrimination
+  // rests on: a uuid satisfies the kebab-case rule, so a uuid-shaped slug would be routed to the id
+  // column forever and answer with an empty page. This endpoint is where such a slug could be born.
+  it('refuses a uuid-shaped slug with a contract-valid 422', async () => {
+    const res = await request(httpServer(app))
+      .post('/api/v1/admin/skills')
+      .set(auth())
+      .send({
+        slug: '019fa4e9-2810-7f82-a537-6e3ea8ddcc67',
+        group: 'FRONTEND',
+        order: 9100,
+        translations: [{ locale: 'en', label: `Uuid Shaped ${unique}` }],
+      })
+      .expect(422);
+
+    expect(res).toSatisfyApiSpec();
+  });
+
   it('rejects an invalid create body with a contract-valid 422', async () => {
     const res = await request(httpServer(app))
       .post('/api/v1/admin/skills')
