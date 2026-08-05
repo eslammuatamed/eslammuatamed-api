@@ -13,7 +13,7 @@ import { ContentStatus, MediaKind, PrismaClient } from '@prisma/client';
 import { PROJECTS } from '../prisma/content/canonical/projects';
 import { SETTINGS_TRANSLATIONS } from '../prisma/content/canonical/site-settings';
 import { SKILLS } from '../prisma/content/canonical/skills';
-import { applyPlan } from '../prisma/sync/apply-plan';
+import { applyPlan, runProtectedTransaction } from '../prisma/sync/apply-plan';
 import { buildPlan } from '../prisma/sync/build-plan';
 import { readOnly } from '../prisma/sync/read-client';
 import { isNoOp, summarize } from '../prisma/sync/types';
@@ -600,6 +600,102 @@ describe('operational data is protected', () => {
         select: { id: true, isVisible: true, order: true },
       }),
     ).toEqual(before);
+  });
+});
+
+describe('the protected-data guard actually works', () => {
+  // The comparator is unit-tested, but nothing proved the MECHANISM: that the counts really
+  // bracket the work, that a breach really rolls back, or that the isolation level is really
+  // applied. A guard whose wiring is untested is a guard nobody has seen fire.
+
+  it('fires and ROLLS BACK when the work deletes a protected row', async () => {
+    const before = await prisma.contactMessage.count();
+    expect(before).toBeGreaterThan(0);
+
+    await expect(
+      runProtectedTransaction(prisma, async (tx) => {
+        // Stands in for an unanticipated cascade. The allowlist makes this unreachable through
+        // the real apply path, which is exactly why the guard needs a deliberate breach to prove
+        // it fires at all.
+        await tx.contactMessage.deleteMany();
+      }),
+    ).rejects.toThrow(/ContactMessage \d+ → 0/);
+
+    // The rows are still here: the guard threw INSIDE the transaction, so the delete was undone.
+    // The previous post-commit version would have thrown too — and the rows would be gone.
+    expect(await prisma.contactMessage.count()).toBe(before);
+  });
+
+  it('rolls back the governed work as well, not just the protected breach', async () => {
+    await expect(
+      runProtectedTransaction(prisma, async (tx) => {
+        await tx.skill.create({
+          data: {
+            slug: 'should-not-survive',
+            group: 'FRONTEND',
+            translations: { create: [{ locale: 'en', label: 'Nope' }] },
+          },
+        });
+        await tx.contactMessage.deleteMany();
+      }),
+    ).rejects.toThrow(/Operational record counts changed/);
+
+    expect(
+      await prisma.skill.findUnique({ where: { slug: 'should-not-survive' } }),
+    ).toBeNull();
+  });
+
+  it('runs at REPEATABLE READ — the property the whole guard rests on', async () => {
+    // Asserted against the database rather than against the Prisma option, because the option is
+    // a request and this is the observed result. Under READ COMMITTED the two counts would come
+    // from different snapshots and the next test could not pass.
+    const { result } = await runProtectedTransaction(prisma, async (tx) => {
+      const rows = await tx.$queryRaw<
+        { level: string }[]
+      >`SELECT current_setting('transaction_isolation') AS level`;
+      return rows[0]!.level;
+    });
+
+    expect(result).toBe('repeatable read');
+  });
+
+  it('does NOT fail when another session commits to a protected table mid-run', async () => {
+    // This is the original blocker in its exact shape: an admin session rotating a token, or a
+    // visitor submitting the contact form, while a two-minute sync is in flight. The pre-fix
+    // version failed the run — after committing it — with "This must never happen".
+    const other = new PrismaClient({
+      datasources: { db: { url: scratchUrl() } },
+    });
+    try {
+      const outcome = await runProtectedTransaction(prisma, async (tx) => {
+        await tx.skill.count(); // take the snapshot first
+        // A genuinely concurrent, committed write from a different connection.
+        await other.contactMessage.create({
+          data: {
+            name: 'Mid-run visitor',
+            email: 'midrun@example.com',
+            subject: 'Sent while the sync was running',
+            body: 'This must not fail the run.',
+          },
+        });
+        return 'completed';
+      });
+
+      expect(outcome.result).toBe('completed');
+      // The concurrent row is invisible to the snapshot, so both counts agree...
+      expect(outcome.protectedCountsAfter.ContactMessage).toBe(
+        outcome.protectedCountsBefore.ContactMessage,
+      );
+      // ...and it genuinely committed, so nothing was lost by ignoring it.
+      expect(await prisma.contactMessage.count()).toBe(
+        outcome.protectedCountsBefore.ContactMessage! + 1,
+      );
+    } finally {
+      await other.contactMessage.deleteMany({
+        where: { email: 'midrun@example.com' },
+      });
+      await other.$disconnect();
+    }
   });
 });
 
