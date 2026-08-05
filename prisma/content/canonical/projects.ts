@@ -33,7 +33,8 @@ export const PROJECTS: readonly ProjectSeed[] = [
     featured: true,
     order: 0,
     year: 2025,
-    // Not yet publicly deployed (Release Freeze); repos are not linked here. No placeholder URLs (HR-9).
+    // Not yet publicly deployed (Release Freeze); repos are not linked here. A placeholder URL is
+    // never invented — same no-invention rule D18-7 applies to a fabricated MediaAsset.
     liveUrl: null,
     repoUrl: null,
     techKeys: ['nuxt', 'vue', 'typescript', 'tailwind-css', 'nestjs'],

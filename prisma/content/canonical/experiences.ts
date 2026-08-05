@@ -23,7 +23,7 @@ export interface ExperienceSeed {
   readonly techKeys: readonly string[];
 }
 
-// Real employers from owner-profile §3 (HR-8). Impact bullets are grounded in the profile and carry NO
+// Real employers from owner-profile §3. Impact bullets are grounded in the profile and carry NO
 // invented metrics — the owner explicitly dislikes fake numbers (owner-profile §5, D02-2). The
 // Findropica part-time→regular transition (~early 2026) is intentionally undated (the exact date is not
 // recorded and must not be invented). Company locations are not in the profile; "Egypt"/"مصر" reflects

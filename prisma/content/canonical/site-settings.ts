@@ -56,7 +56,7 @@ export interface CanonicalSettingsTranslation {
  */
 const PUBLIC_CONTACT_EMAIL = 'contact@eslammuatamed.com';
 
-// Real owner links (HR-8, owner-profile §8): GitHub grounded in the actual repo host, canonical
+// Real owner links (owner-profile §8): GitHub grounded in the actual repo host, canonical
 // LinkedIn (R7), and the public contact address. X/Twitter is omitted: the profile lists no handle
 // and one must not be invented.
 //
