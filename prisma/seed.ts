@@ -6,8 +6,10 @@ import * as argon2 from 'argon2';
 import { ARGON2_OPTIONS } from '../src/modules/auth/hashing/argon2.options';
 import { validate } from '../src/config/env.validation';
 import { ABOUT_COPY } from './content/about-copy';
-import { SETTINGS_SCALARS } from './content/canonical/site-settings';
-import { PUBLIC_TAGLINE } from './content/public-tagline';
+import {
+  SETTINGS_SCALARS,
+  SETTINGS_TRANSLATIONS,
+} from './content/canonical/site-settings';
 
 // Idempotent seed (doc 09 §6): locales, the OWNER system role (+ its reserved '*' grant), the
 // OWNER user, the SiteSettings singleton, and the initial categories. Re-running is a no-op —
@@ -114,7 +116,8 @@ async function seedOwner(
 // would have been invisible: `content:sync:plan` would report `contactEmail` as an update after a
 // seed and `unchanged` after a sync, making the zero-change-second-run property a function of run
 // order rather than of state. Importing from `./content/canonical/site-settings` follows what this
-// file already does for `ABOUT_COPY` and `PUBLIC_TAGLINE`, and for the same reason.
+// file already does for `ABOUT_COPY`, and for the same reason. (`PUBLIC_TAGLINE` is no longer
+// imported here: the tagline now arrives through the canonical dataset, which imports it itself.)
 const PROFESSIONAL_EMAIL = SETTINGS_SCALARS.professionalEmail;
 const CONTACT_EMAIL = SETTINGS_SCALARS.contactEmail;
 // Owner-approved public numbers (D10-16), stored in E.164. Still read as two INDEPENDENT fields
@@ -125,28 +128,42 @@ const CONTACT_EMAIL = SETTINGS_SCALARS.contactEmail;
 const CONTACT_PHONE = SETTINGS_SCALARS.contactPhone;
 const WHATSAPP_PHONE = SETTINGS_SCALARS.whatsappPhone;
 
-// Positioning per the content source of truth. `tagline` is the approved public title, governed
-// literally by positioning-strategy.md §2/§3 (v1.1.0) and imported rather than written here.
-const SETTINGS_IDENTITY = [
-  {
-    locale: 'en',
-    siteName: 'Eslam Muatamed',
-    tagline: PUBLIC_TAGLINE.en,
-    availabilityStatus: 'Open to frontend opportunities',
-    defaultMetaTitle: 'Eslam Muatamed',
-    defaultMetaDescription:
-      'Frontend engineer specializing in Vue.js and Nuxt.js, building fast, accessible, SEO-focused web interfaces.',
-  },
-  {
-    locale: 'ar',
-    siteName: 'إسلام معتمد',
-    tagline: PUBLIC_TAGLINE.ar,
-    availabilityStatus: 'متاح لفرص عمل في تطوير الواجهات الأمامية',
-    defaultMetaTitle: 'إسلام معتمد',
-    defaultMetaDescription:
-      'مهندس واجهات أمامية متخصص في Vue.js و Nuxt.js، أبني واجهات ويب سريعة وسهلة الوصول ومهيأة لمحركات البحث.',
-  },
-] as const;
+// Positioning per the content source of truth, DERIVED from the canonical dataset rather than
+// restated here. `tagline` is the approved public title, governed literally by
+// positioning-strategy.md §2/§3.
+//
+// This block used to hold its own copies of all five identity strings, and they drifted: it kept the
+// v1.x `defaultMetaDescription` ("Frontend engineer specializing in Vue.js and Nuxt.js…") that
+// positioning-strategy §9 bans, in both locales, while the canonical dataset was corrected. Because
+// `defaultMetaDescription` is CREATE-ONLY in the upsert below, the divergence is invisible on an
+// already-provisioned database and only surfaces when a fresh one is provisioned — which then seeds
+// the superseded positioning and publishes it as the site-wide meta description.
+//
+// Same defect as the addresses above, same fix: one source, so the two cannot disagree. The `as
+// const` is dropped because the values now come from a runtime array; the field list stays explicit
+// so adding a governed translation field is a deliberate edit here rather than a silent widening.
+// The canonical dataset types `locale` as `string`, while `ABOUT_COPY` is keyed by the literal
+// union. Narrowed with a guard rather than a cast, and it THROWS on a miss: a canonical locale with
+// no About copy is a locale-completeness failure (D10-6, no cross-locale fallback), and a seed that
+// silently skipped it would leave that locale half-populated.
+const hasAboutCopy = (locale: string): locale is keyof typeof ABOUT_COPY =>
+  locale in ABOUT_COPY;
+
+const SETTINGS_IDENTITY = SETTINGS_TRANSLATIONS.map((row) => {
+  if (!hasAboutCopy(row.locale)) {
+    throw new Error(
+      `Canonical settings translation for locale "${row.locale}" has no About copy.`,
+    );
+  }
+  return {
+    locale: row.locale,
+    siteName: row.siteName,
+    tagline: row.tagline,
+    availabilityStatus: row.availabilityStatus,
+    defaultMetaTitle: row.defaultMetaTitle,
+    defaultMetaDescription: row.defaultMetaDescription,
+  };
+});
 
 async function seedSiteSettings(): Promise<void> {
   const existing = await prisma.siteSettings.findFirst({
