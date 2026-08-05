@@ -4,7 +4,11 @@ import { ARTICLES } from '../content/canonical/articles';
 import { CATEGORIES } from '../content/canonical/categories';
 import { EXPERIENCES } from '../content/canonical/experiences';
 import { PROJECTS } from '../content/canonical/projects';
-import { SETTINGS_TRANSLATIONS } from '../content/canonical/site-settings';
+import {
+  PROFILE_LINKS,
+  SETTINGS_SCALARS,
+  SETTINGS_TRANSLATIONS,
+} from '../content/canonical/site-settings';
 import { SKILLS } from '../content/canonical/skills';
 import { TAGS } from '../content/canonical/tags';
 import {
@@ -260,5 +264,58 @@ describe('canonical dataset invariants', () => {
       expect(skill.slug).toMatch(kebab);
       expect(skill.slug).not.toMatch(uuidShaped);
     }
+  });
+
+  // owner-profile §8 (approved 2026-07-29) partitions the addresses by role, and only two are
+  // approved for publication. `profileLinks` is in GOVERNED_SETTINGS_SCALARS, so whatever sits here
+  // is written to Production by `content:sync:apply` and rendered to every visitor — which is why
+  // this is asserted against the canonical dataset and not only against the exported contract
+  // (`test/profile-contract.e2e-spec.ts` already guards `openapi.json`, and that guard did NOT
+  // cover the seed values: the Gmail sat here while that assertion passed).
+  it('publishes no address that owner-profile §8 marks never-public', () => {
+    const NEVER_PUBLIC = [
+      'eslammuatemed@gmail.com', // internal Contact-form notification destination
+      'admin@eslammuatamed.com', // dashboard authentication only
+    ];
+    // EVERY governed dataset, not just the settings scalars. `content:sync:apply` writes all of
+    // these to Production and the public API renders them, so an address pasted into an `aboutBio`,
+    // a project case-study body or an article would reach visitors while a scalars-only scan stayed
+    // green. `SETTINGS_TRANSLATIONS` matters most: all eight of its fields are governed
+    // (`GOVERNED_SETTINGS_TRANSLATION_FIELDS`) and it carries free prose.
+    const published = JSON.stringify([
+      SETTINGS_SCALARS,
+      SETTINGS_TRANSLATIONS,
+      ARTICLES,
+      PROJECTS,
+      EXPERIENCES,
+      SKILLS,
+      TAGS,
+      CATEGORIES,
+    ]);
+    for (const address of NEVER_PUBLIC) {
+      expect(published).not.toContain(address);
+    }
+  });
+
+  // The scan above is a DENYLIST: it catches regression to the two known-bad addresses but cannot
+  // catch a third wrong address that nobody has thought of. These are its allowlist half — the two
+  // published addresses pinned to the roles R15 assigns them, so a plausible-looking substitution
+  // fails here even though no denied string appears anywhere.
+  it('pins each published address to the role owner-profile §8 gives it', () => {
+    expect(SETTINGS_SCALARS.contactEmail).toBe('contact@eslammuatamed.com');
+    expect(SETTINGS_SCALARS.professionalEmail).toBe('hello@eslammuatamed.com');
+  });
+
+  // The public Email profile link and `contactEmail` are ONE address rendered in two governed
+  // places. They are built from a single constant so they cannot drift; this asserts the property
+  // rather than the constant, so replacing the constant with two literals fails here instead of
+  // silently reintroducing the divergence that produced the defect.
+  it('renders the same public address in the Email profile link and in contactEmail', () => {
+    const mailtos = PROFILE_LINKS.filter((link) =>
+      link.url.startsWith('mailto:'),
+    );
+    expect(mailtos).toHaveLength(1);
+    expect(mailtos[0]!.url).toBe(`mailto:${SETTINGS_SCALARS.contactEmail}`);
+    expect(SETTINGS_SCALARS.contactEmail).toBe('contact@eslammuatamed.com');
   });
 });

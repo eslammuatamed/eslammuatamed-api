@@ -221,13 +221,23 @@ describe('About content seed adoption (e2e)', () => {
         .get('/api/v1/settings/site?locale=en')
         .expect(200);
 
-      // The address to keep out of public responses is the seeded OWNER login (D18-7), not any
-      // particular mail domain: seed.dev.ts publishes an approved personal address through
-      // profileLinks (HR-8/R5), so banning a domain outright would fail on a dev-seeded database
-      // while proving nothing about the credential.
-      expect(JSON.stringify(res.body)).not.toContain(
+      const body = JSON.stringify(res.body);
+
+      // The seeded OWNER login must never appear in a public response (D18-7).
+      expect(body).not.toContain(
         process.env.SEED_OWNER_EMAIL ?? 'owner@example.com',
       );
+
+      // The never-public addresses are banned outright now, which this comment previously said was
+      // impossible. It cited R5 and claimed `seed.dev.ts` published an approved personal address
+      // through `profileLinks`, so a domain ban "would fail on a dev-seeded database". Both halves
+      // have since stopped being true: `e51c79e` removed `profileLinks` from `seed.dev.ts` when it
+      // moved to the canonical dataset — neither seed writes a `profileLinks` or any Gmail now —
+      // and R10 superseded R5's reading on 2026-07-29, with R15 (2026-08-05) naming this exact
+      // field. The obstacle was real when written and is gone; keeping the weaker assertion would
+      // have declined a stronger check on obsolete grounds.
+      expect(body).not.toContain('eslammuatemed@gmail.com');
+      expect(body).not.toContain('admin@eslammuatamed.com');
 
       const data = envelopeData<PublicSettings>(res);
       expect(data.professionalEmail).toBe('hello@eslammuatamed.com');

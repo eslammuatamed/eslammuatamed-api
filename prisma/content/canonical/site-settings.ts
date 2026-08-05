@@ -44,10 +44,38 @@ export interface CanonicalSettingsTranslation {
   readonly currentFocus: string;
 }
 
+/**
+ * The public-website contact address (owner-profile §8, approved 2026-07-29).
+ *
+ * ONE CONSTANT, TWO GOVERNED SURFACES, BY CONSTRUCTION. It backs both the public `Email` profile
+ * link and the `contactEmail` scalar, because both are published to visitors and both are written to
+ * Production by `content:sync:apply` — they are the same fact, and holding it twice as a literal is
+ * exactly how they came to disagree. This is deliberately NOT the pattern used for
+ * `contactPhone`/`whatsappPhone` below: those are independently governed fields that merely happen to
+ * share a value today, whereas these two are one address rendered in two places.
+ */
+const PUBLIC_CONTACT_EMAIL = 'contact@eslammuatamed.com';
+
 // Real owner links (HR-8, owner-profile §8): GitHub grounded in the actual repo host, canonical
-// LinkedIn (R7), canonical contact email (R5 — the "muatemed" spelling is intentional, not a typo,
-// and is NOT the same address as `contactEmail` below). X/Twitter is omitted: the profile lists no
-// handle and one must not be invented.
+// LinkedIn (R7), and the public contact address. X/Twitter is omitted: the profile lists no handle
+// and one must not be invented.
+//
+// THE EMAIL LINK CARRIED `eslammuatemed@gmail.com` AND MUST NOT. Its comment cited R5, which named
+// the personal Gmail the canonical public address — but **R10 superseded R5 on 2026-07-29**, and the
+// §8 table that replaced it marks that Gmail "Never rendered publicly", demoted to the internal
+// Contact-form notification destination. `profileLinks` is in `GOVERNED_SETTINGS_SCALARS`
+// (`prisma/sync/allowlist.ts`), so this value is written to Production by `content:sync:apply` and
+// published to every visitor. The comment was accurate when written and became false when the
+// decision moved; the code followed the stale citation.
+//
+// `contact@` rather than `hello@` is stated by §8's surface-mapping table, not inferred from it:
+// the public website — anywhere a visitor writes in, including this `Email` entry and the
+// `contactEmail` scalar — takes `contact@`, while `hello@` serves the professional identity
+// surfaces the owner publishes outward (CV, Résumé, LinkedIn, outbound applications). Owner
+// decision **R15** (2026-08-05) closed the question and named both governed fields explicitly.
+//
+// (R5's separate finding stands and is not disturbed: the "mu**ate**med" spelling in the Gmail is
+// intentional and not a typo — which is precisely why it read as plausible and survived this long.)
 export const PROFILE_LINKS: readonly ProfileLink[] = [
   {
     label: 'GitHub',
@@ -61,7 +89,7 @@ export const PROFILE_LINKS: readonly ProfileLink[] = [
   },
   {
     label: 'Email',
-    url: 'mailto:eslammuatemed@gmail.com',
+    url: `mailto:${PUBLIC_CONTACT_EMAIL}`,
     icon: 'i-lucide-mail',
   },
 ];
@@ -76,7 +104,7 @@ export const SETTINGS_SCALARS: CanonicalSettingsScalars = {
   careerStartYear: 2023,
   careerStartMonth: 11,
   professionalEmail: 'hello@eslammuatamed.com',
-  contactEmail: 'contact@eslammuatamed.com',
+  contactEmail: PUBLIC_CONTACT_EMAIL,
   contactPhone: '+201002785408',
   whatsappPhone: '+201002785408',
 };
