@@ -11,7 +11,11 @@
 // hurry, and the validation is the only thing standing between a mistyped dataset and production.
 import 'reflect-metadata';
 import { PrismaClient } from '@prisma/client';
-import { applyPlan, PlanRejectedError } from './apply-plan';
+import {
+  applyPlan,
+  PlanRejectedError,
+  TransactionConflictError,
+} from './apply-plan';
 import { buildPlan } from './build-plan';
 import { readOnly } from './read-client';
 import { renderPlan, renderPlanJson } from './report';
@@ -94,6 +98,13 @@ async function main(): Promise<void> {
     if (error instanceof PlanRejectedError) {
       process.stderr.write(`${error.message}\n`);
       process.exitCode = 2;
+      return;
+    }
+    // A rolled-back conflict is not a crash: the operator needs the actionable message, not a
+    // Prisma stack trace, in the middle of a release.
+    if (error instanceof TransactionConflictError) {
+      process.stderr.write(`${error.message}\n`);
+      process.exitCode = 3;
       return;
     }
     throw error;

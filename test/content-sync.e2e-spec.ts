@@ -13,7 +13,11 @@ import { ContentStatus, MediaKind, PrismaClient } from '@prisma/client';
 import { PROJECTS } from '../prisma/content/canonical/projects';
 import { SETTINGS_TRANSLATIONS } from '../prisma/content/canonical/site-settings';
 import { SKILLS } from '../prisma/content/canonical/skills';
-import { applyPlan, runProtectedTransaction } from '../prisma/sync/apply-plan';
+import {
+  applyPlan,
+  runProtectedTransaction,
+  TransactionConflictError,
+} from '../prisma/sync/apply-plan';
 import { buildPlan } from '../prisma/sync/build-plan';
 import { readOnly } from '../prisma/sync/read-client';
 import { isNoOp, summarize } from '../prisma/sync/types';
@@ -697,6 +701,53 @@ describe('the protected-data guard actually works', () => {
       await other.$disconnect();
     }
   });
+});
+
+describe('a real write conflict is reported, not crashed on', () => {
+  it('rolls back and reports it as retryable when another session wins the row', async () => {
+    await syncOnce();
+    const skill = await prisma.skill.findFirstOrThrow({ select: { id: true } });
+    const other = new PrismaClient({
+      datasources: { db: { url: scratchUrl() } },
+    });
+
+    try {
+      // RepeatableRead is the isolation the protected-data guard requires, and its cost is that a
+      // concurrent write to a row this run also touches aborts the transaction. Provoke exactly
+      // that, and assert the operator gets the actionable message instead of a Prisma stack trace.
+      await expect(
+        runProtectedTransaction(prisma, async (tx) => {
+          // Order matters, and getting it wrong deadlocks the test rather than the database:
+          // the snapshot must be taken FIRST, then the other session must update AND COMMIT
+          // (autocommit on its own connection, so it takes and releases the row lock cleanly),
+          // and only then may this transaction touch the row. Updating from `tx` first would lock
+          // the row and leave the other connection blocking on a transaction that is waiting for
+          // it — a deadlock of the test's own making, not a demonstration of anything.
+          await tx.skill.count();
+          await other.skill.update({
+            where: { id: skill.id },
+            data: { order: 900 },
+          });
+          await tx.skill.update({
+            where: { id: skill.id },
+            data: { order: 501 },
+          });
+        }),
+      ).rejects.toThrow(TransactionConflictError);
+
+      // Rolled back: the losing transaction's write is gone, the winner's stands.
+      const after = await prisma.skill.findUniqueOrThrow({
+        where: { id: skill.id },
+        select: { order: true },
+      });
+      expect(after.order).toBe(900);
+    } finally {
+      await other.$disconnect();
+    }
+    // And the database is still convergeable — a retry is genuinely safe.
+    await syncOnce();
+    expect(isNoOp(await plan())).toBe(true);
+  }, 60_000);
 });
 
 describe('a failed apply rolls the whole run back', () => {

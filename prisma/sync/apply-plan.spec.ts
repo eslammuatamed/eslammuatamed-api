@@ -1,6 +1,9 @@
+import { Prisma } from '@prisma/client';
 import {
   assertProtectedCountsUnchanged,
+  isTransactionConflict,
   PlanRejectedError,
+  TransactionConflictError,
   validatePlan,
 } from './apply-plan';
 import { renderPlan, renderPlanJson, renderValue } from './report';
@@ -173,6 +176,55 @@ describe('assertProtectedCountsUnchanged', () => {
     expect(() =>
       assertProtectedCountsUnchanged({ User: 1 }, { User: 0 }),
     ).toThrow(/rolled back/);
+  });
+});
+
+describe('transaction conflicts', () => {
+  it('recognises Prisma P2034', () => {
+    // The real error class, not a shape-alike: `isTransactionConflict` narrows with `instanceof`,
+    // so a duck-typed object would pass this test while the production path fell through.
+    const error = new Prisma.PrismaClientKnownRequestError('write conflict', {
+      code: 'P2034',
+      clientVersion: '6.19.0',
+    });
+
+    expect(isTransactionConflict(error)).toBe(true);
+  });
+
+  it('does not treat a different Prisma error code as a conflict', () => {
+    expect(
+      isTransactionConflict(
+        new Prisma.PrismaClientKnownRequestError('unique violation', {
+          code: 'P2002',
+          clientVersion: '6.19.0',
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  it('recognises a raw Postgres serialization failure', () => {
+    expect(
+      isTransactionConflict(
+        new Error('could not serialize access due to concurrent update'),
+      ),
+    ).toBe(true);
+    expect(isTransactionConflict(new Error('40001'))).toBe(true);
+  });
+
+  it('does not swallow an unrelated error', () => {
+    expect(isTransactionConflict(new Error('null constraint violated'))).toBe(
+      false,
+    );
+  });
+
+  it('tells the operator nothing was applied and that retrying is safe', () => {
+    // The message is the deliverable here: it is read mid-release, by someone deciding whether
+    // the database is half-written. Both facts must be unmissable.
+    const message = new TransactionConflictError(new Error('x')).message;
+
+    expect(message).toMatch(/NOTHING WAS APPLIED/);
+    expect(message).toMatch(/Retrying is safe/);
+    expect(message).toMatch(/idempotent/);
   });
 });
 

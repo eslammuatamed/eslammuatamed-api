@@ -41,6 +41,42 @@ type Tx = Omit<
   '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
 >;
 
+/**
+ * A `RepeatableRead` transaction aborts with Prisma `P2034` when a concurrent session updates a row
+ * this run also touches. It is the cost of the isolation level the protected-data guard requires,
+ * and it fails SAFE — the transaction rolled back, so the database is exactly as it was.
+ *
+ * It is surfaced as its own error because the operator's correct response is specific and
+ * non-obvious: re-run the dry-run and apply again. That is safe precisely because the tool is
+ * idempotent — the property proven by the zero-change second run — so a retry converges to the same
+ * state rather than compounding a partial one. Without this, the CLI would print a raw Prisma stack
+ * trace during a release and leave the operator guessing whether anything was half-applied.
+ */
+export class TransactionConflictError extends Error {
+  constructor(cause: unknown) {
+    super(
+      'The synchronization was rolled back because another session wrote to a row it needed ' +
+        '(transaction conflict).\n' +
+        'NOTHING WAS APPLIED — the database is exactly as it was before the run.\n' +
+        'Re-run `npm run content:sync:plan` and then `content:sync:apply`. Retrying is safe: the ' +
+        'synchronization is idempotent, so it converges to the same state rather than compounding ' +
+        'a partial one.',
+    );
+    this.name = 'TransactionConflictError';
+    this.cause = cause;
+  }
+}
+
+/** Prisma raises P2034 for a write conflict or deadlock; Postgres serialization failure is 40001. */
+export function isTransactionConflict(error: unknown): boolean {
+  if (error instanceof Prisma.PrismaClientKnownRequestError)
+    return error.code === 'P2034';
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    message.includes('could not serialize access') || message.includes('40001')
+  );
+}
+
 export class PlanRejectedError extends Error {
   constructor(public readonly reasons: readonly string[]) {
     super(
@@ -144,26 +180,38 @@ export async function runProtectedTransaction<T>(
   let protectedCountsBefore: Record<string, number> = {};
   let protectedCountsAfter: Record<string, number> = {};
 
-  const result = await prisma.$transaction(
-    async (tx: Tx) => {
-      protectedCountsBefore = await countProtected(tx);
-      const value = await work(tx);
-      protectedCountsAfter = await countProtected(tx);
-      // Inside the transaction, so a breach ROLLS BACK. The previous version compared against
-      // counts read when the plan was built and ran after commit — it could report a breach but
-      // never prevent one.
-      assertProtectedCountsUnchanged(
-        protectedCountsBefore,
-        protectedCountsAfter,
-      );
-      return value;
-    },
-    {
-      timeout: 120_000,
-      maxWait: 20_000,
-      isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
-    },
-  );
+  const run = async () =>
+    prisma.$transaction(
+      async (tx: Tx) => {
+        protectedCountsBefore = await countProtected(tx);
+        const value = await work(tx);
+        protectedCountsAfter = await countProtected(tx);
+        // Inside the transaction, so a breach ROLLS BACK. The previous version compared against
+        // counts read when the plan was built and ran after commit — it could report a breach but
+        // never prevent one.
+        assertProtectedCountsUnchanged(
+          protectedCountsBefore,
+          protectedCountsAfter,
+        );
+        return value;
+      },
+      {
+        timeout: 120_000,
+        maxWait: 20_000,
+        isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
+      },
+    );
+
+  let result: T;
+  try {
+    result = await run();
+  } catch (error) {
+    // Deliberately NOT retried here. A conflict means the database moved under this plan, and the
+    // plan is a snapshot of a comparison — re-applying it blind could act on stale premises. The
+    // operator re-runs the dry-run, sees what is now true, and decides.
+    if (isTransactionConflict(error)) throw new TransactionConflictError(error);
+    throw error;
+  }
 
   return { result, protectedCountsBefore, protectedCountsAfter };
 }
