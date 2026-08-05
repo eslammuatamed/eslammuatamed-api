@@ -1,3 +1,4 @@
+import { ABOUT_COPY } from '../content/about-copy';
 import { PROJECTS } from '../content/canonical/projects';
 import { SETTINGS_TRANSLATIONS } from '../content/canonical/site-settings';
 import { SKILLS } from '../content/canonical/skills';
@@ -130,6 +131,58 @@ describe('buildPlan', () => {
         before: 'قديم',
         after: SKILLS[0]!.labelAr,
       });
+    });
+
+    // DRY-RUN PROOF for the approved About opening (owner directive, 2026-08-05).
+    //
+    // The requirement is not "the constant was edited" — it is that the PRODUCTION dry-run would
+    // carry the approved copy. That is a property of the PLAN, so it is asserted on the plan: seed a
+    // database holding the RETIRED opening, build the plan the way `content:sync:plan` builds it,
+    // and read what it would write. No database and no Production access are involved — `fakeDb` is
+    // the same read-only shim the rest of this suite uses.
+    it('plans an update that replaces the retired About opening with the approved copy', async () => {
+      const RETIRED_EN =
+        "I'm a JavaScript Product Engineer — frontend-led, with end-to-end product delivery experience.";
+      const RETIRED_AR =
+        'أنا مهندس برمجيات للمنتجات، متخصص في الواجهات الأمامية.';
+
+      const state = canonicalState();
+      const translations = (
+        state.siteSettings[0] as {
+          translations: { locale: string; aboutBio: string }[];
+        }
+      ).translations;
+      const en = translations.find((row) => row.locale === 'en')!;
+      const ar = translations.find((row) => row.locale === 'ar')!;
+      en.aboutBio = `${RETIRED_EN}\n\nrest unchanged`;
+      ar.aboutBio = `${RETIRED_AR}\n\nبقية الفقرات`;
+
+      const plan = await planFor(state);
+      const settings = plan.records.filter(
+        (record) => record.model === 'SiteSettingsTranslation',
+      );
+
+      // One record per locale, keyed by `naturalKey`; the field carries its plain name.
+      const afterFor = (locale: string): string =>
+        settings
+          .find((record) => record.naturalKey === locale)
+          ?.fields.find((field) => field.field === 'aboutBio')?.after as string;
+
+      // What Production would receive.
+      expect(afterFor('en')).toBe(ABOUT_COPY.en.aboutBio);
+      expect(afterFor('ar')).toBe(ABOUT_COPY.ar.aboutBio);
+
+      // And it is the approved copy, not merely "whatever the constant says".
+      expect(afterFor('en')).toContain(
+        'I\u2019m a Full-Stack JavaScript Product Engineer who turns product requirements into production-ready web products.',
+      );
+      expect(afterFor('ar')).toContain(
+        'أنا Full-Stack JavaScript Product Engineer، أحوّل متطلبات المنتج إلى منتجات ويب جاهزة للإطلاق.',
+      );
+
+      // The retired opening is what it REPLACES, in both locales.
+      expect(afterFor('en')).not.toContain(RETIRED_EN);
+      expect(afterFor('ar')).not.toContain(RETIRED_AR);
     });
 
     it('detects a stale Arabic article body', async () => {

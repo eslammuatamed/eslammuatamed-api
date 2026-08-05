@@ -339,8 +339,14 @@ describe('canonical dataset invariants', () => {
   // ban in `test/public-tagline.e2e-spec.ts`, this one needs no database and runs in the unit lane.
   it('carries no superseded v1.x positioning anywhere in the canonical dataset', () => {
     const SUPERSEDED = [
+      // v1.x `defaultMetaDescription` (S-1)
       'Frontend engineer specializing in Vue.js and Nuxt.js',
       'مهندس واجهات أمامية متخصص في Vue.js',
+      // The retired About opening, replaced by owner-approved copy 2026-08-05. `ABOUT_COPY` is
+      // spread into `SETTINGS_TRANSLATIONS`, so it is inside the scan below — this is what stops
+      // the old opening re-entering the synchronization plan through the canonical dataset.
+      "I'm a JavaScript Product Engineer — frontend-led",
+      'أنا مهندس برمجيات للمنتجات، متخصص في الواجهات الأمامية',
     ];
     const published = JSON.stringify([
       SETTINGS_SCALARS,
