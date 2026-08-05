@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ARTICLES } from '../content/canonical/articles';
 import { CATEGORIES } from '../content/canonical/categories';
@@ -295,6 +295,38 @@ describe('canonical dataset invariants', () => {
     for (const address of NEVER_PUBLIC) {
       expect(published).not.toContain(address);
     }
+  });
+
+  // `HR-8` was cited in three files as the authority for canonical content, and it resolves to
+  // NOTHING — no `HR-` code has ever existed in any ref of the docs repository. It survived because
+  // a comment citation is checked by no gate, which is the same mechanism that let this branch's
+  // parent (C-1) publish a never-public address behind a superseded `R5` citation.
+  //
+  // This is deliberately a denylist of the one phantom prefix, NOT a general "every cited decision
+  // ID resolves" check. That stronger test would have to read the docs repository, which is a
+  // sibling checkout that CI does not clone — and the constitution forbids sharing anything but the
+  // exported contract between repos. A test that silently passes when the docs are absent would be
+  // worse than none. Verifying the remaining `D**-N` citations stays a review responsibility, and is
+  // recorded as such rather than pretended away.
+  it('cites no HR-N decision code, because none has ever existed', () => {
+    const roots = ['content', 'sync'];
+    const files = roots.flatMap((root) =>
+      readdirSync(join(__dirname, '..', root), { recursive: true })
+        .map(String)
+        .filter((name) => name.endsWith('.ts'))
+        .map((name) => join(__dirname, '..', root, name)),
+    );
+    files.push(join(__dirname, '..', 'seed.ts'));
+    files.push(join(__dirname, '..', 'seed.dev.ts'));
+
+    const offenders = files
+      // This file is excluded because it has to be able to NAME the code it bans; including it
+      // would make the test fail on its own explanation.
+      .filter((file) => file !== __filename)
+      .filter((file) => /\bHR-\d+\b/.test(readFileSync(file, 'utf8')))
+      .map((file) => file.replace(join(__dirname, '..', '..'), ''));
+
+    expect(offenders).toEqual([]);
   });
 
   // The scan above is a DENYLIST: it catches regression to the two known-bad addresses but cannot

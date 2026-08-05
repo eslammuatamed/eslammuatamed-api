@@ -47,7 +47,8 @@ interface TestimonialSeed {
   readonly ar: TestimonialTranslationContent;
 }
 
-// Demo/placeholder testimonials (HR-8): the owner-profile provides no real recommendations, so these are
+// Demo/placeholder testimonials — NO governing decision authorizes these, which is the point of
+// keeping them here in the DEV seed only. The owner-profile provides no real recommendations, so these are
 // clearly-sample content for local development — quality-focused, grounded in the owner's actual strengths
 // (owner-profile §4), with NO fabricated metrics and NO attribution to real employers. Real testimonials
 // (e.g. LinkedIn recommendations) are pending owner input before any public promotion.
