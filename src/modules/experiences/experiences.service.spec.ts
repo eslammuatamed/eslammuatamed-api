@@ -71,7 +71,7 @@ describe('ExperiencesService', () => {
     service = new ExperiencesService(prisma, locales);
   });
 
-  it('orders public experiences reverse chronologically with order tie-breaker', async () => {
+  it('orders ended roles reverse chronologically with an order tie-breaker', async () => {
     prisma.experience.findMany.mockResolvedValue([
       row('2024-01-01', 2),
       row('2024-02-01', 1, 'e2'),
