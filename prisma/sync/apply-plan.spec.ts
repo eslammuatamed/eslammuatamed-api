@@ -383,6 +383,17 @@ describe('report rendering', () => {
     expect(text).toMatch(/ContactMessage\s+3/);
   });
 
+  it('does not present the plan-time counts as the pair apply verifies', () => {
+    // They are two different reads — the plan's, and apply's in-transaction pair — and on a live
+    // database they can legitimately differ. Calling them one pair overstates what this proves.
+    const text = renderPlan(basePlan());
+
+    expect(text).not.toMatch(/counted before and re-verified after apply/);
+    expect(text).toMatch(
+      /apply re-verifies its own pair inside the transaction/,
+    );
+  });
+
   it('discloses that a cascade leaves the MediaAsset alone', () => {
     const text = renderPlan(
       basePlan({

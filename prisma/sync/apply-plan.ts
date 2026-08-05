@@ -390,7 +390,7 @@ export async function applyPlan(
         });
 
     for (const record of plan.records)
-      if (record.model === 'Skill' && record.id)
+      if (record.model === 'Skill' && record.id && record.action !== 'delete')
         skillIdBySlug.set(record.naturalKey, record.id);
 
     const categoryIdBySlug = new Map<string, string>();
@@ -446,7 +446,11 @@ export async function applyPlan(
         });
     }
     for (const record of plan.records)
-      if (record.model === 'Category' && record.id)
+      if (
+        record.model === 'Category' &&
+        record.id &&
+        record.action !== 'delete'
+      )
         categoryIdBySlug.set(record.naturalKey, record.id);
 
     const tagIdBySlug = new Map<string, string>();
@@ -492,7 +496,7 @@ export async function applyPlan(
         });
     }
     for (const record of plan.records)
-      if (record.model === 'Tag' && record.id)
+      if (record.model === 'Tag' && record.id && record.action !== 'delete')
         tagIdBySlug.set(record.naturalKey, record.id);
 
     // ---- 2. Experiences ---------------------------------------------------------------------
@@ -546,7 +550,11 @@ export async function applyPlan(
         });
     }
     for (const record of plan.records)
-      if (record.model === 'Experience' && record.id)
+      if (
+        record.model === 'Experience' &&
+        record.id &&
+        record.action !== 'delete'
+      )
         experienceIdByKey.set(record.naturalKey, record.id);
 
     // ---- 3. Projects ------------------------------------------------------------------------
@@ -598,7 +606,7 @@ export async function applyPlan(
         });
     }
     for (const record of plan.records)
-      if (record.model === 'Project' && record.id)
+      if (record.model === 'Project' && record.id && record.action !== 'delete')
         projectIdBySlug.set(record.naturalKey, record.id);
 
     // ---- 4. Articles ------------------------------------------------------------------------
@@ -662,7 +670,7 @@ export async function applyPlan(
         });
     }
     for (const record of plan.records)
-      if (record.model === 'Article' && record.id)
+      if (record.model === 'Article' && record.id && record.action !== 'delete')
         articleIdBySlug.set(record.naturalKey, record.id);
 
     // ---- 4b. Relations -----------------------------------------------------------------------

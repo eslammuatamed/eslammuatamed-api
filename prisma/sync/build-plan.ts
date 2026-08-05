@@ -268,11 +268,21 @@ function detectSlugCollisions(subjects: readonly SlugSubject[]): string[] {
           if (holder.id === entry.rowId) continue;
           if (subject.freedBeforeWrites.has(holder.id)) continue;
 
+          // Remediation differs by model, and saying "free the slug" is glib for Category: the
+          // stale category cannot be deleted until its articles are repointed, and repointing
+          // articles is what this tool does — so the operator has a genuine two-step manual
+          // operation, not a one-liner. Say which one they are in.
+          const remedy =
+            subject.model === 'Category'
+              ? `Categories are deleted LAST (\`Article.category\` is onDelete: Restrict), so the ` +
+                `stale row's slug is not free when the canonical category is written — the apply ` +
+                `order cannot resolve this one. Repoint that category's articles and delete the ` +
+                `stale category manually, then synchronize.`
+              : `Free the slug in a separate step, then synchronize.`;
           problems.push(
             `${subject.model} "${entry.key}" needs the ${locale} slug "${slug}", but row ` +
               `${holder.id} still holds it and this plan does not remove it first. The write ` +
-              `would violate \`@@unique([locale, slug])\` and roll the whole run back. Free the ` +
-              `slug in a separate step, then synchronize.`,
+              `would violate \`@@unique([locale, slug])\` and roll the whole run back. ${remedy}`,
           );
         }
       }

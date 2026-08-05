@@ -108,7 +108,11 @@ export function renderPlan(
   }
 
   lines.push(
-    'PROTECTED (never written; counted before and re-verified after apply)',
+    // Deliberately not "counted before and re-verified after apply": these numbers are read when
+    // the PLAN is built, while apply verifies its own pair taken inside the transaction. Both are
+    // real, they are simply not the same pair — and on a live database they can legitimately
+    // differ. Describing them as one pair would overstate what this listing proves.
+    'PROTECTED (never written; counts as of this plan — apply re-verifies its own pair inside the transaction)',
   );
   lines.push('-'.repeat(72));
   for (const [model, count] of Object.entries(plan.protectedCounts).sort(
