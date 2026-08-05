@@ -1,0 +1,134 @@
+// The governed model allowlist (doc 09 §6.1, D09-21).
+//
+// This module is the safety boundary. It is deliberately data, not logic: the list is declared
+// once, the apply path validates the plan against it before its first write, and there is no flag
+// that skips that validation. A tool that may delete rows in production is protected by a check
+// that must pass, not by the care of whoever wrote the plan builder.
+
+/** Models the synchronization may create, update, hide or delete. Exhaustive. */
+export const GOVERNED_MODELS = [
+  'SiteSettings',
+  'SiteSettingsTranslation',
+  'Skill',
+  'SkillTranslation',
+  'Experience',
+  'ExperienceTranslation',
+  'ExperienceTechnology',
+  'Project',
+  'ProjectTranslation',
+  'ProjectTechnology',
+  'ProjectGalleryItem',
+  'ProjectGalleryItemTranslation',
+  'Category',
+  'CategoryTranslation',
+  'Tag',
+  'TagTranslation',
+  'Article',
+  'ArticleTranslation',
+  'ArticleTag',
+] as const;
+
+export type GovernedModel = (typeof GOVERNED_MODELS)[number];
+
+/**
+ * Governed models the synchronization NEVER writes directly. They are listed as governed only
+ * because deleting a governed `Project` cascades into them, and a cascade that the report did not
+ * mention would be an undisclosed deletion. They appear in the plan exclusively as reported
+ * consequences.
+ */
+export const CASCADE_ONLY_MODELS = [
+  'ProjectGalleryItem',
+  'ProjectGalleryItemTranslation',
+] as const;
+
+/**
+ * Operational models the synchronization must never create, update or delete.
+ *
+ * `Locale` is here rather than in the allowlist on purpose: `en`/`ar` are a PRECONDITION the base
+ * seed establishes, and the synchronization refuses to run without them instead of creating them.
+ * `Testimonial` is here because the canonical dataset does not own testimonials — they are
+ * development-overlay content, and a tool that cannot distinguish "not canonical" from "should be
+ * deleted" must do nothing rather than guess.
+ */
+export const PROTECTED_MODELS = [
+  'User',
+  'Role',
+  'RolePermission',
+  'RefreshToken',
+  'ContactMessage',
+  'MediaAsset',
+  'MediaAssetAlt',
+  'MediaAssetVariant',
+  'Testimonial',
+  'TestimonialTranslation',
+  'PageSeo',
+  'SlugRedirect',
+  'Locale',
+] as const;
+
+export type ProtectedModel = (typeof PROTECTED_MODELS)[number];
+
+const GOVERNED_SET: ReadonlySet<string> = new Set(GOVERNED_MODELS);
+const CASCADE_ONLY_SET: ReadonlySet<string> = new Set(CASCADE_ONLY_MODELS);
+
+export function isGoverned(model: string): model is GovernedModel {
+  return GOVERNED_SET.has(model);
+}
+
+export function isCascadeOnly(model: string): boolean {
+  return CASCADE_ONLY_SET.has(model);
+}
+
+/**
+ * Every model in `schema.prisma`, so the allowlist can be proven EXHAUSTIVE rather than merely
+ * long. An unclassified model is the real hazard: it is neither protected by the check nor
+ * reviewed as governed, so it would be invisible to both. A schema change that adds a model fails
+ * `allowlist.spec.ts` until it is classified here deliberately.
+ */
+export const ALL_SCHEMA_MODELS = [
+  ...GOVERNED_MODELS,
+  ...PROTECTED_MODELS,
+] as const;
+
+/**
+ * The governed `SiteSettings` scalar columns (doc 09 §6.3). Everything else on the singleton is
+ * operator-owned. Listed explicitly so the update statement cannot quietly widen: the apply path
+ * builds its `data` object from THIS list, so adding a column to the schema does not silently make
+ * it governed.
+ */
+export const GOVERNED_SETTINGS_SCALARS = [
+  'profileLinks',
+  'careerStartYear',
+  'careerStartMonth',
+  'professionalEmail',
+  'contactEmail',
+  'contactPhone',
+  'whatsappPhone',
+] as const;
+
+/**
+ * Operator-owned `SiteSettings` columns. Not merely "absent from the governed list" — named, so a
+ * test can assert the two lists partition the model and neither drifts into the other.
+ */
+export const OPERATOR_OWNED_SETTINGS_SCALARS = [
+  'resumeAssetId',
+  'portraitAssetId',
+  'googleSiteVerification',
+  'bingSiteVerification',
+  'analyticsProvider',
+  'analyticsMeasurementId',
+  'analyticsEnabled',
+  'customMetas',
+] as const;
+
+/** The governed `SiteSettingsTranslation` columns (doc 09 §6.3) — all of them are governed. */
+export const GOVERNED_SETTINGS_TRANSLATION_FIELDS = [
+  'siteName',
+  'tagline',
+  'availabilityStatus',
+  'defaultMetaTitle',
+  'defaultMetaDescription',
+  'aboutBio',
+  'engineeringPhilosophy',
+  'currentFocus',
+] as const;

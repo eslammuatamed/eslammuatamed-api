@@ -29,6 +29,8 @@
     "db:migrate": "prisma migrate deploy",
     "db:migrate:dev": "prisma migrate dev",
     "db:seed": "prisma db seed",
+    "content:sync:plan": "ts-node --transpile-only prisma/sync/cli.ts",
+    "content:sync:apply": "ts-node --transpile-only prisma/sync/cli.ts --apply",
     "db:seed:dev": "ts-node --transpile-only prisma/seed.dev.ts",
     "db:studio": "prisma studio",
     "prepare": "husky"
@@ -126,6 +128,10 @@
       "main\\.ts$"
     ],
     "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "roots": [
+      "<rootDir>",
+      "<rootDir>/../prisma"
+    ]
   }
 }
