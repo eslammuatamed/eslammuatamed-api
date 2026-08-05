@@ -217,14 +217,48 @@ describe('transaction conflicts', () => {
     );
   });
 
-  it('tells the operator nothing was applied and that retrying is safe', () => {
+  it("says none of THIS RUN'S changes were applied, and that retrying is safe", () => {
     // The message is the deliverable here: it is read mid-release, by someone deciding whether
     // the database is half-written. Both facts must be unmissable.
     const message = new TransactionConflictError(new Error('x')).message;
 
-    expect(message).toMatch(/NOTHING WAS APPLIED/);
+    expect(message).toMatch(/NONE OF THIS RUN'S CHANGES WERE APPLIED/);
+    expect(message).toMatch(/rolled back in full/);
     expect(message).toMatch(/Retrying is safe/);
     expect(message).toMatch(/idempotent/);
+  });
+
+  it('does NOT claim the database is unchanged — it demonstrably is not', () => {
+    // This guards a real defect that shipped in an earlier revision: the message said "the
+    // database is exactly as it was before the run". That is false, and falsest exactly here — a
+    // conflict occurs BECAUSE another session committed a write. An operator who believed it
+    // would skip investigating a concurrent change to governed content, at the one moment an
+    // accurate statement matters most.
+    const message = new TransactionConflictError(new Error('x')).message;
+
+    // The literal phrase that shipped, and any affirmative restatement of it. Written as a
+    // negative lookbehind rather than a bare `/database is unchanged/` because the CORRECT message
+    // contains that phrase — negated. A guard that forbade the words outright would fail on the
+    // very wording it is meant to protect.
+    expect(message).not.toMatch(/exactly as it was/i);
+    expect(message).not.toMatch(
+      /(?<!does NOT mean )the database is unchanged/i,
+    );
+    expect(message).not.toMatch(/nothing (has )?changed/i);
+
+    // ...and it must say so positively, not merely omit the falsehood. Silence would leave the
+    // operator to assume the reassuring reading.
+    expect(message).toMatch(/does NOT mean the database is unchanged/);
+    expect(message).toMatch(/another session committed a write/i);
+  });
+
+  it('tells the operator to READ the new plan, not just re-apply', () => {
+    // The new plan may legitimately differ from the reviewed one, which is the whole reason this
+    // is not retried automatically.
+    const message = new TransactionConflictError(new Error('x')).message;
+
+    expect(message).toMatch(/read the new plan before applying/i);
+    expect(message).toMatch(/not retried automatically/);
   });
 });
 

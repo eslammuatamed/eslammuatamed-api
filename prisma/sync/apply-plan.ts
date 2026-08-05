@@ -44,23 +44,39 @@ type Tx = Omit<
 /**
  * A `RepeatableRead` transaction aborts with Prisma `P2034` when a concurrent session updates a row
  * this run also touches. It is the cost of the isolation level the protected-data guard requires,
- * and it fails SAFE — the transaction rolled back, so the database is exactly as it was.
+ * and it fails safe **for this run**: the transaction rolled back in full, so none of the
+ * synchronization's writes survive.
  *
- * It is surfaced as its own error because the operator's correct response is specific and
- * non-obvious: re-run the dry-run and apply again. That is safe precisely because the tool is
- * idempotent — the property proven by the zero-change second run — so a retry converges to the same
- * state rather than compounding a partial one. Without this, the CLI would print a raw Prisma stack
- * trace during a release and leave the operator guessing whether anything was half-applied.
+ * **It does NOT mean the database is unchanged.** The conflict happened precisely *because* another
+ * session committed a write, so governed content may now differ from the plan the operator
+ * reviewed. Saying "the database is exactly as it was" would be a false guarantee at the one moment
+ * an operator most needs an accurate one — mid-release, deciding whether to investigate. The
+ * message therefore scopes its claim to this run's writes and says plainly that something else
+ * changed.
+ *
+ * It is surfaced as its own error because the correct response is specific and non-obvious: re-run
+ * the dry-run, *read it again*, and only then apply. Retrying is safe in the sense that matters —
+ * the tool is idempotent and converges on the canonical dataset, the property the zero-change
+ * second run proves — but the new plan may legitimately differ from the reviewed one, which is why
+ * it is never retried automatically. Without this, the CLI would print a raw Prisma stack trace
+ * during a release and leave the operator guessing whether anything was half-applied.
  */
 export class TransactionConflictError extends Error {
   constructor(cause: unknown) {
     super(
-      'The synchronization was rolled back because another session wrote to a row it needed ' +
-        '(transaction conflict).\n' +
-        'NOTHING WAS APPLIED — the database is exactly as it was before the run.\n' +
-        'Re-run `npm run content:sync:plan` and then `content:sync:apply`. Retrying is safe: the ' +
-        'synchronization is idempotent, so it converges to the same state rather than compounding ' +
-        'a partial one.',
+      'The synchronization was rolled back: another session wrote to a row this run also ' +
+        'needed (transaction conflict).\n' +
+        '\n' +
+        "NONE OF THIS RUN'S CHANGES WERE APPLIED — its transaction rolled back in full.\n" +
+        '\n' +
+        'This does NOT mean the database is unchanged. The conflict happened BECAUSE another ' +
+        'session committed a write, so governed content may now differ from the plan you ' +
+        'reviewed.\n' +
+        '\n' +
+        'Re-run `npm run content:sync:plan` and read the new plan before applying. Retrying is ' +
+        'safe — the synchronization is idempotent and converges on the canonical dataset — but ' +
+        'the new plan may legitimately differ from the one you just reviewed, which is why it is ' +
+        'not retried automatically.',
     );
     this.name = 'TransactionConflictError';
     this.cause = cause;
