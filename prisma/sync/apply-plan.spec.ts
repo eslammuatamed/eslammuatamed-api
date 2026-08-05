@@ -243,13 +243,35 @@ describe('transaction conflicts', () => {
     ).toBe(false);
   });
 
+  it('does NOT classify an unrelated error that merely contains the digits 40001', () => {
+    // An id, a byte count, or a line of governed article content can contain those digits. Calling
+    // that a transaction conflict would tell the operator a specific, wrong story — and promise
+    // that retrying is safe — about an error that is neither.
+    expect(
+      isTransactionConflict(
+        new Error('Article body exceeded 40001 characters at offset 12'),
+      ),
+    ).toBe(false);
+    expect(
+      isTransactionConflict(new Error('skill id 40001-abc not found')),
+    ).toBe(false);
+  });
+
+  it('recognises a deadlock', () => {
+    expect(isTransactionConflict(new Error('deadlock detected'))).toBe(true);
+  });
+
+  it('recognises the SQLSTATE when it appears as a code', () => {
+    expect(isTransactionConflict(new Error('SQLSTATE 40001'))).toBe(true);
+    expect(isTransactionConflict(new Error('code: 40P01'))).toBe(true);
+  });
+
   it('recognises a raw Postgres serialization failure', () => {
     expect(
       isTransactionConflict(
         new Error('could not serialize access due to concurrent update'),
       ),
     ).toBe(true);
-    expect(isTransactionConflict(new Error('40001'))).toBe(true);
   });
 
   it('does not swallow an unrelated error', () => {

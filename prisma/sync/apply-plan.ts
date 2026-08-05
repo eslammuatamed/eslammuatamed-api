@@ -83,13 +83,28 @@ export class TransactionConflictError extends Error {
   }
 }
 
-/** Prisma raises P2034 for a write conflict or deadlock; Postgres serialization failure is 40001. */
+/**
+ * Prisma raises `P2034` for a write conflict or deadlock; the underlying Postgres SQLSTATEs are
+ * `40001` (serialization failure) and `40P01` (deadlock detected).
+ *
+ * The string fallbacks are deliberately narrow. An earlier version accepted a bare
+ * `message.includes('40001')`, which would classify ANY error whose text happened to contain those
+ * five digits — an id, a byte count, a line from governed article content — as a transaction
+ * conflict. The consequence is not a mislabel but a false promise: the operator would be told the
+ * specific story "another session wrote to a row this run needed" and that **retrying is safe**,
+ * about an error that might be neither. That is the same class of defect as the message this
+ * function feeds, so it is matched on a code-shaped context rather than on a loose substring.
+ */
 export function isTransactionConflict(error: unknown): boolean {
   if (error instanceof Prisma.PrismaClientKnownRequestError)
     return error.code === 'P2034';
+
   const message = error instanceof Error ? error.message : String(error);
   return (
-    message.includes('could not serialize access') || message.includes('40001')
+    /could not serialize access/i.test(message) ||
+    /deadlock detected/i.test(message) ||
+    // Only where the digits appear AS a SQLSTATE/code, never as incidental text.
+    /(?:sqlstate|code|error)\W{0,3}\b(?:40001|40P01)\b/i.test(message)
   );
 }
 
