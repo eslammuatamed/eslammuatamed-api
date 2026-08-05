@@ -4,7 +4,11 @@ import { ARTICLES } from '../content/canonical/articles';
 import { CATEGORIES } from '../content/canonical/categories';
 import { EXPERIENCES } from '../content/canonical/experiences';
 import { PROJECTS } from '../content/canonical/projects';
-import { SETTINGS_TRANSLATIONS } from '../content/canonical/site-settings';
+import {
+  PROFILE_LINKS,
+  SETTINGS_SCALARS,
+  SETTINGS_TRANSLATIONS,
+} from '../content/canonical/site-settings';
 import { SKILLS } from '../content/canonical/skills';
 import { TAGS } from '../content/canonical/tags';
 import {
@@ -260,5 +264,35 @@ describe('canonical dataset invariants', () => {
       expect(skill.slug).toMatch(kebab);
       expect(skill.slug).not.toMatch(uuidShaped);
     }
+  });
+
+  // owner-profile §8 (approved 2026-07-29) partitions the addresses by role, and only two are
+  // approved for publication. `profileLinks` is in GOVERNED_SETTINGS_SCALARS, so whatever sits here
+  // is written to Production by `content:sync:apply` and rendered to every visitor — which is why
+  // this is asserted against the canonical dataset and not only against the exported contract
+  // (`test/profile-contract.e2e-spec.ts` already guards `openapi.json`, and that guard did NOT
+  // cover the seed values: the Gmail sat here while that assertion passed).
+  it('publishes no address that owner-profile §8 marks never-public', () => {
+    const NEVER_PUBLIC = [
+      'eslammuatemed@gmail.com', // internal Contact-form notification destination
+      'admin@eslammuatamed.com', // dashboard authentication only
+    ];
+    const published = JSON.stringify(SETTINGS_SCALARS);
+    for (const address of NEVER_PUBLIC) {
+      expect(published).not.toContain(address);
+    }
+  });
+
+  // The public Email profile link and `contactEmail` are ONE address rendered in two governed
+  // places. They are built from a single constant so they cannot drift; this asserts the property
+  // rather than the constant, so replacing the constant with two literals fails here instead of
+  // silently reintroducing the divergence that produced the defect.
+  it('renders the same public address in the Email profile link and in contactEmail', () => {
+    const mailtos = PROFILE_LINKS.filter((link) =>
+      link.url.startsWith('mailto:'),
+    );
+    expect(mailtos).toHaveLength(1);
+    expect(mailtos[0]!.url).toBe(`mailto:${SETTINGS_SCALARS.contactEmail}`);
+    expect(SETTINGS_SCALARS.contactEmail).toBe('contact@eslammuatamed.com');
   });
 });
