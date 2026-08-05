@@ -68,11 +68,11 @@ const PUBLIC_CONTACT_EMAIL = 'contact@eslammuatamed.com';
 // published to every visitor. The comment was accurate when written and became false when the
 // decision moved; the code followed the stale citation.
 //
-// `contact@` rather than `hello@`: §8 assigns `contact@` to the "Public website contact address —
-// Contact page, visitor correspondence", which is what a visitor clicking Email on the site is
-// doing. `hello@` is the professional address for LinkedIn, CV, Résumé and outbound job
-// applications — surfaces where the owner publishes outward, not where a visitor writes in.
-// Flagged for owner confirmation: this is a reading of §8's role table, not a line it states.
+// `contact@` rather than `hello@` is stated by §8's surface-mapping table, not inferred from it:
+// the public website — anywhere a visitor writes in, including this `Email` entry and the
+// `contactEmail` scalar — takes `contact@`, while `hello@` serves the professional identity
+// surfaces the owner publishes outward (CV, Résumé, LinkedIn, outbound applications). Owner
+// decision **R15** (2026-08-05) closed the question and named both governed fields explicitly.
 //
 // (R5's separate finding stands and is not disturbed: the "mu**ate**med" spelling in the Gmail is
 // intentional and not a typo — which is precisely why it read as plausible and survived this long.)

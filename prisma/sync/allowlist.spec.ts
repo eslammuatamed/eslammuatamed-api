@@ -277,10 +277,33 @@ describe('canonical dataset invariants', () => {
       'eslammuatemed@gmail.com', // internal Contact-form notification destination
       'admin@eslammuatamed.com', // dashboard authentication only
     ];
-    const published = JSON.stringify(SETTINGS_SCALARS);
+    // EVERY governed dataset, not just the settings scalars. `content:sync:apply` writes all of
+    // these to Production and the public API renders them, so an address pasted into an `aboutBio`,
+    // a project case-study body or an article would reach visitors while a scalars-only scan stayed
+    // green. `SETTINGS_TRANSLATIONS` matters most: all eight of its fields are governed
+    // (`GOVERNED_SETTINGS_TRANSLATION_FIELDS`) and it carries free prose.
+    const published = JSON.stringify([
+      SETTINGS_SCALARS,
+      SETTINGS_TRANSLATIONS,
+      ARTICLES,
+      PROJECTS,
+      EXPERIENCES,
+      SKILLS,
+      TAGS,
+      CATEGORIES,
+    ]);
     for (const address of NEVER_PUBLIC) {
       expect(published).not.toContain(address);
     }
+  });
+
+  // The scan above is a DENYLIST: it catches regression to the two known-bad addresses but cannot
+  // catch a third wrong address that nobody has thought of. These are its allowlist half — the two
+  // published addresses pinned to the roles R15 assigns them, so a plausible-looking substitution
+  // fails here even though no denied string appears anywhere.
+  it('pins each published address to the role owner-profile §8 gives it', () => {
+    expect(SETTINGS_SCALARS.contactEmail).toBe('contact@eslammuatamed.com');
+    expect(SETTINGS_SCALARS.professionalEmail).toBe('hello@eslammuatamed.com');
   });
 
   // The public Email profile link and `contactEmail` are ONE address rendered in two governed

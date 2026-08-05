@@ -6,6 +6,7 @@ import * as argon2 from 'argon2';
 import { ARGON2_OPTIONS } from '../src/modules/auth/hashing/argon2.options';
 import { validate } from '../src/config/env.validation';
 import { ABOUT_COPY } from './content/about-copy';
+import { SETTINGS_SCALARS } from './content/canonical/site-settings';
 import { PUBLIC_TAGLINE } from './content/public-tagline';
 
 // Idempotent seed (doc 09 §6): locales, the OWNER system role (+ its reserved '*' grant), the
@@ -100,18 +101,29 @@ async function seedOwner(
   });
 }
 
-// Approved public addresses (owner-profile §8). The About prose is seeded from
+// Approved public addresses (owner-profile §8, R15). The About prose is seeded from
 // `content/about-copy.ts` now that final owner-reviewed EN/AR copy exists — the condition
 // D18-7 already attaches to seeding these fields, so this is the policy taking effect, not a
 // change to it. The same decision still forbids an arbitrary portrait or a fabricated
 // MediaAsset, both of which remain absent.
-const PROFESSIONAL_EMAIL = 'hello@eslammuatamed.com';
-const CONTACT_EMAIL = 'contact@eslammuatamed.com';
-// Owner-approved public numbers (D10-16), stored in E.164. Deliberately two constants holding the
-// same value rather than one shared constant: `contactPhone` and `whatsappPhone` are independently
-// governed, and collapsing them here would quietly reintroduce the inference the contract forbids.
-const CONTACT_PHONE = '+201002785408';
-const WHATSAPP_PHONE = '+201002785408';
+//
+// READ FROM THE CANONICAL DATASET, NOT RE-DECLARED HERE. `seedSiteSettings()` rewrites these four
+// scalars on EVERY run — in the `update` branch as well as `create` — and `db:seed` runs on release,
+// so this file and `content:sync:apply` are two independent writers of the same governed columns.
+// While each held its own literals, the deployed value depended on which ran last, and a divergence
+// would have been invisible: `content:sync:plan` would report `contactEmail` as an update after a
+// seed and `unchanged` after a sync, making the zero-change-second-run property a function of run
+// order rather than of state. Importing from `./content/canonical/site-settings` follows what this
+// file already does for `ABOUT_COPY` and `PUBLIC_TAGLINE`, and for the same reason.
+const PROFESSIONAL_EMAIL = SETTINGS_SCALARS.professionalEmail;
+const CONTACT_EMAIL = SETTINGS_SCALARS.contactEmail;
+// Owner-approved public numbers (D10-16), stored in E.164. Still read as two INDEPENDENT fields
+// rather than one shared value: `contactPhone` and `whatsappPhone` are independently governed, and
+// collapsing them would quietly reintroduce the inference the contract forbids — not every
+// telephone number has WhatsApp. Sourcing each from its own canonical field preserves that
+// independence while removing the duplicate literal set.
+const CONTACT_PHONE = SETTINGS_SCALARS.contactPhone;
+const WHATSAPP_PHONE = SETTINGS_SCALARS.whatsappPhone;
 
 // Positioning per the content source of truth. `tagline` is the approved public title, governed
 // literally by positioning-strategy.md §2/§3 (v1.1.0) and imported rather than written here.
