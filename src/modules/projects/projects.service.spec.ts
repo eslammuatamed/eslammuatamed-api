@@ -293,7 +293,13 @@ describe('ProjectsService', () => {
     // A retired or mistyped technology must degrade to an empty page, not an error: the filter is
     // a query parameter a visitor can edit, and the governed contract calls for a valid empty
     // paginated collection.
-    it('returns a valid empty page for an unknown technology slug', async () => {
+    //
+    // The envelope assertions alone would be VACUOUS — the mock returns an empty page whatever the
+    // query says, so they would still pass with the technology filter deleted entirely. The where
+    // clause is asserted too, which is what ties the empty page to the filter actually having been
+    // applied rather than silently ignored (an ignored filter would return the FULL list, which is
+    // the failure mode that matters here).
+    it('applies an unknown technology slug as a filter and returns a valid empty page', async () => {
       prisma.$transaction.mockResolvedValue([[], 0] as never);
 
       const result = await service.listPublic({
@@ -305,6 +311,15 @@ describe('ProjectsService', () => {
         technology: 'no-such-technology',
       });
 
+      // The filter WAS applied — not quietly dropped, which would have widened the result set.
+      expect(prisma.project.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            isPublished: true,
+            technologies: { some: { skill: { slug: 'no-such-technology' } } },
+          }),
+        }),
+      );
       expect(result.data).toEqual([]);
       expect(result.meta).toEqual(
         expect.objectContaining({ total: 0, page: 1, perPage: 12 }),

@@ -1090,7 +1090,25 @@ async function ensureSkills(): Promise<{
       select: { id: true },
     });
 
+    // Slug is the identity, but the English label is still what a reader sees, and it is what every
+    // pre-slug record was keyed by. If a DIFFERENT record already carries this entry's English
+    // label, creating a second one would split one capability across two rows that look identical
+    // in the UI — each holding half the project and experience relations. The old `renamedFrom`
+    // path refused that case; keying by slug alone would silently allow it, so the guard is kept
+    // rather than lost with the mechanism that used to imply it.
     if (!existing) {
+      const sameLabel = await prisma.skillTranslation.findFirst({
+        where: { locale: LOCALE_EN, label: skill.labelEn },
+        select: { skill: { select: { slug: true } } },
+      });
+      if (sameLabel)
+        throw new Error(
+          `Skill identity conflict: "${skill.labelEn}" is already held by the record with slug ` +
+            `"${sameLabel.skill.slug}", but the registry expects slug "${skill.slug}". Creating a ` +
+            `second record would split one capability across two rows. Reconcile the existing ` +
+            `record's slug before re-running the seed.`,
+        );
+
       const record = await prisma.skill.create({
         data: {
           slug: skill.slug,
