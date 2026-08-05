@@ -1,7 +1,15 @@
 import { PROJECTS } from '../content/canonical/projects';
 import { SETTINGS_TRANSLATIONS } from '../content/canonical/site-settings';
 import { SKILLS } from '../content/canonical/skills';
-import { buildPlan, experienceKey } from './build-plan';
+import { ARTICLES } from '../content/canonical/articles';
+import { EXPERIENCES } from '../content/canonical/experiences';
+import {
+  ARTICLE_TRANSLATION_FIELDS,
+  buildPlan,
+  EXPERIENCE_TRANSLATION_FIELDS,
+  experienceKey,
+  PROJECT_TRANSLATION_FIELDS,
+} from './build-plan';
 import { renderPlanJson } from './report';
 import { canonicalState, emptyState, fakeDb } from './testing/fake-db';
 import type { FakeState } from './testing/fake-db';
@@ -513,6 +521,38 @@ describe('buildPlan', () => {
       ]);
       for (const record of plan.records)
         expect(Object.keys(plan.protectedCounts)).not.toContain(record.model);
+    });
+  });
+
+  describe('what apply WRITES is what the plan DIFFS', () => {
+    // `apply-plan.ts` writes a translation by spreading the whole canonical content object. The
+    // builder diffs only the fields in these lists. A field present in the object but absent from
+    // the list would be written on every run and never diffed — the row would mutate while the
+    // report said "unchanged", which is a report that lies about a production write. The natural-key
+    // field is the one legitimate absence: the row was found BY it, so it cannot differ.
+    it.each([
+      [
+        'Project',
+        Object.keys(PROJECTS[0]!.en),
+        PROJECT_TRANSLATION_FIELDS,
+        'slug',
+      ],
+      [
+        'Article',
+        Object.keys(ARTICLES[0]!.en),
+        ARTICLE_TRANSLATION_FIELDS,
+        'slug',
+      ],
+    ])('%s translation', (_model, written, diffed, naturalKey) => {
+      expect(written.filter((field) => field !== naturalKey).sort()).toEqual(
+        [...diffed].sort(),
+      );
+    });
+
+    it('Experience translation — role and company ARE the natural key', () => {
+      const written = Object.keys(EXPERIENCES[0]!.en);
+
+      expect(written.sort()).toEqual([...EXPERIENCE_TRANSLATION_FIELDS].sort());
     });
   });
 

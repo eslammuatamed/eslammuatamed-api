@@ -50,6 +50,45 @@ export function experienceKey(company: string, role: string): string {
 }
 
 /**
+ * The governed translation fields, per model.
+ *
+ * These are EXPORTED because `apply-plan.ts` writes a translation by spreading the whole canonical
+ * content object (`{ locale, ...content }`), while the builder diffs only the fields named here.
+ * If the two drifted, a field would be written on every run but never diffed — mutating the row
+ * while the report said "unchanged". `build-plan.spec.ts` asserts each list equals the canonical
+ * object's keys minus the natural-key field, which is the only member legitimately absent (it is
+ * what the row was found BY, so it cannot differ).
+ */
+export const PROJECT_TRANSLATION_FIELDS = [
+  'title',
+  'summary',
+  'overview',
+  'businessProblem',
+  'solution',
+  'role',
+  'architecture',
+  'challenges',
+  'features',
+  'lessonsLearned',
+  'metaTitle',
+  'metaDescription',
+] as const;
+
+export const ARTICLE_TRANSLATION_FIELDS = [
+  'title',
+  'excerpt',
+  'body',
+  'readingTimeMin',
+] as const;
+
+export const EXPERIENCE_TRANSLATION_FIELDS = [
+  'role',
+  'company',
+  'location',
+  'impact',
+] as const;
+
+/**
  * Key-order-independent structural comparison. `profileLinks` is a JSONB column, and PostgreSQL
  * returns object keys in whatever order they were written — comparing raw `JSON.stringify` output
  * would report a spurious update forever on a database whose rows were written by an older key
@@ -556,20 +595,7 @@ export async function buildPlan(db: ReadOnlyDb): Promise<Plan> {
   }
 
   // ---- Projects ------------------------------------------------------------------------------
-  const projectTranslationFields = [
-    'title',
-    'summary',
-    'overview',
-    'businessProblem',
-    'solution',
-    'role',
-    'architecture',
-    'challenges',
-    'features',
-    'lessonsLearned',
-    'metaTitle',
-    'metaDescription',
-  ] as const;
+  const projectTranslationFields = PROJECT_TRANSLATION_FIELDS;
 
   const dbProjects = await db.project.findMany({
     select: {
@@ -730,12 +756,7 @@ export async function buildPlan(db: ReadOnlyDb): Promise<Plan> {
   }
 
   // ---- Articles ------------------------------------------------------------------------------
-  const articleTranslationFields = [
-    'title',
-    'excerpt',
-    'body',
-    'readingTimeMin',
-  ] as const;
+  const articleTranslationFields = ARTICLE_TRANSLATION_FIELDS;
 
   const dbArticles = await db.article.findMany({
     select: {
