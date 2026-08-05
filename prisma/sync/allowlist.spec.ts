@@ -329,6 +329,34 @@ describe('canonical dataset invariants', () => {
     expect(offenders).toEqual([]);
   });
 
+  // positioning-strategy §9 bans the v1.x constructions, and §10 makes these strings owner-reviewed.
+  // They were canonicalized once already (S-1): `defaultMetaDescription` carried the v1.x wording in
+  // BOTH locales while the tagline beside it was correct, so the surface that publishes the site-wide
+  // meta description contradicted the approved positioning.
+  //
+  // Scanned across the whole canonical dataset, not just the settings row, because the same wording
+  // can be pasted into an `aboutBio`, a project overview or an article body — and unlike the tagline
+  // ban in `test/public-tagline.e2e-spec.ts`, this one needs no database and runs in the unit lane.
+  it('carries no superseded v1.x positioning anywhere in the canonical dataset', () => {
+    const SUPERSEDED = [
+      'Frontend engineer specializing in Vue.js and Nuxt.js',
+      'مهندس واجهات أمامية متخصص في Vue.js',
+    ];
+    const published = JSON.stringify([
+      SETTINGS_SCALARS,
+      SETTINGS_TRANSLATIONS,
+      ARTICLES,
+      PROJECTS,
+      EXPERIENCES,
+      SKILLS,
+      TAGS,
+      CATEGORIES,
+    ]);
+    for (const phrase of SUPERSEDED) {
+      expect(published).not.toContain(phrase);
+    }
+  });
+
   // The scan above is a DENYLIST: it catches regression to the two known-bad addresses but cannot
   // catch a third wrong address that nobody has thought of. These are its allowlist half — the two
   // published addresses pinned to the roles R15 assigns them, so a plausible-looking substitution

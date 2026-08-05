@@ -120,7 +120,7 @@ export const SETTINGS_TRANSLATIONS: readonly CanonicalSettingsTranslation[] = [
     availabilityStatus: 'Open to frontend opportunities',
     defaultMetaTitle: 'Eslam Muatamed',
     defaultMetaDescription:
-      'Frontend engineer specializing in Vue.js and Nuxt.js, building fast, accessible, SEO-focused web interfaces.',
+      'Full-Stack JavaScript Product Engineer building production-ready web products with strong frontend architecture, reliable Node.js and NestJS backends, and end-to-end delivery.',
     ...ABOUT_COPY.en,
   },
   {
@@ -130,7 +130,7 @@ export const SETTINGS_TRANSLATIONS: readonly CanonicalSettingsTranslation[] = [
     availabilityStatus: 'متاح لفرص عمل في تطوير الواجهات الأمامية',
     defaultMetaTitle: 'إسلام معتمد',
     defaultMetaDescription:
-      'مهندس واجهات أمامية متخصص في Vue.js و Nuxt.js، أبني واجهات ويب سريعة وسهلة الوصول ومهيأة لمحركات البحث.',
+      'Full-Stack JavaScript Product Engineer، أبني منتجات ويب جاهزة للإطلاق ببنية قوية للواجهات الأمامية، وخلفيات موثوقة باستخدام Node.js وNestJS، وتنفيذ متكامل من البداية إلى النهاية.',
     ...ABOUT_COPY.ar,
   },
 ];
