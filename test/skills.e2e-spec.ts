@@ -59,6 +59,7 @@ describe('Skills (e2e)', () => {
       .post('/api/v1/admin/skills')
       .set(auth())
       .send({
+        slug: `hidden-e2e-skill-${unique}`,
         group: 'DELIVERY',
         order: 9001,
         isPublic: false,
@@ -125,6 +126,7 @@ describe('Skills (e2e)', () => {
       .post('/api/v1/admin/skills')
       .set(auth())
       .send({
+        slug: `e2e-skill-${unique}`,
         group: 'FRONTEND',
         order: 9000,
         brandColor: '#7c3aed',
@@ -167,12 +169,45 @@ describe('Skills (e2e)', () => {
         .translations.en.label,
     ).toBe(updatedLabel);
 
+    // The label just changed; the slug must not have. That is the whole point of a separate
+    // identity — public filter URLs survive a rename.
+    expect(envelopeData<{ slug: string }>(updated).slug).toBe(
+      `e2e-skill-${unique}`,
+    );
+
+    // And re-slugging is refused outright rather than quietly ignored, so a caller that tries is
+    // told instead of believing an already-shared URL still resolves.
+    const reslug = await request(httpServer(app))
+      .patch(`/api/v1/admin/skills/${createdSkillId}`)
+      .set(auth())
+      .send({ slug: `renamed-${unique}` })
+      .expect(422);
+    expect(reslug).toSatisfyApiSpec();
+
     const removed = await request(httpServer(app))
       .delete(`/api/v1/admin/skills/${createdSkillId}`)
       .set(auth())
       .expect(204);
     expect(removed).toSatisfyApiSpec();
     createdSkillId = undefined;
+  });
+
+  // Over HTTP, because this is the guarantee the `?technology=` filter's slug/uuid discrimination
+  // rests on: a uuid satisfies the kebab-case rule, so a uuid-shaped slug would be routed to the id
+  // column forever and answer with an empty page. This endpoint is where such a slug could be born.
+  it('refuses a uuid-shaped slug with a contract-valid 422', async () => {
+    const res = await request(httpServer(app))
+      .post('/api/v1/admin/skills')
+      .set(auth())
+      .send({
+        slug: '019fa4e9-2810-7f82-a537-6e3ea8ddcc67',
+        group: 'FRONTEND',
+        order: 9100,
+        translations: [{ locale: 'en', label: `Uuid Shaped ${unique}` }],
+      })
+      .expect(422);
+
+    expect(res).toSatisfyApiSpec();
   });
 
   it('rejects an invalid create body with a contract-valid 422', async () => {

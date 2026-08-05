@@ -9,6 +9,7 @@ type SkillRow = Skill & { translations: SkillTranslation[] };
 
 const row = (group: SkillGroup, order: number, id = 's1'): SkillRow => ({
   id,
+  slug: id,
   group,
   order,
   brandColor: '#fff',
@@ -82,5 +83,57 @@ describe('SkillsService', () => {
     await expect(service.remove('missing')).rejects.toBeInstanceOf(
       NotFoundException,
     );
+  });
+
+  // The public skills list doubles as the technology filter-option source. Without `slug` a client
+  // could only build `/projects?technology=` from the id or the translated label — the two forms
+  // the slug exists to replace — so its presence here is a contract requirement, not a detail.
+  it('exposes the slug on public skills so clients can build filter URLs', async () => {
+    prisma.skill.findMany.mockResolvedValue([row(SkillGroup.LANGUAGE, 0)]);
+
+    const result = await service.listPublic('en');
+
+    expect(result[0]).toEqual(expect.objectContaining({ slug: 's1' }));
+  });
+
+  it('exposes the slug on admin skills', async () => {
+    prisma.skill.findMany.mockResolvedValue([row(SkillGroup.LANGUAGE, 0)]);
+
+    const result = await service.listAdmin();
+
+    expect(result[0]).toEqual(expect.objectContaining({ slug: 's1' }));
+  });
+
+  it('persists the requested slug when creating a skill', async () => {
+    prisma.skill.create.mockResolvedValue(row(SkillGroup.LANGUAGE, 0));
+
+    await service.create({
+      slug: 'tailwind-css',
+      group: SkillGroup.LANGUAGE,
+      order: 0,
+      translations: [{ locale: 'en', label: 'Tailwind CSS' }],
+    });
+
+    expect(prisma.skill.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ slug: 'tailwind-css' }),
+      }),
+    );
+  });
+
+  // Two skills behind one public filter URL is precisely what the unique constraint prevents, so a
+  // duplicate is a caller error. Left unmapped it surfaces as a 500, which reads as a server fault
+  // and tells the caller nothing about how to fix the request.
+  it('maps a duplicate slug to conflict rather than letting it surface as a server error', async () => {
+    prisma.skill.create.mockRejectedValue({ code: 'P2002' });
+
+    await expect(
+      service.create({
+        slug: 'typescript',
+        group: SkillGroup.LANGUAGE,
+        order: 0,
+        translations: [{ locale: 'en', label: 'TypeScript' }],
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
   });
 });

@@ -126,6 +126,7 @@ function projectPayload(isPublished: boolean) {
         skillId: 'skill-1',
         skill: {
           id: 'skill-1',
+          slug: 'nestjs',
           group: 'FRONTEND',
           order: 1,
           brandColor: null,
@@ -237,7 +238,10 @@ describe('ProjectsService', () => {
       expect(result.data).toHaveLength(1);
     });
 
-    it('applies the technology Skill id filter without relaxing publication', async () => {
+    // The filter identity is `Skill.slug`: it is locale-independent and survives label edits, so
+    // `/projects?technology=nestjs` means the same thing in every locale and keeps working after
+    // the skill is renamed. Matching happens on the relation, never on a translated label.
+    it('applies the technology Skill slug filter without relaxing publication', async () => {
       prisma.$transaction.mockResolvedValue([[], 0] as never);
 
       await service.listPublic({
@@ -246,16 +250,64 @@ describe('ProjectsService', () => {
         skip: 0,
         take: 12,
         locale: 'en',
-        technology: 'skill-1',
+        technology: 'nestjs',
       });
 
       expect(prisma.project.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
             isPublished: true,
-            technologies: { some: { skillId: 'skill-1' } },
+            technologies: { some: { skill: { slug: 'nestjs' } } },
           }),
         }),
+      );
+    });
+
+    // Backward compatibility: the uuid form is what this endpoint documented before slugs existed,
+    // so already-published links must keep resolving. It matches the id column, not the slug —
+    // otherwise every legacy link would silently return an empty page instead of its projects.
+    it('still accepts a Skill uuid and matches it against the id, not the slug', async () => {
+      prisma.$transaction.mockResolvedValue([[], 0] as never);
+
+      await service.listPublic({
+        page: 1,
+        perPage: 12,
+        skip: 0,
+        take: 12,
+        locale: 'en',
+        technology: '019fa4e9-2810-7f82-a537-6e3ea8ddcc67',
+      });
+
+      expect(prisma.project.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            isPublished: true,
+            technologies: {
+              some: { skillId: '019fa4e9-2810-7f82-a537-6e3ea8ddcc67' },
+            },
+          }),
+        }),
+      );
+    });
+
+    // A retired or mistyped technology must degrade to an empty page, not an error: the filter is
+    // a query parameter a visitor can edit, and the governed contract calls for a valid empty
+    // paginated collection.
+    it('returns a valid empty page for an unknown technology slug', async () => {
+      prisma.$transaction.mockResolvedValue([[], 0] as never);
+
+      const result = await service.listPublic({
+        page: 1,
+        perPage: 12,
+        skip: 0,
+        take: 12,
+        locale: 'en',
+        technology: 'no-such-technology',
+      });
+
+      expect(result.data).toEqual([]);
+      expect(result.meta).toEqual(
+        expect.objectContaining({ total: 0, page: 1, perPage: 12 }),
       );
     });
 
@@ -296,7 +348,9 @@ describe('ProjectsService', () => {
         expect.objectContaining({
           title: 'English project',
           slug: 'english-project',
-          technologies: [{ id: 'skill-1', label: 'NestJS' }],
+          // slug travels with the label so a client can build the filter URL for a technology
+          // straight from a project card, without a second lookup or a guess at the identifier.
+          technologies: [{ id: 'skill-1', slug: 'nestjs', label: 'NestJS' }],
         }),
       );
     });

@@ -412,9 +412,38 @@ function buildPublicWhere(
     isPublished: true,
     translations: { some: { locale: query.locale } },
     ...(query.technology
-      ? { technologies: { some: { skillId: query.technology } } }
+      ? {
+          technologies: {
+            some: isSkillId(query.technology)
+              ? // Backward compatibility only — the uuid form is what this endpoint documented
+                // before `Skill.slug` existed, so links already published keep resolving.
+                { skillId: query.technology }
+              : { skill: { slug: query.technology } },
+          },
+        }
       : {}),
   };
+}
+
+// Which column a `?technology=` value is matched against.
+//
+// A uuid DOES satisfy the query DTO's slug pattern (`^[a-z0-9]+(-[a-z0-9]+)*$` — lowercase hex in
+// 8-4-4-4-12 shape is a sequence of alphanumeric groups joined by single hyphens), which is exactly
+// why one parameter can carry both forms without a second parameter or a union type. This test is
+// what separates them, and it is deliberately the STRICT uuid shape rather than a loose
+// "looks like it has hyphens" heuristic.
+//
+// The discrimination is total in BOTH directions, and neither direction rests on convention:
+//   - every Skill id matches, so a legacy link is never read as a slug;
+//   - no Skill slug can match, because a uuid-shaped slug is refused by `CreateSkillDto` at the API
+//     boundary AND by the `skills_slug_format_check` CHECK constraint at the column — the latter
+//     being what also covers the content seed, raw SQL and any future writer.
+// Without those rules this function would be a heuristic; with them it is exact.
+const SKILL_ID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+function isSkillId(value: string): boolean {
+  return SKILL_ID_PATTERN.test(value);
 }
 
 function translationWriteFields(translation: ProjectTranslationDto) {
@@ -466,7 +495,11 @@ function technologyRef(
     (item) => item.locale === locale,
   );
   if (!translation) return null;
-  return { id: technology.skill.id, label: translation.label };
+  return {
+    id: technology.skill.id,
+    slug: technology.skill.slug,
+    label: translation.label,
+  };
 }
 
 function toAdminEntity(project: ProjectAdminPayload): AdminProjectEntity {

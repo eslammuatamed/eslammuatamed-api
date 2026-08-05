@@ -32,6 +32,7 @@ type TechnologyLink = {
   skillId: string;
   skill?: {
     id: string;
+    slug: string;
     order: number;
     translations: { locale: string; label: string }[];
   };
@@ -218,14 +219,21 @@ export class ExperiencesService {
       technologies: [...row.technologies]
         .sort((a, b) => (a.skill?.order ?? 0) - (b.skill?.order ?? 0))
         .map((link) => {
-          const label = link.skill?.translations.find(
+          const skill = link.skill;
+          const label = skill?.translations.find(
             (item) => item.locale === locale,
           )?.label;
-          return label === undefined
+          // Both halves come from the same include, so a missing skill and a missing label are
+          // the same condition; dropping on either keeps `slug` a guaranteed string rather than
+          // inventing one from the link's raw id.
+          return skill === undefined || label === undefined
             ? null
-            : { id: link.skill?.id ?? link.skillId, label };
+            : { id: skill.id, slug: skill.slug, label };
         })
-        .filter((item): item is { id: string; label: string } => item !== null),
+        .filter(
+          (item): item is { id: string; slug: string; label: string } =>
+            item !== null,
+        ),
       availableLocales: row.translations.map((item) => item.locale).sort(),
     };
   }

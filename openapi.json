@@ -4827,10 +4827,10 @@
             "name": "technology",
             "required": false,
             "in": "query",
-            "description": "Filter to projects linked to this Skill id.",
+            "description": "Filter to projects linked to this Skill, by slug. A Skill uuid is accepted for backward compatibility only. Unknown values return an empty page.",
             "schema": {
-              "format": "uuid",
-              "example": "0194f9a2-ef2a-7a31-8cb7-369c87f7933a",
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+              "example": "nestjs",
               "type": "string"
             }
           }
@@ -8348,6 +8348,11 @@
             "type": "string",
             "format": "uuid"
           },
+          "slug": {
+            "type": "string",
+            "example": "typescript",
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+          },
           "label": {
             "type": "string",
             "example": "TypeScript"
@@ -8383,6 +8388,7 @@
         },
         "required": [
           "id",
+          "slug",
           "label",
           "group",
           "order",
@@ -8408,6 +8414,11 @@
           "id": {
             "type": "string",
             "format": "uuid"
+          },
+          "slug": {
+            "type": "string",
+            "example": "typescript",
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
           },
           "group": {
             "type": "string",
@@ -8439,6 +8450,7 @@
         },
         "required": [
           "id",
+          "slug",
           "group",
           "order",
           "brandColor",
@@ -8466,6 +8478,12 @@
       "CreateSkillDto": {
         "type": "object",
         "properties": {
+          "slug": {
+            "type": "string",
+            "example": "typescript",
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "description": "Stable, locale-independent public identity, used in `GET /projects?technology=`. Lowercase kebab-case."
+          },
           "group": {
             "type": "string",
             "enum": [
@@ -8504,6 +8522,7 @@
           }
         },
         "required": [
+          "slug",
           "group",
           "order",
           "translations"
@@ -8557,13 +8576,19 @@
             "type": "string",
             "format": "uuid"
           },
+          "slug": {
+            "type": "string",
+            "example": "nuxt",
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+          },
           "label": {
             "type": "string",
-            "example": "Nuxt.js"
+            "example": "Nuxt"
           }
         },
         "required": [
           "id",
+          "slug",
           "label"
         ]
       },
@@ -9085,6 +9110,11 @@
             "type": "string",
             "format": "uuid"
           },
+          "slug": {
+            "type": "string",
+            "example": "nestjs",
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+          },
           "label": {
             "type": "string",
             "example": "NestJS"
@@ -9092,6 +9122,7 @@
         },
         "required": [
           "id",
+          "slug",
           "label"
         ]
       },
