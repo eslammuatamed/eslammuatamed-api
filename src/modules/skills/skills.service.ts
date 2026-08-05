@@ -2,6 +2,7 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { Prisma, Skill, SkillGroup, SkillTranslation } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -67,6 +68,14 @@ export class SkillsService {
       if (isPrismaCode(error, 'P2002'))
         throw new ConflictException(
           `Skill slug "${dto.slug}" is already taken.`,
+        );
+      // A CHECK-constraint violation is `P2004`, and it is a bad REQUEST, not a server fault.
+      // `CreateSkillDto` rejects the same inputs first, so this is unreachable today — it is here
+      // so that the day the constraint and the DTO drift apart (a new rule added to one and not the
+      // other), the caller gets a 422 naming the field instead of an opaque 500.
+      if (isPrismaCode(error, 'P2004'))
+        throw new UnprocessableEntityException(
+          `Skill slug "${dto.slug}" violates the stored slug format constraint.`,
         );
       throw error;
     }

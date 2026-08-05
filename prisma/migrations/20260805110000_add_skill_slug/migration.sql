@@ -19,6 +19,28 @@
 --
 -- Skill ids, translations, groups, ordering, visibility and every `ProjectTechnology` /
 -- `ExperienceTechnology` relation are untouched — this only adds a column.
+--
+-- ===== RUNNING THIS AGAINST PRODUCTION — read before you do =====
+--
+-- 1. ATOMICITY COMES FROM THE RUNNER, NOT FROM THIS FILE. `prisma migrate deploy` sends the file as
+--    one batch, which PostgreSQL wraps in an implicit transaction — that is what makes the abort
+--    below leave no half-slugged table. `psql -f` does NOT: it autocommits per statement, so a
+--    RAISE at step 3 would leave the column added and backfilled. Use `migrate deploy`, or
+--    `psql --single-transaction` if you must run it by hand. Do NOT add BEGIN/COMMIT here — Prisma
+--    wraps the file itself, and an explicit transaction block breaks that path.
+--
+-- 2. PRE-FLIGHT PROBE. An abort is correct behaviour, but it still costs a deploy cycle. Confirm
+--    every skill is nameable by the mapping BEFORE deploying:
+--      SELECT s.id, t.label FROM skills s
+--        LEFT JOIN skill_translations t ON t.skill_id = s.id AND t.locale = 'en';
+--    Every label returned must appear in the `canonical` list below, and no row may have a NULL
+--    label. Anything else is the owner decision this migration refuses to make for you.
+--
+-- 3. IF IT DOES ABORT, THE PIPELINE IS WEDGED UNTIL YOU CLEAR IT. Prisma leaves the row in
+--    `_prisma_migrations` with `finished_at` NULL, which blocks every later `migrate deploy`. Clear
+--    it with:
+--      npx prisma migrate resolve --rolled-back 20260805110000_add_skill_slug
+--    then fix the mapping and redeploy. Nothing was written, so there is nothing else to undo.
 
 -- ===== 1. Add the column, nullable so it can be backfilled =====
 ALTER TABLE "skills" ADD COLUMN "slug" TEXT;
@@ -112,8 +134,11 @@ BEGIN
   -- A uuid-shaped slug is rejected by the SAME check, because `?technology=` accepts either a slug
   -- or a legacy Skill uuid and tells them apart by shape. A uuid satisfies the kebab-case rule on
   -- its own (lowercase hex groups joined by single hyphens), so a slug in that shape would be
-  -- routed to the id column forever and answer with an empty page. Enforced here as well as in
-  -- `CreateSkillDto` because this is where the data actually lands.
+  -- routed to the id column forever and answer with an empty page.
+  --
+  -- This guard covers the BACKFILL only; the CHECK constraint added in step 4 is what governs every
+  -- later write. Both exist deliberately: the constraint gives an opaque `23514`, while this names
+  -- the offending slugs, which is what a failed deploy actually needs to be actionable.
   SELECT string_agg("slug", ', ' ORDER BY "slug")
     INTO malformed
     FROM "skills"

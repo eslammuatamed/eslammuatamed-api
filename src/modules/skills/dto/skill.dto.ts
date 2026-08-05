@@ -37,7 +37,7 @@ export class CreateSkillDto {
     example: 'typescript',
     pattern: '^[a-z0-9]+(-[a-z0-9]+)*$',
     description:
-      'Stable, locale-independent public identity, used in `GET /projects?technology=`. Lowercase kebab-case.',
+      'Stable, locale-independent public identity, used in `GET /projects?technology=`. Lowercase kebab-case, and MUST NOT be shaped like a uuid (8-4-4-4-12 lowercase hex) — that form is reserved for the legacy technology filter, so a uuid-shaped slug would be unreachable. The uuid exclusion cannot be expressed in `pattern`, so it is stated here: a value can satisfy `pattern` and still be rejected with 422.',
   })
   @Matches(/^[a-z0-9]+(-[a-z0-9]+)*$/, {
     message:
