@@ -71,7 +71,7 @@ describe('ExperiencesService', () => {
     service = new ExperiencesService(prisma, locales);
   });
 
-  it('orders public experiences reverse chronologically with order tie-breaker', async () => {
+  it('orders ended roles reverse chronologically with an order tie-breaker', async () => {
     prisma.experience.findMany.mockResolvedValue([
       row('2024-01-01', 2),
       row('2024-02-01', 1, 'e2'),
@@ -91,6 +91,61 @@ describe('ExperiencesService', () => {
       orderBy: [{ startDate: 'desc' }, { order: 'asc' }],
     });
     expect(result.map((item) => item.id)).toEqual(['e2', 'e1']);
+  });
+
+  it('puts a CURRENT role ahead of an ended role that started later', async () => {
+    // The exact production defect: WaveX started 2026-03 and has ENDED, while Findropica started
+    // 2025-01 and is the role still held. Sorting on startDate alone ranked the ended role first,
+    // so /experience and /resume (which render the API order verbatim) contradicted the Home page.
+    const wavex = {
+      ...row('2026-03-01', 0, 'wavex'),
+      endDate: new Date('2026-07-31'),
+    };
+    const findropica = {
+      ...row('2025-01-01', 0, 'findropica'),
+      isCurrent: true,
+    };
+    const weblytech = {
+      ...row('2023-11-01', 0, 'weblytech'),
+      endDate: new Date('2026-02-28'),
+    };
+    prisma.experience.findMany.mockResolvedValue([
+      wavex,
+      findropica,
+      weblytech,
+    ]);
+
+    const result = await service.listPublic('en');
+
+    expect(result.map((item) => item.id)).toEqual([
+      'findropica',
+      'wavex',
+      'weblytech',
+    ]);
+  });
+
+  it('orders two current roles by start date, most recent first', async () => {
+    const older = { ...row('2024-01-01', 0, 'older'), isCurrent: true };
+    const newer = { ...row('2025-06-01', 0, 'newer'), isCurrent: true };
+    prisma.experience.findMany.mockResolvedValue([older, newer]);
+
+    expect((await service.listPublic('en')).map((item) => item.id)).toEqual([
+      'newer',
+      'older',
+    ]);
+  });
+
+  it('is a TOTAL order: equal date and order fall back to id, not to row order', async () => {
+    // Without a final tie-breaker these compare equal and `Array#sort` stability leaves the result
+    // at the mercy of the database's row order — the same request could return either sequence.
+    const a = row('2024-01-01', 0, 'aaa');
+    const b = row('2024-01-01', 0, 'bbb');
+    prisma.experience.findMany.mockResolvedValue([b, a]);
+
+    expect((await service.listPublic('en')).map((item) => item.id)).toEqual([
+      'aaa',
+      'bbb',
+    ]);
   });
 
   it('rejects an invalid employment type with 422', async () => {
