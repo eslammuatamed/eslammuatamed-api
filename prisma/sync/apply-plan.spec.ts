@@ -1,4 +1,8 @@
-import { PlanRejectedError, validatePlan } from './apply-plan';
+import {
+  assertProtectedCountsUnchanged,
+  PlanRejectedError,
+  validatePlan,
+} from './apply-plan';
 import { renderPlan, renderPlanJson, renderValue } from './report';
 import type { Plan, RecordChange } from './types';
 
@@ -124,6 +128,51 @@ describe('validatePlan — the gate every apply must pass', () => {
         (error as PlanRejectedError).reasons.length,
       ).toBeGreaterThanOrEqual(2);
     }
+  });
+});
+
+describe('assertProtectedCountsUnchanged', () => {
+  // This mechanism previously had NO coverage at all: deleting it left the whole suite green,
+  // so doc 09 §6.1's "the protection is verified, not asserted" was itself asserted by nobody.
+  it('passes when every protected count is unchanged', () => {
+    expect(() =>
+      assertProtectedCountsUnchanged(
+        { User: 1, ContactMessage: 3 },
+        { User: 1, ContactMessage: 3 },
+      ),
+    ).not.toThrow();
+  });
+
+  it('throws when a protected count drops — the case that means rows were destroyed', () => {
+    expect(() =>
+      assertProtectedCountsUnchanged(
+        { User: 1, ContactMessage: 3 },
+        { User: 1, ContactMessage: 0 },
+      ),
+    ).toThrow(/ContactMessage 3 → 0/);
+  });
+
+  it('throws when a protected count rises', () => {
+    expect(() =>
+      assertProtectedCountsUnchanged({ Testimonial: 2 }, { Testimonial: 3 }),
+    ).toThrow(/Testimonial 2 → 3/);
+  });
+
+  it('names every drifted model, not just the first', () => {
+    expect(() =>
+      assertProtectedCountsUnchanged(
+        { User: 1, ContactMessage: 3, MediaAsset: 5 },
+        { User: 0, ContactMessage: 3, MediaAsset: 4 },
+      ),
+    ).toThrow(/User 1 → 0.*MediaAsset 5 → 4/);
+  });
+
+  it('says the transaction is rolled back, because it now can be', () => {
+    // The message used to end "investigate before running again" — accurate when the check ran
+    // after commit and the damage was already permanent. It runs inside the transaction now.
+    expect(() =>
+      assertProtectedCountsUnchanged({ User: 1 }, { User: 0 }),
+    ).toThrow(/rolled back/);
   });
 });
 

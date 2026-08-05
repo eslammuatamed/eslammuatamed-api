@@ -6,7 +6,7 @@
 //
 // There is deliberately no `--force`, no `skipValidation`, and no environment variable that changes
 // what this does. A flag that bypasses the safety check is a flag that will be used in a hurry.
-import { ContentStatus, Prisma, PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { ARTICLES } from '../content/canonical/articles';
 import { CATEGORIES } from '../content/canonical/categories';
 import { EXPERIENCES } from '../content/canonical/experiences';
@@ -28,6 +28,11 @@ import {
   LOCALE_AR,
   LOCALE_EN,
 } from './build-plan';
+import {
+  articleScalars,
+  experienceScalars,
+  projectScalars,
+} from './governed-scalars';
 import type { Plan, RecordChange } from './types';
 
 /** Prisma's interactive-transaction client: the full client minus the transaction controls. */
@@ -87,6 +92,28 @@ export function validatePlan(plan: Plan): void {
   if (reasons.length) throw new PlanRejectedError([...new Set(reasons)]);
 }
 
+/**
+ * Throws when any protected model's row count moved. Extracted so it is directly testable: as an
+ * inline block inside the transaction it had no coverage at all — deleting it left the entire
+ * suite green, which is exactly the "verified, not asserted" claim being asserted by nobody.
+ */
+export function assertProtectedCountsUnchanged(
+  before: Readonly<Record<string, number>>,
+  after: Readonly<Record<string, number>>,
+): void {
+  const drifted = Object.entries(before).filter(
+    ([model, count]) => after[model] !== count,
+  );
+  if (drifted.length)
+    throw new Error(
+      `Operational record counts changed during synchronization: ` +
+        drifted
+          .map(([model, count]) => `${model} ${count} → ${after[model]}`)
+          .join(', ') +
+        `. This must never happen; the transaction is rolled back.`,
+    );
+}
+
 const acting = (plan: Plan, model: string, action: RecordChange['action']) =>
   plan.records.filter(
     (record) => record.model === model && record.action === action,
@@ -131,13 +158,55 @@ export async function applyPlan(
     ]),
   );
 
+  let protectedCountsBefore: Record<string, number> = {};
+  let protectedCountsAfter: Record<string, number> = {};
+
   await prisma.$transaction(
     async (tx: Tx) => {
+      // Counted INSIDE the transaction, and compared INSIDE it, so a discrepancy can still roll
+      // back. The previous version compared `plan.protectedCounts` to a count taken AFTER commit:
+      // by the time it threw, the damage was committed and permanent — it could report a breach,
+      // never prevent one.
+      //
+      // It also raced. `plan.protectedCounts` is read when the plan is BUILT, which on a
+      // production run is before a human reads the report and before a transaction that may last
+      // two minutes. `RefreshToken` and `ContactMessage` churn continuously on a live site, so an
+      // admin session rotating a token mid-run would have failed a completely correct, already
+      // committed run with "This must never happen". Reading both sides inside one
+      // RepeatableRead transaction means the two reads share a snapshot: concurrent commits are
+      // invisible, so a difference can ONLY have been caused by this run.
+      protectedCountsBefore = await countProtected(tx);
+
+      // ---- 0. Stale rows first, so freed slugs can be reused ----------------------------------
+      // Deletes precede creates and updates because every translation table carries
+      // `@@unique([locale, slug])` and Postgres does not defer it. The ordinary case of an English
+      // slug rename — where the Arabic slug stays put — emits one create plus one delete; running
+      // the create first collides with the stale row that still holds that Arabic slug, and the
+      // whole transaction aborts on a raw 23505 AFTER the dry-run called the plan applicable.
+      // Fail-safe, but it breaks the promise that the preview predicts the apply, and propagating
+      // slug edits is a large part of what this tool is for.
+      //
+      // FK-safe order is preserved: articles carry the references, so they go before the tags they
+      // link. Categories are the exception and run last (step 5) — see there.
+      // Every id came from the plan, so each delete is scoped by natural key; there is no
+      // `deleteMany` over a whole table anywhere in this file.
+      for (const record of acting(plan, 'Article', 'delete'))
+        if (record.id) await tx.article.delete({ where: { id: record.id } });
+      for (const record of acting(plan, 'Project', 'delete'))
+        if (record.id) await tx.project.delete({ where: { id: record.id } });
+      for (const record of acting(plan, 'Experience', 'delete'))
+        if (record.id) await tx.experience.delete({ where: { id: record.id } });
+      for (const record of acting(plan, 'Tag', 'delete'))
+        if (record.id) await tx.tag.delete({ where: { id: record.id } });
+
       // ---- 1. Referenced entities first, so later FKs resolve ---------------------------------
       const skillIdBySlug = new Map<string, string>();
       for (const record of acting(plan, 'Skill', 'create')) {
-        const skill = skillByCanonicalSlug.get(record.naturalKey);
-        if (!skill) continue;
+        const skill = mustFind(
+          skillByCanonicalSlug.get(record.naturalKey),
+          'Skill',
+          record.naturalKey,
+        );
         const created = await tx.skill.create({
           data: {
             slug: skill.slug,
@@ -157,8 +226,12 @@ export async function applyPlan(
         skillIdBySlug.set(skill.slug, created.id);
       }
       for (const record of acting(plan, 'Skill', 'update')) {
-        const skill = skillByCanonicalSlug.get(record.naturalKey);
-        if (!skill || !record.id) continue;
+        const skill = mustFind(
+          skillByCanonicalSlug.get(record.naturalKey),
+          'Skill',
+          record.naturalKey,
+        );
+        if (!record.id) continue;
         // `slug` is absent by design: it is the identity this row was found by and the public
         // filter URL. Labels are the editable half.
         await tx.skill.update({
@@ -194,8 +267,11 @@ export async function applyPlan(
 
       const categoryIdBySlug = new Map<string, string>();
       for (const record of acting(plan, 'Category', 'create')) {
-        const category = categoryByCanonicalSlug.get(record.naturalKey);
-        if (!category) continue;
+        const category = mustFind(
+          categoryByCanonicalSlug.get(record.naturalKey),
+          'Category',
+          record.naturalKey,
+        );
         const created = await tx.category.create({
           data: {
             translations: {
@@ -218,8 +294,12 @@ export async function applyPlan(
         categoryIdBySlug.set(category.en.slug, created.id);
       }
       for (const record of acting(plan, 'Category', 'update')) {
-        const category = categoryByCanonicalSlug.get(record.naturalKey);
-        if (!category || !record.id) continue;
+        const category = mustFind(
+          categoryByCanonicalSlug.get(record.naturalKey),
+          'Category',
+          record.naturalKey,
+        );
+        if (!record.id) continue;
         for (const [locale, content] of [
           [LOCALE_EN, category.en],
           [LOCALE_AR, category.ar],
@@ -243,8 +323,11 @@ export async function applyPlan(
 
       const tagIdBySlug = new Map<string, string>();
       for (const record of acting(plan, 'Tag', 'create')) {
-        const tag = tagByCanonicalSlug.get(record.naturalKey);
-        if (!tag) continue;
+        const tag = mustFind(
+          tagByCanonicalSlug.get(record.naturalKey),
+          'Tag',
+          record.naturalKey,
+        );
         const created = await tx.tag.create({
           data: {
             translations: {
@@ -259,8 +342,12 @@ export async function applyPlan(
         tagIdBySlug.set(tag.en.slug, created.id);
       }
       for (const record of acting(plan, 'Tag', 'update')) {
-        const tag = tagByCanonicalSlug.get(record.naturalKey);
-        if (!tag || !record.id) continue;
+        const tag = mustFind(
+          tagByCanonicalSlug.get(record.naturalKey),
+          'Tag',
+          record.naturalKey,
+        );
+        if (!record.id) continue;
         for (const [locale, content] of [
           [LOCALE_EN, tag.en],
           [LOCALE_AR, tag.ar],
@@ -283,15 +370,14 @@ export async function applyPlan(
       // ---- 2. Experiences ---------------------------------------------------------------------
       const experienceIdByKey = new Map<string, string>();
       for (const record of acting(plan, 'Experience', 'create')) {
-        const experience = experienceByCanonicalKey.get(record.naturalKey);
-        if (!experience) continue;
+        const experience = mustFind(
+          experienceByCanonicalKey.get(record.naturalKey),
+          'Experience',
+          record.naturalKey,
+        );
         const created = await tx.experience.create({
           data: {
-            startDate: experience.startDate,
-            endDate: experience.endDate,
-            isCurrent: experience.isCurrent,
-            employmentType: experience.employmentType,
-            order: experience.order,
+            ...experienceScalars(experience),
             translations: {
               create: [
                 { locale: LOCALE_EN, ...experience.en },
@@ -309,17 +395,15 @@ export async function applyPlan(
         experienceIdByKey.set(record.naturalKey, created.id);
       }
       for (const record of acting(plan, 'Experience', 'update')) {
-        const experience = experienceByCanonicalKey.get(record.naturalKey);
-        if (!experience || !record.id) continue;
+        const experience = mustFind(
+          experienceByCanonicalKey.get(record.naturalKey),
+          'Experience',
+          record.naturalKey,
+        );
+        if (!record.id) continue;
         await tx.experience.update({
           where: { id: record.id },
-          data: {
-            startDate: experience.startDate,
-            endDate: experience.endDate,
-            isCurrent: experience.isCurrent,
-            employmentType: experience.employmentType,
-            order: experience.order,
-          },
+          data: experienceScalars(experience),
         });
         for (const [locale, content] of [
           [LOCALE_EN, experience.en],
@@ -340,16 +424,14 @@ export async function applyPlan(
       // ---- 3. Projects ------------------------------------------------------------------------
       const projectIdBySlug = new Map<string, string>();
       for (const record of acting(plan, 'Project', 'create')) {
-        const project = projectByCanonicalSlug.get(record.naturalKey);
-        if (!project) continue;
+        const project = mustFind(
+          projectByCanonicalSlug.get(record.naturalKey),
+          'Project',
+          record.naturalKey,
+        );
         const created = await tx.project.create({
           data: {
-            featured: project.featured,
-            isPublished: true,
-            order: project.order,
-            year: project.year,
-            liveUrl: project.liveUrl,
-            repoUrl: project.repoUrl,
+            ...projectScalars(project),
             translations: {
               create: [
                 { locale: LOCALE_EN, ...project.en },
@@ -367,18 +449,15 @@ export async function applyPlan(
         projectIdBySlug.set(record.naturalKey, created.id);
       }
       for (const record of acting(plan, 'Project', 'update')) {
-        const project = projectByCanonicalSlug.get(record.naturalKey);
-        if (!project || !record.id) continue;
+        const project = mustFind(
+          projectByCanonicalSlug.get(record.naturalKey),
+          'Project',
+          record.naturalKey,
+        );
+        if (!record.id) continue;
         await tx.project.update({
           where: { id: record.id },
-          data: {
-            featured: project.featured,
-            isPublished: true,
-            order: project.order,
-            year: project.year,
-            liveUrl: project.liveUrl,
-            repoUrl: project.repoUrl,
-          },
+          data: projectScalars(project),
         });
         for (const [locale, content] of [
           [LOCALE_EN, project.en],
@@ -397,12 +476,14 @@ export async function applyPlan(
       // ---- 4. Articles ------------------------------------------------------------------------
       const articleIdBySlug = new Map<string, string>();
       for (const record of acting(plan, 'Article', 'create')) {
-        const article = articleByCanonicalSlug.get(record.naturalKey);
-        if (!article) continue;
+        const article = mustFind(
+          articleByCanonicalSlug.get(record.naturalKey),
+          'Article',
+          record.naturalKey,
+        );
         const created = await tx.article.create({
           data: {
-            status: ContentStatus.PUBLISHED,
-            publishAt: article.publishAt,
+            ...articleScalars(article),
             categoryId: mustResolve(
               categoryIdBySlug,
               article.categorySlug,
@@ -425,13 +506,16 @@ export async function applyPlan(
         articleIdBySlug.set(record.naturalKey, created.id);
       }
       for (const record of acting(plan, 'Article', 'update')) {
-        const article = articleByCanonicalSlug.get(record.naturalKey);
-        if (!article || !record.id) continue;
+        const article = mustFind(
+          articleByCanonicalSlug.get(record.naturalKey),
+          'Article',
+          record.naturalKey,
+        );
+        if (!record.id) continue;
         await tx.article.update({
           where: { id: record.id },
           data: {
-            status: ContentStatus.PUBLISHED,
-            publishAt: article.publishAt,
+            ...articleScalars(article),
             categoryId: mustResolve(
               categoryIdBySlug,
               article.categorySlug,
@@ -495,18 +579,10 @@ export async function applyPlan(
         }
       }
 
-      // ---- 5. Scoped deletes, FK-safe order ---------------------------------------------------
-      // Articles before the categories and tags they reference; projects and experiences cascade
-      // into their own children only. Every id below came from the plan, so the delete is scoped by
-      // natural key — there is no `deleteMany` over a whole table anywhere in this file.
-      for (const record of acting(plan, 'Article', 'delete'))
-        if (record.id) await tx.article.delete({ where: { id: record.id } });
-      for (const record of acting(plan, 'Project', 'delete'))
-        if (record.id) await tx.project.delete({ where: { id: record.id } });
-      for (const record of acting(plan, 'Experience', 'delete'))
-        if (record.id) await tx.experience.delete({ where: { id: record.id } });
-      for (const record of acting(plan, 'Tag', 'delete'))
-        if (record.id) await tx.tag.delete({ where: { id: record.id } });
+      // ---- 5. Stale categories, last ----------------------------------------------------------
+      // `Article.category` is onDelete: Restrict, so a stale category can only go once every
+      // surviving article has been repointed — which step 4 just did. This is the one delete that
+      // cannot move earlier; the rest ran in step 0 (see there for why).
       for (const record of acting(plan, 'Category', 'delete'))
         if (record.id) await tx.category.delete({ where: { id: record.id } });
 
@@ -517,7 +593,10 @@ export async function applyPlan(
       let settingsId = settingsRecord?.id;
       if (!settingsId) {
         const created = await tx.siteSettings.create({
-          data: { analyticsEnabled: false, ...toSettingsData() },
+          // Only governed scalars. `analyticsEnabled` was here and is operator-owned
+          // (doc 09 §6.3) — it equalled the schema default, so it changed nothing, but writing an
+          // operator-owned column at all contradicts the guarantee.
+          data: toSettingsData(),
           select: { id: true },
         });
         settingsId = created.id;
@@ -532,6 +611,16 @@ export async function applyPlan(
       // (doc 09 §6.3).
       for (const translation of SETTINGS_TRANSLATIONS) {
         const { locale, ...governed } = translation;
+        // Gated on the plan's action. An unconditional upsert rewrote both rows on every run that
+        // changed anything at all, and `SiteSettingsTranslation.updatedAt` is `@updatedAt` — so a
+        // row the report listed `unchanged` still had its timestamp moved. The write must match
+        // what the report promised, or the report is not a preview.
+        const planned = plan.records.find(
+          (record) =>
+            record.model === 'SiteSettingsTranslation' &&
+            record.naturalKey === locale,
+        );
+        if (planned && planned.action === 'unchanged') continue;
         await tx.siteSettingsTranslation.upsert({
           where: {
             siteSettingsId_locale: { siteSettingsId: settingsId, locale },
@@ -540,25 +629,20 @@ export async function applyPlan(
           update: { ...governed },
         });
       }
+      protectedCountsAfter = await countProtected(tx);
+      assertProtectedCountsUnchanged(
+        protectedCountsBefore,
+        protectedCountsAfter,
+      );
     },
-    { timeout: 120_000, maxWait: 20_000 },
+    {
+      timeout: 120_000,
+      maxWait: 20_000,
+      // Required by the protected-count check above: under READ COMMITTED the two reads could
+      // observe a concurrent commit and fail a correct run.
+      isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
+    },
   );
-
-  const protectedCountsAfter = await countProtected(prisma);
-  const drifted = Object.entries(plan.protectedCounts).filter(
-    ([model, before]) => protectedCountsAfter[model] !== before,
-  );
-  if (drifted.length)
-    throw new Error(
-      `Operational record counts changed during synchronization: ` +
-        drifted
-          .map(
-            ([model, before]) =>
-              `${model} ${before} → ${protectedCountsAfter[model]}`,
-          )
-          .join(', ') +
-        `. This must never happen; investigate before running again.`,
-    );
 
   return {
     applied: {
@@ -575,7 +659,7 @@ export async function applyPlan(
         0,
       ),
     },
-    protectedCountsBefore: plan.protectedCounts,
+    protectedCountsBefore,
     protectedCountsAfter,
   };
 }
@@ -620,6 +704,22 @@ function toSettingsData(): GovernedSettingsData {
     contactPhone: SETTINGS_SCALARS.contactPhone,
     whatsappPhone: SETTINGS_SCALARS.whatsappPhone,
   };
+}
+
+/**
+ * A canonical entry named by the plan must exist when apply runs. Previously each branch did
+ * `continue` on a miss, so a Project or Article the report listed as created could silently not be
+ * created while the CLI still printed it as applied. Cannot happen today — plan and apply share one
+ * in-process dataset — but a tool whose output goes on a release record must never report intent
+ * as outcome, and inside a transaction a throw is free: the whole run rolls back.
+ */
+function mustFind<T>(value: T | undefined, model: string, key: string): T {
+  if (value === undefined)
+    throw new Error(
+      `Plan names ${model} "${key}", which is not in the canonical dataset. The transaction is ` +
+        `rolled back.`,
+    );
+  return value;
 }
 
 function mustResolve(

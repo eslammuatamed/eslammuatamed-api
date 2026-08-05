@@ -25,6 +25,11 @@ import {
   PROTECTED_MODELS,
 } from './allowlist';
 import type { ProtectedModel } from './allowlist';
+import {
+  articleScalars,
+  experienceScalars,
+  projectScalars,
+} from './governed-scalars';
 import type { ReadOnlyDb } from './read-client';
 import type {
   CascadeDisclosure,
@@ -89,6 +94,16 @@ export const EXPERIENCE_TRANSLATION_FIELDS = [
 ] as const;
 
 /**
+ * The subset of `EXPERIENCE_TRANSLATION_FIELDS` that forms the natural key. Diffing these on the
+ * ENGLISH side would be meaningless — the row was found BY them — but they are still diffed and
+ * written on the Arabic side, where they are ordinary content.
+ */
+export const EXPERIENCE_NATURAL_KEY_FIELDS: readonly string[] = [
+  'role',
+  'company',
+];
+
+/**
  * Key-order-independent structural comparison. `profileLinks` is a JSONB column, and PostgreSQL
  * returns object keys in whatever order they were written — comparing raw `JSON.stringify` output
  * would report a spurious update forever on a database whose rows were written by an older key
@@ -137,6 +152,28 @@ function allFields(
   return pairs.map(([field, after]) => ({ field, before: undefined, after }));
 }
 
+/**
+ * Diff a governed-scalar object produced by `governed-scalars.ts` against the stored row. The
+ * builder therefore diffs THE VERY OBJECT apply writes — there is no second field list that could
+ * drift out of step with it.
+ */
+function diffScalars(
+  canonical: Readonly<Record<string, unknown>>,
+  stored: Readonly<Record<string, unknown>>,
+): FieldChange[] {
+  return diffFields(
+    Object.entries(canonical).map(
+      ([field, after]) => [field, stored[field], after] as const,
+    ),
+  );
+}
+
+function allScalars(
+  canonical: Readonly<Record<string, unknown>>,
+): FieldChange[] {
+  return allFields(Object.entries(canonical));
+}
+
 function relationDiff(
   model: RelationChange['model'],
   owner: string,
@@ -162,6 +199,85 @@ function duplicates(keys: readonly string[]): string[] {
     seen.add(key);
   }
   return [...dupes].sort();
+}
+
+interface SlugHolder {
+  readonly id: string;
+  readonly slugs: readonly { readonly locale: string; readonly slug: string }[];
+}
+
+interface SlugSubject {
+  readonly model: string;
+  /** Canonical entries that will be created or updated, with the row they target (null = create). */
+  readonly canonical: readonly {
+    readonly key: string;
+    readonly rowId: string | null;
+    readonly slugs: readonly {
+      readonly locale: string;
+      readonly slug: string;
+    }[];
+  }[];
+  readonly rows: readonly SlugHolder[];
+  /** Rows the apply path removes BEFORE it writes, so their slugs are free for reuse. */
+  readonly freedBeforeWrites: ReadonlySet<string>;
+}
+
+/**
+ * Every translation table carries `@@unique([locale, slug])`, and Postgres does not defer it. Apply
+ * deletes stale rows before writing (see `apply-plan.ts` step 0), which frees the ordinary
+ * rename case — but two cases remain: a slug still held by a row that is NOT deleted first
+ * (categories, which must be deleted last), and two canonical entries swapping slugs with each
+ * other. Both would abort the transaction on a raw 23505 AFTER the dry-run called the plan
+ * applicable.
+ *
+ * That is a dry-run FIDELITY defect rather than a destructive one — the transaction rolls back and
+ * nothing is lost — but "the preview predicts the apply" is the property that makes this tool
+ * safe to authorize, so the collision is detected here and refused with an explanation instead of
+ * surfacing as a Postgres error code.
+ */
+function detectSlugCollisions(subjects: readonly SlugSubject[]): string[] {
+  const problems: string[] = [];
+  for (const subject of subjects) {
+    const claimed = new Map<string, string>();
+    for (const entry of subject.canonical)
+      for (const { locale, slug } of entry.slugs) {
+        const pair = `${locale}:${slug}`;
+
+        // Two canonical entries claiming one (locale, slug). The English side is already caught by
+        // the duplicate-natural-key check; this is what catches the ARABIC side, which that check
+        // never looked at.
+        const rival = claimed.get(pair);
+        if (rival && rival !== entry.key) {
+          problems.push(
+            `Canonical ${subject.model} entries "${rival}" and "${entry.key}" both claim the ` +
+              `${locale} slug "${slug}". \`@@unique([locale, slug])\` allows only one.`,
+          );
+          continue;
+        }
+        claimed.set(pair, entry.key);
+
+        // ALL holders, not just the first: the unique index means a real database has at most
+        // one, but scanning only the first would let the target row itself mask a second holder
+        // and silently skip the check.
+        for (const holder of subject.rows.filter((row) =>
+          row.slugs.some(
+            (candidate) =>
+              candidate.locale === locale && candidate.slug === slug,
+          ),
+        )) {
+          if (holder.id === entry.rowId) continue;
+          if (subject.freedBeforeWrites.has(holder.id)) continue;
+
+          problems.push(
+            `${subject.model} "${entry.key}" needs the ${locale} slug "${slug}", but row ` +
+              `${holder.id} still holds it and this plan does not remove it first. The write ` +
+              `would violate \`@@unique([locale, slug])\` and roll the whole run back. Free the ` +
+              `slug in a separate step, then synchronize.`,
+          );
+        }
+      }
+  }
+  return problems;
 }
 
 function englishOf<T extends { locale: string }>(
@@ -519,15 +635,13 @@ export async function buildPlan(db: ReadOnlyDb): Promise<Plan> {
         action: 'create',
         naturalKey: key,
         label: `${experience.en.role} — ${experience.en.company}`,
-        fields: allFields([
-          ['startDate', experience.startDate],
-          ['endDate', experience.endDate],
-          ['isCurrent', experience.isCurrent],
-          ['employmentType', experience.employmentType],
-          ['order', experience.order],
-          ['role.en', experience.en.role],
-          ['company.en', experience.en.company],
-        ]),
+        fields: [
+          ...allScalars(experienceScalars(experience)),
+          ...allFields([
+            ['role.en', experience.en.role],
+            ['company.en', experience.en.company],
+          ]),
+        ],
       });
       relations.push(
         relationDiff(
@@ -541,19 +655,34 @@ export async function buildPlan(db: ReadOnlyDb): Promise<Plan> {
     }
     const arabic = existing.translations.find((t) => t.locale === LOCALE_AR);
     const english = englishOf(existing.translations);
-    const fields = diffFields([
-      ['startDate', existing.startDate, experience.startDate],
-      ['endDate', existing.endDate, experience.endDate],
-      ['isCurrent', existing.isCurrent, experience.isCurrent],
-      ['employmentType', existing.employmentType, experience.employmentType],
-      ['order', existing.order, experience.order],
-      ['location.en', english?.location ?? null, experience.en.location],
-      ['impact.en', english?.impact ?? null, experience.en.impact],
-      ['role.ar', arabic?.role ?? null, experience.ar.role],
-      ['company.ar', arabic?.company ?? null, experience.ar.company],
-      ['location.ar', arabic?.location ?? null, experience.ar.location],
-      ['impact.ar', arabic?.impact ?? null, experience.ar.impact],
-    ]);
+    const fields = [
+      ...diffScalars(experienceScalars(experience), existing),
+      // EN omits `role`/`company`: they ARE the natural key, so the row was found by them and they
+      // cannot differ. Every other governed translation field is mapped from the shared constant,
+      // so the constant is load-bearing here rather than merely exported for a test to look at.
+      ...diffFields(
+        EXPERIENCE_TRANSLATION_FIELDS.filter(
+          (field) => !EXPERIENCE_NATURAL_KEY_FIELDS.includes(field),
+        ).map(
+          (field) =>
+            [
+              `${field}.en`,
+              english?.[field] ?? null,
+              experience.en[field],
+            ] as const,
+        ),
+      ),
+      ...diffFields(
+        EXPERIENCE_TRANSLATION_FIELDS.map(
+          (field) =>
+            [
+              `${field}.ar`,
+              arabic?.[field] ?? null,
+              experience.ar[field],
+            ] as const,
+        ),
+      ),
+    ];
     records.push({
       model: 'Experience',
       action: fields.length ? 'update' : 'unchanged',
@@ -667,16 +796,13 @@ export async function buildPlan(db: ReadOnlyDb): Promise<Plan> {
         action: 'create',
         naturalKey: project.en.slug,
         label: project.en.title,
-        fields: allFields([
-          ['featured', project.featured],
-          ['isPublished', true],
-          ['order', project.order],
-          ['year', project.year],
-          ['liveUrl', project.liveUrl],
-          ['repoUrl', project.repoUrl],
-          ['title.en', project.en.title],
-          ['slug.ar', project.ar.slug],
-        ]),
+        fields: [
+          ...allScalars(projectScalars(project)),
+          ...allFields([
+            ['title.en', project.en.title],
+            ['slug.ar', project.ar.slug],
+          ]),
+        ],
       });
       relations.push(
         relationDiff(
@@ -690,23 +816,28 @@ export async function buildPlan(db: ReadOnlyDb): Promise<Plan> {
     }
     const english = englishOf(existing.translations);
     const arabic = existing.translations.find((t) => t.locale === LOCALE_AR);
-    const fields = diffFields([
-      ['featured', existing.featured, project.featured],
-      ['isPublished', existing.isPublished, true],
-      ['order', existing.order, project.order],
-      ['year', existing.year, project.year],
-      ['liveUrl', existing.liveUrl, project.liveUrl],
-      ['repoUrl', existing.repoUrl, project.repoUrl],
-      ...projectTranslationFields.map(
-        (field) =>
-          [`${field}.en`, english?.[field] ?? null, project.en[field]] as const,
-      ),
-      ['slug.ar', arabic?.slug ?? null, project.ar.slug],
-      ...projectTranslationFields.map(
-        (field) =>
-          [`${field}.ar`, arabic?.[field] ?? null, project.ar[field]] as const,
-      ),
-    ]);
+    const fields = [
+      ...diffScalars(projectScalars(project), existing),
+      ...diffFields([
+        ...projectTranslationFields.map(
+          (field) =>
+            [
+              `${field}.en`,
+              english?.[field] ?? null,
+              project.en[field],
+            ] as const,
+        ),
+        ['slug.ar', arabic?.slug ?? null, project.ar.slug],
+        ...projectTranslationFields.map(
+          (field) =>
+            [
+              `${field}.ar`,
+              arabic?.[field] ?? null,
+              project.ar[field],
+            ] as const,
+        ),
+      ]),
+    ];
     records.push({
       model: 'Project',
       action: fields.length ? 'update' : 'unchanged',
@@ -834,13 +965,14 @@ export async function buildPlan(db: ReadOnlyDb): Promise<Plan> {
         action: 'create',
         naturalKey: article.en.slug,
         label: article.en.title,
-        fields: allFields([
-          ['status', 'PUBLISHED'],
-          ['publishAt', article.publishAt],
-          ['category', article.categorySlug],
-          ['title.en', article.en.title],
-          ['slug.ar', article.ar.slug],
-        ]),
+        fields: [
+          ...allScalars(articleScalars(article)),
+          ...allFields([
+            ['category', article.categorySlug],
+            ['title.en', article.en.title],
+            ['slug.ar', article.ar.slug],
+          ]),
+        ],
       });
       relations.push(
         relationDiff('ArticleTag', article.en.slug, [], wantedTagSlugs),
@@ -852,20 +984,29 @@ export async function buildPlan(db: ReadOnlyDb): Promise<Plan> {
     const currentCategorySlug =
       [...categoryIdBySlug].find(([, id]) => id === existing.categoryId)?.[0] ??
       existing.categoryId;
-    const fields = diffFields([
-      ['status', existing.status, 'PUBLISHED'],
-      ['publishAt', existing.publishAt, article.publishAt],
-      ['category', currentCategorySlug, article.categorySlug],
-      ...articleTranslationFields.map(
-        (field) =>
-          [`${field}.en`, english?.[field] ?? null, article.en[field]] as const,
-      ),
-      ['slug.ar', arabic?.slug ?? null, article.ar.slug],
-      ...articleTranslationFields.map(
-        (field) =>
-          [`${field}.ar`, arabic?.[field] ?? null, article.ar[field]] as const,
-      ),
-    ]);
+    const fields = [
+      ...diffScalars(articleScalars(article), existing),
+      ...diffFields([
+        ['category', currentCategorySlug, article.categorySlug],
+        ...articleTranslationFields.map(
+          (field) =>
+            [
+              `${field}.en`,
+              english?.[field] ?? null,
+              article.en[field],
+            ] as const,
+        ),
+        ['slug.ar', arabic?.slug ?? null, article.ar.slug],
+        ...articleTranslationFields.map(
+          (field) =>
+            [
+              `${field}.ar`,
+              arabic?.[field] ?? null,
+              article.ar[field],
+            ] as const,
+        ),
+      ]),
+    ];
     records.push({
       model: 'Article',
       action: fields.length ? 'update' : 'unchanged',
@@ -1045,6 +1186,90 @@ export async function buildPlan(db: ReadOnlyDb): Promise<Plan> {
       fields,
     });
   }
+
+  // ---- Slug collisions ------------------------------------------------------------------------
+  const deletedIdsFor = (model: string): ReadonlySet<string> =>
+    new Set(
+      records
+        .filter(
+          (record) => record.model === model && record.action === 'delete',
+        )
+        .map((record) => record.id)
+        .filter((id): id is string => Boolean(id)),
+    );
+  const holdersOf = (
+    rows: Iterable<{
+      id: string;
+      translations: readonly { locale: string; slug: string }[];
+    }>,
+  ): SlugHolder[] =>
+    [...rows].map((row) => ({
+      id: row.id,
+      slugs: row.translations.map((translation) => ({
+        locale: translation.locale,
+        slug: translation.slug,
+      })),
+    }));
+
+  problems.push(
+    ...detectSlugCollisions([
+      {
+        model: 'Project',
+        canonical: PROJECTS.map((project) => ({
+          key: project.en.slug,
+          rowId: projectBySlug.get(project.en.slug)?.id ?? null,
+          slugs: [
+            { locale: LOCALE_EN, slug: project.en.slug },
+            { locale: LOCALE_AR, slug: project.ar.slug },
+          ],
+        })),
+        rows: holdersOf(projectBySlug.values()),
+        freedBeforeWrites: deletedIdsFor('Project'),
+      },
+      {
+        model: 'Article',
+        canonical: ARTICLES.map((article) => ({
+          key: article.en.slug,
+          rowId: articleBySlug.get(article.en.slug)?.id ?? null,
+          slugs: [
+            { locale: LOCALE_EN, slug: article.en.slug },
+            { locale: LOCALE_AR, slug: article.ar.slug },
+          ],
+        })),
+        rows: holdersOf(articleBySlug.values()),
+        freedBeforeWrites: deletedIdsFor('Article'),
+      },
+      {
+        model: 'Tag',
+        canonical: TAGS.map((tag) => ({
+          key: tag.en.slug,
+          rowId: tagBySlug.get(tag.en.slug)?.id ?? null,
+          slugs: [
+            { locale: LOCALE_EN, slug: tag.en.slug },
+            { locale: LOCALE_AR, slug: tag.ar.slug },
+          ],
+        })),
+        rows: holdersOf(tagBySlug.values()),
+        freedBeforeWrites: deletedIdsFor('Tag'),
+      },
+      {
+        // Categories are deleted LAST (Article.category is Restrict), so a stale category's slugs
+        // are NOT free when the canonical categories are written — hence the empty set rather than
+        // this model's delete list.
+        model: 'Category',
+        canonical: CATEGORIES.map((category) => ({
+          key: category.en.slug,
+          rowId: categoryBySlug.get(category.en.slug)?.id ?? null,
+          slugs: [
+            { locale: LOCALE_EN, slug: category.en.slug },
+            { locale: LOCALE_AR, slug: category.ar.slug },
+          ],
+        })),
+        rows: holdersOf(categoryBySlug.values()),
+        freedBeforeWrites: new Set<string>(),
+      },
+    ]),
+  );
 
   // ---- Allowlist self-check ------------------------------------------------------------------
   // Belt and braces: the builder should be structurally incapable of naming a non-governed model,

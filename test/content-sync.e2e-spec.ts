@@ -506,6 +506,49 @@ describe('stale content converges', () => {
   });
 });
 
+describe('slug reuse — the ordinary rename case', () => {
+  it('applies an English rename whose Arabic slug is unchanged', async () => {
+    await syncOnce();
+    const canonical = PROJECTS.find(
+      (project) => project.en.slug === 'samt-institution-website',
+    )!;
+    const { projectId } = await prisma.projectTranslation.findUniqueOrThrow({
+      where: {
+        locale_slug: { locale: 'en', slug: 'samt-institution-website' },
+      },
+      select: { projectId: true },
+    });
+    // Simulate the state BEFORE a rename lands: the stored row carries an old English slug and
+    // the canonical Arabic slug. The canonical dataset now names a different English slug, so the
+    // plan emits create + delete — and the create needs an Arabic slug the stale row still holds.
+    await prisma.projectTranslation.update({
+      where: { projectId_locale: { projectId, locale: 'en' } },
+      data: { slug: 'samt-under-its-old-name' },
+    });
+
+    const before = await plan();
+    expect(before.problems).toEqual([]);
+    expect(
+      before.records.find(
+        (record) =>
+          record.model === 'Project' &&
+          record.naturalKey === 'samt-under-its-old-name',
+      )?.action,
+    ).toBe('delete');
+
+    // Deletes run before writes, so this must NOT abort on @@unique([locale, slug]).
+    await syncOnce();
+
+    const arabic = await prisma.projectTranslation.findUniqueOrThrow({
+      where: { locale_slug: { locale: 'ar', slug: canonical.ar.slug } },
+      select: { project: { select: { year: true } } },
+    });
+    expect(arabic.project.year).toBe(2026);
+    expect(await prisma.project.count()).toBe(4);
+    expect(isNoOp(await plan())).toBe(true);
+  });
+});
+
 describe('operational data is protected', () => {
   it('preserves every protected record count across a full converging run', async () => {
     const before = {

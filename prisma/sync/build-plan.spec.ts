@@ -2,6 +2,7 @@ import { PROJECTS } from '../content/canonical/projects';
 import { SETTINGS_TRANSLATIONS } from '../content/canonical/site-settings';
 import { SKILLS } from '../content/canonical/skills';
 import { ARTICLES } from '../content/canonical/articles';
+import { CATEGORIES } from '../content/canonical/categories';
 import { EXPERIENCES } from '../content/canonical/experiences';
 import {
   ARTICLE_TRANSLATION_FIELDS,
@@ -549,6 +550,203 @@ describe('buildPlan', () => {
       ]);
       for (const record of plan.records)
         expect(Object.keys(plan.protectedCounts)).not.toContain(record.model);
+    });
+  });
+
+  describe('Date-valued fields', () => {
+    // Every stale-scalar test above mutates `year`, a number. Nothing exercised a Date, so the
+    // whole Date branch of the comparison was dead code as far as the suite was concerned:
+    // replacing it with a constant left all 75 tests green while every date field became
+    // permanently "unchanged" — a stale publishAt or an ended employment would never converge.
+    it('detects a stale Article publishAt', async () => {
+      const state = canonicalState();
+      state.articles[0]!.publishAt = new Date('1999-01-01T00:00:00.000Z');
+
+      const record = recordFor(
+        await planFor(state),
+        'Article',
+        ARTICLES[0]!.en.slug,
+      );
+
+      expect(record?.action).toBe('update');
+      expect(record?.fields.map((field) => field.field)).toContain('publishAt');
+    });
+
+    it('detects a stale Experience startDate', async () => {
+      const state = canonicalState();
+      state.experiences[0]!.startDate = new Date('1999-01-01T00:00:00.000Z');
+
+      const record = recordFor(
+        await planFor(state),
+        'Experience',
+        experienceKey(EXPERIENCES[0]!.en.company, EXPERIENCES[0]!.en.role),
+      );
+
+      expect(record?.action).toBe('update');
+      expect(record?.fields.map((field) => field.field)).toContain('startDate');
+    });
+
+    it('detects a role that has since ended (endDate null → a date)', async () => {
+      const state = canonicalState();
+      const current = EXPERIENCES.find((entry) => entry.endDate === null);
+      expect(current).toBeDefined();
+      const row = state.experiences.find(
+        (candidate) => candidate.endDate === null,
+      )!;
+      row.endDate = new Date('2026-01-01T00:00:00.000Z');
+
+      const record = recordFor(
+        await planFor(state),
+        'Experience',
+        experienceKey(current!.en.company, current!.en.role),
+      );
+
+      expect(record?.action).toBe('update');
+      expect(record?.fields).toContainEqual({
+        field: 'endDate',
+        before: new Date('2026-01-01T00:00:00.000Z'),
+        after: null,
+      });
+    });
+
+    it('treats two Date objects with the same instant as equal', async () => {
+      const state = canonicalState();
+      // A different object, same millisecond — a reference comparison would report a phantom
+      // update forever and the zero-change second run would be unreachable.
+      state.articles[0]!.publishAt = new Date(ARTICLES[0]!.publishAt.getTime());
+
+      expect(isNoOp(await planFor(state))).toBe(true);
+    });
+  });
+
+  describe('Experience', () => {
+    const firstKey = () =>
+      experienceKey(EXPERIENCES[0]!.en.company, EXPERIENCES[0]!.en.role);
+
+    it('detects a stale employmentType and isCurrent', async () => {
+      const state = canonicalState();
+      state.experiences[0]!.employmentType = 'CONTRACT';
+      state.experiences[0]!.isCurrent = !EXPERIENCES[0]!.isCurrent;
+
+      const record = recordFor(await planFor(state), 'Experience', firstKey());
+
+      expect(record?.fields.map((field) => field.field).sort()).toEqual([
+        'employmentType',
+        'isCurrent',
+      ]);
+    });
+
+    it('detects a stale Arabic role — the natural key is ENGLISH only', async () => {
+      const state = canonicalState();
+      (
+        state.experiences[0]!.translations as { locale: string; role: string }[]
+      )[1]!.role = 'دور قديم';
+
+      const record = recordFor(await planFor(state), 'Experience', firstKey());
+
+      expect(record?.action).toBe('update');
+      expect(record?.fields.map((field) => field.field)).toContain('role.ar');
+    });
+
+    it('plans a delete for an Experience absent from the canonical dataset', async () => {
+      const state = canonicalState();
+      state.experiences.push({
+        id: 'experience-stale',
+        startDate: new Date('2010-01-01T00:00:00.000Z'),
+        endDate: new Date('2011-01-01T00:00:00.000Z'),
+        isCurrent: false,
+        employmentType: 'FULL_TIME',
+        order: 99,
+        translations: [
+          {
+            locale: 'en',
+            role: 'Webmaster',
+            company: 'Long Gone Ltd',
+            location: 'Egypt',
+            impact: '- x',
+          },
+        ],
+        technologies: [],
+      });
+
+      const record = recordFor(
+        await planFor(state),
+        'Experience',
+        experienceKey('Long Gone Ltd', 'Webmaster'),
+      );
+
+      expect(record?.action).toBe('delete');
+      expect(record?.id).toBe('experience-stale');
+    });
+
+    it('replaces a drifted ExperienceTechnology set', async () => {
+      const state = canonicalState();
+      state.experiences[0]!.technologies = [{ skillId: 'skill-laravel' }];
+
+      const relation = (await planFor(state)).relations.find(
+        (candidate) =>
+          candidate.model === 'ExperienceTechnology' &&
+          candidate.owner === firstKey(),
+      );
+
+      expect(relation?.removed).toEqual(['laravel']);
+      expect(relation?.added).toEqual([...EXPERIENCES[0]!.techKeys].sort());
+    });
+  });
+
+  describe('slug collisions are refused by the dry-run, not by Postgres', () => {
+    it('refuses when a surviving row still holds a slug the plan needs', async () => {
+      const state = canonicalState();
+      // The canonical category currently carries a DIFFERENT Arabic slug, and a non-canonical
+      // category holds the one it needs. Categories are deleted LAST (Article.category is
+      // Restrict), so the squatter is still there when the write happens. Note the stored state is
+      // one Postgres would accept — exactly one row holds each (locale, slug).
+      (
+        state.categories[0]!.translations as { locale: string; slug: string }[]
+      )[1]!.slug = 'a-superseded-arabic-slug';
+      state.categories.push({
+        id: 'category-squatter',
+        translations: [
+          { locale: 'en', name: 'Squatter', slug: 'squatter' },
+          { locale: 'ar', name: 'محتل', slug: CATEGORIES[0]!.ar.slug },
+        ],
+        articles: [],
+      });
+
+      const plan = await planFor(state);
+
+      expect(plan.problems.join('\n')).toMatch(
+        /still holds it and this plan does not remove it first/,
+      );
+    });
+
+    it('does NOT refuse when the holder is deleted before the writes', async () => {
+      const state = canonicalState();
+      // A stale PROJECT holding a canonical Arabic slug. Projects are deleted in step 0, before
+      // any write, so the slug is free by the time it is needed — refusing here would be a false
+      // refusal of the ordinary rename case.
+      state.projects.push({
+        id: 'project-old-name',
+        featured: false,
+        isPublished: true,
+        order: 98,
+        year: 2019,
+        liveUrl: null,
+        repoUrl: null,
+        translations: [
+          { locale: 'en', slug: 'an-old-en-slug', title: 'Old' },
+          { locale: 'ar', slug: PROJECTS[0]!.ar.slug, title: 'قديم' },
+        ],
+        technologies: [],
+        gallery: [],
+      });
+
+      const plan = await planFor(state);
+
+      expect(plan.problems).toEqual([]);
+      expect(recordFor(plan, 'Project', 'an-old-en-slug')?.action).toBe(
+        'delete',
+      );
     });
   });
 
