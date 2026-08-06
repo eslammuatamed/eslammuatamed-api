@@ -49,6 +49,7 @@ export class CreateExperienceDto {
   @IsDateString()
   readonly startDate!: string;
   @ApiPropertyOptional({
+    type: String,
     example: '2024-06-30',
     format: 'date',
     nullable: true,

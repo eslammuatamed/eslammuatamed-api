@@ -132,7 +132,15 @@ export class SettingsTranslationDto {
   // already governed by the readiness state (`portrait-alt-missing`, D18-7), so forcing it here
   // would make an incomplete draft unsaveable. The Dashboard is where "both locales required" is
   // enforced, and that split is deliberate.
+  // `type: String` is REQUIRED, not decorative. Swagger reads the emitted TypeScript design type,
+  // and a `string | null` union erases to `Object` — so without it this field exported as
+  // `{"type":"object"}` while every sibling nullable string here exported as `{"type":"string"}`.
+  // The runtime was always correct (`@IsString()`); only the contract lied, and the contract is the
+  // only interface the Web has. `openapi-typescript` turned that into
+  // `portraitAlt?: Record<string, never> | null`, which no caller can assign an alt string to — and
+  // the Web is forbidden from handwriting a correction, so the defect had to be fixed at the source.
   @ApiPropertyOptional({
+    type: String,
     example: 'Eslam Muatamed, smiling, in front of a bookshelf.',
     description:
       'Localized alt text for the About portrait in THIS locale, or null to clear. Per-usage: it overrides the asset-level MediaAssetAlt default.',

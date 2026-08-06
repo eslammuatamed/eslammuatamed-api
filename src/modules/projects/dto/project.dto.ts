@@ -161,6 +161,7 @@ export class ProjectTranslationDto {
 
 export class ProjectGalleryCaptionDto {
   @ApiPropertyOptional({
+    type: String,
     nullable: true,
     example: 'Admin dashboard overview.',
   })
@@ -242,6 +243,7 @@ export class CreateProjectDto {
   readonly order!: number;
 
   @ApiPropertyOptional({
+    type: String,
     nullable: true,
     format: 'uri',
     example: 'https://example.com',
@@ -251,6 +253,7 @@ export class CreateProjectDto {
   readonly liveUrl?: string | null;
 
   @ApiPropertyOptional({
+    type: String,
     nullable: true,
     format: 'uri',
     example: 'https://github.com/eslammuatamed/example',
@@ -259,7 +262,12 @@ export class CreateProjectDto {
   @IsUrl({ require_protocol: true })
   readonly repoUrl?: string | null;
 
-  @ApiPropertyOptional({ nullable: true, example: 2026, minimum: 0 })
+  @ApiPropertyOptional({
+    type: Number,
+    nullable: true,
+    example: 2026,
+    minimum: 0,
+  })
   @IsOptional()
   @IsInt()
   @Min(0)

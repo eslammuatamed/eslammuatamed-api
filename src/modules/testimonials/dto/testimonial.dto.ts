@@ -37,7 +37,12 @@ export class TestimonialTranslationDto {
 }
 
 export class CreateTestimonialDto {
-  @ApiPropertyOptional({ format: 'uuid', nullable: true, example: '8b4d...' })
+  @ApiPropertyOptional({
+    type: String,
+    format: 'uuid',
+    nullable: true,
+    example: '8b4d...',
+  })
   @IsOptional()
   @IsUUID()
   readonly avatarId?: string | null;
