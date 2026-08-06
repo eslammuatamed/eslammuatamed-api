@@ -45,12 +45,17 @@ export function ApiOkEnvelope<TModel extends Type<unknown>>(
 }
 
 // Documents the `{ data: <model>[], meta }` envelope (D10-3) for a paginated 200 response.
+//
+// `options.meta` documents a WIDENED meta for endpoints that carry list-scoped data beyond
+// pagination (`/projects` → facets). It must extend `PageMeta`, which the caller's own type
+// declaration enforces; passing it here only changes which schema the contract points at.
 export function ApiOkPaginated<TModel extends Type<unknown>>(
   model: TModel,
-  options?: { description?: string },
+  options?: { description?: string; meta?: Type<PageMeta> },
 ): MethodDecorator & ClassDecorator {
+  const meta = options?.meta ?? PageMeta;
   return applyDecorators(
-    ApiExtraModels(model, PageMeta),
+    ApiExtraModels(model, meta),
     ApiOkResponse({
       description: options?.description,
       schema: {
@@ -58,7 +63,7 @@ export function ApiOkPaginated<TModel extends Type<unknown>>(
         required: ['data', 'meta'],
         properties: {
           data: { type: 'array', items: { $ref: getSchemaPath(model) } },
-          meta: { $ref: getSchemaPath(PageMeta) },
+          meta: { $ref: getSchemaPath(meta) },
         },
       },
     }),

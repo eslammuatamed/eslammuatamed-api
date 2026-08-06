@@ -3,7 +3,7 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, SkillGroup } from '@prisma/client';
 import {
   buildPageMeta,
   PaginatedResult,
@@ -27,7 +27,9 @@ import {
   AdminProjectGalleryItemEntity,
   AdminProjectGalleryTranslationEntity,
   AdminProjectTranslationEntity,
+  ProjectListMeta,
   ProjectTechnologyEntity,
+  ProjectTechnologyFacetEntity,
   PublicProjectDetailEntity,
   PublicProjectListItemEntity,
 } from './entities/project.entities';
@@ -87,10 +89,10 @@ export class ProjectsService {
 
   async listPublic(
     query: ProjectListQueryDto,
-  ): Promise<PaginatedResult<PublicProjectListItemEntity>> {
+  ): Promise<PaginatedResult<PublicProjectListItemEntity, ProjectListMeta>> {
     await this.locales.assertEnabled(query.locale);
     const where = buildPublicWhere(query);
-    const [rows, total] = await this.prisma.$transaction([
+    const [rows, total, facets] = await this.prisma.$transaction([
       this.prisma.project.findMany({
         where,
         include: PUBLIC_INCLUDE(query.locale),
@@ -99,11 +101,17 @@ export class ProjectsService {
         take: query.take,
       }),
       this.prisma.project.count({ where }),
+      // Facets join the SAME transaction as the page: read separately and a project published
+      // between the two queries yields a chip whose count disagrees with the list it filters.
+      facetQuery(this.prisma, query.locale),
     ]);
 
     return new PaginatedResult(
       rows.map((row) => this.resolveListItem(row, query.locale)),
-      buildPageMeta(query.page, query.perPage, total),
+      {
+        ...buildPageMeta(query.page, query.perPage, total),
+        facets: toFacets(facets),
+      },
     );
   }
 
@@ -405,12 +413,115 @@ export class ProjectsService {
   }
 }
 
+// What "a project the public can reach in this locale" means — the SINGLE definition, deliberately
+// extracted (D10-19).
+//
+// The listing and the facet query MUST agree on this or the filter lies: a facet computed over a
+// wider set than the listing offers a chip that then returns "no projects", and a narrower one
+// hides a technology that does have work behind it. Coupling them by CONSTRUCTION rather than by
+// two predicates that merely happen to match today is what makes "every rendered facet returns at
+// least one published project" a structural property instead of a passing test.
+export function publishedProjectScope(
+  locale: string,
+): Prisma.ProjectWhereInput {
+  return { isPublished: true, translations: { some: { locale } } };
+}
+
+// The taxonomy groups the Projects filter may offer, and the only place that policy is stated.
+//
+// `DELIVERY` is excluded because those are ways of working, not things a project is "built with" —
+// filtering case studies by "Testing" or "Deployment" answers no question a visitor has.
+// `LANGUAGE` is excluded by the same instruction.
+//
+// `LANGUAGE` is excluded DELIBERATELY, and the owner confirmed it on 2026-08-06 with the live
+// consequence in front of them: `typescript` sits on 4 of 4 published projects — the most-used
+// technology on the site — and is still excluded. Against live Production this rule takes the filter
+// from 18 options to 4 (`vue`, `nuxt`, `tailwind-css`, `nestjs`).
+//
+// No one-off exception is granted for a language merely because every project uses it: a filter
+// option that matches everything separates nothing, and "used a lot" is not the same question as
+// "what is this built with". Admitting Languages is a separate, explicit taxonomy and UX decision,
+// not an edit to this line.
+//
+// Widening this constant is still one line — but `projects.e2e-spec.ts` asserts the LANGUAGE
+// exclusion against a fixture that every other rule would admit, so the change cannot happen
+// silently.
+export const FACET_GROUPS = [SkillGroup.FRONTEND, SkillGroup.BACKEND] as const;
+
+// Storage taxonomy → the two buckets the filter renders. Exhaustive over FACET_GROUPS by type.
+const FACET_GROUP_NAMES: Record<
+  (typeof FACET_GROUPS)[number],
+  'frontend' | 'backend'
+> = {
+  [SkillGroup.FRONTEND]: 'frontend',
+  [SkillGroup.BACKEND]: 'backend',
+};
+
+// Every eligible facet, computed over the WHOLE published set for this locale.
+//
+// Three filters, each load-bearing and each independently regression-tested:
+//   1. `group in FACET_GROUPS`  — drops Delivery & Quality entries and languages.
+//   2. `isPublic`               — a skill retired from the public taxonomy keeps its rows (it is
+//                                 still referenced by projects and experiences) but must not be
+//                                 offered as a filter; visibility is a flag, not a deletion.
+//   3. `projectLinks: some(...)`— at least one project in `publishedProjectScope`. This is what
+//                                 eliminates zero-project options; the count below reuses the very
+//                                 same predicate, so a returned facet cannot have count 0.
+// Plus `translations: some({ locale })` — a facet with no label in the requested locale is omitted
+// rather than shown in the other language (D10-6: no cross-locale fallback).
+//
+// NOT filtered by the active `?technology=`: doing so would collapse the list to the selected chip
+// and make switching filters impossible. Facets describe what is available, not what is selected.
+function facetQuery(prisma: PrismaService, locale: string) {
+  return prisma.skill.findMany({
+    where: {
+      group: { in: [...FACET_GROUPS] },
+      isPublic: true,
+      translations: { some: { locale } },
+      projectLinks: { some: { project: publishedProjectScope(locale) } },
+    },
+    select: {
+      slug: true,
+      group: true,
+      translations: { where: { locale }, select: { label: true } },
+      _count: {
+        select: {
+          // Same predicate as the `where` above — the count and the existence test cannot drift.
+          projectLinks: { where: { project: publishedProjectScope(locale) } },
+        },
+      },
+    },
+    // Presentation order comes from the taxonomy, so chips read the same here as everywhere else.
+    orderBy: [{ group: 'asc' }, { order: 'asc' }, { slug: 'asc' }],
+  });
+}
+
+type FacetRow = Awaited<ReturnType<typeof facetQuery>>[number];
+
+function toFacets(rows: FacetRow[]): ProjectTechnologyFacetEntity[] {
+  return rows.flatMap((row) => {
+    const label = row.translations[0]?.label;
+    const group = FACET_GROUP_NAMES[row.group as (typeof FACET_GROUPS)[number]];
+    // Both are guaranteed by the query's own filters. Dropping rather than asserting keeps a
+    // future taxonomy change from turning a contract violation into a 500 — the facet simply does
+    // not appear, which is the same degradation as a missing translation.
+    //
+    // NOTE: this makes the group rule enforced TWICE (query `where` + this lookup), which a
+    // mutation run confirmed: deleting the `where` clause alone changes no observable behaviour.
+    // That redundancy is deliberate defence in depth, and it is not a hole — the eligible set is
+    // `FACET_GROUPS`, `FACET_GROUP_NAMES` is typed as a total map over it (so widening the policy
+    // without widening the map is a compile error), and a mutation that widens BOTH is caught by
+    // the Delivery & Quality regression test.
+    if (!label || !group) return [];
+    return [{ slug: row.slug, label, group, count: row._count.projectLinks }];
+  });
+}
+
 function buildPublicWhere(
   query: ProjectListQueryDto,
 ): Prisma.ProjectWhereInput {
   return {
-    isPublished: true,
-    translations: { some: { locale: query.locale } },
+    ...publishedProjectScope(query.locale),
     ...(query.technology
       ? {
           technologies: {
