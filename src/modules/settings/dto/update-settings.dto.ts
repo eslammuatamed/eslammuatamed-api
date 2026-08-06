@@ -122,6 +122,27 @@ export class SettingsTranslationDto {
   @IsString()
   @MaxLength(300)
   readonly currentFocus?: string;
+
+  // PER-USAGE alt for the About portrait (D09-22). It belongs to the USAGE, not to the asset:
+  // `MediaAssetAlt` is library-level default metadata, and a reusable asset can need a different
+  // description in each context, so a consuming relation that defines its own alt owns the
+  // published accessibility text and takes precedence over the default.
+  //
+  // `null` clears it. The API does NOT require an alt when a portrait is set — publication is
+  // already governed by the readiness state (`portrait-alt-missing`, D18-7), so forcing it here
+  // would make an incomplete draft unsaveable. The Dashboard is where "both locales required" is
+  // enforced, and that split is deliberate.
+  @ApiPropertyOptional({
+    example: 'Eslam Muatamed, smiling, in front of a bookshelf.',
+    description:
+      'Localized alt text for the About portrait in THIS locale, or null to clear. Per-usage: it overrides the asset-level MediaAssetAlt default.',
+    nullable: true,
+  })
+  @IsOptional()
+  @ValidateIf((dto: SettingsTranslationDto) => dto.portraitAlt !== null)
+  @IsString()
+  @MaxLength(300)
+  readonly portraitAlt?: string | null;
 }
 
 // Partial update (D10-2: PATCH is the only update verb). Every field is optional; only those

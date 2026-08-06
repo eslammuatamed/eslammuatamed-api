@@ -13,6 +13,7 @@ import {
 } from '../../common/swagger/api-problem-response';
 import { ProjectListQueryDto } from './dto/project-query.dto';
 import {
+  ProjectListMeta,
   PublicProjectDetailEntity,
   PublicProjectListItemEntity,
 } from './entities/project.entities';
@@ -29,12 +30,14 @@ export class ProjectsController {
     summary: 'List published projects, resolved and filtered by locale.',
   })
   @ApiOkPaginated(PublicProjectListItemEntity, {
-    description: 'Featured-first paginated published projects.',
+    description:
+      'Featured-first paginated published projects, plus the technology facets the filter should offer (D10-19).',
+    meta: ProjectListMeta,
   })
   @ApiPublicReadErrorResponses()
   list(
     @Query() query: ProjectListQueryDto,
-  ): Promise<PaginatedResult<PublicProjectListItemEntity>> {
+  ): Promise<PaginatedResult<PublicProjectListItemEntity, ProjectListMeta>> {
     return this.projects.listPublic(query);
   }
 

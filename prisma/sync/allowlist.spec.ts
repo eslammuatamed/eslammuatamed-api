@@ -16,6 +16,7 @@ import {
   GOVERNED_MODELS,
   GOVERNED_SETTINGS_SCALARS,
   GOVERNED_SETTINGS_TRANSLATION_FIELDS,
+  OPERATOR_OWNED_SETTINGS_TRANSLATION_FIELDS,
   OPERATOR_OWNED_SETTINGS_SCALARS,
   PROTECTED_MODELS,
 } from './allowlist';
@@ -143,12 +144,25 @@ describe('SiteSettings field partition', () => {
       'localeRef',
     ]);
     const governed = new Set<string>(GOVERNED_SETTINGS_TRANSLATION_FIELDS);
-
-    const ungoverned = fieldsOfModel('SiteSettingsTranslation').filter(
-      (field) => !structural.has(field) && !governed.has(field),
+    const operatorOwned = new Set<string>(
+      OPERATOR_OWNED_SETTINGS_TRANSLATION_FIELDS,
     );
 
-    expect(ungoverned).toEqual([]);
+    // Every column must be CLASSIFIED — governed or operator-owned. An unclassified one is the
+    // hazard this guard exists for, so a new column fails here until someone decides which it is.
+    const unclassified = fieldsOfModel('SiteSettingsTranslation').filter(
+      (field) =>
+        !structural.has(field) &&
+        !governed.has(field) &&
+        !operatorOwned.has(field),
+    );
+
+    expect(unclassified).toEqual([]);
+
+    // …and the two lists must not overlap, or a field would be both synced and operator-owned.
+    expect([...operatorOwned].filter((field) => governed.has(field))).toEqual(
+      [],
+    );
   });
 
   it('writes exactly the governed translation fields — no more, no less', () => {
