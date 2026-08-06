@@ -7193,7 +7193,7 @@
             "example": "Building bilingual product platforms."
           },
           "portraitAlt": {
-            "type": "object",
+            "type": "string",
             "example": "Eslam Muatamed, smiling, in front of a bookshelf.",
             "description": "Localized alt text for the About portrait in THIS locale, or null to clear. Per-usage: it overrides the asset-level MediaAssetAlt default.",
             "nullable": true
