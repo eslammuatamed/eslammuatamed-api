@@ -1,4 +1,5 @@
 import { ApiExtraModels, ApiProperty, getSchemaPath } from '@nestjs/swagger';
+import { PageMeta } from '../../../common/pagination/page-meta';
 import { PublicMediaImageDescriptor } from '../../media/entities/media-descriptor.entity';
 
 export class ProjectTechnologyEntity {
@@ -13,6 +14,49 @@ export class ProjectTechnologyEntity {
 
   @ApiProperty({ example: 'NestJS' })
   readonly label!: string;
+}
+
+// One selectable option in the `/projects` technology filter (D10-19).
+//
+// A FACET, not a skill: it exists only because at least one published project in the requested
+// locale actually uses it. That is the whole point of the type — the filter used to be built from
+// the global Skills registry, which offered options that match nothing (a taxonomy entry is not
+// evidence of a project) and options that are not technologies at all.
+export class ProjectTechnologyFacetEntity {
+  @ApiProperty({ example: 'nestjs', pattern: '^[a-z0-9]+(-[a-z0-9]+)*$' })
+  readonly slug!: string;
+
+  @ApiProperty({
+    example: 'NestJS',
+    description: 'Localized label for the requested locale. Display only.',
+  })
+  readonly label!: string;
+
+  // Normalized here rather than leaking the `SkillGroup` enum: the public contract needs exactly
+  // the two buckets the filter renders, and the storage taxonomy is free to grow without that
+  // becoming a breaking contract change.
+  @ApiProperty({
+    enum: ['frontend', 'backend'],
+    description: 'Which group the filter renders this facet under.',
+  })
+  readonly group!: 'frontend' | 'backend';
+
+  @ApiProperty({
+    example: 3,
+    description:
+      'Published projects using this technology in the requested locale. Always ≥ 1, and computed over the whole published set — independent of the current page AND of the active technology filter.',
+  })
+  readonly count!: number;
+}
+
+// `/projects` list meta: pagination plus the facet list (D10-19).
+export class ProjectListMeta extends PageMeta {
+  @ApiProperty({
+    type: [ProjectTechnologyFacetEntity],
+    description:
+      'Selectable technology filters. Empty when no published project in this locale carries an eligible technology; a group with no facets is simply absent.',
+  })
+  readonly facets!: ProjectTechnologyFacetEntity[];
 }
 
 export class PublicProjectListItemEntity {

@@ -4997,7 +4997,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Featured-first paginated published projects.",
+            "description": "Featured-first paginated published projects, plus the technology facets the filter should offer (D10-19).",
             "content": {
               "application/json": {
                 "schema": {
@@ -5014,7 +5014,7 @@
                       }
                     },
                     "meta": {
-                      "$ref": "#/components/schemas/PageMeta"
+                      "$ref": "#/components/schemas/ProjectListMeta"
                     }
                   }
                 }
@@ -9340,6 +9340,79 @@
           "year",
           "technologies",
           "availableLocales"
+        ]
+      },
+      "ProjectTechnologyFacetEntity": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "example": "nestjs",
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+          },
+          "label": {
+            "type": "string",
+            "example": "NestJS",
+            "description": "Localized label for the requested locale. Display only."
+          },
+          "group": {
+            "type": "string",
+            "enum": [
+              "frontend",
+              "backend"
+            ],
+            "description": "Which group the filter renders this facet under."
+          },
+          "count": {
+            "type": "number",
+            "example": 3,
+            "description": "Published projects using this technology in the requested locale. Always ≥ 1, and computed over the whole published set — independent of the current page AND of the active technology filter."
+          }
+        },
+        "required": [
+          "slug",
+          "label",
+          "group",
+          "count"
+        ]
+      },
+      "ProjectListMeta": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "number",
+            "example": 1,
+            "description": "Current page (1-based)."
+          },
+          "perPage": {
+            "type": "number",
+            "example": 12,
+            "description": "Items per page (max 50)."
+          },
+          "total": {
+            "type": "number",
+            "example": 42,
+            "description": "Total matching items."
+          },
+          "totalPages": {
+            "type": "number",
+            "example": 4,
+            "description": "Total pages for the current perPage."
+          },
+          "facets": {
+            "description": "Selectable technology filters. Empty when no published project in this locale carries an eligible technology; a group with no facets is simply absent.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectTechnologyFacetEntity"
+            }
+          }
+        },
+        "required": [
+          "page",
+          "perPage",
+          "total",
+          "totalPages",
+          "facets"
         ]
       },
       "PublicProjectGalleryItemEntity": {

@@ -190,6 +190,256 @@ describe('Projects (e2e)', () => {
     expect(collision).toSatisfyApiSpec();
   });
 
+  // Technology facets (D10-19) — the live defect this fixes: the filter was built from the GLOBAL
+  // Skills registry, so it offered options no published project uses and options that are not
+  // technologies at all.
+  //
+  // Every fixture below exists to isolate ONE exclusion rule, so a passing suite says which rule
+  // works rather than only that the total came out right. In particular the ORPHAN skill is
+  // FRONTEND/BACKEND and public and simply has no published project: without it, "PHP is absent"
+  // would be proven by the group filter alone and the zero-project rule would ship untested.
+  describe('technology facets', () => {
+    interface Facet {
+      slug: string;
+      label: string;
+      group: 'frontend' | 'backend';
+      count: number;
+    }
+    interface FacetMeta {
+      page: number;
+      perPage: number;
+      total: number;
+      totalPages: number;
+      facets: Facet[];
+    }
+
+    const fx = `fct${unique}`;
+    const slugs = {
+      frontend: `${fx}-frontend`,
+      backend: `${fx}-backend`,
+      orphan: `${fx}-orphan`,
+      draftOnly: `${fx}-draft-only`,
+      delivery: `${fx}-delivery`,
+      hidden: `${fx}-hidden`,
+      enOnly: `${fx}-en-only`,
+    };
+    // Keyed by the fixture names above so each id is a `string`, not `string | undefined`.
+    const skillIds = {} as Record<keyof typeof slugs, string>;
+    const projectIds: string[] = [];
+
+    const makeSkill = async (
+      key: keyof typeof slugs,
+      group: string,
+      opts: { isPublic?: boolean; enOnly?: boolean } = {},
+    ): Promise<void> => {
+      const res = await request(httpServer(app))
+        .post('/api/v1/admin/skills')
+        .set(auth())
+        .send({
+          slug: slugs[key],
+          group,
+          order: 60,
+          ...(opts.isPublic === false ? { isPublic: false } : {}),
+          translations: opts.enOnly
+            ? [{ locale: 'en', label: `EN only ${fx}` }]
+            : [
+                { locale: 'en', label: `Facet ${key} ${fx}` },
+                { locale: 'ar', label: `سمة ${key} ${fx}` },
+              ],
+        })
+        .expect(201);
+      skillIds[key] = envelopeData<{ id: string }>(res).id;
+    };
+
+    const makeProject = async (
+      name: string,
+      technologyIds: string[],
+      isPublished: boolean,
+    ): Promise<void> => {
+      const res = await request(httpServer(app))
+        .post('/api/v1/admin/projects')
+        .set(auth())
+        .send({
+          ...project(),
+          isPublished,
+          technologyIds,
+          translations: [
+            {
+              locale: 'en',
+              title: `Facet ${name} ${fx}`,
+              slug: `${fx}-${name}`,
+              summary: `Facet project ${name} ${fx}.`,
+              ...sections,
+            },
+            {
+              locale: 'ar',
+              title: `مشروع ${name} ${fx}`,
+              slug: `${fx}-${name}-ar`,
+              summary: `مشروع سمات ${name} ${fx}.`,
+              ...sections,
+            },
+          ],
+        })
+        .expect(201);
+      projectIds.push(envelopeData<{ id: string }>(res).id);
+    };
+
+    const facetsFor = async (qs: string): Promise<Facet[]> => {
+      const res = await request(httpServer(app))
+        .get(`/api/v1/projects?${qs}`)
+        .expect(200);
+      expect(res).toSatisfyApiSpec();
+      return (res.body as { meta: FacetMeta }).meta.facets;
+    };
+    // Only this suite's own fixtures — the database also holds seed skills, and asserting on the
+    // whole list would make these tests fail for reasons that have nothing to do with them.
+    const mine = (facets: Facet[]): Facet[] =>
+      facets.filter((facet) => facet.slug.startsWith(fx));
+
+    beforeAll(async () => {
+      await makeSkill('frontend', 'FRONTEND');
+      await makeSkill('backend', 'BACKEND');
+      await makeSkill('orphan', 'BACKEND');
+      await makeSkill('draftOnly', 'FRONTEND');
+      await makeSkill('delivery', 'DELIVERY');
+      await makeSkill('hidden', 'FRONTEND', { isPublic: false });
+      await makeSkill('enOnly', 'FRONTEND', { enOnly: true });
+
+      // Two published projects on the frontend skill, one on the backend skill — so a wrong count
+      // (e.g. counting rows instead of distinct projects) is visible, and the two groups differ.
+      await makeProject('one', [skillIds.frontend, skillIds.backend], true);
+      await makeProject(
+        'two',
+        [
+          skillIds.frontend,
+          skillIds.delivery,
+          skillIds.hidden,
+          skillIds.enOnly,
+        ],
+        true,
+      );
+      // Unpublished: its technology must NOT become a facet.
+      await makeProject('draft', [skillIds.draftOnly], false);
+      // `orphan` deliberately gets no project at all.
+    });
+
+    afterAll(async () => {
+      for (const id of projectIds) {
+        await request(httpServer(app))
+          .delete(`/api/v1/admin/projects/${id}`)
+          .set(auth());
+      }
+      for (const id of Object.values(skillIds)) {
+        await request(httpServer(app))
+          .delete(`/api/v1/admin/skills/${id}`)
+          .set(auth());
+      }
+    });
+
+    it('offers a used frontend and a used backend technology, with correct counts', async () => {
+      const facets = mine(await facetsFor('locale=en'));
+      expect(facets).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            slug: slugs.frontend,
+            group: 'frontend',
+            count: 2,
+          }),
+          expect.objectContaining({
+            slug: slugs.backend,
+            group: 'backend',
+            count: 1,
+          }),
+        ]),
+      );
+    });
+
+    // THE zero-project rule. `orphan` is BACKEND and public — the group filter cannot explain its
+    // absence, so only the published-project requirement can.
+    it('excludes an eligible-group technology that no published project uses', async () => {
+      const found = mine(await facetsFor('locale=en')).map((f) => f.slug);
+      expect(found).not.toContain(slugs.orphan);
+    });
+
+    it('excludes a technology used only by an unpublished project', async () => {
+      const found = mine(await facetsFor('locale=en')).map((f) => f.slug);
+      expect(found).not.toContain(slugs.draftOnly);
+    });
+
+    // Delivery & Quality entries are ways of working, not things a project is built with — and this
+    // one IS used by a published project, so only the group rule can exclude it.
+    it('excludes a Delivery & Quality skill even when a published project uses it', async () => {
+      const found = mine(await facetsFor('locale=en')).map((f) => f.slug);
+      expect(found).not.toContain(slugs.delivery);
+    });
+
+    // Visibility is a flag, not a deletion: the rows stay, the filter option must not.
+    it('excludes a skill hidden from the public taxonomy', async () => {
+      const found = mine(await facetsFor('locale=en')).map((f) => f.slug);
+      expect(found).not.toContain(slugs.hidden);
+    });
+
+    // D10-6 — no cross-locale fallback. An English-only label must not surface on the Arabic page.
+    it('omits a facet with no translation in the requested locale', async () => {
+      expect(mine(await facetsFor('locale=en')).map((f) => f.slug)).toContain(
+        slugs.enOnly,
+      );
+      expect(
+        mine(await facetsFor('locale=ar')).map((f) => f.slug),
+      ).not.toContain(slugs.enOnly);
+    });
+
+    it('labels facets in the requested locale', async () => {
+      const en = mine(await facetsFor('locale=en')).find(
+        (f) => f.slug === slugs.frontend,
+      );
+      const ar = mine(await facetsFor('locale=ar')).find(
+        (f) => f.slug === slugs.frontend,
+      );
+      expect(en?.label).toBe(`Facet frontend ${fx}`);
+      expect(ar?.label).toBe(`سمة frontend ${fx}`);
+    });
+
+    // Counts describe the whole published set. A per-page count would make the same chip claim a
+    // different number on page 2, which is what the old global-skills filter could never get right.
+    it('computes counts over the whole published set, not the current page', async () => {
+      const page1 = mine(await facetsFor('locale=en&perPage=1&page=1'));
+      const page2 = mine(await facetsFor('locale=en&perPage=1&page=2'));
+      const unpaged = mine(await facetsFor('locale=en&perPage=50'));
+      expect(page1).toEqual(unpaged);
+      expect(page2).toEqual(unpaged);
+    });
+
+    // Load-bearing: narrowing facets by the active filter would collapse the list to the selected
+    // chip, and there would be no way back to any other filter.
+    it('does not narrow the facet list to the active technology filter', async () => {
+      const unfiltered = mine(await facetsFor('locale=en'));
+      const filtered = mine(
+        await facetsFor(`locale=en&technology=${slugs.backend}`),
+      );
+      expect(filtered).toEqual(unfiltered);
+    });
+
+    // The property that makes the filter trustworthy: no chip can be a dead end.
+    it('returns at least one published project for EVERY offered facet', async () => {
+      for (const locale of ['en', 'ar']) {
+        const facets = mine(await facetsFor(`locale=${locale}`));
+        expect(facets.length).toBeGreaterThan(0);
+        for (const facet of facets) {
+          const res = await request(httpServer(app))
+            .get(
+              `/api/v1/projects?locale=${locale}&technology=${facet.slug}&perPage=50`,
+            )
+            .expect(200);
+          const body = res.body as { data: unknown[]; meta: FacetMeta };
+          expect(body.data.length).toBeGreaterThan(0);
+          // …and the advertised count is the truth, not an estimate.
+          expect(body.meta.total).toBe(facet.count);
+        }
+      }
+    });
+  });
+
   // The public technology filter, end to end over HTTP. Self-contained: it builds its own Skill and
   // published Project so it never depends on the dev/demo seed layer, and removes both afterwards.
   describe('technology filtering by Skill slug', () => {

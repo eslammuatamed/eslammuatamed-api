@@ -33,9 +33,15 @@ export function buildPageMeta(
 
 // Sentinel returned by controllers for list endpoints. The envelope interceptor unwraps it
 // into `{ data, meta }`; every other return value becomes `{ data }`.
-export class PaginatedResult<T> {
+//
+// `M` lets a list endpoint widen its meta with list-scoped information that is genuinely NOT
+// per-item — `/projects` carries the technology facets there (D10-19), because a facet describes
+// the whole published set and so cannot live on a page of items. It defaults to `PageMeta`, so
+// every existing call site is unchanged, and the bound keeps pagination non-negotiable: a widened
+// meta ADDS to `page`/`perPage`/`total`/`totalPages`, it can never replace them.
+export class PaginatedResult<T, M extends PageMeta = PageMeta> {
   constructor(
     readonly data: readonly T[],
-    readonly meta: PageMeta,
+    readonly meta: M,
   ) {}
 }

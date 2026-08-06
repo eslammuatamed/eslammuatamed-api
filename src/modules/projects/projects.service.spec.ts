@@ -220,6 +220,7 @@ describe('ProjectsService', () => {
       prisma.$transaction.mockResolvedValue([
         [projectPayload(true)],
         1,
+        [], // facet rows — listPublic now reads facets in the SAME transaction (D10-19)
       ] as never);
 
       const result = await service.listPublic({
@@ -238,11 +239,86 @@ describe('ProjectsService', () => {
       expect(result.data).toHaveLength(1);
     });
 
+    // Facets (D10-19). The e2e suite proves the BEHAVIOUR against a real database; this pins the
+    // QUERY, so a filter cannot be dropped and then re-hidden by some downstream mapping.
+    describe('technology facets', () => {
+      const facetArgs = (): Record<string, unknown> => {
+        const call = prisma.skill.findMany.mock.calls[0]?.[0];
+        return call ?? {};
+      };
+
+      it('asks only for eligible, public, translated, actually-used technologies', async () => {
+        prisma.$transaction.mockResolvedValue([[], 0, []] as never);
+
+        await service.listPublic({
+          page: 1,
+          perPage: 12,
+          skip: 0,
+          take: 12,
+          locale: 'ar',
+        });
+
+        expect(facetArgs().where).toEqual({
+          group: { in: ['FRONTEND', 'BACKEND'] },
+          isPublic: true,
+          translations: { some: { locale: 'ar' } },
+          // The published-project requirement — what keeps a zero-project chip off the page.
+          projectLinks: {
+            some: {
+              project: {
+                isPublished: true,
+                translations: { some: { locale: 'ar' } },
+              },
+            },
+          },
+        });
+      });
+
+      // The count and the existence test must be the SAME predicate, or a facet can be offered
+      // with a count that disagrees with the list it filters.
+      it('counts published projects with the identical predicate it filters on', async () => {
+        prisma.$transaction.mockResolvedValue([[], 0, []] as never);
+
+        await service.listPublic({
+          page: 1,
+          perPage: 12,
+          skip: 0,
+          take: 12,
+          locale: 'en',
+        });
+
+        const where = facetArgs().where as { projectLinks: { some: unknown } };
+        const select = facetArgs().select as {
+          _count: { select: { projectLinks: { where: unknown } } };
+        };
+        expect(select._count.select.projectLinks.where).toEqual(
+          where.projectLinks.some,
+        );
+      });
+
+      // Load-bearing: narrowing facets by the active filter collapses the chip list to the one
+      // already selected, and there is then no way to switch to any other filter.
+      it('ignores the active technology filter when computing facets', async () => {
+        prisma.$transaction.mockResolvedValue([[], 0, []] as never);
+
+        await service.listPublic({
+          page: 1,
+          perPage: 12,
+          skip: 0,
+          take: 12,
+          locale: 'en',
+          technology: 'nestjs',
+        });
+
+        expect(JSON.stringify(facetArgs().where)).not.toContain('nestjs');
+      });
+    });
+
     // The filter identity is `Skill.slug`: it is locale-independent and survives label edits, so
     // `/projects?technology=nestjs` means the same thing in every locale and keeps working after
     // the skill is renamed. Matching happens on the relation, never on a translated label.
     it('applies the technology Skill slug filter without relaxing publication', async () => {
-      prisma.$transaction.mockResolvedValue([[], 0] as never);
+      prisma.$transaction.mockResolvedValue([[], 0, []] as never);
 
       await service.listPublic({
         page: 1,
@@ -267,7 +343,7 @@ describe('ProjectsService', () => {
     // so already-published links must keep resolving. It matches the id column, not the slug —
     // otherwise every legacy link would silently return an empty page instead of its projects.
     it('still accepts a Skill uuid and matches it against the id, not the slug', async () => {
-      prisma.$transaction.mockResolvedValue([[], 0] as never);
+      prisma.$transaction.mockResolvedValue([[], 0, []] as never);
 
       await service.listPublic({
         page: 1,
@@ -300,7 +376,7 @@ describe('ProjectsService', () => {
     // applied rather than silently ignored (an ignored filter would return the FULL list, which is
     // the failure mode that matters here).
     it('applies an unknown technology slug as a filter and returns a valid empty page', async () => {
-      prisma.$transaction.mockResolvedValue([[], 0] as never);
+      prisma.$transaction.mockResolvedValue([[], 0, []] as never);
 
       const result = await service.listPublic({
         page: 1,
@@ -327,7 +403,7 @@ describe('ProjectsService', () => {
     });
 
     it('orders featured projects first and then by explicit order', async () => {
-      prisma.$transaction.mockResolvedValue([[], 0] as never);
+      prisma.$transaction.mockResolvedValue([[], 0, []] as never);
 
       await service.listPublic({
         page: 1,
@@ -348,6 +424,7 @@ describe('ProjectsService', () => {
       prisma.$transaction.mockResolvedValue([
         [projectPayload(true)],
         1,
+        [], // facet rows — listPublic now reads facets in the SAME transaction (D10-19)
       ] as never);
 
       const result = await service.listPublic({
