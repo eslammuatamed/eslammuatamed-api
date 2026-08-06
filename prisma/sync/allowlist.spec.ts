@@ -347,6 +347,12 @@ describe('canonical dataset invariants', () => {
       // the old opening re-entering the synchronization plan through the canonical dataset.
       "I'm a JavaScript Product Engineer — frontend-led",
       'أنا مهندس برمجيات للمنتجات، متخصص في الواجهات الأمامية',
+      // The retired About THIRD paragraph, replaced by owner-approved copy 2026-08-06
+      // (about-copy.md v1.2.0). It was the last surface carrying the `frontend-led` qualifier, and
+      // it is banned here for the same reason as the opening: "absent today" is a fact about one
+      // commit, while a denylist entry is a fact about every future one.
+      'frontend-led product engineering',
+      'هندسة منتجات تقودها الواجهة الأمامية',
     ];
     const published = JSON.stringify([
       SETTINGS_SCALARS,

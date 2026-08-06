@@ -14,15 +14,19 @@ import { createE2eApp, envelopeData, httpServer } from './utils/e2e-app';
 //
 //   engineeringPhilosophy, currentFocus  — eslammuatamed-docs @ 78bc945d32c8ab37a9a8ebfc3ac957489bd441df,
 //                                          content/profile/about-copy.md §5, Approved v1.0.0
-//   aboutBio (EN + AR)                   — eslammuatamed-docs @ 1e3cd6a685c6dfa8a9ebf601a011e1a6ac4134af,
-//                                          content/profile/about-copy.md §5, Approved v1.1.0 (PR #45).
+//   aboutBio (EN + AR)                   — eslammuatamed-docs @ 5f55b5971f1bf4fd1b7f0a2ed30e7cc291e76971,
+//                                          content/profile/about-copy.md §5, Approved v1.2.0 (PR #46).
 //                                          The opening paragraph was replaced by owner directive on
-//                                          2026-08-05; the rest of each block is unchanged from v1.0.0.
+//                                          2026-08-05 and the THIRD on 2026-08-06, retiring the
+//                                          `frontend-led` qualifier. Paragraph 2 — the employment
+//                                          record — is unchanged from v1.0.0.
 //
-// The v1.1.0 digests were recomputed FROM THE MARKDOWN, not from the seed module — computing them
+// Every digest here is recomputed FROM THE MARKDOWN, never from the seed module — computing them
 // from `about-copy.ts` would have made this suite prove self-consistency, which is the exact failure
-// the paragraph below warns about. They matched the seeded database on the first CI run after the
-// copy change, so document, seed module and stored bytes are known to agree.
+// the paragraph below warns about. Two independent confirmations that the recomputation is faithful:
+// the v1.1.0 digests matched the seeded database on the first CI run after that copy change, and the
+// v1.2.0 pass re-derived all six values while only `aboutBio` moved — the four untouched digests
+// came out bit-for-bit equal to the constants already recorded here.
 // Importing the seed's own module instead would make this suite prove self-consistency and
 // nothing about the approved wording — a typo introduced during transcription would pass. The
 // values under test are read back from a seeded database, so this covers the seed end to end.
@@ -43,15 +47,15 @@ const EXPECTED: readonly AboutExpectation[] = [
   {
     locale: 'en',
     field: 'aboutBio',
-    sha256: '225340affdd6abb6b9dcaccecbadbd0acb3ad71551a800226bdffc39b62aa156',
-    chars: 1020,
+    sha256: '93b9dc18aa212bcf692f41b358a4b38908c4cc97f95fae4b97559c3134c50f48',
+    chars: 1019,
     paragraphs: 3,
   },
   {
     locale: 'ar',
     field: 'aboutBio',
-    sha256: 'e730d9979a0c1705e700c900964d43fb2e7b13b2217c1980f6f8bdf5cc3dcc5b',
-    chars: 994,
+    sha256: '312859bf7d207ee772e0b2295b43f9a186c7049e4af21fae2ac52378c2b37575',
+    chars: 945,
     paragraphs: 3,
   },
   {
