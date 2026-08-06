@@ -433,11 +433,19 @@ export function publishedProjectScope(
 // filtering case studies by "Testing" or "Deployment" answers no question a visitor has.
 // `LANGUAGE` is excluded by the same instruction.
 //
-// ⚠️ CONSEQUENCE THE OWNER SHOULD CONFIRM: `typescript` is a `LANGUAGE`, so it is excluded here
-// even though it is currently on 4 of 4 published projects — the single most-used technology on the
-// site. Against live Production data this rule takes the filter from 18 options to 4
-// (`vue`, `nuxt`, `tailwind-css`, `nestjs`). Adding `LANGUAGE` back is a one-line change to this
-// constant plus its test; nothing else in the pipeline knows the group list.
+// `LANGUAGE` is excluded DELIBERATELY, and the owner confirmed it on 2026-08-06 with the live
+// consequence in front of them: `typescript` sits on 4 of 4 published projects — the most-used
+// technology on the site — and is still excluded. Against live Production this rule takes the filter
+// from 18 options to 4 (`vue`, `nuxt`, `tailwind-css`, `nestjs`).
+//
+// No one-off exception is granted for a language merely because every project uses it: a filter
+// option that matches everything separates nothing, and "used a lot" is not the same question as
+// "what is this built with". Admitting Languages is a separate, explicit taxonomy and UX decision,
+// not an edit to this line.
+//
+// Widening this constant is still one line — but `projects.e2e-spec.ts` asserts the LANGUAGE
+// exclusion against a fixture that every other rule would admit, so the change cannot happen
+// silently.
 export const FACET_GROUPS = [SkillGroup.FRONTEND, SkillGroup.BACKEND] as const;
 
 // Storage taxonomy → the two buckets the filter renders. Exhaustive over FACET_GROUPS by type.

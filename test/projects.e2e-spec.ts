@@ -220,6 +220,7 @@ describe('Projects (e2e)', () => {
       orphan: `${fx}-orphan`,
       draftOnly: `${fx}-draft-only`,
       delivery: `${fx}-delivery`,
+      language: `${fx}-language`,
       hidden: `${fx}-hidden`,
       enOnly: `${fx}-en-only`,
     };
@@ -302,6 +303,7 @@ describe('Projects (e2e)', () => {
       await makeSkill('orphan', 'BACKEND');
       await makeSkill('draftOnly', 'FRONTEND');
       await makeSkill('delivery', 'DELIVERY');
+      await makeSkill('language', 'LANGUAGE');
       await makeSkill('hidden', 'FRONTEND', { isPublic: false });
       await makeSkill('enOnly', 'FRONTEND', { enOnly: true });
 
@@ -313,6 +315,7 @@ describe('Projects (e2e)', () => {
         [
           skillIds.frontend,
           skillIds.delivery,
+          skillIds.language,
           skillIds.hidden,
           skillIds.enOnly,
         ],
@@ -371,6 +374,23 @@ describe('Projects (e2e)', () => {
     it('excludes a Delivery & Quality skill even when a published project uses it', async () => {
       const found = mine(await facetsFor('locale=en')).map((f) => f.slug);
       expect(found).not.toContain(slugs.delivery);
+    });
+
+    // LANGUAGE is excluded BY DESIGN, and this test exists so that stays a decision rather than a
+    // side effect nobody remembers making.
+    //
+    // The live case is `typescript`: it sits on 4 of 4 published projects — the most-used technology
+    // on the site — and the owner confirmed (2026-08-06) it is still excluded, because the approved
+    // facet rule is strictly Frontend Engineering + Backend Engineering. No one-off exception is
+    // granted for a language merely because every project uses it; admitting Languages to the filter
+    // is a separate, explicit taxonomy and UX decision.
+    //
+    // The fixture mirrors that exactly: a LANGUAGE skill, public, translated, and used by a
+    // published project. Every other rule would admit it, so only the group policy can exclude it —
+    // which is what makes this a test of the decision rather than of the plumbing.
+    it('excludes a LANGUAGE skill even when a published project uses it (owner-confirmed: `typescript`)', async () => {
+      const found = mine(await facetsFor('locale=en')).map((f) => f.slug);
+      expect(found).not.toContain(slugs.language);
     });
 
     // Visibility is a flag, not a deletion: the rows stay, the filter option must not.

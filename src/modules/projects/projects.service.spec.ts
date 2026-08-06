@@ -247,6 +247,27 @@ describe('ProjectsService', () => {
         return call ?? {};
       };
 
+      // Pins the POLICY itself, not just its effect. The e2e suite proves a LANGUAGE fixture is
+      // absent from the response; this proves the query never asks for one in the first place, so
+      // the owner-confirmed rule (Frontend + Backend only — `typescript` stays out despite being on
+      // every published project) is asserted at the layer where someone would change it.
+      it('asks for Frontend and Backend groups only — Languages and Delivery are not eligible', async () => {
+        prisma.$transaction.mockResolvedValue([[], 0, []] as never);
+
+        await service.listPublic({
+          page: 1,
+          perPage: 12,
+          skip: 0,
+          take: 12,
+          locale: 'en',
+        });
+
+        const where = facetArgs().where as { group: { in: string[] } };
+        expect([...where.group.in].sort()).toEqual(['BACKEND', 'FRONTEND']);
+        expect(where.group.in).not.toContain('LANGUAGE');
+        expect(where.group.in).not.toContain('DELIVERY');
+      });
+
       it('asks only for eligible, public, translated, actually-used technologies', async () => {
         prisma.$transaction.mockResolvedValue([[], 0, []] as never);
 
