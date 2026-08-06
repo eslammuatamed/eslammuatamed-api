@@ -8671,7 +8671,7 @@
             "example": 1
           },
           "brandColor": {
-            "type": "object",
+            "type": "string",
             "example": "#3178C6",
             "nullable": true
           },
@@ -8718,7 +8718,7 @@
             "example": 1
           },
           "brandColor": {
-            "type": "object",
+            "type": "string",
             "example": "#3178C6",
             "nullable": true
           },
@@ -8960,7 +8960,7 @@
             "format": "date"
           },
           "endDate": {
-            "type": "object",
+            "type": "string",
             "example": "2024-06-30",
             "format": "date",
             "nullable": true
@@ -9023,7 +9023,7 @@
             "format": "date"
           },
           "endDate": {
-            "type": "object",
+            "type": "string",
             "example": "2024-06-30",
             "format": "date",
             "nullable": true
@@ -9208,7 +9208,7 @@
         "type": "object",
         "properties": {
           "avatarId": {
-            "type": "object",
+            "type": "string",
             "format": "uuid",
             "nullable": true,
             "example": "8b4d..."
@@ -9246,7 +9246,7 @@
         "type": "object",
         "properties": {
           "avatarId": {
-            "type": "object",
+            "type": "string",
             "format": "uuid",
             "nullable": true,
             "example": "8b4d..."
@@ -9917,7 +9917,7 @@
         "type": "object",
         "properties": {
           "caption": {
-            "type": "object",
+            "type": "string",
             "nullable": true,
             "example": "Admin dashboard overview."
           }
@@ -9972,19 +9972,19 @@
             "minimum": 0
           },
           "liveUrl": {
-            "type": "object",
+            "type": "string",
             "nullable": true,
             "format": "uri",
             "example": "https://example.com"
           },
           "repoUrl": {
-            "type": "object",
+            "type": "string",
             "nullable": true,
             "format": "uri",
             "example": "https://github.com/eslammuatamed/example"
           },
           "year": {
-            "type": "object",
+            "type": "number",
             "nullable": true,
             "example": 2026,
             "minimum": 0
@@ -10041,19 +10041,19 @@
             "minimum": 0
           },
           "liveUrl": {
-            "type": "object",
+            "type": "string",
             "nullable": true,
             "format": "uri",
             "example": "https://example.com"
           },
           "repoUrl": {
-            "type": "object",
+            "type": "string",
             "nullable": true,
             "format": "uri",
             "example": "https://github.com/eslammuatamed/example"
           },
           "year": {
-            "type": "object",
+            "type": "number",
             "nullable": true,
             "example": 2026,
             "minimum": 0
