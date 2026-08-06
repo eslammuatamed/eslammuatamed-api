@@ -5,6 +5,11 @@ import { PrismaClient } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { ARGON2_OPTIONS } from '../src/modules/auth/hashing/argon2.options';
 import { validate } from '../src/config/env.validation';
+import { ABOUT_COPY } from './content/about-copy';
+import {
+  SETTINGS_SCALARS,
+  SETTINGS_TRANSLATIONS,
+} from './content/canonical/site-settings';
 
 // Idempotent seed (doc 09 §6): locales, the OWNER system role (+ its reserved '*' grant), the
 // OWNER user, the SiteSettings singleton, and the initial categories. Re-running is a no-op —
@@ -98,49 +103,124 @@ async function seedOwner(
   });
 }
 
+// Approved public addresses (owner-profile §8, R15). The About prose is seeded from
+// `content/about-copy.ts` now that final owner-reviewed EN/AR copy exists — the condition
+// D18-7 already attaches to seeding these fields, so this is the policy taking effect, not a
+// change to it. The same decision still forbids an arbitrary portrait or a fabricated
+// MediaAsset, both of which remain absent.
+//
+// READ FROM THE CANONICAL DATASET, NOT RE-DECLARED HERE. `seedSiteSettings()` rewrites these four
+// scalars on EVERY run — in the `update` branch as well as `create` — and `db:seed` runs on release,
+// so this file and `content:sync:apply` are two independent writers of the same governed columns.
+// While each held its own literals, the deployed value depended on which ran last, and a divergence
+// would have been invisible: `content:sync:plan` would report `contactEmail` as an update after a
+// seed and `unchanged` after a sync, making the zero-change-second-run property a function of run
+// order rather than of state. Importing from `./content/canonical/site-settings` follows what this
+// file already does for `ABOUT_COPY`, and for the same reason. (`PUBLIC_TAGLINE` is no longer
+// imported here: the tagline now arrives through the canonical dataset, which imports it itself.)
+const PROFESSIONAL_EMAIL = SETTINGS_SCALARS.professionalEmail;
+const CONTACT_EMAIL = SETTINGS_SCALARS.contactEmail;
+// Owner-approved public numbers (D10-16), stored in E.164. Still read as two INDEPENDENT fields
+// rather than one shared value: `contactPhone` and `whatsappPhone` are independently governed, and
+// collapsing them would quietly reintroduce the inference the contract forbids — not every
+// telephone number has WhatsApp. Sourcing each from its own canonical field preserves that
+// independence while removing the duplicate literal set.
+const CONTACT_PHONE = SETTINGS_SCALARS.contactPhone;
+const WHATSAPP_PHONE = SETTINGS_SCALARS.whatsappPhone;
+
+// Positioning per the content source of truth, DERIVED from the canonical dataset rather than
+// restated here. `tagline` is the approved public title, governed literally by
+// positioning-strategy.md §2/§3.
+//
+// This block used to hold its own copies of all five identity strings, and they drifted: it kept the
+// v1.x `defaultMetaDescription` ("Frontend engineer specializing in Vue.js and Nuxt.js…") that
+// positioning-strategy §9 bans, in both locales, while the canonical dataset was corrected. Because
+// `defaultMetaDescription` is CREATE-ONLY in the upsert below, the divergence is invisible on an
+// already-provisioned database and only surfaces when a fresh one is provisioned — which then seeds
+// the superseded positioning and publishes it as the site-wide meta description.
+//
+// Same defect as the addresses above, same fix: one source, so the two cannot disagree. The `as
+// const` is dropped because the values now come from a runtime array; the field list stays explicit
+// so adding a governed translation field is a deliberate edit here rather than a silent widening.
+// The canonical dataset types `locale` as `string`, while `ABOUT_COPY` is keyed by the literal
+// union. Narrowed with a guard rather than a cast, and it THROWS on a miss: a canonical locale with
+// no About copy is a locale-completeness failure (D10-6, no cross-locale fallback), and a seed that
+// silently skipped it would leave that locale half-populated.
+const hasAboutCopy = (locale: string): locale is keyof typeof ABOUT_COPY =>
+  locale in ABOUT_COPY;
+
+const SETTINGS_IDENTITY = SETTINGS_TRANSLATIONS.map((row) => {
+  if (!hasAboutCopy(row.locale)) {
+    throw new Error(
+      `Canonical settings translation for locale "${row.locale}" has no About copy.`,
+    );
+  }
+  return {
+    locale: row.locale,
+    siteName: row.siteName,
+    tagline: row.tagline,
+    availabilityStatus: row.availabilityStatus,
+    defaultMetaTitle: row.defaultMetaTitle,
+    defaultMetaDescription: row.defaultMetaDescription,
+  };
+});
+
 async function seedSiteSettings(): Promise<void> {
   const existing = await prisma.siteSettings.findFirst({
     select: { id: true },
   });
-  if (existing) {
-    await prisma.siteSettings.update({
-      where: { id: existing.id },
-      data: {
-        careerStartYear: 2023,
-        careerStartMonth: 11,
+  // Operational addresses (owner-profile §8, confirmed 2026-07-29). portraitAssetId stays null —
+  // a real MediaAsset is never invented by a seed (D18-7).
+  const settings = existing
+    ? await prisma.siteSettings.update({
+        where: { id: existing.id },
+        data: {
+          careerStartYear: 2023,
+          careerStartMonth: 11,
+          professionalEmail: PROFESSIONAL_EMAIL,
+          contactEmail: CONTACT_EMAIL,
+          contactPhone: CONTACT_PHONE,
+          whatsappPhone: WHATSAPP_PHONE,
+        },
+        select: { id: true },
+      })
+    : await prisma.siteSettings.create({
+        data: {
+          analyticsEnabled: false,
+          careerStartYear: 2023,
+          careerStartMonth: 11,
+          professionalEmail: PROFESSIONAL_EMAIL,
+          contactEmail: CONTACT_EMAIL,
+          contactPhone: CONTACT_PHONE,
+          whatsappPhone: WHATSAPP_PHONE,
+        },
+        select: { id: true },
+      });
+
+  // Translations are upserted on every run, not created only alongside a new singleton: an
+  // already-provisioned database would otherwise keep the governed fields stale forever, since the
+  // singleton branch above never reaches a nested create.
+  //
+  // Two classes of field, deliberately: `siteName`, `availabilityStatus` and the default meta
+  // strings stay CREATE-ONLY, because an operator may have edited them in the CMS. The About copy
+  // and the public `tagline` are RE-ASSERTED on every run, because their governing documents —
+  // about-copy.md §4 and positioning-strategy.md §2/§3 — are authoritative over any diverging
+  // seeded value. The tagline moved into this class with positioning-strategy v1.1.0: leaving it
+  // create-only would have left every already-provisioned database on the superseded title.
+  // Locale-complete, no cross-locale fallback (D10-6).
+  for (const identity of SETTINGS_IDENTITY) {
+    const about = ABOUT_COPY[identity.locale];
+    await prisma.siteSettingsTranslation.upsert({
+      where: {
+        siteSettingsId_locale: {
+          siteSettingsId: settings.id,
+          locale: identity.locale,
+        },
       },
+      create: { siteSettingsId: settings.id, ...identity, ...about },
+      update: { ...about, tagline: identity.tagline },
     });
-    return;
   }
-  await prisma.siteSettings.create({
-    data: {
-      analyticsEnabled: false,
-      careerStartYear: 2023,
-      careerStartMonth: 11,
-      translations: {
-        create: [
-          // Positioning per the content source of truth (owner-profile §2/§6): frontend-first,
-          // Vue.js/Nuxt.js primary — never generic "software engineer".
-          {
-            locale: 'en',
-            siteName: 'Eslam Muatamed',
-            tagline: 'Frontend Engineer — Vue.js & Nuxt.js',
-            defaultMetaTitle: 'Eslam Muatamed',
-            defaultMetaDescription:
-              'Frontend engineer specializing in Vue.js and Nuxt.js, building fast, accessible, SEO-focused web interfaces.',
-          },
-          {
-            locale: 'ar',
-            siteName: 'إسلام معتمد',
-            tagline: 'مهندس واجهات أمامية — Vue.js و Nuxt.js',
-            defaultMetaTitle: 'إسلام معتمد',
-            defaultMetaDescription:
-              'مهندس واجهات أمامية متخصص في Vue.js و Nuxt.js، أبني واجهات ويب سريعة وسهلة الوصول ومهيأة لمحركات البحث.',
-          },
-        ],
-      },
-    },
-  });
 }
 
 async function seedCategories(): Promise<void> {

@@ -12,12 +12,14 @@ import {
 export function ApiProblemResponse(
   status: number,
   description: string,
+  headers?: Record<string, HeaderObject>,
 ): MethodDecorator & ClassDecorator {
   return applyDecorators(
     ApiExtraModels(ProblemDetailsDto),
     ApiResponse({
       status,
       description,
+      ...(headers ? { headers } : {}),
       content: {
         [PROBLEM_CONTENT_TYPE]: {
           schema: { $ref: getSchemaPath(ProblemDetailsDto) },
@@ -26,6 +28,23 @@ export function ApiProblemResponse(
     }),
   );
 }
+
+// The OpenAPI header object shape `ApiResponse` accepts, narrowed to what this codebase documents.
+interface HeaderObject {
+  readonly description: string;
+  readonly schema: Record<string, unknown>;
+}
+
+// `Retry-After` as emitted on a throttled response: delta-seconds, never an HTTP-date (doc 19 §6,
+// doc 10 §3, D10-15). Documented so a consumer knows the unit, and CORS-exposed (cors.options.ts)
+// so a browser client can read it — a header the client cannot see is not a contract it can use.
+export const RETRY_AFTER_HEADER: Record<string, HeaderObject> = {
+  'Retry-After': {
+    description:
+      'Seconds to wait before retrying (delta-seconds, never an HTTP-date). Exposed via CORS so browser clients can read it.',
+    schema: { type: 'integer', format: 'int32', minimum: 1, example: 3600 },
+  },
+};
 
 // The error set every authenticated admin route can return regardless of its body: no/invalid
 // token (401), missing permission (403), and the admin throttle tier (429). Applied at the

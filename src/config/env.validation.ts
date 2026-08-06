@@ -48,6 +48,25 @@ export class EnvironmentVariables {
   @IsNotEmpty()
   CORS_ORIGIN!: string;
 
+  // Absolute origin of the rendered Web app that hosts the human-facing preview page (D10-11 v1.4.1):
+  // the API signs the token, the Web renders the page. Deliberately a DEDICATED config, never derived
+  // from CORS_ORIGIN — it is the canonical public-site origin and may differ. Trailing slashes are
+  // stripped so the minted url never contains "//". Defaults to http://localhost:3000 outside production
+  // (keeps local dev, tests, and the DB-free contract:export booting); production must set it explicitly —
+  // left undefined there, the IsNotEmpty/IsUrl decorators below fail and abort boot. The dev default is
+  // injected in validate() since the rule depends on NODE_ENV. require_tld is off so localhost is accepted.
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.replace(/\/+$/, '') : value,
+  )
+  @IsString()
+  @IsNotEmpty()
+  @IsUrl({
+    protocols: ['http', 'https'],
+    require_protocol: true,
+    require_tld: false,
+  })
+  PUBLIC_WEB_URL!: string;
+
   // Access-token signing secret; 32-char floor keeps HS256 keys out of brute range (doc 19 §2).
   @IsString()
   @MinLength(32)
@@ -158,6 +177,17 @@ export function validate(raw: Record<string, unknown>): EnvironmentVariables {
   const validated = plainToInstance(EnvironmentVariables, raw, {
     enableImplicitConversion: false,
   });
+
+  // PUBLIC_WEB_URL defaults to http://localhost:3000 outside production so local dev, tests, and the
+  // DB-free contract:export boot without it; production must set it explicitly — left undefined there,
+  // the IsNotEmpty/IsUrl decorators fail below and abort boot. NODE_ENV-dependent, so applied here
+  // rather than as a static decorator default (D10-11 v1.4.1: the API signs, the Web renders).
+  if (
+    validated.NODE_ENV !== NodeEnv.Production &&
+    validated.PUBLIC_WEB_URL === undefined
+  ) {
+    validated.PUBLIC_WEB_URL = 'http://localhost:3000';
+  }
 
   const errors = validateSync(validated, {
     skipMissingProperties: false,

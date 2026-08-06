@@ -5,6 +5,12 @@ export class ProjectTechnologyEntity {
   @ApiProperty({ format: 'uuid' })
   readonly id!: string;
 
+  // The value a client puts in `GET /projects?technology=`. Locale-independent and stable across
+  // label changes, so a filter URL means the same thing in every locale and survives copy edits —
+  // which neither the id (meaningless in a shared link) nor the label (translated) can offer.
+  @ApiProperty({ example: 'nestjs', pattern: '^[a-z0-9]+(-[a-z0-9]+)*$' })
+  readonly slug!: string;
+
   @ApiProperty({ example: 'NestJS' })
   readonly label!: string;
 }

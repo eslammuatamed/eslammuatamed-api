@@ -11,6 +11,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocalesService } from '../locales/locales.service';
 import { MediaDescriptorResolver } from '../media/media-descriptor.resolver';
+import { RedirectService } from '../redirects/redirect.service';
 import {
   AdminProjectListQueryDto,
   ProjectListQueryDto,
@@ -81,6 +82,7 @@ export class ProjectsService {
     private readonly prisma: PrismaService,
     private readonly locales: LocalesService,
     private readonly mediaDescriptors: MediaDescriptorResolver,
+    private readonly redirects: RedirectService,
   ) {}
 
   async listPublic(
@@ -123,6 +125,26 @@ export class ProjectsService {
       throw new NotFoundException('Project not found.');
     }
     return this.resolveDetail(translation.project, locale);
+  }
+
+  // Draft preview by id (D10-8): status-agnostic fetch keyed by id, BYPASSING the isPublished filter
+  // that getPublicBySlug enforces — so an unpublished project resolves here. Only reachable behind a
+  // verified preview token (PreviewTokenService); the token, not this method, is the visibility gate
+  // (FR-PUB-046). Reuses the same resolveDetail() as public reads, so the draft renders in the
+  // identical single-locale shape. A genuinely absent id still 404s.
+  async getPreviewById(
+    id: string,
+    locale: string,
+  ): Promise<PublicProjectDetailEntity> {
+    await this.locales.assertEnabled(locale);
+    const project = await this.prisma.project.findUnique({
+      where: { id },
+      include: PUBLIC_INCLUDE(locale),
+    });
+    if (!project) {
+      throw new NotFoundException('Project not found.');
+    }
+    return this.resolveDetail(project, locale);
   }
 
   async listAdmin(
@@ -189,8 +211,11 @@ export class ProjectsService {
   }
 
   async update(id: string, dto: UpdateProjectDto): Promise<AdminProjectEntity> {
-    await this.getAdminOrThrow(id);
+    // Capture `existing` (previously discarded) to read the old per-locale slugs and the current
+    // publish state — both needed for the D04-6 auto-redirect predicate below.
+    const existing = await this.getAdminOrThrow(id);
     await this.assertLocales(dto.translations ?? [], dto.gallery ?? []);
+    const nextIsPublished = dto.isPublished ?? existing.isPublished;
     const operations: Prisma.PrismaPromise<unknown>[] = [];
     const base: Prisma.ProjectUpdateInput = {
       featured: dto.featured,
@@ -216,6 +241,30 @@ export class ProjectsService {
           update: translationWriteFields(translation),
         }),
       );
+
+      // D04-6: a locale-slug rename on a still-published project auto-creates its SlugRedirect in
+      // the SAME $transaction as the rename, so the old public URL keeps resolving (one op-set per
+      // changed locale). Gated on the project having been published AND staying published
+      // (nextIsPublished = dto.isPublished ?? existing.isPublished) — draft/unpublished entities,
+      // publish-state flips, unchanged slugs, and new locales (no prior slug) are all skipped.
+      const oldSlug = existing.translations.find(
+        (t) => t.locale === translation.locale,
+      )?.slug;
+      if (
+        oldSlug !== undefined &&
+        oldSlug !== translation.slug &&
+        existing.isPublished === true &&
+        nextIsPublished === true
+      ) {
+        operations.push(
+          ...this.redirects.buildRedirectOps({
+            locale: translation.locale,
+            entityType: 'project',
+            oldSlug,
+            newSlug: translation.slug,
+          }),
+        );
+      }
     }
 
     if (dto.technologyIds !== undefined) {
@@ -363,9 +412,38 @@ function buildPublicWhere(
     isPublished: true,
     translations: { some: { locale: query.locale } },
     ...(query.technology
-      ? { technologies: { some: { skillId: query.technology } } }
+      ? {
+          technologies: {
+            some: isSkillId(query.technology)
+              ? // Backward compatibility only — the uuid form is what this endpoint documented
+                // before `Skill.slug` existed, so links already published keep resolving.
+                { skillId: query.technology }
+              : { skill: { slug: query.technology } },
+          },
+        }
       : {}),
   };
+}
+
+// Which column a `?technology=` value is matched against.
+//
+// A uuid DOES satisfy the query DTO's slug pattern (`^[a-z0-9]+(-[a-z0-9]+)*$` — lowercase hex in
+// 8-4-4-4-12 shape is a sequence of alphanumeric groups joined by single hyphens), which is exactly
+// why one parameter can carry both forms without a second parameter or a union type. This test is
+// what separates them, and it is deliberately the STRICT uuid shape rather than a loose
+// "looks like it has hyphens" heuristic.
+//
+// The discrimination is total in BOTH directions, and neither direction rests on convention:
+//   - every Skill id matches, so a legacy link is never read as a slug;
+//   - no Skill slug can match, because a uuid-shaped slug is refused by `CreateSkillDto` at the API
+//     boundary AND by the `skills_slug_format_check` CHECK constraint at the column — the latter
+//     being what also covers the content seed, raw SQL and any future writer.
+// Without those rules this function would be a heuristic; with them it is exact.
+const SKILL_ID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+function isSkillId(value: string): boolean {
+  return SKILL_ID_PATTERN.test(value);
 }
 
 function translationWriteFields(translation: ProjectTranslationDto) {
@@ -417,7 +495,11 @@ function technologyRef(
     (item) => item.locale === locale,
   );
   if (!translation) return null;
-  return { id: technology.skill.id, label: translation.label };
+  return {
+    id: technology.skill.id,
+    slug: technology.skill.slug,
+    label: translation.label,
+  };
 }
 
 function toAdminEntity(project: ProjectAdminPayload): AdminProjectEntity {

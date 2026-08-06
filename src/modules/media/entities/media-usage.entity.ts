@@ -10,6 +10,7 @@ export const MEDIA_USAGE_TYPES = [
   'testimonial-avatar',
   'page-seo-og',
   'settings-resume',
+  'settings-portrait',
 ] as const;
 
 export type MediaUsageType = (typeof MEDIA_USAGE_TYPES)[number];

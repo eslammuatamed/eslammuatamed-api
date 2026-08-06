@@ -10,6 +10,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  IsUUID,
   Matches,
   MaxLength,
   Min,
@@ -77,6 +78,17 @@ export class CreateExperienceDto {
   @ValidateNested({ each: true })
   @Type(() => ExperienceTranslationDto)
   readonly translations!: ExperienceTranslationDto[];
+
+  // Technologies come from the Skill registry (D02-9) — ids only, never free-text labels.
+  // Duplicates are rejected rather than silently de-duplicated so a mistaken payload is visible.
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'Skill ids; replaces the full set. Empty array clears.',
+  })
+  @IsOptional()
+  @IsArray()
+  @IsUUID('all', { each: true })
+  readonly technologyIds?: string[];
 }
 
 export class UpdateExperienceDto extends PartialType(CreateExperienceDto) {}

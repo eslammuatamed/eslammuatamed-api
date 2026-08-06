@@ -63,7 +63,12 @@ providers: [
 | `Prisma` `P2025` (غير موجود) | → | 404 |
 | `Prisma` `P2003` (مفتاح أجنبي) | → | 409 |
 | `HttpException` | → | حالته مع نوع/عنوان مطابق |
-| غير متوقّع | → | 500 (بلا تفاصيل داخلية في الإنتاج؛ السبب يُسجَّل) |
+| `http-error` عميليّ (4xx مع `expose:true`) من middleware — جسم أكبر من الحدّ `413` (`doc 19 §5`) أو JSON مُشوَّه `400` | → | حالته 4xx بصيغة `RFC 7807` مع تفصيل **عامّ** (نصّ الخطأ الأصليّ لا يُفشى، إذ قد يحوي جزءًا من الجسم) — بدل وسمه خطأً خادميًّا 500 (`F005`/`AD-7`) |
+| غير متوقّع (يشمل `http-error` من فئة 5xx) | → | 500 (بلا تفاصيل داخلية في الإنتاج؛ السبب يُسجَّل) |
+
+> **حدّ حجم الجسم (`doc 19 §5`، `AD-7`):** يُسجَّل مُحلِّلا `express.json`/`urlencoded` صراحةً في الإقلاع
+> (`main.ts`، `bodyParser: false` ثم حدّ `1mb`) لأنّ الافتراضيّ (~100 kB) كان سيرفض مقالًا كبيرًا صحيحًا
+> (حقول Markdown حتى 256 KiB). الرفع متعدّد الأجزاء (multer، وسائط 10 MiB) مُحلِّل منفصل غير متأثّر.
 
 ### الغلاف `ResponseEnvelopeInterceptor`
 ```
@@ -81,7 +86,7 @@ providers: [
 
 ## الاختبارات وما تُثبته
 
-`all-exceptions.filter.spec.ts` (تعيينات `RFC 7807`)، `response-envelope.interceptor.spec.ts` (شكلا الغلاف)، `validation-problem.exception.spec.ts` (تسطيح مسارات الحقول). مساعدات Swagger تجعل تأكيدات `jest-openapi` تغطّي مسارات الخطأ أيضًا.
+`all-exceptions.filter.spec.ts` (تعيينات `RFC 7807` — يشمل تعقيم 500 دون إفشاء، وتعيين `http-error` العميليّ 413/جسم كبير و400/JSON مُشوَّه مع منع تسرّب الرسالة، وبقاء 5xx مُعقَّمًا)، `response-envelope.interceptor.spec.ts` (شكلا الغلاف)، `validation-problem.exception.spec.ts` (تسطيح مسارات الحقول). مساعدات Swagger تجعل تأكيدات `jest-openapi` تغطّي مسارات الخطأ أيضًا.
 
 ## أخطاء شائعة
 

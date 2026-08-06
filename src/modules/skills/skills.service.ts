@@ -2,6 +2,7 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { Prisma, Skill, SkillGroup, SkillTranslation } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -20,7 +21,10 @@ export class SkillsService {
 
   async listPublic(locale: string): Promise<PublicSkillEntity[]> {
     await this.locales.assertEnabled(locale);
+    // Hidden skills stay in the registry for project/experience relations but never reach a
+    // public surface (homepage capabilities, résumé). Admin listings are unfiltered.
     const rows = await this.prisma.skill.findMany({
+      where: { isPublic: true },
       include: { translations: true },
       orderBy: [{ group: 'asc' }, { order: 'asc' }],
     });
@@ -44,16 +48,37 @@ export class SkillsService {
 
   async create(dto: CreateSkillDto): Promise<AdminSkillEntity> {
     await this.assertTranslations(dto.translations);
-    const row = await this.prisma.skill.create({
-      data: {
-        group: dto.group,
-        order: dto.order,
-        brandColor: dto.brandColor,
-        translations: { create: dto.translations },
-      },
-      include: { translations: true },
-    });
-    return toAdminEntity(row);
+    try {
+      const row = await this.prisma.skill.create({
+        data: {
+          slug: dto.slug,
+          group: dto.group,
+          order: dto.order,
+          brandColor: dto.brandColor,
+          isPublic: dto.isPublic ?? true,
+          translations: { create: dto.translations },
+        },
+        include: { translations: true },
+      });
+      return toAdminEntity(row);
+    } catch (error) {
+      // A duplicate slug is a caller error, not a server fault: the unique constraint would
+      // otherwise surface as a 500. Two skills behind one public filter URL is exactly what the
+      // constraint exists to prevent, so it is reported as a conflict.
+      if (isPrismaCode(error, 'P2002'))
+        throw new ConflictException(
+          `Skill slug "${dto.slug}" is already taken.`,
+        );
+      // A CHECK-constraint violation is `P2004`, and it is a bad REQUEST, not a server fault.
+      // `CreateSkillDto` rejects the same inputs first, so this is unreachable today — it is here
+      // so that the day the constraint and the DTO drift apart (a new rule added to one and not the
+      // other), the caller gets a 422 naming the field instead of an opaque 500.
+      if (isPrismaCode(error, 'P2004'))
+        throw new UnprocessableEntityException(
+          `Skill slug "${dto.slug}" violates the stored slug format constraint.`,
+        );
+      throw error;
+    }
   }
 
   async update(id: string, dto: UpdateSkillDto): Promise<AdminSkillEntity> {
@@ -64,6 +89,7 @@ export class SkillsService {
       group: dto.group,
       order: dto.order,
       brandColor: dto.brandColor,
+      isPublic: dto.isPublic,
     };
     if (Object.values(base).some((value) => value !== undefined))
       ops.push(this.prisma.skill.update({ where: { id }, data: base }));
@@ -115,6 +141,7 @@ export class SkillsService {
     if (!translation) return null;
     return {
       id: row.id,
+      slug: row.slug,
       label: translation.label,
       group: row.group,
       order: row.order,
@@ -130,9 +157,11 @@ function toAdminEntity(row: SkillWithTranslations): AdminSkillEntity {
     translations[translation.locale] = { label: translation.label };
   return {
     id: row.id,
+    slug: row.slug,
     group: row.group,
     order: row.order,
     brandColor: row.brandColor,
+    isPublic: row.isPublic,
     translations,
   };
 }

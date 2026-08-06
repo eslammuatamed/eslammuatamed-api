@@ -82,9 +82,32 @@ describe('MediaDescriptorResolver', () => {
       expect(d.id).toBe('img-1');
       expect(d.kind).toBe(MediaKind.IMAGE);
       expect(d.url).toBe('https://media.test/k/1920-webp.webp'); // widest WebP, not AVIF, not master
-      expect(d.width).toBe(2400);
-      expect(d.height).toBe(1350);
       expect(d.blurhash).toBe('LEHV6nWB');
+    });
+
+    // D10-14. The fixture master is 2400×1350 while its widest WebP is 1920×1080, so this asserts the
+    // whole point: the top-level triple describes the RENDITION, never the private master.
+    it('sources url, width and height from the same widest public WebP — not the master', () => {
+      const d = resolver.resolveImage(imageInput(), 'en');
+      expect(d.url).toBe('https://media.test/k/1920-webp.webp');
+      expect(d.width).toBe(1920);
+      expect(d.height).toBe(1080);
+
+      // The self-consistency invariant stated as the contract states it: whatever `url` points at,
+      // `width`/`height` are that file's dimensions.
+      const pointedAt = d.variants.find((v) => v.url === d.url);
+      expect(pointedAt).toBeDefined();
+      expect(d.width).toBe(pointedAt?.width);
+      expect(d.height).toBe(pointedAt?.height);
+    });
+
+    // The master's dimensions are the ones a naive client would have turned into `${url} ${width}w`.
+    it('never reports the private master dimensions at the top level', () => {
+      const input = imageInput();
+      const d = resolver.resolveImage(input, 'en');
+      expect(input.width).toBe(2400); // master, per the fixture
+      expect(d.width).not.toBe(input.width);
+      expect(d.height).not.toBe(input.height);
     });
 
     it('exposes every variant deterministically (width asc, format asc) with only public fields', () => {

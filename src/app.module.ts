@@ -24,6 +24,9 @@ import { ExperiencesModule } from './modules/experiences/experiences.module';
 import { TestimonialsModule } from './modules/testimonials/testimonials.module';
 import { ProjectsModule } from './modules/projects/projects.module';
 import { MediaModule } from './modules/media/media.module';
+import { RedirectsModule } from './modules/redirects/redirects.module';
+import { ContactModule } from './modules/contact/contact.module';
+import { PreviewModule } from './modules/preview/preview.module';
 
 @Module({
   imports: [
@@ -53,6 +56,9 @@ import { MediaModule } from './modules/media/media.module';
     TestimonialsModule,
     ProjectsModule,
     MediaModule,
+    RedirectsModule,
+    ContactModule,
+    PreviewModule,
   ],
   providers: [
     // Guards run in registration order: throttle first (applies even to public), then

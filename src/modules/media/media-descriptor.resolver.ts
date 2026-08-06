@@ -48,22 +48,29 @@ export class MediaDescriptorResolver {
     private readonly logger?: PinoLogger,
   ) {}
 
-  // Image descriptor: primary `url` is the widest WebP rendition — NEVER an AVIF or the master (doc
-  // 07 §6, doc 10 §6). `alt` is the requested locale's alt, or null when that translation is absent
-  // (no fallback, "" kept). Width/height/WebP are hard invariants for an IMAGE asset (doc 09 CHECK +
-  // T5): a violation is an internal data bug → a controlled 500, never a faked value or an AVIF URL.
+  // Image descriptor: primary `url` is the widest PUBLIC WebP rendition — NEVER an AVIF or the master
+  // (doc 07 §6, doc 10 §6). `alt` is the requested locale's alt, or null when that translation is
+  // absent (no fallback, "" kept). Width/height/WebP are hard invariants for an IMAGE asset (doc 09
+  // CHECK + T5): a violation is an internal data bug → a controlled 500, never a faked value or an
+  // AVIF URL.
+  //
+  // D10-14: `url`, `width` and `height` describe ONE file — the rendition `url` points at. They are
+  // deliberately NOT the master's dimensions. The two disagreed before: a 1086px source resolved to a
+  // 640×853 rendition URL carrying `width: 1086`, so a client building the natural candidate
+  // (`${url} ${width}w`) advertised a 640px file as 1086w — inventing the falsely-labelled source the
+  // contract exists to prevent. The master's own dimensions stay private with the master.
   resolveImage(
     asset: DescriptorImageInput,
     locale: string,
   ): PublicMediaImageDescriptor {
     // Invariants first — fail fast before any URL is built, so an AVIF-only or dimensionless asset
-    // can never surface a partial descriptor.
+    // can never surface a partial descriptor. The master dimensions are still checked (a
+    // dimensionless row is a corrupt asset) even though they are no longer what is returned.
     if (asset.width === null || asset.height === null) {
       this.failInvariant(asset.id, 'image is missing width/height');
     }
-    const primaryUrl = this.storage.publicUrl(
-      this.widestWebpKey(asset.id, asset.variants),
-    );
+    const primary = this.widestWebp(asset.id, asset.variants);
+    const primaryUrl = this.storage.publicUrl(primary.storageKey);
 
     const variants: PublicMediaVariantDescriptor[] = [...asset.variants]
       .sort((a, b) => a.width - b.width || a.format.localeCompare(b.format))
@@ -80,8 +87,8 @@ export class MediaDescriptorResolver {
       id: asset.id,
       kind: MediaKind.IMAGE,
       url: primaryUrl,
-      width: asset.width,
-      height: asset.height,
+      width: primary.width,
+      height: primary.height,
       blurhash: asset.blurhash,
       alt: altRow ? altRow.alt : null,
       variants,
@@ -99,11 +106,13 @@ export class MediaDescriptorResolver {
   }
 
   // The widest WebP rendition — no fallback to AVIF or the master. Every IMAGE asset has ≥ 1 WebP
-  // rendition (T5); its absence is an internal invariant violation, not a client error.
-  private widestWebpKey(
+  // rendition (T5); its absence is an internal invariant violation, not a client error. Returns the
+  // whole variant, not just its key: D10-14 needs its width/height for the top-level descriptor, and
+  // sourcing all three from one object is what makes them self-consistent by construction.
+  private widestWebp(
     assetId: string,
     variants: readonly DescriptorVariantInput[],
-  ): string {
+  ): DescriptorVariantInput {
     const webp = variants.filter(
       (variant) => variant.format === MediaVariantFormat.WEBP,
     );
@@ -117,7 +126,7 @@ export class MediaDescriptorResolver {
         widest = variant;
       }
     }
-    return widest.storageKey;
+    return widest;
   }
 
   // Controlled internal error for a violated image descriptor invariant. Emits a structured event

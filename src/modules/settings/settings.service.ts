@@ -18,9 +18,21 @@ import {
 
 // The resume asset loads with the singleton so the public PDF descriptor resolves in the same
 // query (no N+1). It is a PDF, so no variants/alts are needed.
+// The resume and portrait assets load with the singleton so both public descriptors resolve in
+// the same query (no N+1, doc 10 §6). The portrait needs variants + alts; the PDF needs neither.
+const SETTINGS_INCLUDE = {
+  translations: true,
+  resumeAsset: true,
+  portraitAsset: { include: { variants: true, alts: true } },
+} as const;
+
 type SettingsWithTranslations = Prisma.SiteSettingsGetPayload<{
-  include: { translations: true; resumeAsset: true };
+  include: typeof SETTINGS_INCLUDE;
 }>;
+
+// Admin reads have no request locale; alts resolve against the default locale purely so the
+// media picker can show a label. Public reads always use the caller's ?locale=.
+const DEFAULT_ADMIN_ALT_LOCALE = 'en';
 
 @Injectable()
 export class SettingsService {
@@ -44,7 +56,7 @@ export class SettingsService {
       defaultMetaTitle: translation?.defaultMetaTitle ?? null,
       defaultMetaDescription: translation?.defaultMetaDescription ?? null,
       profileLinks: toProfileLinks(settings.profileLinks),
-      availabilityStatus: settings.availabilityStatus,
+      availabilityStatus: translation?.availabilityStatus ?? null,
       careerStartYear: settings.careerStartYear,
       careerStartMonth: settings.careerStartMonth,
       googleSiteVerification: settings.googleSiteVerification,
@@ -66,6 +78,22 @@ export class SettingsService {
         settings.resumeAsset && settings.resumeAsset.kind === MediaKind.PDF
           ? this.mediaDescriptors.resolvePdf(settings.resumeAsset)
           : null,
+      // Portrait (FR-PUB-020): the bare id stays available alongside the resolved descriptor
+      // (additive, D10-10). The kind check mirrors the resume slot's defence in depth.
+      portraitAssetId: settings.portraitAssetId,
+      portrait:
+        settings.portraitAsset &&
+        settings.portraitAsset.kind === MediaKind.IMAGE
+          ? this.mediaDescriptors.resolveImage(settings.portraitAsset, locale)
+          : null,
+      professionalEmail: settings.professionalEmail,
+      contactEmail: settings.contactEmail,
+      contactPhone: settings.contactPhone,
+      whatsappPhone: settings.whatsappPhone,
+      // About content resolved to the requested locale — no cross-locale fallback (D10-6).
+      aboutBio: translation?.aboutBio ?? null,
+      engineeringPhilosophy: translation?.engineeringPhilosophy ?? null,
+      currentFocus: translation?.currentFocus ?? null,
       availableLocales: settings.translations.map((t) => t.locale).sort(),
     };
   }
@@ -107,6 +135,25 @@ export class SettingsService {
       }
     }
 
+    // The portrait slot may only reference an IMAGE asset (D09-18). null clears it; the prior
+    // asset is retained. A non-existent or non-IMAGE asset is a 422, mirroring the resume rule.
+    if (dto.portraitAssetId !== undefined && dto.portraitAssetId !== null) {
+      const asset = await this.prisma.mediaAsset.findUnique({
+        where: { id: dto.portraitAssetId },
+        select: { kind: true },
+      });
+      if (!asset) {
+        throw new UnprocessableEntityException(
+          'portraitAssetId does not reference an existing media asset.',
+        );
+      }
+      if (asset.kind !== MediaKind.IMAGE) {
+        throw new UnprocessableEntityException(
+          'portraitAssetId must reference an IMAGE asset.',
+        );
+      }
+    }
+
     const careerStartYear =
       dto.careerStartYear !== undefined
         ? dto.careerStartYear
@@ -138,15 +185,23 @@ export class SettingsService {
             locale: translation.locale,
             siteName: translation.siteName,
             tagline: translation.tagline,
+            availabilityStatus: translation.availabilityStatus,
             defaultMetaTitle: translation.defaultMetaTitle,
             defaultMetaDescription: translation.defaultMetaDescription,
+            aboutBio: translation.aboutBio,
+            engineeringPhilosophy: translation.engineeringPhilosophy,
+            currentFocus: translation.currentFocus,
           },
           // Undefined fields are left untouched by Prisma — a partial translation edit.
           update: {
             siteName: translation.siteName,
             tagline: translation.tagline,
+            availabilityStatus: translation.availabilityStatus,
             defaultMetaTitle: translation.defaultMetaTitle,
             defaultMetaDescription: translation.defaultMetaDescription,
+            aboutBio: translation.aboutBio,
+            engineeringPhilosophy: translation.engineeringPhilosophy,
+            currentFocus: translation.currentFocus,
           },
         }),
       );
@@ -158,7 +213,7 @@ export class SettingsService {
 
   private async loadSingletonOrThrow(): Promise<SettingsWithTranslations> {
     const settings = await this.prisma.siteSettings.findFirst({
-      include: { translations: true, resumeAsset: true },
+      include: SETTINGS_INCLUDE,
     });
     if (!settings) {
       throw new NotFoundException('Site settings have not been initialized.');
@@ -174,15 +229,33 @@ export class SettingsService {
       translations[translation.locale] = {
         siteName: translation.siteName,
         tagline: translation.tagline,
+        availabilityStatus: translation.availabilityStatus,
         defaultMetaTitle: translation.defaultMetaTitle,
         defaultMetaDescription: translation.defaultMetaDescription,
+        aboutBio: translation.aboutBio,
+        engineeringPhilosophy: translation.engineeringPhilosophy,
+        currentFocus: translation.currentFocus,
       };
     }
     return {
       id: settings.id,
       profileLinks: toProfileLinks(settings.profileLinks),
-      availabilityStatus: settings.availabilityStatus,
       resumeAssetId: settings.resumeAssetId,
+      portraitAssetId: settings.portraitAssetId,
+      // Read-only descriptor for the media picker; the writable field stays portraitAssetId.
+      // Admin has no single locale, so alts resolve against the default locale.
+      portrait:
+        settings.portraitAsset &&
+        settings.portraitAsset.kind === MediaKind.IMAGE
+          ? this.mediaDescriptors.resolveImage(
+              settings.portraitAsset,
+              DEFAULT_ADMIN_ALT_LOCALE,
+            )
+          : null,
+      professionalEmail: settings.professionalEmail,
+      contactEmail: settings.contactEmail,
+      contactPhone: settings.contactPhone,
+      whatsappPhone: settings.whatsappPhone,
       careerStartYear: settings.careerStartYear,
       careerStartMonth: settings.careerStartMonth,
       googleSiteVerification: settings.googleSiteVerification,
@@ -202,7 +275,6 @@ function buildSettingsUpdate(
   dto: UpdateSettingsDto,
 ): Prisma.SiteSettingsUpdateInput {
   const data: Prisma.SiteSettingsUpdateInput = {
-    availabilityStatus: dto.availabilityStatus,
     careerStartYear: dto.careerStartYear,
     careerStartMonth: dto.careerStartMonth,
     googleSiteVerification: dto.googleSiteVerification,
@@ -223,6 +295,25 @@ function buildSettingsUpdate(
       name: meta.name,
       content: meta.content,
     }));
+  }
+  if (dto.professionalEmail !== undefined) {
+    data.professionalEmail = dto.professionalEmail;
+  }
+  if (dto.contactEmail !== undefined) {
+    data.contactEmail = dto.contactEmail;
+  }
+  if (dto.contactPhone !== undefined) {
+    data.contactPhone = dto.contactPhone;
+  }
+  if (dto.whatsappPhone !== undefined) {
+    data.whatsappPhone = dto.whatsappPhone;
+  }
+  // Repoint (connect) or clear (disconnect) the portrait FK; the asset itself is never deleted.
+  if (dto.portraitAssetId !== undefined) {
+    data.portraitAsset =
+      dto.portraitAssetId === null
+        ? { disconnect: true }
+        : { connect: { id: dto.portraitAssetId } };
   }
   // Repoint (connect) or clear (disconnect) the resume FK; the prior asset is never deleted here.
   if (dto.resumeAssetId !== undefined) {

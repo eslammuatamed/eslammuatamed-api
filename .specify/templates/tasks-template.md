@@ -160,6 +160,31 @@ Examples of foundational tasks (adjust based on your project):
 
 ---
 
+## Phase FINAL: Final Documentation, Contract Sync & Handoff Gate (MANDATORY — always included, per doc 16 §5.1 / D16-8)
+
+**Purpose**: Close the feature out per the **Documentation & Handoff Gate** (doc 16 §5.1,
+D16-8). Unlike the sample phases above, this phase is **mandatory and non-skippable** —
+`/speckit-tasks` MUST keep it in every generated `tasks.md`, always as the **last** phase,
+and its final task is always the gate sign-off. The feature is **not complete** and must
+**not** be pushed / PR'd / merged to `dev` / promoted to `main` / deployed until every box
+here is checked. "Not requested in the prompt" is never a reason to skip it.
+
+- [ ] TXXX Arabic module docs of the shipped behavior — affected `PROJECT_GUIDE.md` / folder `README.md` (Arabic prose, English code identifiers; no secrets, no speculation) per doc 16 §8
+- [ ] TXXX SpecKit closeout — `spec.md` / `plan.md` / `tasks.md` updated, only verified tasks checked, deferred items + accepted limitations recorded
+- [ ] TXXX Central source-of-truth sync — only materially-affected governing docs (product · architecture · API · DB · security · decision logs + version notes · IA · flows · deployment · OpenAPI) + cross-repo contract adoption (doc 16 §3); export OpenAPI where the contract changed
+- [ ] TXXX Project status + handoff — feature-map status; `PROJECT_GUIDE.md` only if the shipped baseline changed; READ-FIRST session handoff (branches / SHAs / PRs / tests / migrations / deploy-state / limitations / next-action); no duplicate status files
+- [ ] TXXX Final consistency verification — Arabic docs match code, central docs match the contract, no stale "planned / in-progress / not-shipped" wording for shipped work, `git diff --check` + doc/contract checks pass, no secrets or local `.env` contents committed
+- [ ] TXXX **Dev/demo seed shipped & verified (D16-9)** — if the feature adds/changes a data-backed flow, deterministic **bilingual (`en`+`ar`)** development/demo seed data was shipped in `prisma/seed.dev.ts`, integrated into the seed orchestration (`db:seed` → `db:seed:dev`, never the Prisma `seed` key), documented (exact command + expected result), and exercised in the backend+frontend integration verification on a **throwaway dev/test DB with an external temporary environment** (the real local `.env` never read/overwritten/printed); idempotent, dev-only, no invented facts/metrics (doc 16 §5.2, doc 09 §6). Mark **N/A** only if the feature touches no data-backed flow (state why)
+- [ ] TXXX **Documentation & Handoff Gate sign-off (D16-8)** — all of the above satisfied (or each omission explicitly justified; Arabic module guide + SpecKit closeout always required); feature cleared for delivery
+
+**Checkpoint**: Gate passed — the feature is documented, synced, handed off, and only now cleared to push / PR / promote / deploy.
+
+> **Data-backed flows (doc 16 §5.2 / D16-9):** when a feature adds or changes a data-backed backend flow, `/speckit-tasks` MUST also add a **dev/demo seed** task in the implementation phase (author the idempotent, dev-only, bilingual `seed.dev.ts` entries and integrate them into `db:seed:dev`) — the FINAL-gate line above only verifies it was done.
+
+> **Release freeze (doc 17 D17-5):** while the release freeze is active, a passed gate clears the feature to push / PR / merge to `dev` only — **`dev → main` promotion and deployment stay blocked** until the owner opens the Website/Homepage phase.
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -169,7 +194,8 @@ Examples of foundational tasks (adjust based on your project):
 - **User Stories (Phase 3+)**: All depend on Foundational phase completion
   - User stories can then proceed in parallel (if staffed)
   - Or sequentially in priority order (P1 → P2 → P3)
-- **Polish (Final Phase)**: Depends on all desired user stories being complete
+- **Polish**: Depends on all desired user stories being complete
+- **Documentation & Handoff Gate (Phase FINAL, always last — D16-8)**: Depends on all implementation + polish being complete; blocks push / PR / promotion / deploy until it passes (doc 16 §5.1)
 
 ### User Story Dependencies
 

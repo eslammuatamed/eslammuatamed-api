@@ -9,9 +9,11 @@ type SkillRow = Skill & { translations: SkillTranslation[] };
 
 const row = (group: SkillGroup, order: number, id = 's1'): SkillRow => ({
   id,
+  slug: id,
   group,
   order,
   brandColor: '#fff',
+  isPublic: true,
   createdAt: new Date(),
   updatedAt: new Date(),
   translations: [
@@ -37,15 +39,18 @@ describe('SkillsService', () => {
     service = new SkillsService(prisma, locales);
   });
 
-  it('orders the public list by group then order and resolves its locale', async () => {
+  it('orders the public list by group then order, filters hidden skills, and resolves its locale', async () => {
     prisma.skill.findMany.mockResolvedValue([
-      row(SkillGroup.FRAMEWORK, 2),
+      row(SkillGroup.FRONTEND, 2),
       row(SkillGroup.LANGUAGE, 1, 's2'),
     ]);
 
     const result = await service.listPublic('en');
 
+    // The hidden-skill filter is the whole visibility mechanism: a skill dropped from the public
+    // taxonomy is kept (its project/experience links depend on it) but must not be served here.
     expect(prisma.skill.findMany).toHaveBeenCalledWith({
+      where: { isPublic: true },
       include: { translations: true },
       orderBy: [{ group: 'asc' }, { order: 'asc' }],
     });
@@ -53,8 +58,19 @@ describe('SkillsService', () => {
     expect(locales.assertEnabled).toHaveBeenCalledWith('en');
   });
 
+  it('leaves the admin list unfiltered so hidden skills stay manageable', async () => {
+    prisma.skill.findMany.mockResolvedValue([row(SkillGroup.LANGUAGE, 0)]);
+
+    await service.listAdmin();
+
+    expect(prisma.skill.findMany).toHaveBeenCalledWith({
+      include: { translations: true },
+      orderBy: [{ group: 'asc' }, { order: 'asc' }],
+    });
+  });
+
   it('maps a foreign-key delete failure to conflict', async () => {
-    prisma.skill.findUnique.mockResolvedValue(row(SkillGroup.TOOLING, 0));
+    prisma.skill.findUnique.mockResolvedValue(row(SkillGroup.BACKEND, 0));
     prisma.skill.delete.mockRejectedValue({ code: 'P2003' });
 
     await expect(service.remove('s1')).rejects.toBeInstanceOf(
@@ -67,5 +83,57 @@ describe('SkillsService', () => {
     await expect(service.remove('missing')).rejects.toBeInstanceOf(
       NotFoundException,
     );
+  });
+
+  // The public skills list doubles as the technology filter-option source. Without `slug` a client
+  // could only build `/projects?technology=` from the id or the translated label — the two forms
+  // the slug exists to replace — so its presence here is a contract requirement, not a detail.
+  it('exposes the slug on public skills so clients can build filter URLs', async () => {
+    prisma.skill.findMany.mockResolvedValue([row(SkillGroup.LANGUAGE, 0)]);
+
+    const result = await service.listPublic('en');
+
+    expect(result[0]).toEqual(expect.objectContaining({ slug: 's1' }));
+  });
+
+  it('exposes the slug on admin skills', async () => {
+    prisma.skill.findMany.mockResolvedValue([row(SkillGroup.LANGUAGE, 0)]);
+
+    const result = await service.listAdmin();
+
+    expect(result[0]).toEqual(expect.objectContaining({ slug: 's1' }));
+  });
+
+  it('persists the requested slug when creating a skill', async () => {
+    prisma.skill.create.mockResolvedValue(row(SkillGroup.LANGUAGE, 0));
+
+    await service.create({
+      slug: 'tailwind-css',
+      group: SkillGroup.LANGUAGE,
+      order: 0,
+      translations: [{ locale: 'en', label: 'Tailwind CSS' }],
+    });
+
+    expect(prisma.skill.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ slug: 'tailwind-css' }),
+      }),
+    );
+  });
+
+  // Two skills behind one public filter URL is precisely what the unique constraint prevents, so a
+  // duplicate is a caller error. Left unmapped it surfaces as a 500, which reads as a server fault
+  // and tells the caller nothing about how to fix the request.
+  it('maps a duplicate slug to conflict rather than letting it surface as a server error', async () => {
+    prisma.skill.create.mockRejectedValue({ code: 'P2002' });
+
+    await expect(
+      service.create({
+        slug: 'typescript',
+        group: SkillGroup.LANGUAGE,
+        order: 0,
+        translations: [{ locale: 'en', label: 'TypeScript' }],
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
   });
 });

@@ -71,6 +71,7 @@ const USAGE_INCLUDE = {
   testimonialAvatars: { select: { id: true } },
   pageSeoOgImages: { select: { id: true, pageKey: true, locale: true } },
   resumeForSettings: { select: { id: true } },
+  portraitForSettings: { select: { id: true } },
 } satisfies Prisma.MediaAssetInclude;
 
 const FORMAT_TO_PRISMA: Record<ImageVariantFormat, MediaVariantFormat> = {
@@ -561,6 +562,7 @@ interface UsageRelations {
   testimonialAvatars: { id: string }[];
   pageSeoOgImages: { id: string; pageKey: string; locale: string }[];
   resumeForSettings: { id: string }[];
+  portraitForSettings: { id: string }[];
 }
 
 function budgetForWidth(width: number, format: ImageVariantFormat): number {
@@ -612,6 +614,11 @@ function buildUsages(asset: UsageRelations): MediaUsageEntity[] {
   }
   for (const settings of asset.resumeForSettings) {
     usages.push({ type: 'settings-resume', id: settings.id });
+  }
+  // The About portrait blocks deletion exactly like the resume asset (D09-18): RESTRICT at the
+  // FK, and a structured 409 here so the operator sees what holds the asset.
+  for (const settings of asset.portraitForSettings) {
+    usages.push({ type: 'settings-portrait', id: settings.id });
   }
   return usages;
 }

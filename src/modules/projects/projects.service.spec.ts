@@ -2,12 +2,13 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { MediaKind, MediaVariantFormat } from '@prisma/client';
+import { MediaKind, MediaVariantFormat, Prisma } from '@prisma/client';
 import { DeepMockProxy, mockDeep } from 'jest-mock-extended';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocalesService } from '../locales/locales.service';
 import { MediaDescriptorResolver } from '../media/media-descriptor.resolver';
 import { StorageAdapter } from '../media/storage/storage-adapter.interface';
+import { RedirectService } from '../redirects/redirect.service';
 import { ProjectsService } from './projects.service';
 
 const storage = {
@@ -125,7 +126,8 @@ function projectPayload(isPublished: boolean) {
         skillId: 'skill-1',
         skill: {
           id: 'skill-1',
-          group: 'FRAMEWORK',
+          slug: 'nestjs',
+          group: 'FRONTEND',
           order: 1,
           brandColor: null,
           createdAt: now,
@@ -195,15 +197,21 @@ const createDto = {
 describe('ProjectsService', () => {
   let prisma: DeepMockProxy<PrismaService>;
   let locales: DeepMockProxy<LocalesService>;
+  let redirects: DeepMockProxy<RedirectService>;
   let service: ProjectsService;
 
   beforeEach(() => {
     prisma = mockDeep<PrismaService>();
     locales = mockDeep<LocalesService>();
+    redirects = mockDeep<RedirectService>();
+    // Default to an empty op-set so a spread never crashes; the "called" tests override this with a
+    // sentinel array and assert those ops land in the $transaction.
+    redirects.buildRedirectOps.mockReturnValue([]);
     service = new ProjectsService(
       prisma,
       locales,
       new MediaDescriptorResolver(storage),
+      redirects,
     );
   });
 
@@ -230,7 +238,10 @@ describe('ProjectsService', () => {
       expect(result.data).toHaveLength(1);
     });
 
-    it('applies the technology Skill id filter without relaxing publication', async () => {
+    // The filter identity is `Skill.slug`: it is locale-independent and survives label edits, so
+    // `/projects?technology=nestjs` means the same thing in every locale and keeps working after
+    // the skill is renamed. Matching happens on the relation, never on a translated label.
+    it('applies the technology Skill slug filter without relaxing publication', async () => {
       prisma.$transaction.mockResolvedValue([[], 0] as never);
 
       await service.listPublic({
@@ -239,16 +250,79 @@ describe('ProjectsService', () => {
         skip: 0,
         take: 12,
         locale: 'en',
-        technology: 'skill-1',
+        technology: 'nestjs',
       });
 
       expect(prisma.project.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
             isPublished: true,
-            technologies: { some: { skillId: 'skill-1' } },
+            technologies: { some: { skill: { slug: 'nestjs' } } },
           }),
         }),
+      );
+    });
+
+    // Backward compatibility: the uuid form is what this endpoint documented before slugs existed,
+    // so already-published links must keep resolving. It matches the id column, not the slug —
+    // otherwise every legacy link would silently return an empty page instead of its projects.
+    it('still accepts a Skill uuid and matches it against the id, not the slug', async () => {
+      prisma.$transaction.mockResolvedValue([[], 0] as never);
+
+      await service.listPublic({
+        page: 1,
+        perPage: 12,
+        skip: 0,
+        take: 12,
+        locale: 'en',
+        technology: '019fa4e9-2810-7f82-a537-6e3ea8ddcc67',
+      });
+
+      expect(prisma.project.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            isPublished: true,
+            technologies: {
+              some: { skillId: '019fa4e9-2810-7f82-a537-6e3ea8ddcc67' },
+            },
+          }),
+        }),
+      );
+    });
+
+    // A retired or mistyped technology must degrade to an empty page, not an error: the filter is
+    // a query parameter a visitor can edit, and the governed contract calls for a valid empty
+    // paginated collection.
+    //
+    // The envelope assertions alone would be VACUOUS — the mock returns an empty page whatever the
+    // query says, so they would still pass with the technology filter deleted entirely. The where
+    // clause is asserted too, which is what ties the empty page to the filter actually having been
+    // applied rather than silently ignored (an ignored filter would return the FULL list, which is
+    // the failure mode that matters here).
+    it('applies an unknown technology slug as a filter and returns a valid empty page', async () => {
+      prisma.$transaction.mockResolvedValue([[], 0] as never);
+
+      const result = await service.listPublic({
+        page: 1,
+        perPage: 12,
+        skip: 0,
+        take: 12,
+        locale: 'en',
+        technology: 'no-such-technology',
+      });
+
+      // The filter WAS applied — not quietly dropped, which would have widened the result set.
+      expect(prisma.project.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            isPublished: true,
+            technologies: { some: { skill: { slug: 'no-such-technology' } } },
+          }),
+        }),
+      );
+      expect(result.data).toEqual([]);
+      expect(result.meta).toEqual(
+        expect.objectContaining({ total: 0, page: 1, perPage: 12 }),
       );
     });
 
@@ -289,7 +363,9 @@ describe('ProjectsService', () => {
         expect.objectContaining({
           title: 'English project',
           slug: 'english-project',
-          technologies: [{ id: 'skill-1', label: 'NestJS' }],
+          // slug travels with the label so a client can build the filter URL for a technology
+          // straight from a project card, without a second lookup or a guess at the identifier.
+          technologies: [{ id: 'skill-1', slug: 'nestjs', label: 'NestJS' }],
         }),
       );
     });
@@ -329,12 +405,16 @@ describe('ProjectsService', () => {
       const result = await service.getPublicBySlug('english-project', 'en');
 
       expect(result.gallery[0]?.mediaAssetId).toBe('media-1');
+      // D10-14: width/height describe the file `url` points at (the 1280 WebP), NOT the 1600×900
+      // master. The fixture deliberately keeps them different so this stays a real assertion; the
+      // aspect ratio is identical either way (1.778), which is why the gallery's intrinsic-box
+      // reservation is unaffected by the change.
       expect(result.gallery[0]?.mediaAsset).toEqual({
         id: 'media-1',
         kind: MediaKind.IMAGE,
         url: 'https://media.test/media/media-1/1280-webp.webp',
-        width: 1600,
-        height: 900,
+        width: 1280,
+        height: 720,
         blurhash: 'BH',
         alt: 'Dashboard shot',
         variants: [
@@ -376,6 +456,29 @@ describe('ProjectsService', () => {
     });
   });
 
+  describe('getPreviewById (D10-8 draft preview, status-agnostic)', () => {
+    it('returns an unpublished project by id, bypassing the isPublished filter', async () => {
+      prisma.project.findUnique.mockResolvedValue(projectPayload(false));
+
+      const result = await service.getPreviewById('project-1', 'en');
+
+      expect(locales.assertEnabled).toHaveBeenCalledWith('en');
+      expect(prisma.project.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 'project-1' } }),
+      );
+      expect(result.title).toBe('English project');
+      expect(result.slug).toBe('english-project');
+    });
+
+    it('404s when the project id does not exist', async () => {
+      prisma.project.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.getPreviewById('missing', 'en'),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
   describe('create', () => {
     it('maps a per-locale slug collision to 422', async () => {
       prisma.$transaction.mockRejectedValue({ code: 'P2002' });
@@ -383,6 +486,118 @@ describe('ProjectsService', () => {
       await expect(service.create(createDto)).rejects.toBeInstanceOf(
         UnprocessableEntityException,
       );
+    });
+  });
+
+  // D04-6 gating only. The 3-op DB behavior (chain-collapse, rename-back, atomicity across rows) is
+  // covered by the buildRedirectOps unit test (T4) and the e2e suite (T9); here we assert solely the
+  // publish-time predicate and that the returned ops land in the same $transaction as the rename.
+  describe('update (D04-6 auto-redirect on published slug rename)', () => {
+    // Sentinel op-set standing in for buildRedirectOps' 3 real ops; identity is asserted in the tx.
+    const redirectOps = [
+      { __redirectOp: 'updateMany' },
+      { __redirectOp: 'deleteMany' },
+      { __redirectOp: 'create' },
+    ] as unknown as Prisma.PrismaPromise<unknown>[];
+
+    // A full ProjectTranslationDto (all required Markdown fields) with a settable locale + slug.
+    const translationDto = (locale: string, slug: string) => ({
+      locale,
+      title: `Title ${locale}`,
+      slug,
+      summary: 'Summary',
+      overview: 'Overview',
+      businessProblem: 'Problem',
+      solution: 'Solution',
+      role: 'Role',
+      architecture: 'Architecture',
+      challenges: 'Challenges',
+      features: 'Features',
+      lessonsLearned: 'Lessons',
+    });
+
+    it('creates one redirect op-set when a published project is renamed with isPublished omitted', async () => {
+      // Guards the dto.isPublished===true regression: an omitted flag must resolve to the existing
+      // published state via nextIsPublished = dto.isPublished ?? existing.isPublished.
+      prisma.project.findUnique.mockResolvedValue(projectPayload(true));
+      redirects.buildRedirectOps.mockReturnValue(redirectOps);
+
+      await service.update('project-1', {
+        translations: [translationDto('en', 'english-project-v2')],
+      });
+
+      expect(redirects.buildRedirectOps).toHaveBeenCalledTimes(1);
+      expect(redirects.buildRedirectOps).toHaveBeenCalledWith({
+        locale: 'en',
+        entityType: 'project',
+        oldSlug: 'english-project',
+        newSlug: 'english-project-v2',
+      });
+      const txOps = prisma.$transaction.mock
+        .calls[0]![0] as unknown as unknown[];
+      expect(txOps).toEqual(expect.arrayContaining(redirectOps));
+    });
+
+    it('does not create a redirect when the project is unpublished', async () => {
+      prisma.project.findUnique.mockResolvedValue(projectPayload(false));
+
+      await service.update('project-1', {
+        translations: [translationDto('en', 'english-project-v2')],
+      });
+
+      expect(redirects.buildRedirectOps).not.toHaveBeenCalled();
+    });
+
+    it('does not create a redirect when the slug is unchanged', async () => {
+      prisma.project.findUnique.mockResolvedValue(projectPayload(true));
+
+      await service.update('project-1', {
+        translations: [translationDto('en', 'english-project')],
+      });
+
+      expect(redirects.buildRedirectOps).not.toHaveBeenCalled();
+    });
+
+    it('does not create a redirect on an unpublished→published rename (old slug was never public)', async () => {
+      prisma.project.findUnique.mockResolvedValue(projectPayload(false));
+
+      await service.update('project-1', {
+        isPublished: true,
+        translations: [translationDto('en', 'english-project-v2')],
+      });
+
+      expect(redirects.buildRedirectOps).not.toHaveBeenCalled();
+    });
+
+    it('does not create a redirect on a published→unpublished rename (new slug not live)', async () => {
+      prisma.project.findUnique.mockResolvedValue(projectPayload(true));
+
+      await service.update('project-1', {
+        isPublished: false,
+        translations: [translationDto('en', 'english-project-v2')],
+      });
+
+      expect(redirects.buildRedirectOps).not.toHaveBeenCalled();
+    });
+
+    it('creates a redirect only for the changed locale (en changed, ar unchanged)', async () => {
+      prisma.project.findUnique.mockResolvedValue(projectPayload(true));
+      redirects.buildRedirectOps.mockReturnValue(redirectOps);
+
+      await service.update('project-1', {
+        translations: [
+          translationDto('en', 'english-project-v2'),
+          translationDto('ar', 'arabic-project'),
+        ],
+      });
+
+      expect(redirects.buildRedirectOps).toHaveBeenCalledTimes(1);
+      expect(redirects.buildRedirectOps).toHaveBeenCalledWith({
+        locale: 'en',
+        entityType: 'project',
+        oldSlug: 'english-project',
+        newSlug: 'english-project-v2',
+      });
     });
   });
 });

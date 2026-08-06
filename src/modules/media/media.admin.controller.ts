@@ -72,7 +72,8 @@ export class MediaAdminController {
   @UseGuards(UploadUserIpThrottlerGuard)
   @UseInterceptors(
     // Multer defaults to in-memory storage, so `file.buffer` feeds the processor directly. The
-    // 10 MiB cap is enforced here (multipart) independently of the 1 MiB JSON body limit.
+    // 10 MiB cap is enforced here (multipart) independently of the 1 MiB JSON body limit (set in
+    // main.ts, doc 19 §5) — multipart uses its own parser, so the two limits do not interact.
     FileInterceptor('file', { limits: { fileSize: MAX_UPLOAD_BYTES } }),
     RetryAfterInterceptor,
   )

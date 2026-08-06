@@ -49,6 +49,70 @@ describe('Skills (e2e)', () => {
     expect(Array.isArray(envelopeData<unknown[]>(res))).toBe(true);
   });
 
+  it('hides a non-public skill from the public list while keeping it in the admin list', async () => {
+    // The visibility mechanism a taxonomy change depends on: a skill dropped from the public
+    // taxonomy is hidden, never deleted, because projects and experiences link to it. If this
+    // filter regressed, removing a skill from the taxonomy would mean deleting it — and taking
+    // its relations down with it.
+    const label = `Hidden E2E Skill ${unique}`;
+    const created = await request(httpServer(app))
+      .post('/api/v1/admin/skills')
+      .set(auth())
+      .send({
+        slug: `hidden-e2e-skill-${unique}`,
+        group: 'DELIVERY',
+        order: 9001,
+        isPublic: false,
+        translations: [{ locale: 'en', label }],
+      })
+      .expect(201);
+    const hiddenId = envelopeData<{ id: string }>(created).id;
+    expect(created).toSatisfyApiSpec();
+    expect(envelopeData<{ isPublic: boolean }>(created).isPublic).toBe(false);
+
+    try {
+      const publicList = await request(httpServer(app))
+        .get('/api/v1/skills?locale=en')
+        .expect(200);
+      expect(
+        envelopeData<{ id: string }[]>(publicList).some(
+          (skill) => skill.id === hiddenId,
+        ),
+      ).toBe(false);
+
+      const adminList = await request(httpServer(app))
+        .get('/api/v1/admin/skills')
+        .set(auth())
+        .expect(200);
+      expect(
+        envelopeData<{ id: string }[]>(adminList).some(
+          (skill) => skill.id === hiddenId,
+        ),
+      ).toBe(true);
+
+      // ...and unhiding it puts it back on the public surface, so the flag is the whole switch.
+      await request(httpServer(app))
+        .patch(`/api/v1/admin/skills/${hiddenId}`)
+        .set(auth())
+        .send({ isPublic: true })
+        .expect(200);
+
+      const relisted = await request(httpServer(app))
+        .get('/api/v1/skills?locale=en')
+        .expect(200);
+      expect(
+        envelopeData<{ id: string }[]>(relisted).some(
+          (skill) => skill.id === hiddenId,
+        ),
+      ).toBe(true);
+    } finally {
+      await request(httpServer(app))
+        .delete(`/api/v1/admin/skills/${hiddenId}`)
+        .set(auth())
+        .expect(204);
+    }
+  });
+
   it('denies an admin route without a token', async () => {
     const res = await request(httpServer(app))
       .get('/api/v1/admin/skills')
@@ -62,7 +126,8 @@ describe('Skills (e2e)', () => {
       .post('/api/v1/admin/skills')
       .set(auth())
       .send({
-        group: 'FRAMEWORK',
+        slug: `e2e-skill-${unique}`,
+        group: 'FRONTEND',
         order: 9000,
         brandColor: '#7c3aed',
         translations: [{ locale: 'en', label: `E2E Skill ${unique}` }],
@@ -104,6 +169,21 @@ describe('Skills (e2e)', () => {
         .translations.en.label,
     ).toBe(updatedLabel);
 
+    // The label just changed; the slug must not have. That is the whole point of a separate
+    // identity — public filter URLs survive a rename.
+    expect(envelopeData<{ slug: string }>(updated).slug).toBe(
+      `e2e-skill-${unique}`,
+    );
+
+    // And re-slugging is refused outright rather than quietly ignored, so a caller that tries is
+    // told instead of believing an already-shared URL still resolves.
+    const reslug = await request(httpServer(app))
+      .patch(`/api/v1/admin/skills/${createdSkillId}`)
+      .set(auth())
+      .send({ slug: `renamed-${unique}` })
+      .expect(422);
+    expect(reslug).toSatisfyApiSpec();
+
     const removed = await request(httpServer(app))
       .delete(`/api/v1/admin/skills/${createdSkillId}`)
       .set(auth())
@@ -112,12 +192,30 @@ describe('Skills (e2e)', () => {
     createdSkillId = undefined;
   });
 
+  // Over HTTP, because this is the guarantee the `?technology=` filter's slug/uuid discrimination
+  // rests on: a uuid satisfies the kebab-case rule, so a uuid-shaped slug would be routed to the id
+  // column forever and answer with an empty page. This endpoint is where such a slug could be born.
+  it('refuses a uuid-shaped slug with a contract-valid 422', async () => {
+    const res = await request(httpServer(app))
+      .post('/api/v1/admin/skills')
+      .set(auth())
+      .send({
+        slug: '019fa4e9-2810-7f82-a537-6e3ea8ddcc67',
+        group: 'FRONTEND',
+        order: 9100,
+        translations: [{ locale: 'en', label: `Uuid Shaped ${unique}` }],
+      })
+      .expect(422);
+
+    expect(res).toSatisfyApiSpec();
+  });
+
   it('rejects an invalid create body with a contract-valid 422', async () => {
     const res = await request(httpServer(app))
       .post('/api/v1/admin/skills')
       .set(auth())
       .send({
-        group: 'FRAMEWORK',
+        group: 'FRONTEND',
         order: 'first',
         translations: { locale: 'en', label: 'Invalid shape' },
       })

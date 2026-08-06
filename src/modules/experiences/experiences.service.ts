@@ -17,8 +17,30 @@ import {
   PublicExperienceEntity,
 } from './entities/experience.entities';
 
+// Technologies load with the experience, each carrying its skill and the locale-filtered
+// translation, so labels resolve in the same query (no N+1) — mirrors PUBLIC_INCLUDE in projects.
+const PUBLIC_INCLUDE = (locale: string) => ({
+  translations: true,
+  technologies: {
+    include: { skill: { include: { translations: { where: { locale } } } } },
+  },
+});
+
+const ADMIN_INCLUDE = { translations: true, technologies: true } as const;
+
+type TechnologyLink = {
+  skillId: string;
+  skill?: {
+    id: string;
+    slug: string;
+    order: number;
+    translations: { locale: string; label: string }[];
+  };
+};
+
 type ExperienceWithTranslations = Experience & {
   translations: ExperienceTranslation[];
+  technologies: TechnologyLink[];
 };
 
 @Injectable()
@@ -31,7 +53,7 @@ export class ExperiencesService {
   async listPublic(locale: string): Promise<PublicExperienceEntity[]> {
     await this.locales.assertEnabled(locale);
     const rows = await this.prisma.experience.findMany({
-      include: { translations: true },
+      include: PUBLIC_INCLUDE(locale),
       orderBy: [{ startDate: 'desc' }, { order: 'asc' }],
     });
     return [...rows]
@@ -41,7 +63,7 @@ export class ExperiencesService {
   }
   async listAdmin(): Promise<AdminExperienceEntity[]> {
     const rows = await this.prisma.experience.findMany({
-      include: { translations: true },
+      include: ADMIN_INCLUDE,
       orderBy: [{ startDate: 'desc' }, { order: 'asc' }],
     });
     return rows.sort(compareExperiences).map(toAdminEntity);
@@ -52,6 +74,7 @@ export class ExperiencesService {
   async create(dto: CreateExperienceDto): Promise<AdminExperienceEntity> {
     assertEmploymentType(dto.employmentType);
     await this.assertTranslations(dto.translations);
+    await this.assertSkillIds(dto.technologyIds);
     const row = await this.prisma.experience.create({
       data: {
         startDate: new Date(dto.startDate),
@@ -60,8 +83,11 @@ export class ExperiencesService {
         employmentType: dto.employmentType,
         order: dto.order,
         translations: { create: dto.translations },
+        technologies: dto.technologyIds?.length
+          ? { create: dto.technologyIds.map((skillId) => ({ skillId })) }
+          : undefined,
       },
-      include: { translations: true },
+      include: ADMIN_INCLUDE,
     });
     return toAdminEntity(row);
   }
@@ -73,6 +99,7 @@ export class ExperiencesService {
     if (dto.employmentType !== undefined)
       assertEmploymentType(dto.employmentType);
     if (dto.translations) await this.assertTranslations(dto.translations);
+    await this.assertSkillIds(dto.technologyIds);
     const data: Prisma.ExperienceUpdateInput = {
       startDate: dto.startDate ? new Date(dto.startDate) : undefined,
       endDate:
@@ -106,6 +133,25 @@ export class ExperiencesService {
           },
         }),
       );
+    // Replace membership wholesale (D09-17): delete-then-create inside the SAME transaction, so a
+    // failure can never leave an entry with its prior links dropped and no replacements written.
+    if (dto.technologyIds !== undefined) {
+      ops.push(
+        this.prisma.experienceTechnology.deleteMany({
+          where: { experienceId: id },
+        }),
+      );
+      if (dto.technologyIds.length > 0) {
+        ops.push(
+          this.prisma.experienceTechnology.createMany({
+            data: dto.technologyIds.map((skillId) => ({
+              experienceId: id,
+              skillId,
+            })),
+          }),
+        );
+      }
+    }
     if (ops.length) await this.prisma.$transaction(ops);
     return this.getAdmin(id);
   }
@@ -113,6 +159,30 @@ export class ExperiencesService {
     await this.getOrThrow(id);
     await this.prisma.experience.delete({ where: { id } });
   }
+  // Duplicates are rejected rather than de-duplicated: the composite PK would reject them at the
+  // database anyway, and a 422 naming the problem beats an opaque constraint error. Unknown ids
+  // are rejected up front so the caller gets a validation failure, not an FK violation.
+  private async assertSkillIds(ids?: string[]): Promise<void> {
+    if (ids === undefined || ids.length === 0) return;
+    const unique = new Set(ids);
+    if (unique.size !== ids.length) {
+      throw new UnprocessableEntityException(
+        'technologyIds must not contain duplicate skill ids.',
+      );
+    }
+    const found = await this.prisma.skill.findMany({
+      where: { id: { in: ids } },
+      select: { id: true },
+    });
+    if (found.length !== unique.size) {
+      const known = new Set(found.map((skill) => skill.id));
+      const missing = ids.filter((id) => !known.has(id));
+      throw new UnprocessableEntityException(
+        `technologyIds reference unknown skills: ${missing.join(', ')}.`,
+      );
+    }
+  }
+
   private async assertTranslations(
     translations: readonly { locale: string }[],
   ): Promise<void> {
@@ -122,7 +192,7 @@ export class ExperiencesService {
   private async getOrThrow(id: string): Promise<ExperienceWithTranslations> {
     const row = await this.prisma.experience.findUnique({
       where: { id },
-      include: { translations: true },
+      include: ADMIN_INCLUDE,
     });
     if (!row) throw new NotFoundException('Experience not found.');
     return row;
@@ -144,6 +214,26 @@ export class ExperiencesService {
       startDate: row.startDate,
       endDate: row.endDate,
       order: row.order,
+      // Ordered by Skill.order; a skill without a translation in this locale is dropped rather
+      // than falling back to another locale (D10-6).
+      technologies: [...row.technologies]
+        .sort((a, b) => (a.skill?.order ?? 0) - (b.skill?.order ?? 0))
+        .map((link) => {
+          const skill = link.skill;
+          const label = skill?.translations.find(
+            (item) => item.locale === locale,
+          )?.label;
+          // Both halves come from the same include, so a missing skill and a missing label are
+          // the same condition; dropping on either keeps `slug` a guaranteed string rather than
+          // inventing one from the link's raw id.
+          return skill === undefined || label === undefined
+            ? null
+            : { id: skill.id, slug: skill.slug, label };
+        })
+        .filter(
+          (item): item is { id: string; slug: string; label: string } =>
+            item !== null,
+        ),
       availableLocales: row.translations.map((item) => item.locale).sort(),
     };
   }
@@ -167,6 +257,7 @@ function toAdminEntity(row: ExperienceWithTranslations): AdminExperienceEntity {
     };
   return {
     id: row.id,
+    technologyIds: row.technologies.map((link) => link.skillId),
     startDate: row.startDate,
     endDate: row.endDate,
     isCurrent: row.isCurrent,
@@ -176,6 +267,27 @@ function toAdminEntity(row: ExperienceWithTranslations): AdminExperienceEntity {
   };
 }
 
+/**
+ * Canonical public ordering: CURRENT ROLES FIRST, then most-recent start date, then the
+ * owner-controlled `order`, then `id` as a total tie-breaker.
+ *
+ * `isCurrent` has to lead, and sorting by `startDate` alone got this wrong in production: a role
+ * that STARTED later but has already ENDED outranked the role the owner still holds. Observed
+ * live — WaveX (started 2026-03, ended 2026-07) sorted above Findropica (started 2025-01,
+ * `isCurrent: true`) — so `/experience` and `/resume`, which render the API order verbatim,
+ * disagreed with the Home page, which was re-sorting locally. Ordering is the API's job (the same
+ * rule `useProjects` documents on the Web side): a client that re-sorts silently overrides the
+ * ordering the owner controls from the dashboard.
+ *
+ * `id` last makes the sort TOTAL. Without it two roles sharing a start date and an `order` would
+ * compare equal, and `Array#sort` stability would leave their relative order at the mercy of the
+ * database's row order — a listing that can change between identical requests.
+ */
 function compareExperiences(a: Experience, b: Experience): number {
-  return b.startDate.getTime() - a.startDate.getTime() || a.order - b.order;
+  if (a.isCurrent !== b.isCurrent) return a.isCurrent ? -1 : 1;
+  return (
+    b.startDate.getTime() - a.startDate.getTime() ||
+    a.order - b.order ||
+    a.id.localeCompare(b.id)
+  );
 }

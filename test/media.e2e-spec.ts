@@ -39,6 +39,7 @@ const RUN = Date.now();
 interface AdminVariant {
   readonly format: string;
   readonly width: number;
+  readonly height: number;
   readonly url: string;
   readonly overBudget: boolean;
 }
@@ -46,8 +47,23 @@ interface AdminAsset {
   readonly id: string;
   readonly kind: string;
   readonly url: string;
+  readonly width: number;
+  readonly height: number;
   readonly blurhash: string | null;
   readonly variants: AdminVariant[];
+}
+interface PublicVariant {
+  readonly format: string;
+  readonly width: number;
+  readonly height: number;
+  readonly url: string;
+}
+interface PublicImageDescriptor {
+  readonly id: string;
+  readonly url: string;
+  readonly width: number;
+  readonly height: number;
+  readonly variants: PublicVariant[];
 }
 interface Usage {
   readonly type: string;
@@ -165,6 +181,91 @@ describe('Media pipeline (e2e)', () => {
       asset.variants.every((v) => v.format === 'WEBP' || v.format === 'AVIF'),
     ).toBe(true);
   });
+
+  // D20-20 end-to-end: a source strictly between two configured tiers gets a terminal rendition at
+  // its own width, in both public formats. 1086 is the approved About portrait's width, so this is
+  // the real case rather than a synthetic one.
+  it('emits a terminal rendition at the source width for a between-tiers source (D20-20)', async () => {
+    const res = await uploadImage(
+      ownerToken,
+      await pngImage(RUN + 20, 1086, 1448),
+    ).expect(201);
+    expect(res).toSatisfyApiSpec();
+    const asset = envelopeData<AdminAsset>(res);
+
+    const widths = [...new Set(asset.variants.map((v) => v.width))].sort(
+      (a, b) => a - b,
+    );
+    expect(widths).toEqual([640, 1086]);
+    expect(widths).not.toContain(1280); // never invented above the source
+
+    for (const width of widths) {
+      const formats = asset.variants
+        .filter((v) => v.width === width)
+        .map((v) => v.format)
+        .sort();
+      expect(formats).toEqual(['AVIF', 'WEBP']);
+    }
+
+    // The width in the URL is the width in the row — a storage key that disagreed with its
+    // descriptor would be a falsely-labelled source wearing a truthful number.
+    for (const variant of asset.variants) {
+      expect(variant.url).toContain(`/${variant.width}-`);
+    }
+  }, 60000);
+
+  // D10-14 end-to-end, against the PUBLIC descriptor — which is what the contract governs. The admin
+  // entity deliberately still reports the master's own width/height (the dashboard needs the real
+  // master facts); only the public descriptor is required to be self-consistent.
+  it('reports public url/width/height from the same widest WebP rendition (D10-14)', async () => {
+    const asset = envelopeData<AdminAsset>(
+      await uploadImage(
+        ownerToken,
+        await pngImage(RUN + 21, 1086, 1448),
+      ).expect(201),
+    );
+    await request(server)
+      .post('/api/v1/admin/testimonials')
+      .set(owner())
+      .send({
+        avatarId: asset.id,
+        order: 30,
+        isVisible: true,
+        translations: [
+          {
+            locale: 'en',
+            quote: 'Portrait descriptor check.',
+            authorName: 'A',
+            authorRole: 'R',
+          },
+        ],
+      })
+      .expect(201);
+
+    const publicList = await request(server)
+      .get('/api/v1/testimonials?locale=en')
+      .expect(200);
+    expect(publicList).toSatisfyApiSpec();
+
+    const descriptor = envelopeData<{ avatar: PublicImageDescriptor | null }[]>(
+      publicList,
+    )
+      .map((t) => t.avatar)
+      .find((a) => a !== null && a.id === asset.id);
+    expect(descriptor).toBeDefined();
+    if (!descriptor) return;
+
+    // The terminal rendition is the widest public WebP, so the top level must point at 1086 — not the
+    // 640 rendition, and not the 1086x1448 master (whose dimensions happen to coincide here, which is
+    // exactly why `url` is asserted too rather than the numbers alone).
+    const webp = descriptor.variants.filter((v) => v.format === 'WEBP');
+    const widest = webp.reduce((a, b) => (b.width > a.width ? b : a));
+    expect(widest.width).toBe(1086);
+    expect(descriptor.url).toBe(widest.url);
+    expect(descriptor.width).toBe(widest.width);
+    expect(descriptor.height).toBe(widest.height);
+    expect(descriptor.url).not.toContain('master'); // master is never a public URL
+  }, 60000);
 
   it('deduplicates identical bytes → 200 with meta.deduplicated and the same asset id', async () => {
     const buffer = await pngImage(RUN + 4);
