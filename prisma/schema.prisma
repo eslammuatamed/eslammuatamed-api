@@ -400,7 +400,7 @@ model ExperienceTechnology {
 // ===== Skills, experiences, testimonials (schema-complete; no M1 module) =====
 
 model Skill {
-  id String @id @default(uuid(7))
+  id         String     @id @default(uuid(7))
   // The stable public identity. Lowercase kebab-case, locale-independent, and unchanged when a
   // localized label changes — public filter URLs are `/projects?technology=<slug>`, so deriving
   // the identifier from a translated label would make the same filter a different URL per locale
@@ -697,6 +697,14 @@ model SiteSettingsTranslation {
   aboutBio              String? @map("about_bio")
   engineeringPhilosophy String? @map("engineering_philosophy")
   currentFocus          String? @map("current_focus")
+  // PER-USAGE alt for the About portrait, and deliberately NOT on `MediaAsset` (D09-22).
+  // `MediaAssetAlt` is asset-level DEFAULT metadata for the library and existing consumers; a
+  // consuming relation that defines its own localized alt owns the published accessibility text for
+  // THAT usage, and per-usage wins. One asset reused in two places can need two different
+  // descriptions, so a single global alt cannot be the universal meaning of the asset. It lives
+  // here because this row already IS the per-locale About content, so the association is
+  // `SiteSettings.portraitAssetId` + this column per locale — no new join table.
+  portraitAlt           String? @map("portrait_alt")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

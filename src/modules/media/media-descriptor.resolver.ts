@@ -59,9 +59,23 @@ export class MediaDescriptorResolver {
   // 640×853 rendition URL carrying `width: 1086`, so a client building the natural candidate
   // (`${url} ${width}w`) advertised a 640px file as 1086w — inventing the falsely-labelled source the
   // contract exists to prevent. The master's own dimensions stay private with the master.
+  /**
+   * @param altOverride PER-USAGE alt owned by the consuming relation (D09-22).
+   *
+   * ALT PRECEDENCE, normative for every future consumer: `MediaAssetAlt` is asset-level DEFAULT
+   * metadata for the media library; a consuming relation that defines its own localized alt owns
+   * the published accessibility text for THAT usage and WINS. One asset reused in two places can
+   * legitimately need two different descriptions, so a single global alt cannot be the universal
+   * meaning of the asset.
+   *
+   * `undefined` means "this usage defines no alt of its own" — fall back to the asset default.
+   * `null` means "this usage explicitly has no alt" and does NOT fall back, because falling back
+   * would silently publish a library default the owner never reviewed for this context.
+   */
   resolveImage(
     asset: DescriptorImageInput,
     locale: string,
+    altOverride?: string | null,
   ): PublicMediaImageDescriptor {
     // Invariants first — fail fast before any URL is built, so an AVIF-only or dimensionless asset
     // can never surface a partial descriptor. The master dimensions are still checked (a
@@ -82,6 +96,8 @@ export class MediaDescriptorResolver {
       }));
 
     const altRow = asset.alts.find((row) => row.locale === locale);
+    const alt =
+      altOverride === undefined ? (altRow ? altRow.alt : null) : altOverride;
 
     return {
       id: asset.id,
@@ -90,7 +106,7 @@ export class MediaDescriptorResolver {
       width: primary.width,
       height: primary.height,
       blurhash: asset.blurhash,
-      alt: altRow ? altRow.alt : null,
+      alt,
       variants,
     };
   }

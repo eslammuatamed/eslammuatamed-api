@@ -6866,7 +6866,7 @@
                 "$ref": "#/components/schemas/PublicMediaImageDescriptor"
               }
             ],
-            "description": "Resolved About portrait descriptor (FR-PUB-020); null when no portrait is configured."
+            "description": "Resolved About portrait descriptor (FR-PUB-020); null when no portrait is configured. Its `alt` is the per-usage localized alt for this locale, never the asset-level default."
           },
           "professionalEmail": {
             "type": "string",
@@ -6984,6 +6984,11 @@
             "type": "string",
             "nullable": true,
             "description": "Plain text."
+          },
+          "portraitAlt": {
+            "type": "string",
+            "nullable": true,
+            "description": "Localized alt for the About portrait in this locale. Per-usage: overrides the asset-level default."
           }
         },
         "required": [
@@ -6994,7 +6999,8 @@
           "defaultMetaDescription",
           "aboutBio",
           "engineeringPhilosophy",
-          "currentFocus"
+          "currentFocus",
+          "portraitAlt"
         ]
       },
       "AdminSiteSettingsEntity": {
@@ -7027,7 +7033,7 @@
                 "$ref": "#/components/schemas/PublicMediaImageDescriptor"
               }
             ],
-            "description": "Resolved portrait descriptor for the media picker; null when unset. Read-only — write via portraitAssetId."
+            "description": "Resolved portrait descriptor for the media picker; null when unset. Read-only — write via portraitAssetId. Its `alt` is the asset-level library default, NOT the published About alt: that lives in translations[locale].portraitAlt and must never be prefilled from here."
           },
           "professionalEmail": {
             "type": "string",
@@ -7185,6 +7191,12 @@
           "currentFocus": {
             "type": "string",
             "example": "Building bilingual product platforms."
+          },
+          "portraitAlt": {
+            "type": "object",
+            "example": "Eslam Muatamed, smiling, in front of a bookshelf.",
+            "description": "Localized alt text for the About portrait in THIS locale, or null to clear. Per-usage: it overrides the asset-level MediaAssetAlt default.",
+            "nullable": true
           }
         }
       },

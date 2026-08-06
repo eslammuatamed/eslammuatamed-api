@@ -107,6 +107,19 @@ export const GOVERNED_SETTINGS_SCALARS = [
 ] as const;
 
 /**
+ * Operator-owned `SiteSettingsTranslation` columns — the translation-side counterpart of
+ * `OPERATOR_OWNED_SETTINGS_SCALARS`, and named for the same reason.
+ *
+ * `portraitAlt` is the PER-USAGE alt for the About portrait (D09-22). It is operator-owned rather
+ * than governed because it describes an image the OWNER uploaded through the Dashboard: the
+ * canonical dataset has no portrait and therefore cannot know what the picture shows. Governing it
+ * would make `content:sync` write null over the owner's accessibility text on every run.
+ */
+export const OPERATOR_OWNED_SETTINGS_TRANSLATION_FIELDS = [
+  'portraitAlt',
+] as const;
+
+/**
  * Operator-owned `SiteSettings` columns. Not merely "absent from the governed list" — named, so a
  * test can assert the two lists partition the model and neither drifts into the other.
  */
@@ -121,7 +134,12 @@ export const OPERATOR_OWNED_SETTINGS_SCALARS = [
   'customMetas',
 ] as const;
 
-/** The governed `SiteSettingsTranslation` columns (doc 09 §6.3) — all of them are governed. */
+/**
+ * The governed `SiteSettingsTranslation` columns (doc 09 §6.3).
+ *
+ * NOT every column: `OPERATOR_OWNED_SETTINGS_TRANSLATION_FIELDS` above holds the operator-owned
+ * ones. The two lists must partition the model, which `allowlist.spec.ts` asserts.
+ */
 export const GOVERNED_SETTINGS_TRANSLATION_FIELDS = [
   'siteName',
   'tagline',
