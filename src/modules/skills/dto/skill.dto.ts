@@ -60,7 +60,7 @@ export class CreateSkillDto {
   @IsEnum(SkillGroup)
   readonly group!: SkillGroup;
   @ApiProperty({ example: 1 }) @IsInt() @Min(0) readonly order!: number;
-  @ApiPropertyOptional({ example: '#3178C6', nullable: true })
+  @ApiPropertyOptional({ type: String, example: '#3178C6', nullable: true })
   @IsOptional()
   @IsString()
   @MaxLength(32)
