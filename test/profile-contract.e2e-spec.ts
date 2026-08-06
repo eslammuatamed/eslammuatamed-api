@@ -58,11 +58,19 @@ describe('Profile contract (e2e)', () => {
   });
 
   afterAll(async () => {
-    // Leave settings as the seed left them so the suite is order-independent.
+    // Leave settings as the seed left them so the suite is order-independent. The per-usage alts
+    // are cleared alongside the association: this suite is the only thing that ever sets them, and
+    // leaving them behind would let a later run observe state its own setup never created.
     await request(server)
       .patch('/api/v1/admin/settings')
       .set(owner())
-      .send({ portraitAssetId: null });
+      .send({
+        portraitAssetId: null,
+        translations: [
+          { locale: 'en', portraitAlt: null },
+          { locale: 'ar', portraitAlt: null },
+        ],
+      });
     await app.close();
   });
 
@@ -112,23 +120,74 @@ describe('Profile contract (e2e)', () => {
       expect(data.portrait?.url).toContain('.webp');
     });
 
-    it('resolves alt per locale with no cross-locale fallback', async () => {
+    // D09-22 — the published alt is owned by the USAGE, not by the asset. These four cases are the
+    // HTTP-level proof of the precedence rule; the unit suite proves the same resolution in
+    // isolation. Read them in order: they build one scenario, they are not independent.
+    const publishedAlt = async (locale: string): Promise<string | null> =>
+      envelopeData<{ portrait: { alt: string | null } }>(
+        await request(server).get(`/api/v1/settings/site?locale=${locale}`),
+      ).portrait.alt;
+
+    it('does NOT publish the asset-level default when the usage defines no alt', async () => {
+      // A library default exists for BOTH locales…
       await request(server)
         .patch(`/api/v1/admin/media/${imageId}`)
         .set(owner())
         .send({ locale: 'en', alt: 'Portrait of Eslam' })
         .expect(200);
+      await request(server)
+        .patch(`/api/v1/admin/media/${imageId}`)
+        .set(owner())
+        .send({ locale: 'ar', alt: 'صورة إسلام' })
+        .expect(200);
 
-      const en = await request(server).get('/api/v1/settings/site?locale=en');
-      const ar = await request(server).get('/api/v1/settings/site?locale=ar');
+      // …and neither is published, because the owner has not reviewed either FOR THE ABOUT PAGE.
+      // Publishing them would put unreviewed text in front of a screen-reader user; null instead
+      // holds `/about` in its governed `portrait-alt-missing` readiness state (D18-7).
+      expect(await publishedAlt('en')).toBeNull();
+      expect(await publishedAlt('ar')).toBeNull();
+    });
 
-      expect(
-        envelopeData<{ portrait: { alt: string | null } }>(en).portrait.alt,
-      ).toBe('Portrait of Eslam');
-      // No ar alt row → null, never the English value.
-      expect(
-        envelopeData<{ portrait: { alt: string | null } }>(ar).portrait.alt,
-      ).toBeNull();
+    it('publishes the per-usage alt, and it wins over a differing asset default', async () => {
+      await request(server)
+        .patch('/api/v1/admin/settings')
+        .set(owner())
+        .send({
+          translations: [{ locale: 'en', portraitAlt: 'Eslam at his desk' }],
+        })
+        .expect(200);
+
+      // The asset default for 'en' is still 'Portrait of Eslam'; the usage value must win.
+      expect(await publishedAlt('en')).toBe('Eslam at his desk');
+      // 'ar' defined no per-usage alt, so it stays null — it borrows neither the other locale's
+      // per-usage value (D10-6) nor its own asset default.
+      expect(await publishedAlt('ar')).toBeNull();
+    });
+
+    it('keeps the two locales independent', async () => {
+      await request(server)
+        .patch('/api/v1/admin/settings')
+        .set(owner())
+        .send({
+          translations: [{ locale: 'ar', portraitAlt: 'إسلام في مكتبه' }],
+        })
+        .expect(200);
+
+      expect(await publishedAlt('ar')).toBe('إسلام في مكتبه');
+      // Writing 'ar' must not disturb the 'en' value already stored.
+      expect(await publishedAlt('en')).toBe('Eslam at his desk');
+    });
+
+    it('clears a per-usage alt to null without falling back to the asset default', async () => {
+      await request(server)
+        .patch('/api/v1/admin/settings')
+        .set(owner())
+        .send({ translations: [{ locale: 'en', portraitAlt: null }] })
+        .expect(200);
+
+      // The asset default is still 'Portrait of Eslam'. Clearing must mean "no reviewed alt",
+      // not "revert to the library default" — otherwise clearing would silently publish it.
+      expect(await publishedAlt('en')).toBeNull();
     });
 
     it('reports the portrait in media usages and refuses deletion with 409', async () => {

@@ -107,6 +107,7 @@ function translation(
     aboutBio: `Bio ${locale}`,
     engineeringPhilosophy: `Philosophy ${locale}`,
     currentFocus: `Focus ${locale}`,
+    portraitAlt: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
@@ -448,11 +449,15 @@ describe('SettingsService', () => {
 
   // ── Profile contract (D09-18, D10-13) ──────────────────────────────────────────────────────
   describe('profile fields', () => {
-    it('exposes both the portrait id and the resolved descriptor, with requested-locale alt', async () => {
+    it('exposes both the portrait id and the resolved descriptor, with the PER-USAGE alt', async () => {
       prisma.siteSettings.findFirst.mockResolvedValue(
         settingsRow({
           portraitAssetId: 'portrait-1',
           portraitAsset: portraitAsset(),
+          translations: [
+            translation('en', { portraitAlt: 'Eslam at his desk' }),
+            translation('ar', { portraitAlt: 'صورة إسلام' }),
+          ],
         }),
       );
 
@@ -500,17 +505,72 @@ describe('SettingsService', () => {
       expect(result.portrait?.alt).toBeNull();
     });
 
+    // The decorative-vs-missing distinction survives the move to per-usage alt (D09-22) — it just
+    // belongs to the USAGE now. `''` means "deliberately decorative"; null means "not described
+    // yet" and holds `/about` in its readiness state. Collapsing the two would let an undescribed
+    // portrait publish as decorative, which is an accessibility regression, not a tidy-up.
     it('keeps an intentionally decorative empty alt distinct from a missing one', async () => {
       prisma.siteSettings.findFirst.mockResolvedValue(
         settingsRow({
           portraitAssetId: 'portrait-1',
-          portraitAsset: portraitAsset([{ locale: 'ar', alt: '' }]),
+          portraitAsset: portraitAsset(),
+          translations: [translation('ar', { portraitAlt: '' })],
         }),
       );
 
       const result = await service.getPublicSettings('ar');
 
       expect(result.portrait?.alt).toBe('');
+    });
+
+    // D09-22 — PER-USAGE alt WINS, and an absent one does NOT fall back to the asset default.
+    // The asset carries alts for both locales here; publishing them would mean shipping a library
+    // default the owner never reviewed for the About context, so the descriptor must say null and
+    // let `/about` stay in its governed `portrait-alt-missing` readiness state (D18-7).
+    it('does NOT publish the asset-level MediaAssetAlt default when the usage defines no alt', async () => {
+      prisma.siteSettings.findFirst.mockResolvedValue(
+        settingsRow({
+          portraitAssetId: 'portrait-1',
+          portraitAsset: portraitAsset(),
+          translations: [translation('ar', { portraitAlt: null })],
+        }),
+      );
+
+      const result = await service.getPublicSettings('ar');
+
+      expect(result.portrait?.alt).toBeNull();
+    });
+
+    it('publishes the per-usage alt even when the asset default differs', async () => {
+      prisma.siteSettings.findFirst.mockResolvedValue(
+        settingsRow({
+          portraitAssetId: 'portrait-1',
+          portraitAsset: portraitAsset(),
+          translations: [
+            translation('ar', { portraitAlt: 'نص بديل خاص بصفحة نبذة' }),
+          ],
+        }),
+      );
+
+      const result = await service.getPublicSettings('ar');
+
+      // The asset default for 'ar' is 'صورة إسلام'; the usage value must win.
+      expect(result.portrait?.alt).toBe('نص بديل خاص بصفحة نبذة');
+    });
+
+    // No cross-locale fallback (D10-6) applies to the per-usage alt too.
+    it("does not borrow the other locale's per-usage alt", async () => {
+      prisma.siteSettings.findFirst.mockResolvedValue(
+        settingsRow({
+          portraitAssetId: 'portrait-1',
+          portraitAsset: portraitAsset(),
+          translations: [translation('en', { portraitAlt: 'English only' })],
+        }),
+      );
+
+      const result = await service.getPublicSettings('ar');
+
+      expect(result.portrait?.alt).toBeNull();
     });
 
     it('returns a null portrait when none is configured', async () => {

@@ -81,10 +81,19 @@ export class SettingsService {
       // Portrait (FR-PUB-020): the bare id stays available alongside the resolved descriptor
       // (additive, D10-10). The kind check mirrors the resume slot's defence in depth.
       portraitAssetId: settings.portraitAssetId,
+      // The alt published here is the PER-USAGE value from this locale's translation row (D09-22),
+      // never the asset-level `MediaAssetAlt` default: the About portrait's accessibility text is
+      // owned by the About usage, and a library default must not be published for a context the
+      // owner has not reviewed. `?? null` is what makes an absent alt explicit rather than a
+      // fall-through, which keeps `/about` in its governed `portrait-alt-missing` state (D18-7).
       portrait:
         settings.portraitAsset &&
         settings.portraitAsset.kind === MediaKind.IMAGE
-          ? this.mediaDescriptors.resolveImage(settings.portraitAsset, locale)
+          ? this.mediaDescriptors.resolveImage(
+              settings.portraitAsset,
+              locale,
+              translation?.portraitAlt ?? null,
+            )
           : null,
       professionalEmail: settings.professionalEmail,
       contactEmail: settings.contactEmail,
@@ -191,6 +200,7 @@ export class SettingsService {
             aboutBio: translation.aboutBio,
             engineeringPhilosophy: translation.engineeringPhilosophy,
             currentFocus: translation.currentFocus,
+            portraitAlt: translation.portraitAlt,
           },
           // Undefined fields are left untouched by Prisma — a partial translation edit.
           update: {
@@ -202,6 +212,7 @@ export class SettingsService {
             aboutBio: translation.aboutBio,
             engineeringPhilosophy: translation.engineeringPhilosophy,
             currentFocus: translation.currentFocus,
+            portraitAlt: translation.portraitAlt,
           },
         }),
       );
@@ -235,6 +246,7 @@ export class SettingsService {
         aboutBio: translation.aboutBio,
         engineeringPhilosophy: translation.engineeringPhilosophy,
         currentFocus: translation.currentFocus,
+        portraitAlt: translation.portraitAlt,
       };
     }
     return {

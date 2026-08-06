@@ -141,12 +141,14 @@ export class PublicSiteSettingsEntity {
   readonly portraitAssetId!: string | null;
 
   // Nullable $ref, same shape as every other public image (no portrait-specific media shape).
-  // `alt` inside is the requested locale's value: null = no alt row, "" = decorative (doc 10 §6).
+  // `alt` inside is the PER-USAGE value from this locale's translation row (D09-22) — NOT the
+  // asset-level `MediaAssetAlt` default, which is never published here. null = this usage has no
+  // reviewed alt (holds `/about` in `portrait-alt-missing`, D18-7), "" = decorative (doc 10 §6).
   @ApiProperty({
     nullable: true,
     allOf: [{ $ref: getSchemaPath(PublicMediaImageDescriptor) }],
     description:
-      'Resolved About portrait descriptor (FR-PUB-020); null when no portrait is configured.',
+      'Resolved About portrait descriptor (FR-PUB-020); null when no portrait is configured. Its `alt` is the per-usage localized alt for this locale, never the asset-level default.',
   })
   readonly portrait!: PublicMediaImageDescriptor | null;
 
@@ -257,6 +259,16 @@ export class SiteSettingsTranslationEntity {
 
   @ApiProperty({ type: String, nullable: true, description: 'Plain text.' })
   readonly currentFocus!: string | null;
+
+  // PER-USAGE alt for the About portrait in this locale (D09-22). Distinct from the asset-level
+  // `MediaAssetAlt` default, which this value overrides wherever the portrait is published.
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description:
+      'Localized alt for the About portrait in this locale. Per-usage: overrides the asset-level default.',
+  })
+  readonly portraitAlt!: string | null;
 }
 
 // Full admin view (D10-6): every stored field plus the per-locale translation map, powering
@@ -278,11 +290,16 @@ export class AdminSiteSettingsEntity {
   @ApiProperty({ type: String, nullable: true, format: 'uuid' })
   readonly portraitAssetId!: string | null;
 
+  // WARNING for consumers: this descriptor's `alt` is the ASSET-LEVEL `MediaAssetAlt` default
+  // (resolved in the default admin locale), NOT the published About alt. The published per-usage
+  // values are `translations[locale].portraitAlt`. The distinction is load-bearing: a Dashboard
+  // that prefilled its alt inputs from here would silently copy an unreviewed library default into
+  // the About usage, which D09-22 forbids. Show it as an authoring aid only, never as the value.
   @ApiProperty({
     nullable: true,
     allOf: [{ $ref: getSchemaPath(PublicMediaImageDescriptor) }],
     description:
-      'Resolved portrait descriptor for the media picker; null when unset. Read-only — write via portraitAssetId.',
+      'Resolved portrait descriptor for the media picker; null when unset. Read-only — write via portraitAssetId. Its `alt` is the asset-level library default, NOT the published About alt: that lives in translations[locale].portraitAlt and must never be prefilled from here.',
   })
   readonly portrait!: PublicMediaImageDescriptor | null;
 
