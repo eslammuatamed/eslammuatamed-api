@@ -21,7 +21,18 @@ export interface ProjectSeed {
   readonly featured: boolean;
   readonly order: number;
   readonly year: number;
+  /**
+   * The project's public URL, and ONLY where its governed case-study notes in
+   * `eslammuatamed-docs/content/projects/<id>/case-study-notes.json` record
+   * `publication.publicUrlAllowed: true`. Taken verbatim from that source's `projectOverview.publicUrl`
+   * — never reconstructed from a project name, never guessed from a domain pattern.
+   */
   readonly liveUrl: string | null;
+  /**
+   * Always `null`, and this is a governance outcome rather than missing data: every case-study source
+   * lists "Private repository details" under `avoidPublishingWithoutReview`. FR-PUB-033 handles the
+   * absence gracefully by design, so a project with no repository link is a complete project.
+   */
   readonly repoUrl: string | null;
   readonly techKeys: readonly string[]; // Skill.slug of seeded skills (3-5, unique per project)
   readonly en: ProjectTranslationContent;
@@ -33,8 +44,10 @@ export const PROJECTS: readonly ProjectSeed[] = [
     featured: true,
     order: 0,
     year: 2025,
-    // Not yet publicly deployed (Release Freeze); repos are not linked here. A placeholder URL is
-    // never invented — same no-invention rule D18-7 applies to a fabricated MediaAsset.
+    // THIS project (the platform you are reading) is not yet publicly launched, so it has no live URL
+    // to publish. A placeholder is never invented — the same no-invention rule D18-7 applies to a
+    // fabricated MediaAsset. Its three siblings below DO carry live URLs; see the note on `repoUrl`
+    // in `ProjectSeed` for why no project publishes a repository link.
     liveUrl: null,
     repoUrl: null,
     techKeys: ['nuxt', 'vue', 'typescript', 'tailwind-css', 'nestjs'],
@@ -44,7 +57,7 @@ export const PROJECTS: readonly ProjectSeed[] = [
       summary:
         'A bilingual, SEO-first personal platform and portfolio built with Nuxt — server-side rendered, fully localized in Arabic and English with RTL support, and backed by a headless NestJS API.',
       overview:
-        '## Overview\n\nA production-grade personal platform that presents case studies, articles, and a professional profile in both Arabic and English. The site is server-rendered for performance and search visibility, and consumes a decoupled REST API.',
+        'A production-grade personal platform that presents case studies, articles, and a professional profile in both Arabic and English. The site is server-rendered for performance and search visibility, and consumes a decoupled REST API.',
       businessProblem:
         'The goal was a fast, accessible, and fully bilingual presence that ranks well and allows non-technical editing through a headless backend — without shipping a heavy client-side bundle.',
       solution:
@@ -68,7 +81,7 @@ export const PROJECTS: readonly ProjectSeed[] = [
       summary:
         'منصة شخصية ومعرض أعمال ثنائي اللغة يركّز على تحسين محركات البحث، مبني باستخدام Nuxt — مع تصيير من جانب الخادم، وتعريب كامل بالعربية والإنجليزية يدعم الاتجاه من اليمين إلى اليسار، وواجهة برمجية منفصلة مبنية على NestJS.',
       overview:
-        '## نظرة عامة\n\nمنصة شخصية بمستوى إنتاجي تعرض دراسات الحالة والمقالات والملف المهني بالعربية والإنجليزية معًا. يُصيَّر الموقع من جانب الخادم لتحقيق أداء أعلى وظهور أفضل في نتائج البحث، ويستهلك واجهة برمجية REST منفصلة.',
+        'منصة شخصية بمستوى إنتاجي تعرض دراسات الحالة والمقالات والملف المهني بالعربية والإنجليزية معًا. يُصيَّر الموقع من جانب الخادم لتحقيق أداء أعلى وظهور أفضل في نتائج البحث، ويستهلك واجهة برمجية REST منفصلة.',
       businessProblem:
         'كان الهدف حضورًا سريعًا وسهل الوصول وثنائي اللغة بالكامل، يحقق ترتيبًا جيدًا في محركات البحث ويتيح التحرير عبر واجهة خلفية منفصلة، دون إرسال حزمة جافاسكربت ثقيلة إلى المتصفح.',
       solution:
@@ -97,7 +110,7 @@ export const PROJECTS: readonly ProjectSeed[] = [
     featured: true,
     order: 1,
     year: 2026,
-    liveUrl: null,
+    liveUrl: 'https://www.samtinstitution.com',
     repoUrl: null,
     techKeys: ['nuxt', 'vue', 'typescript', 'nestjs', 'tailwind-css'],
     en: {
@@ -106,7 +119,7 @@ export const PROJECTS: readonly ProjectSeed[] = [
       summary:
         'An institution website with a custom admin dashboard and CMS, built from scratch — a Nuxt frontend, a NestJS backend, and management of content, blog articles, SEO settings, and contact submissions, with a strong SEO and performance focus.',
       overview:
-        '## Overview\n\nA complete institution website and content platform built end to end: a server-rendered Nuxt frontend and a NestJS backend, with an admin dashboard for managing content, blog articles, SEO settings, and contact submissions.',
+        'A complete institution website and content platform built end to end: a server-rendered Nuxt frontend and a NestJS backend, with an admin dashboard for managing content, blog articles, SEO settings, and contact submissions.',
       businessProblem:
         'The institution needed a fast, well-structured public site plus a self-serve CMS so non-technical staff could manage content, articles, and SEO without a developer in the loop.',
       solution:
@@ -130,7 +143,7 @@ export const PROJECTS: readonly ProjectSeed[] = [
       summary:
         'موقع مؤسسة مع لوحة تحكّم ونظام إدارة محتوى مخصّصين، مبنيّ من الصفر — واجهة أمامية بـ Nuxt، وخادم بـ NestJS، وإدارة للمحتوى ومقالات المدوّنة وإعدادات تحسين محركات البحث ورسائل التواصل، مع تركيز قوي على الأداء وتحسين محركات البحث.',
       overview:
-        '## نظرة عامة\n\nموقع مؤسسة ومنصّة محتوى متكاملان بُنيا من البداية إلى النهاية: واجهة أمامية بـ Nuxt مُصيَّرة من جانب الخادم وخادم بـ NestJS، مع لوحة تحكّم لإدارة المحتوى ومقالات المدوّنة وإعدادات تحسين محركات البحث ورسائل التواصل.',
+        'موقع مؤسسة ومنصّة محتوى متكاملان بُنيا من البداية إلى النهاية: واجهة أمامية بـ Nuxt مُصيَّرة من جانب الخادم وخادم بـ NestJS، مع لوحة تحكّم لإدارة المحتوى ومقالات المدوّنة وإعدادات تحسين محركات البحث ورسائل التواصل.',
       businessProblem:
         'احتاجت المؤسسة إلى موقع عام سريع وجيّد البنية، إضافةً إلى نظام إدارة محتوى ذاتي الخدمة يتيح للموظفين غير التقنيين إدارة المحتوى والمقالات وتحسين محركات البحث دون تدخّل مطوّر.',
       solution:
@@ -154,7 +167,7 @@ export const PROJECTS: readonly ProjectSeed[] = [
     featured: true,
     order: 2,
     year: 2025,
-    liveUrl: null,
+    liveUrl: 'https://lurestores.com',
     repoUrl: null,
     techKeys: ['nuxt', 'vue', 'typescript', 'tailwind-css'],
     en: {
@@ -163,7 +176,7 @@ export const PROJECTS: readonly ProjectSeed[] = [
       summary:
         'A multi-vendor e-commerce platform built in Nuxt — the customer storefront, the vendor dashboard, and the admin dashboard — integrated with a REST API.',
       overview:
-        '## Overview\n\nA multi-vendor commerce platform with three surfaces: a customer storefront, a vendor dashboard for managing catalog and orders, and an admin dashboard — all built in Nuxt against a REST API.',
+        'A multi-vendor commerce platform with three surfaces: a customer storefront, a vendor dashboard for managing catalog and orders, and an admin dashboard — all built in Nuxt against a REST API.',
       businessProblem:
         'A multi-vendor marketplace needs distinct, role-appropriate experiences for shoppers, vendors, and administrators without duplicating the frontend for each.',
       solution:
@@ -187,7 +200,7 @@ export const PROJECTS: readonly ProjectSeed[] = [
       summary:
         'منصّة تجارة إلكترونية متعدّدة البائعين مبنية بـ Nuxt — واجهة المتجر للعملاء، ولوحة تحكّم البائعين، ولوحة تحكّم الإدارة — متكاملة مع واجهة برمجية REST.',
       overview:
-        '## نظرة عامة\n\nمنصّة تجارة متعدّدة البائعين بثلاثة أسطح: واجهة متجر للعملاء، ولوحة تحكّم للبائعين لإدارة الكتالوج والطلبات، ولوحة تحكّم للإدارة — جميعها مبنية بـ Nuxt أمام واجهة برمجية REST.',
+        'منصّة تجارة متعدّدة البائعين بثلاثة أسطح: واجهة متجر للعملاء، ولوحة تحكّم للبائعين لإدارة الكتالوج والطلبات، ولوحة تحكّم للإدارة — جميعها مبنية بـ Nuxt أمام واجهة برمجية REST.',
       businessProblem:
         'يحتاج السوق متعدّد البائعين إلى تجارب مختلفة تناسب دور كلٍّ من المتسوّقين والبائعين والإداريين، دون تكرار الواجهة الأمامية لكلٍّ منهم.',
       solution:
@@ -211,7 +224,7 @@ export const PROJECTS: readonly ProjectSeed[] = [
     featured: false,
     order: 3,
     year: 2026,
-    liveUrl: null,
+    liveUrl: 'https://gowavex.com',
     repoUrl: null,
     techKeys: ['vue', 'typescript', 'tailwind-css'],
     en: {
@@ -220,7 +233,7 @@ export const PROJECTS: readonly ProjectSeed[] = [
       summary:
         'A multi-portal logistics platform covering the shipping lifecycle — administrators, merchants, intercity operators, drivers, and last-mile partners — with a Vue frontend on an Inertia.js + Laravel stack.',
       overview:
-        '## Overview\n\nA logistics platform spanning the shipping lifecycle across several portals — administrators, merchants, intercity operators, drivers, and last-mile partners — built with Vue and Inertia.js on a Laravel backend.',
+        'A logistics platform spanning the shipping lifecycle across several portals — administrators, merchants, intercity operators, drivers, and last-mile partners — built with Vue and Inertia.js on a Laravel backend.',
       businessProblem:
         'A logistics operation needs different portals for very different users — from administrators to last-mile drivers — that still share one consistent system.',
       solution:
@@ -244,7 +257,7 @@ export const PROJECTS: readonly ProjectSeed[] = [
       summary:
         'منصّة لوجستية متعدّدة البوّابات تغطّي دورة حياة الشحن — المديرين والتجّار ومشغّلي النقل بين المدن والسائقين وشركاء التوصيل الأخير — بواجهة أمامية بـ Vue على حزمة Inertia.js و Laravel.',
       overview:
-        '## نظرة عامة\n\nمنصّة لوجستية تغطّي دورة حياة الشحن عبر عدّة بوّابات — المديرين والتجّار ومشغّلي النقل بين المدن والسائقين وشركاء التوصيل الأخير — مبنية بـ Vue و Inertia.js على خلفية Laravel.',
+        'منصّة لوجستية تغطّي دورة حياة الشحن عبر عدّة بوّابات — المديرين والتجّار ومشغّلي النقل بين المدن والسائقين وشركاء التوصيل الأخير — مبنية بـ Vue و Inertia.js على خلفية Laravel.',
       businessProblem:
         'تحتاج العملية اللوجستية إلى بوّابات مختلفة لمستخدمين مختلفين جدًّا — من المديرين إلى سائقي التوصيل الأخير — تظل رغم ذلك ضمن نظام واحد متسق.',
       solution:
