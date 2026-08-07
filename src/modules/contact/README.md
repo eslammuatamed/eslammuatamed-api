@@ -16,12 +16,13 @@
 | `messages.admin.controller.ts` | `GET /api/v1/admin/messages` · `GET :id` (`messages.read`) · `PATCH :id` (`messages.update`) |
 | `contact.service.ts` | مكافحة السبام + `meta` + الترقيم (unread-first) + الفرز + ضبط `archivedAt` عند الأرشفة + `purgeArchivedOlderThan` |
 | `contact-purge.scheduler.ts` | مهمّة `@Cron` يوميّة داخل العمليّة (`D07-3`): حذف نهائيّ للرسائل المؤرشفة منذ أكثر من ١٢ شهرًا (`D19-10`) |
+| `contact-mail.service.ts` | **محتوى** بريدَي الاستقبال (إشعار المالك + إقرار الزائر) وإرسالهما بعد الحفظ |
 | `anti-spam.ts` | مُساعد نقيّ `isSpam(...)` — مصيدة العسل + فخّ الزمن |
 | `dto/*` · `entities/*` | مدخلات الطلب + أشكال الردّ (Swagger) |
 
 ## خريطة الاتصال
 
-- **يعتمد على:** `PrismaService` فقط (لا `LocalesService` — الرسائل مستقلّة عن اللغة).
+- **يعتمد على:** `PrismaService` + `MailModule` (لا `LocalesService` — الرسائل مستقلّة عن اللغة).
 - **`ContactThrottlerGuard`** مُسجَّل كـ provider ليُشغَّل `onModuleInit` (بناء نافذتَي المعدّل) ويُحلّ من
   DI عند `@UseGuards` — نفس أسلوب `UploadUserIpThrottlerGuard` في `MediaModule` (`T2`).
 - **`ContactPurgeScheduler`** مُسجَّل كـ provider ليكتشف `ScheduleModule` (المُسجَّل في `AppModule`) مُعالِج
@@ -65,6 +66,16 @@
 - **`POST /api/v1/contact` يُرجِع 200** لا 201: قد تُسقَط الرسالة، فـ"أُنشئت" كذب — والإيصال موحّد للحالتَين.
 - **الترتيب: غير المقروء أوّلًا** (`ORDER BY isRead ASC, createdAt DESC`) مدعومًا بـ
   `@@index([isArchived, isRead, createdAt])`.
+
+- **البريد أثرٌ جانبيّ لكتابةٍ مؤكَّدة، بهذا الترتيب حصرًا:** تحقّق ⇒ **حفظ في قاعدة البيانات** ⇒ إرسال.
+  السجلّ هو الأثر الرسميّ، فإخفاق SMTP **لا يُسقِط ولا يرفض** رسالة حُفظت، والزائر يأخذ إيصاله فور
+  تأكيد الصفّ. الإرسال **غير مُنتظَر** (`void … .catch`) كي لا تدخل حلقة إعادة المحاولة داخل طلب
+  الزائر. المُسقَط كسبام يرجع **قبل** الحفظ، فلا يُرسَل له شيء — وإلّا لصارت المصيدة مُضخِّم بريد.
+- **إقرار الزائر بالإنجليزيّة دائمًا (قيد موثَّق):** الاستقبال **لا يحمل أيّ إشارة لغة** — لا في
+  `CreateContactMessageDto` ولا في `ContactIntakeContext` (ترويسات فقط: `user-agent` و`referer`).
+  استنتاجها من `/ar/` في المُحيل أو من `Accept-Language` اختراعُ إشارةٍ لا يحملها العقد، والقاعدة
+  «لا سقوط لغويّ صامت». تعريب الإقرار يستلزم حقل `locale` صريحًا في الـ DTO، وهو **تغيير عقد**
+  يخضع لـ`doc 16 §3`.
 
 ## العقود والثوابت
 

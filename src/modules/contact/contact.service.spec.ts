@@ -3,6 +3,7 @@ import { ContactMessage } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
 import { DeepMockProxy, mockDeep } from 'jest-mock-extended';
 import { PrismaService } from '../../prisma/prisma.service';
+import { ContactMailService } from './contact-mail.service';
 import { ContactService } from './contact.service';
 import { CreateContactMessageDto } from './dto/create-contact-message.dto';
 import { MessageListQueryDto } from './dto/message-list.query.dto';
@@ -42,11 +43,25 @@ const listQuery = (
 
 describe('ContactService', () => {
   let prisma: DeepMockProxy<PrismaService>;
+  let contactMail: DeepMockProxy<ContactMailService>;
   let service: ContactService;
+
+  // The intake dispatches mail detached from the request, so a spec that only awaits `create`
+  // can finish before the dispatch settles. Awaiting the promise the mock itself returned makes
+  // the assertion deterministic instead of racing the microtask queue.
+  const settleDispatch = async (): Promise<void> => {
+    await Promise.allSettled(
+      contactMail.dispatchForSubmission.mock.results.map(
+        (result) => result.value as Promise<void>,
+      ),
+    );
+  };
 
   beforeEach(() => {
     prisma = mockDeep<PrismaService>();
-    service = new ContactService(prisma);
+    contactMail = mockDeep<ContactMailService>();
+    contactMail.dispatchForSubmission.mockResolvedValue(undefined);
+    service = new ContactService(prisma, contactMail);
   });
 
   describe('create — intake + anti-spam', () => {
@@ -93,6 +108,68 @@ describe('ContactService', () => {
       expect(prisma.contactMessage.create).toHaveBeenCalledWith({
         data: expect.objectContaining({ meta: {} }),
       });
+    });
+
+    it('dispatches mail with the committed row, after the write', async () => {
+      const row = message();
+      prisma.contactMessage.create.mockResolvedValue(row);
+
+      await service.create({ ...validDto, elapsedMs: 9000 }, {});
+      await settleDispatch();
+
+      // The ORDER is the invariant: the row is the authoritative record and mail is its side
+      // effect, so the dispatch receives a committed row and can never precede the write.
+      expect(contactMail.dispatchForSubmission).toHaveBeenCalledWith(row);
+      const writeOrder =
+        prisma.contactMessage.create.mock.invocationCallOrder[0] ?? 0;
+      const mailOrder =
+        contactMail.dispatchForSubmission.mock.invocationCallOrder[0] ?? 0;
+      expect(writeOrder).toBeLessThan(mailOrder);
+    });
+
+    // The reliability requirement in one test: a dead relay costs the platform nothing.
+    it('returns the receipt and keeps the stored message when mail dispatch fails', async () => {
+      prisma.contactMessage.create.mockResolvedValue(message());
+      contactMail.dispatchForSubmission.mockRejectedValue(
+        new Error('SMTP relay unreachable'),
+      );
+
+      const receipt = await service.create(
+        { ...validDto, elapsedMs: 9000 },
+        {},
+      );
+      await settleDispatch();
+
+      expect(receipt).toEqual({ received: true });
+      expect(prisma.contactMessage.create).toHaveBeenCalledTimes(1);
+    });
+
+    // Retry lives entirely inside the mail layer, after the commit, so it is structurally
+    // incapable of re-entering the write path — asserted rather than assumed.
+    it('writes exactly one row no matter how many times mail is retried', async () => {
+      prisma.contactMessage.create.mockResolvedValue(message());
+      contactMail.dispatchForSubmission.mockImplementation(async () => {
+        // Stands in for the mailer's bounded retry loop: several send attempts, one dispatch.
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      await service.create({ ...validDto, elapsedMs: 9000 }, {});
+      await settleDispatch();
+
+      expect(prisma.contactMessage.create).toHaveBeenCalledTimes(1);
+      expect(contactMail.dispatchForSubmission).toHaveBeenCalledTimes(1);
+    });
+
+    // The honeypot must not become a mail amplifier: a bot that trips the trap gets no delivery.
+    it('sends nothing for a submission dropped as spam', async () => {
+      await service.create(
+        { ...validDto, website: 'http://bot.example', elapsedMs: 9000 },
+        {},
+      );
+
+      expect(contactMail.dispatchForSubmission).not.toHaveBeenCalled();
     });
 
     it('drops a filled honeypot as success: same receipt, nothing persisted', async () => {
