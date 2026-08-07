@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ContactMessage, Prisma } from '@prisma/client';
 import {
   buildPageMeta,
@@ -6,6 +6,7 @@ import {
 } from '../../common/pagination/page-meta';
 import { PrismaService } from '../../prisma/prisma.service';
 import { isSpam } from './anti-spam';
+import { ContactMailService } from './contact-mail.service';
 import { CreateContactMessageDto } from './dto/create-contact-message.dto';
 import { MessageListQueryDto } from './dto/message-list.query.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
@@ -21,7 +22,12 @@ export interface ContactIntakeContext {
 
 @Injectable()
 export class ContactService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(ContactService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly contactMail: ContactMailService,
+  ) {}
 
   // Public intake (FR-PUB-050/051/052, D02-1). Anti-spam runs first: a tripped trap is dropped-as-
   // success — the same receipt is returned but nothing is persisted, so a bot gets no signal. A
@@ -46,7 +52,7 @@ export class ContactService {
     // `?? null` rather than leaving `undefined`: the columns are nullable (D09-19) and an absent
     // method must be stored as SQL NULL, not omitted. The database CHECK constraint independently
     // guarantees at least one is present, so a validation bypass cannot write an unanswerable row.
-    await this.prisma.contactMessage.create({
+    const row = await this.prisma.contactMessage.create({
       data: {
         name: dto.name,
         email: dto.email ?? null,
@@ -55,6 +61,23 @@ export class ContactService {
         body: dto.body,
         meta,
       },
+    });
+
+    // Email is a side effect of a COMMITTED row, in that order and never the reverse. The write
+    // above is the authoritative act: the message is safe in the database and readable in the
+    // dashboard inbox whether or not any mail is delivered, so a mail relay being down must not
+    // cost the platform's single conversion point a submission (D02-1, D05-4).
+    //
+    // Deliberately NOT awaited. The visitor's receipt is already true once the row commits, and
+    // awaiting would put a bounded retry loop — up to ~10s against a failing relay — inside their
+    // request. `void` + `.catch` is the explicit form: the dispatch resolves on every path, so the
+    // catch is a backstop, not a control-flow path. Dropped-as-spam submissions never reach here,
+    // which is what keeps the honeypot from becoming a mail amplifier.
+    void this.contactMail.dispatchForSubmission(row).catch((error: unknown) => {
+      this.logger.error(
+        `Unhandled contact mail dispatch rejection for message ${row.id}: ` +
+          (error instanceof Error ? error.message : 'Unknown error.'),
+      );
     });
 
     return { received: true };

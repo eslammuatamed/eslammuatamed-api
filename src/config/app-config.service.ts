@@ -108,6 +108,59 @@ export class AppConfigService {
     };
   }
 
+  // The public mail config — safe to log. The SMTP password is deliberately absent (doc 19 §7);
+  // the transport factory reads it through `smtpCredentials`. Every field but `enabled` is null
+  // when mail is off, so a consumer cannot half-read a disabled configuration: the group is
+  // validated as a unit at boot (env.validation) and surfaces as a unit here.
+  get mail(): {
+    readonly enabled: boolean;
+    readonly smtp: {
+      readonly host: string;
+      readonly port: number;
+      readonly secure: boolean;
+      readonly user: string;
+    } | null;
+    readonly from: string | null;
+    readonly ownerNotificationTo: string | null;
+  } {
+    const enabled = this.config.get('SMTP_ENABLED', { infer: true }) === true;
+    if (!enabled) {
+      return {
+        enabled: false,
+        smtp: null,
+        from: null,
+        ownerNotificationTo: null,
+      };
+    }
+    return {
+      enabled: true,
+      smtp: {
+        host: this.config.get('SMTP_HOST', { infer: true }),
+        port: this.config.get('SMTP_PORT', { infer: true }),
+        // Defaults to implicit TLS: if the operator omits the flag, the safe reading of an
+        // ambiguous mail configuration is the encrypted one.
+        secure: this.config.get('SMTP_SECURE', { infer: true }) !== false,
+        user: this.config.get('SMTP_USER', { infer: true }),
+      },
+      from: this.config.get('SMTP_FROM', { infer: true }),
+      ownerNotificationTo: this.config.get('CONTACT_NOTIFICATION_TO', {
+        infer: true,
+      }),
+    };
+  }
+
+  // Read ONLY by the SMTP transport factory; never placed on the public `mail` object and never
+  // logged (doc 19 §7) — the same isolation the bucket credentials get below.
+  get smtpCredentials(): {
+    readonly user: string;
+    readonly password: string;
+  } {
+    return {
+      user: this.config.get('SMTP_USER', { infer: true }),
+      password: this.config.get('SMTP_PASSWORD', { infer: true }),
+    };
+  }
+
   // Read ONLY by the R2 storage adapter factory; never placed on the public `storage` object and
   // never logged (doc 19 §7). Isolated here so a config dump cannot leak the bucket credentials.
   get s3Credentials(): {

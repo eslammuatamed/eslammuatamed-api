@@ -1,5 +1,6 @@
 import { plainToInstance, Transform, Type } from 'class-transformer';
 import {
+  IsBoolean,
   IsEmail,
   IsEnum,
   IsInt,
@@ -169,6 +170,86 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsString()
   S3_REGION?: string;
+
+  // ── Outbound SMTP (contact notifications) ────────────────────────────────────────────────
+  // Mail is an OPTIONAL side effect, never a boot dependency: the contact intake's authoritative
+  // act is the database commit, and an API that refuses to boot without a mail relay would turn a
+  // delivery concern into an availability one. So the whole group is gated on SMTP_ENABLED and
+  // defaults OFF — an environment that never sets it behaves exactly as it does today.
+  //
+  // The gate is an EXPLICIT flag rather than "SMTP_HOST is present". Presence-inference cannot tell
+  // a deliberately-unconfigured environment from a half-configured one, so a typo'd host name would
+  // read as "mail off" and fail silently — the one failure mode a notification path must not have.
+  // With the flag on, every field below is required and a missing one aborts boot loudly.
+  //
+  // Same shape as the S3_* group above (@ValidateIf on a single discriminator), for the same
+  // reason: `npm run contract:export` and the test suite boot with none of this set.
+  @Transform(({ value }: { value: unknown }) => toOptionalBoolean(value))
+  @IsOptional()
+  @IsBoolean()
+  SMTP_ENABLED?: boolean;
+
+  @ValidateIf((env: EnvironmentVariables) => env.SMTP_ENABLED === true)
+  @IsString()
+  @IsNotEmpty()
+  SMTP_HOST!: string;
+
+  @ValidateIf((env: EnvironmentVariables) => env.SMTP_ENABLED === true)
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(65535)
+  SMTP_PORT!: number;
+
+  // Implicit TLS on connect (port 465) vs. STARTTLS upgrade on a cleartext port (587). Explicit
+  // because the two are not interchangeable and guessing from the port number would silently pick
+  // the wrong handshake against a non-standard relay.
+  @ValidateIf((env: EnvironmentVariables) => env.SMTP_ENABLED === true)
+  @Transform(({ value }: { value: unknown }) => toOptionalBoolean(value))
+  @IsOptional()
+  @IsBoolean()
+  SMTP_SECURE?: boolean;
+
+  @ValidateIf((env: EnvironmentVariables) => env.SMTP_ENABLED === true)
+  @IsString()
+  @IsNotEmpty()
+  SMTP_USER!: string;
+
+  // Secret (doc 19 §7): read only through `AppConfigService.smtpCredentials`, never placed on the
+  // loggable mail config object.
+  @ValidateIf((env: EnvironmentVariables) => env.SMTP_ENABLED === true)
+  @IsString()
+  @IsNotEmpty()
+  SMTP_PASSWORD!: string;
+
+  // Envelope sender. A bare address, not a display-name form: the display name is a presentation
+  // choice the mail layer applies, and embedding one here would put message formatting in the
+  // environment where it cannot be validated.
+  @ValidateIf((env: EnvironmentVariables) => env.SMTP_ENABLED === true)
+  @IsEmail()
+  SMTP_FROM!: string;
+
+  // Owner notification destination. A DEDICATED delivery config, deliberately NOT read from
+  // `SiteSettings.contactEmail`: doc 10 states those fields "carry no delivery or secret
+  // configuration", and they are published content a visitor reads — routing operational mail
+  // through them would let a content edit silently redirect the owner's notifications.
+  @ValidateIf((env: EnvironmentVariables) => env.SMTP_ENABLED === true)
+  @IsEmail()
+  CONTACT_NOTIFICATION_TO!: string;
+}
+
+// Environment values are always strings, so a boolean flag needs an explicit parse. Only the two
+// canonical spellings are accepted; anything else stays untouched and fails @IsBoolean below rather
+// than being coerced. That matters because the permissive JS reading of a stray value is `true` —
+// `SMTP_ENABLED=no` must abort boot, not silently enable mail.
+function toOptionalBoolean(value: unknown): unknown {
+  if (typeof value !== 'string') {
+    return value;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'true') return true;
+  if (normalized === 'false') return false;
+  return value;
 }
 
 // Passed to ConfigModule.forRoot({ validate }). Throwing here aborts boot with a readable

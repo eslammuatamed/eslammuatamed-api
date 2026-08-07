@@ -203,4 +203,72 @@ describe('validate (environment schema)', () => {
     env.PUBLIC_WEB_URL = 'https://eslammuatamed.com';
     expect(() => validate(env)).not.toThrow();
   });
+
+  // The mail group is optional as a UNIT (SMTP_ENABLED gates it), for the same reason the S3_*
+  // group is gated on STORAGE_DRIVER: contract:export and the test suite boot without it.
+  describe('SMTP group', () => {
+    const smtpEnv = (): Record<string, string> => ({
+      ...validEnv(),
+      SMTP_ENABLED: 'true',
+      SMTP_HOST: 'smtp.example.com',
+      SMTP_PORT: '465',
+      SMTP_SECURE: 'true',
+      SMTP_USER: 'relay-user',
+      SMTP_PASSWORD: 'relay-password',
+      SMTP_FROM: 'no-reply@example.com',
+      CONTACT_NOTIFICATION_TO: 'owner@example.com',
+    });
+
+    it('boots with the entire group absent — mail is optional, never a boot dependency', () => {
+      const result = validate(validEnv());
+
+      expect(result.SMTP_ENABLED).toBeUndefined();
+    });
+
+    it('accepts a complete enabled group and coerces the flag and port', () => {
+      const result = validate(smtpEnv());
+
+      expect(result.SMTP_ENABLED).toBe(true);
+      expect(result.SMTP_SECURE).toBe(true);
+      expect(result.SMTP_PORT).toBe(465);
+      expect(typeof result.SMTP_PORT).toBe('number');
+    });
+
+    it.each([
+      'SMTP_HOST',
+      'SMTP_PORT',
+      'SMTP_USER',
+      'SMTP_PASSWORD',
+      'SMTP_FROM',
+      'CONTACT_NOTIFICATION_TO',
+    ])('aborts boot when %s is missing while mail is enabled', (key) => {
+      const env = smtpEnv();
+      delete env[key];
+
+      expect(() => validate(env)).toThrow(new RegExp(key));
+    });
+
+    it('ignores an incomplete group while mail is disabled', () => {
+      const env = { ...validEnv(), SMTP_ENABLED: 'false', SMTP_HOST: '' };
+
+      expect(() => validate(env)).not.toThrow();
+    });
+
+    // The permissive JS reading of a stray value is `true`; a typo must abort boot, not silently
+    // enable a half-configured mail path.
+    it('rejects a flag value that is neither "true" nor "false"', () => {
+      const env = { ...validEnv(), SMTP_ENABLED: 'yes' };
+
+      expect(() => validate(env)).toThrow(/SMTP_ENABLED/);
+    });
+
+    it('rejects a malformed sender or notification address', () => {
+      expect(() =>
+        validate({ ...smtpEnv(), SMTP_FROM: 'not-an-email' }),
+      ).toThrow(/SMTP_FROM/);
+      expect(() =>
+        validate({ ...smtpEnv(), CONTACT_NOTIFICATION_TO: 'not-an-email' }),
+      ).toThrow(/CONTACT_NOTIFICATION_TO/);
+    });
+  });
 });
