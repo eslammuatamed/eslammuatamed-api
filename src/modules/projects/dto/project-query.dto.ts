@@ -1,5 +1,14 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, Matches, MaxLength } from 'class-validator';
+import { Transform } from 'class-transformer';
+import {
+  IsBoolean,
+  IsEnum,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+} from 'class-validator';
+import { toOptionalBoolean } from '../../../common/dto/boolean-query';
 import { PaginationQueryDto } from '../../../common/dto/pagination-query.dto';
 
 export class ProjectListQueryDto extends PaginationQueryDto {
@@ -39,4 +48,86 @@ export class ProjectListQueryDto extends PaginationQueryDto {
   readonly technology?: string;
 }
 
-export class AdminProjectListQueryDto extends PaginationQueryDto {}
+/**
+ * Orderable columns for the admin Projects list (D10-18).
+ *
+ * An ALLOWLIST, deliberately, not a passthrough to Prisma's `orderBy`. Accepting arbitrary column
+ * names would make every column an accidental part of the published contract — un-versionable, and
+ * impossible to change without risking a client that discovered it. These five are the ones the
+ * Dashboard actually offers, and `featured` is among them because `featured desc, order asc` is the
+ * established default: without it the operator could not reproduce the default ordering explicitly.
+ */
+export enum AdminProjectSortBy {
+  Featured = 'featured',
+  Order = 'order',
+  Year = 'year',
+  CreatedAt = 'createdAt',
+  UpdatedAt = 'updatedAt',
+}
+
+export enum SortOrder {
+  Asc = 'asc',
+  Desc = 'desc',
+}
+
+/**
+ * Admin Projects listing (D10-18): pagination, cross-translation free-text search, publication and
+ * featured filters, and allowlisted sorting.
+ *
+ * NO `locale`. Admin reads return the full translation map (D10-6), and `forbidNonWhitelisted`
+ * turns an unsolicited `?locale=` into a 422 — which is exactly the contract the Web `useApi`
+ * helper encodes as `locale: false` on every admin call.
+ */
+export class AdminProjectListQueryDto extends PaginationQueryDto {
+  // Matches across ALL of a project's translations, not the caller's locale — so an Arabic title
+  // finds the project whose English record needs editing, from one list. A locale-scoped admin
+  // search would silently hide half the collection from whichever language the dashboard is in.
+  @ApiPropertyOptional({
+    description:
+      'Free-text search over localized title, slug and summary, across ALL translations (case-insensitive substring). Blank or whitespace-only is ignored rather than treated as a filter.',
+    example: 'zidni',
+    maxLength: 120,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  readonly q?: string;
+
+  @ApiPropertyOptional({
+    type: Boolean,
+    example: true,
+    description: 'Filter by publication state. Omit to return both states.',
+  })
+  @IsOptional()
+  @Transform(({ value }) => toOptionalBoolean(value))
+  @IsBoolean()
+  readonly isPublished?: boolean;
+
+  @ApiPropertyOptional({
+    type: Boolean,
+    example: false,
+    description: 'Filter by featured state. Omit to return both states.',
+  })
+  @IsOptional()
+  @Transform(({ value }) => toOptionalBoolean(value))
+  @IsBoolean()
+  readonly featured?: boolean;
+
+  @ApiPropertyOptional({
+    enum: AdminProjectSortBy,
+    description:
+      'Allowlisted sort column. Omit for the default `featured desc, order asc`.',
+  })
+  @IsOptional()
+  @IsEnum(AdminProjectSortBy)
+  readonly sortBy?: AdminProjectSortBy;
+
+  @ApiPropertyOptional({
+    enum: SortOrder,
+    default: SortOrder.Asc,
+    description: 'Direction for `sortBy`. Ignored when `sortBy` is absent.',
+  })
+  @IsOptional()
+  @IsEnum(SortOrder)
+  readonly sortOrder: SortOrder = SortOrder.Asc;
+}
