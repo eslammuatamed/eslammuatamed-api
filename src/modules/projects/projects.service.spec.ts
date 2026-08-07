@@ -9,6 +9,11 @@ import { LocalesService } from '../locales/locales.service';
 import { MediaDescriptorResolver } from '../media/media-descriptor.resolver';
 import { StorageAdapter } from '../media/storage/storage-adapter.interface';
 import { RedirectService } from '../redirects/redirect.service';
+import {
+  AdminProjectListQueryDto,
+  AdminProjectSortBy,
+  SortOrder,
+} from './dto/project-query.dto';
 import { ProjectsService } from './projects.service';
 
 const storage = {
@@ -466,6 +471,217 @@ describe('ProjectsService', () => {
           technologies: [{ id: 'skill-1', slug: 'nestjs', label: 'NestJS' }],
         }),
       );
+    });
+  });
+
+  // D10-18. The e2e suite proves the behaviour against a real database (including the parts that
+  // Postgres itself decides, e.g. row order within a tied sort key); this pins the QUERY — where and
+  // orderBy — so the predicate and the ordering cannot silently drift even if the e2e fixtures happen
+  // not to expose it.
+  describe('listAdmin (D10-18)', () => {
+    const baseQuery = (
+      overrides: Partial<AdminProjectListQueryDto> = {},
+    ): AdminProjectListQueryDto => ({
+      page: 1,
+      perPage: 12,
+      skip: 0,
+      take: 12,
+      sortOrder: SortOrder.Asc,
+      ...overrides,
+    });
+
+    const findManyArgs = (): Record<string, unknown> => {
+      const call = prisma.project.findMany.mock.calls[0]?.[0];
+      return call ?? {};
+    };
+
+    beforeEach(() => {
+      prisma.$transaction.mockResolvedValue([[], 0] as never);
+    });
+
+    describe('where (filters + cross-translation search)', () => {
+      it('applies no predicate when isPublished, featured, and q are all absent', async () => {
+        await service.listAdmin(baseQuery());
+        expect(findManyArgs().where).toEqual({});
+      });
+
+      it('filters by isPublished: true when present', async () => {
+        await service.listAdmin(baseQuery({ isPublished: true }));
+        expect(findManyArgs().where).toEqual({ isPublished: true });
+      });
+
+      it('filters by isPublished: false when present', async () => {
+        await service.listAdmin(baseQuery({ isPublished: false }));
+        expect(findManyArgs().where).toEqual({ isPublished: false });
+      });
+
+      it('filters by featured: true when present', async () => {
+        await service.listAdmin(baseQuery({ featured: true }));
+        expect(findManyArgs().where).toEqual({ featured: true });
+      });
+
+      it('filters by featured: false when present', async () => {
+        await service.listAdmin(baseQuery({ featured: false }));
+        expect(findManyArgs().where).toEqual({ featured: false });
+      });
+
+      it('combines isPublished and featured as independent predicates', async () => {
+        await service.listAdmin(
+          baseQuery({ isPublished: true, featured: false }),
+        );
+        expect(findManyArgs().where).toEqual({
+          isPublished: true,
+          featured: false,
+        });
+      });
+
+      // Pins the exact OR shape over ADMIN_SEARCH_FIELDS — if `summary` (or the insensitive mode)
+      // were ever dropped from the constant, a looser `objectContaining` assertion would not notice.
+      it('matches q across ALL translations, on title/slug/summary, case-insensitive substring', async () => {
+        await service.listAdmin(baseQuery({ q: 'zidni' }));
+        expect(findManyArgs().where).toEqual({
+          translations: {
+            some: {
+              OR: [
+                {
+                  title: {
+                    contains: 'zidni',
+                    mode: Prisma.QueryMode.insensitive,
+                  },
+                },
+                {
+                  slug: {
+                    contains: 'zidni',
+                    mode: Prisma.QueryMode.insensitive,
+                  },
+                },
+                {
+                  summary: {
+                    contains: 'zidni',
+                    mode: Prisma.QueryMode.insensitive,
+                  },
+                },
+              ],
+            },
+          },
+        });
+      });
+
+      it('trims surrounding whitespace from q before matching', async () => {
+        await service.listAdmin(baseQuery({ q: '  zidni  ' }));
+        const where = findManyArgs().where as {
+          translations: { some: { OR: { title: { contains: string } }[] } };
+        };
+        expect(where.translations.some.OR[0]?.title.contains).toBe('zidni');
+      });
+
+      it('drops an empty q rather than applying it as a predicate', async () => {
+        await service.listAdmin(baseQuery({ q: '' }));
+        expect(findManyArgs().where).toEqual({});
+      });
+
+      // The case that actually exercises `.trim()`, distinct from an empty string.
+      it('drops a whitespace-only q rather than applying it as a predicate', async () => {
+        await service.listAdmin(baseQuery({ q: '   ' }));
+        expect(findManyArgs().where).toEqual({});
+      });
+
+      it('combines q with isPublished and featured', async () => {
+        await service.listAdmin(
+          baseQuery({ q: 'zidni', isPublished: true, featured: true }),
+        );
+        const where = findManyArgs().where as Record<string, unknown>;
+        expect(where.isPublished).toBe(true);
+        expect(where.featured).toBe(true);
+        expect(where.translations).toBeDefined();
+      });
+    });
+
+    describe('orderBy (allowlisted sort + total tie-breaker)', () => {
+      it('defaults to featured desc, order asc, id asc when sortBy is absent', async () => {
+        await service.listAdmin(baseQuery());
+        expect(findManyArgs().orderBy).toEqual([
+          { featured: 'desc' },
+          { order: 'asc' },
+          { id: 'asc' },
+        ]);
+      });
+
+      // Doc 10 §6: "ignored when sortBy is absent." A stray sortOrder must not change the default.
+      it('ignores sortOrder when sortBy is absent', async () => {
+        await service.listAdmin(baseQuery({ sortOrder: SortOrder.Desc }));
+        expect(findManyArgs().orderBy).toEqual([
+          { featured: 'desc' },
+          { order: 'asc' },
+          { id: 'asc' },
+        ]);
+      });
+
+      it.each([
+        [AdminProjectSortBy.Featured, 'featured'],
+        [AdminProjectSortBy.Order, 'order'],
+        [AdminProjectSortBy.CreatedAt, 'createdAt'],
+        [AdminProjectSortBy.UpdatedAt, 'updatedAt'],
+      ])(
+        'sorts by %s asc with an id asc tie-breaker',
+        async (sortBy, field) => {
+          await service.listAdmin(
+            baseQuery({ sortBy, sortOrder: SortOrder.Asc }),
+          );
+          expect(findManyArgs().orderBy).toEqual([
+            { [field]: 'asc' },
+            { id: 'asc' },
+          ]);
+        },
+      );
+
+      it.each([
+        [AdminProjectSortBy.Featured, 'featured'],
+        [AdminProjectSortBy.Order, 'order'],
+        [AdminProjectSortBy.CreatedAt, 'createdAt'],
+        [AdminProjectSortBy.UpdatedAt, 'updatedAt'],
+      ])(
+        'sorts by %s desc with an id asc tie-breaker',
+        async (sortBy, field) => {
+          await service.listAdmin(
+            baseQuery({ sortBy, sortOrder: SortOrder.Desc }),
+          );
+          expect(findManyArgs().orderBy).toEqual([
+            { [field]: 'desc' },
+            { id: 'asc' },
+          ]);
+        },
+      );
+
+      it('sorts by year ascending with nulls last', async () => {
+        await service.listAdmin(
+          baseQuery({
+            sortBy: AdminProjectSortBy.Year,
+            sortOrder: SortOrder.Asc,
+          }),
+        );
+        expect(findManyArgs().orderBy).toEqual([
+          { year: { sort: 'asc', nulls: 'last' } },
+          { id: 'asc' },
+        ]);
+      });
+
+      // year is the one branch where `desc` is NOT simply the reverse of `asc`: a project without a
+      // year sorts LAST in BOTH directions, so it never floats to the top under `desc` the way a
+      // plain nullable column would. Asserted explicitly so a future refactor to a generic
+      // `[{[field]: direction}]` cannot silently drop the `nulls: 'last'` override on this one field.
+      it('sorts by year descending, ALSO with nulls last (not the reverse of asc)', async () => {
+        await service.listAdmin(
+          baseQuery({
+            sortBy: AdminProjectSortBy.Year,
+            sortOrder: SortOrder.Desc,
+          }),
+        );
+        expect(findManyArgs().orderBy).toEqual([
+          { year: { sort: 'desc', nulls: 'last' } },
+          { id: 'asc' },
+        ]);
+      });
     });
   });
 

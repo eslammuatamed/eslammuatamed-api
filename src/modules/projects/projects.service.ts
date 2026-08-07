@@ -14,6 +14,7 @@ import { MediaDescriptorResolver } from '../media/media-descriptor.resolver';
 import { RedirectService } from '../redirects/redirect.service';
 import {
   AdminProjectListQueryDto,
+  AdminProjectSortBy,
   ProjectListQueryDto,
 } from './dto/project-query.dto';
 import {
@@ -158,12 +159,12 @@ export class ProjectsService {
   async listAdmin(
     query: AdminProjectListQueryDto,
   ): Promise<PaginatedResult<AdminProjectEntity>> {
-    const where: Prisma.ProjectWhereInput = {};
+    const where = buildAdminWhere(query);
     const [rows, total] = await this.prisma.$transaction([
       this.prisma.project.findMany({
         where,
         include: ADMIN_INCLUDE,
-        orderBy: [{ featured: 'desc' }, { order: 'asc' }],
+        orderBy: buildAdminOrderBy(query),
         skip: query.skip,
         take: query.take,
       }),
@@ -515,6 +516,81 @@ function toFacets(rows: FacetRow[]): ProjectTechnologyFacetEntity[] {
     if (!label || !group) return [];
     return [{ slug: row.slug, label, group, count: row._count.projectLinks }];
   });
+}
+
+// Which translated fields `?q=` searches. Kept as one named list so the Swagger description, the
+// spec, and the predicate below cannot drift apart — the same coupling-by-construction that keeps
+// `PROJECT_TRANSLATION_FIELDS` honest on the content-sync side.
+const ADMIN_SEARCH_FIELDS = ['title', 'slug', 'summary'] as const;
+
+/**
+ * Admin list predicate (D10-18): publication and featured filters plus cross-translation search.
+ *
+ * `q` matches when ANY translation matches on ANY of `ADMIN_SEARCH_FIELDS` — `translations: { some }`,
+ * not a locale-scoped lookup. That is the whole point: the owner types an Arabic title and reaches
+ * the project whose English record they need to edit, from a single list, with no locale toggle.
+ *
+ * A blank or whitespace-only `q` is DROPPED rather than applied. Applied, it would be a predicate
+ * matching everything (harmless) — but the trimming also means a stray space cannot turn a search
+ * into a different result set than the same search without it.
+ *
+ * Substring matching, not full-text: `guard:fts` governs a PUBLIC search index, and the admin
+ * collection is bounded at tens of rows. `mode: 'insensitive'` is a no-op for Arabic (no case) and
+ * correct for English, which is exactly what the admin Media search already does for filenames.
+ */
+function buildAdminWhere(
+  query: AdminProjectListQueryDto,
+): Prisma.ProjectWhereInput {
+  const where: Prisma.ProjectWhereInput = {};
+
+  if (query.isPublished !== undefined) {
+    where.isPublished = query.isPublished;
+  }
+  if (query.featured !== undefined) {
+    where.featured = query.featured;
+  }
+
+  const term = query.q?.trim();
+  if (term) {
+    where.translations = {
+      some: {
+        OR: ADMIN_SEARCH_FIELDS.map((field) => ({
+          [field]: { contains: term, mode: Prisma.QueryMode.insensitive },
+        })),
+      },
+    };
+  }
+
+  return where;
+}
+
+/**
+ * Admin list ordering (D10-18). Always TOTAL.
+ *
+ * `id` is appended in every branch for the reason `compareExperiences` already records: without a
+ * final tie-breaker, rows sharing a sort value compare equal and the database's row order decides
+ * which page they land on — so a paginated list can drop or repeat a row between two identical
+ * requests. That is not theoretical here: all nine governed projects share `year: null`, so a
+ * `sortBy=year` page would be at the mercy of physical row order without this.
+ *
+ * `year` is nullable and sorts nulls LAST in both directions, so projects without a year never
+ * displace those that have one — `desc` would otherwise float every null to the top.
+ */
+function buildAdminOrderBy(
+  query: AdminProjectListQueryDto,
+): Prisma.ProjectOrderByWithRelationInput[] {
+  if (!query.sortBy) {
+    // Unchanged default — the established ordering this endpoint has always returned.
+    return [{ featured: 'desc' }, { order: 'asc' }, { id: 'asc' }];
+  }
+
+  const direction = query.sortOrder;
+
+  if (query.sortBy === AdminProjectSortBy.Year) {
+    return [{ year: { sort: direction, nulls: 'last' } }, { id: 'asc' }];
+  }
+
+  return [{ [query.sortBy]: direction }, { id: 'asc' }];
 }
 
 function buildPublicWhere(
