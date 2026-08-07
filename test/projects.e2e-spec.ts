@@ -190,6 +190,407 @@ describe('Projects (e2e)', () => {
     expect(collision).toSatisfyApiSpec();
   });
 
+  // Admin Projects list query (D10-18): search, filtering, sorting and pagination, all resolved
+  // server-side. Self-contained: five fixtures tagged with a run-unique token so `q=<tag>` scopes
+  // every query in this block to exactly these five rows, isolating it from the demo/seed projects
+  // and every other fixture in this file.
+  describe('admin list query (D10-18)', () => {
+    interface AdminProjectListItem {
+      id: string;
+      order: number;
+      year: number | null;
+      featured: boolean;
+      isPublished: boolean;
+    }
+    interface ListMeta {
+      page: number;
+      perPage: number;
+      total: number;
+      totalPages: number;
+    }
+
+    const tag = `adminq${unique}`;
+    // word -> Arabic word, so the "matches an Arabic title" test can search a term that appears
+    // ONLY in the Arabic translation, proving the match crosses translations rather than merely
+    // hitting the English row.
+    const fixtures = [
+      {
+        key: 'apple',
+        ar: 'تفاحة',
+        order: 10,
+        year: 2020,
+        featured: true,
+        isPublished: true,
+      },
+      {
+        key: 'banana',
+        ar: 'موزة',
+        order: 20,
+        year: 2021,
+        featured: false,
+        isPublished: true,
+      },
+      {
+        key: 'cherry',
+        ar: 'كرز',
+        order: 5,
+        year: null,
+        featured: true,
+        isPublished: false,
+      },
+      {
+        key: 'date',
+        ar: 'تمر',
+        order: 30,
+        year: 2019,
+        featured: false,
+        isPublished: false,
+      },
+      {
+        key: 'fig',
+        ar: 'تين',
+        order: 1,
+        year: 2022,
+        featured: true,
+        isPublished: true,
+      },
+    ] as const;
+    const ids = {} as Record<(typeof fixtures)[number]['key'], string>;
+
+    beforeAll(async () => {
+      // Sequential (not parallel) so createdAt strictly increases in fixture-declaration order —
+      // the createdAt sort assertions below depend on that ordering.
+      for (const fx of fixtures) {
+        const res = await request(httpServer(app))
+          .post('/api/v1/admin/projects')
+          .set(auth())
+          .send({
+            featured: fx.featured,
+            isPublished: fx.isPublished,
+            order: fx.order,
+            year: fx.year,
+            liveUrl: 'https://example.com/adminq',
+            repoUrl: 'https://github.com/example/adminq',
+            technologyIds: [],
+            gallery: [],
+            translations: [
+              {
+                locale: 'en',
+                title: `AQ ${tag}-${fx.key}`,
+                slug: `${tag}-${fx.key}`,
+                summary: `AQ summary ${tag}-${fx.key}.`,
+                ...sections,
+              },
+              {
+                locale: 'ar',
+                title: `مشروع ${tag} ${fx.ar}`,
+                slug: `${tag}-${fx.key}-ar`,
+                summary: `ملخص ${tag} ${fx.ar}.`,
+                ...sections,
+              },
+            ],
+          })
+          .expect(201);
+        ids[fx.key] = envelopeData<{ id: string }>(res).id;
+      }
+
+      // Bumps `apple`'s updatedAt strictly PAST the other four (all created earlier, none patched
+      // since), so sortBy=updatedAt genuinely diverges from sortBy=createdAt instead of coinciding
+      // with it by construction. The patched value is deliberately DIFFERENT from what create() set
+      // (not a same-value no-op) — no other assertion in this block reads `liveUrl`.
+      await request(httpServer(app))
+        .patch(`/api/v1/admin/projects/${ids.apple}`)
+        .set(auth())
+        .send({ liveUrl: 'https://example.com/adminq-patched' })
+        .expect(200);
+    });
+
+    afterAll(async () => {
+      for (const id of Object.values(ids)) {
+        await request(httpServer(app))
+          .delete(`/api/v1/admin/projects/${id}`)
+          .set(auth());
+      }
+    });
+
+    const list = async (
+      qs: string,
+    ): Promise<{ data: AdminProjectListItem[]; meta: ListMeta }> => {
+      const res = await request(httpServer(app))
+        .get(`/api/v1/admin/projects?q=${tag}&${qs}`)
+        .set(auth())
+        .expect(200);
+      expect(res).toSatisfyApiSpec();
+      return res.body as { data: AdminProjectListItem[]; meta: ListMeta };
+    };
+
+    it('scopes q to only these five fixtures', async () => {
+      const { data, meta } = await list('perPage=50');
+      expect(meta.total).toBe(5);
+      expect(data).toHaveLength(5);
+    });
+
+    describe('pagination', () => {
+      // sortBy=order,asc is deterministic (all five `order` values are distinct): fig(1), cherry(5),
+      // apple(10), banana(20), date(30).
+      it('slices pages and reports a correct total across page boundaries', async () => {
+        const page1 = await list('sortBy=order&sortOrder=asc&perPage=2&page=1');
+        const page2 = await list('sortBy=order&sortOrder=asc&perPage=2&page=2');
+        const page3 = await list('sortBy=order&sortOrder=asc&perPage=2&page=3');
+
+        expect(page1.data.map((p) => p.id)).toEqual([ids.fig, ids.cherry]);
+        expect(page2.data.map((p) => p.id)).toEqual([ids.apple, ids.banana]);
+        expect(page3.data.map((p) => p.id)).toEqual([ids.date]);
+        for (const page of [page1, page2, page3]) {
+          expect(page.meta).toEqual(
+            expect.objectContaining({ total: 5, perPage: 2, totalPages: 3 }),
+          );
+        }
+      });
+    });
+
+    describe('q — cross-translation search', () => {
+      it('matches an English title', async () => {
+        const res = await request(httpServer(app))
+          .get(`/api/v1/admin/projects?q=${tag}-apple`)
+          .set(auth())
+          .expect(200);
+        expect(res).toSatisfyApiSpec();
+        const body = res.body as { data: AdminProjectListItem[] };
+        expect(body.data.map((p) => p.id)).toEqual([ids.apple]);
+      });
+
+      // `كرز` (cherry) exists ONLY in the Arabic translation's title/summary — the English row for
+      // this project contains no Arabic characters at all. A match here can only come from the
+      // `translations: { some: { OR: [...] } }` cross-translation predicate, not a locale-scoped one.
+      it('matches an Arabic title, from a project whose English row does not contain the term', async () => {
+        const res = await request(httpServer(app))
+          .get(`/api/v1/admin/projects?q=${encodeURIComponent('كرز')}`)
+          .set(auth())
+          .expect(200);
+        expect(res).toSatisfyApiSpec();
+        const body = res.body as { data: AdminProjectListItem[] };
+        expect(body.data.map((p) => p.id)).toEqual([ids.cherry]);
+      });
+    });
+
+    describe('isPublished / featured filters', () => {
+      it('filters isPublished=true to apple, banana, fig', async () => {
+        const { data } = await list('isPublished=true&perPage=50');
+        expect(new Set(data.map((p) => p.id))).toEqual(
+          new Set([ids.apple, ids.banana, ids.fig]),
+        );
+      });
+
+      it('filters isPublished=false to cherry, date', async () => {
+        const { data } = await list('isPublished=false&perPage=50');
+        expect(new Set(data.map((p) => p.id))).toEqual(
+          new Set([ids.cherry, ids.date]),
+        );
+      });
+
+      it('filters featured=true to apple, cherry, fig', async () => {
+        const { data } = await list('featured=true&perPage=50');
+        expect(new Set(data.map((p) => p.id))).toEqual(
+          new Set([ids.apple, ids.cherry, ids.fig]),
+        );
+      });
+
+      it('filters featured=false to banana, date', async () => {
+        const { data } = await list('featured=false&perPage=50');
+        expect(new Set(data.map((p) => p.id))).toEqual(
+          new Set([ids.banana, ids.date]),
+        );
+      });
+    });
+
+    describe('sortBy — each field, both directions', () => {
+      it('sorts by order asc / desc', async () => {
+        const asc = await list('sortBy=order&sortOrder=asc&perPage=50');
+        const desc = await list('sortBy=order&sortOrder=desc&perPage=50');
+        expect(asc.data.map((p) => p.order)).toEqual([1, 5, 10, 20, 30]);
+        expect(desc.data.map((p) => p.order)).toEqual([30, 20, 10, 5, 1]);
+      });
+
+      // year is nullable and sorts nulls LAST in BOTH directions: `cherry` (null) is last whether
+      // ascending or descending, never floating to the top under desc.
+      it('sorts by year asc / desc, with nulls last in both directions', async () => {
+        const asc = await list('sortBy=year&sortOrder=asc&perPage=50');
+        const desc = await list('sortBy=year&sortOrder=desc&perPage=50');
+        expect(asc.data.map((p) => p.year)).toEqual([
+          2019,
+          2020,
+          2021,
+          2022,
+          null,
+        ]);
+        expect(desc.data.map((p) => p.year)).toEqual([
+          2022,
+          2021,
+          2020,
+          2019,
+          null,
+        ]);
+      });
+
+      // Exact boolean groupings (not merely "monotonic") — two trues/threes reversed between
+      // directions is what proves the sort actually ran on `featured`, not on fixture insertion order.
+      it('sorts by featured asc / desc', async () => {
+        const asc = await list('sortBy=featured&sortOrder=asc&perPage=50');
+        const desc = await list('sortBy=featured&sortOrder=desc&perPage=50');
+        expect(asc.data.map((p) => p.featured)).toEqual([
+          false,
+          false,
+          true,
+          true,
+          true,
+        ]);
+        expect(desc.data.map((p) => p.featured)).toEqual([
+          true,
+          true,
+          true,
+          false,
+          false,
+        ]);
+      });
+
+      it('sorts by createdAt asc / desc (fixture creation order)', async () => {
+        const asc = await list('sortBy=createdAt&sortOrder=asc&perPage=50');
+        const desc = await list('sortBy=createdAt&sortOrder=desc&perPage=50');
+        expect(asc.data.map((p) => p.id)).toEqual([
+          ids.apple,
+          ids.banana,
+          ids.cherry,
+          ids.date,
+          ids.fig,
+        ]);
+        expect(desc.data.map((p) => p.id)).toEqual([
+          ids.fig,
+          ids.date,
+          ids.cherry,
+          ids.banana,
+          ids.apple,
+        ]);
+      });
+
+      // `apple` was PATCHed after all five were created, so updatedAt order genuinely diverges from
+      // createdAt order — apple moves from first to last.
+      it('sorts by updatedAt asc / desc (diverges from createdAt: apple was patched last)', async () => {
+        const asc = await list('sortBy=updatedAt&sortOrder=asc&perPage=50');
+        const desc = await list('sortBy=updatedAt&sortOrder=desc&perPage=50');
+        expect(asc.data.map((p) => p.id)).toEqual([
+          ids.banana,
+          ids.cherry,
+          ids.date,
+          ids.fig,
+          ids.apple,
+        ]);
+        expect(desc.data.map((p) => p.id)).toEqual([
+          ids.apple,
+          ids.fig,
+          ids.date,
+          ids.cherry,
+          ids.banana,
+        ]);
+      });
+
+      it('defaults to featured desc, order asc when sortBy is absent', async () => {
+        const { data } = await list('perPage=50');
+        // featured=true (apple, cherry, fig) must come entirely before featured=false (banana,
+        // date); within each group, `order` must be ascending.
+        const trueGroup = data.filter((p) => p.featured);
+        const falseGroup = data.filter((p) => !p.featured);
+        expect(data.slice(0, trueGroup.length)).toEqual(trueGroup);
+        expect(data.slice(trueGroup.length)).toEqual(falseGroup);
+        expect(trueGroup.map((p) => p.order)).toEqual(
+          [...trueGroup.map((p) => p.order)].sort((a, b) => a - b),
+        );
+        expect(falseGroup.map((p) => p.order)).toEqual(
+          [...falseGroup.map((p) => p.order)].sort((a, b) => a - b),
+        );
+      });
+    });
+
+    describe('combined q + filter + sort + pagination', () => {
+      it('applies isPublished, sortBy=order asc, and pagination together', async () => {
+        // isPublished=true within this fixture set: fig(1), apple(10), banana(20).
+        const page1 = await list(
+          'isPublished=true&sortBy=order&sortOrder=asc&perPage=2&page=1',
+        );
+        const page2 = await list(
+          'isPublished=true&sortBy=order&sortOrder=asc&perPage=2&page=2',
+        );
+        expect(page1.data.map((p) => p.id)).toEqual([ids.fig, ids.apple]);
+        expect(page2.data.map((p) => p.id)).toEqual([ids.banana]);
+        expect(page1.meta.total).toBe(3);
+        expect(page2.meta.total).toBe(3);
+      });
+    });
+
+    describe('validation (422, RFC 7807)', () => {
+      const expectValidationProblem = (res: {
+        status: number;
+        headers: Record<string, string | string[] | undefined>;
+      }): void => {
+        expect(res.status).toBe(422);
+        expect(res.headers['content-type']).toContain(
+          'application/problem+json',
+        );
+      };
+
+      it('rejects an unknown sortBy', async () => {
+        const res = await request(httpServer(app))
+          .get('/api/v1/admin/projects?sortBy=bogus')
+          .set(auth());
+        expectValidationProblem(res);
+        expect(res).toSatisfyApiSpec();
+      });
+
+      it('rejects an unknown sortOrder', async () => {
+        const res = await request(httpServer(app))
+          .get('/api/v1/admin/projects?sortOrder=bogus')
+          .set(auth());
+        expectValidationProblem(res);
+        expect(res).toSatisfyApiSpec();
+      });
+
+      it('rejects a non-boolean isPublished', async () => {
+        const res = await request(httpServer(app))
+          .get('/api/v1/admin/projects?isPublished=maybe')
+          .set(auth());
+        expectValidationProblem(res);
+        expect(res).toSatisfyApiSpec();
+      });
+
+      it('rejects a q longer than 120 characters', async () => {
+        const res = await request(httpServer(app))
+          .get(`/api/v1/admin/projects?q=${'x'.repeat(121)}`)
+          .set(auth());
+        expectValidationProblem(res);
+        expect(res).toSatisfyApiSpec();
+      });
+
+      it('rejects perPage=51', async () => {
+        const res = await request(httpServer(app))
+          .get('/api/v1/admin/projects?perPage=51')
+          .set(auth());
+        expectValidationProblem(res);
+        expect(res).toSatisfyApiSpec();
+      });
+
+      // D10-6: admin reads carry the full translation map, so `locale` is not a whitelisted field
+      // on this DTO. An unsolicited `?locale=en` must 422 (forbidNonWhitelisted) — the contract the
+      // Web `useApi` admin client depends on (it always sends `locale: false` on admin calls).
+      it('rejects an unsolicited locale query param', async () => {
+        const res = await request(httpServer(app))
+          .get('/api/v1/admin/projects?locale=en')
+          .set(auth());
+        expectValidationProblem(res);
+        expect(res).toSatisfyApiSpec();
+      });
+    });
+  });
+
   // Technology facets (D10-19) — the live defect this fixes: the filter was built from the GLOBAL
   // Skills registry, so it offered options no published project uses and options that are not
   // technologies at all.

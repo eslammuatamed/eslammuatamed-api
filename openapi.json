@@ -5155,6 +5155,67 @@
               "example": 12,
               "type": "number"
             }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Free-text search over localized title, slug and summary, across ALL translations (case-insensitive substring). Blank or whitespace-only is ignored rather than treated as a filter.",
+            "schema": {
+              "maxLength": 120,
+              "example": "zidni",
+              "type": "string"
+            }
+          },
+          {
+            "name": "isPublished",
+            "required": false,
+            "in": "query",
+            "description": "Filter by publication state. Omit to return both states.",
+            "schema": {
+              "example": true,
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "featured",
+            "required": false,
+            "in": "query",
+            "description": "Filter by featured state. Omit to return both states.",
+            "schema": {
+              "example": false,
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "description": "Allowlisted sort column. Omit for the default `featured desc, order asc`.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "featured",
+                "order",
+                "year",
+                "createdAt",
+                "updatedAt"
+              ]
+            }
+          },
+          {
+            "name": "sortOrder",
+            "required": false,
+            "in": "query",
+            "description": "Direction for `sortBy`. Ignored when `sortBy` is absent.",
+            "schema": {
+              "default": "asc",
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            }
           }
         ],
         "responses": {
@@ -5195,6 +5256,16 @@
           },
           "403": {
             "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Malformed query parameters (D10-18): unknown sortBy/sortOrder, a non-boolean isPublished/featured, q over 120 chars, perPage over 50, or an unwhitelisted field.",
             "content": {
               "application/problem+json": {
                 "schema": {
