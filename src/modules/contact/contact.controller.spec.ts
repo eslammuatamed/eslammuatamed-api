@@ -5,6 +5,7 @@ import { IS_PUBLIC_KEY } from '../../common/decorators/public.decorator';
 import { ContactThrottlerGuard } from '../../common/throttling/contact-throttler.guard';
 import { PrismaService } from '../../prisma/prisma.service';
 import { REQUIRE_PERMISSION_KEY } from '../access-control/decorators/require-permission.decorator';
+import { ContactMailService } from './contact-mail.service';
 import { ContactController } from './contact.controller';
 import { ContactService } from './contact.service';
 import { MessagesAdminController } from './messages.admin.controller';
@@ -38,7 +39,9 @@ describe('ContactController — intake receipt', () => {
   beforeEach(() => {
     prisma = mockDeep<PrismaService>();
     prisma.contactMessage.create.mockResolvedValue(persisted);
-    controller = new ContactController(new ContactService(prisma));
+    const contactMail = mockDeep<ContactMailService>();
+    contactMail.dispatchForSubmission.mockResolvedValue(undefined);
+    controller = new ContactController(new ContactService(prisma, contactMail));
   });
 
   it('returns an identical receipt for a persisted and a silently-dropped submission', async () => {
