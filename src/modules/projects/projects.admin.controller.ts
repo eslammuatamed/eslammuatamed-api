@@ -49,6 +49,10 @@ export class ProjectsAdminController {
     summary: 'List all projects, including unpublished entries.',
   })
   @ApiOkPaginated(AdminProjectEntity)
+  @ApiProblemResponse(
+    HttpStatus.UNPROCESSABLE_ENTITY,
+    'Malformed query parameters (D10-18): unknown sortBy/sortOrder, a non-boolean isPublished/featured, q over 120 chars, perPage over 50, or an unwhitelisted field.',
+  )
   list(
     @Query() query: AdminProjectListQueryDto,
   ): Promise<PaginatedResult<AdminProjectEntity>> {
