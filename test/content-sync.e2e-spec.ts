@@ -10,6 +10,7 @@
 // a scratch database this file created (see `SCRATCH_DB`).
 import { execFileSync } from 'node:child_process';
 import { ContentStatus, MediaKind, PrismaClient } from '@prisma/client';
+import { ARTICLES } from '../prisma/content/canonical/articles';
 import { PROJECTS } from '../prisma/content/canonical/projects';
 import { SETTINGS_TRANSLATIONS } from '../prisma/content/canonical/site-settings';
 import { SKILLS } from '../prisma/content/canonical/skills';
@@ -241,8 +242,8 @@ describe('empty database → converged, then idempotent', () => {
   it('creates the full canonical dataset on the first run', async () => {
     await syncOnce();
 
-    expect(await prisma.project.count()).toBe(4);
-    expect(await prisma.article.count()).toBe(12);
+    expect(await prisma.project.count()).toBe(PROJECTS.length);
+    expect(await prisma.article.count()).toBe(ARTICLES.length);
     expect(await prisma.skill.count()).toBe(SKILLS.length);
     expect(await prisma.siteSettings.count()).toBe(1);
     expect(await prisma.siteSettingsTranslation.count()).toBe(2);
@@ -262,8 +263,8 @@ describe('empty database → converged, then idempotent', () => {
     await syncOnce();
     await syncOnce();
 
-    expect(await prisma.project.count()).toBe(4);
-    expect(await prisma.article.count()).toBe(12);
+    expect(await prisma.project.count()).toBe(PROJECTS.length);
+    expect(await prisma.article.count()).toBe(ARTICLES.length);
   });
 
   it('writes both locales for every localized entity', async () => {
@@ -548,7 +549,7 @@ describe('slug reuse — the ordinary rename case', () => {
       select: { project: { select: { year: true } } },
     });
     expect(arabic.project.year).toBe(2026);
-    expect(await prisma.project.count()).toBe(4);
+    expect(await prisma.project.count()).toBe(PROJECTS.length);
     expect(isNoOp(await plan())).toBe(true);
   });
 });
