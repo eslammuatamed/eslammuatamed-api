@@ -263,11 +263,17 @@ describe('canonical dataset invariants', () => {
     }
   });
 
-  it('keeps the reviewed content volume — 12 articles and 4 projects', () => {
+  it('keeps the reviewed content volume — 12 articles and 9 projects', () => {
     // Guards the extraction from `seed.dev.ts`: a dropped entry would otherwise look like a
     // deliberate deletion the moment the synchronization runs.
+    //
+    // The project count moved 4 -> 9 when the five remaining governed case studies (Zidni,
+    // Zidni AI, Nexa, Rabiah Hospitals, LavaStack) were added. Raising this number is the
+    // ONLY sanctioned reason to touch this assertion, and it belongs in the same commit as
+    // the entries themselves — the tripwire did its job here, failing on an intentional
+    // change rather than letting a count drift silently.
     expect(ARTICLES).toHaveLength(12);
-    expect(PROJECTS).toHaveLength(4);
+    expect(PROJECTS).toHaveLength(9);
   });
 
   it('uses lowercase kebab-case, non-uuid-shaped skill slugs (the D09-20 CHECK rule)', () => {
