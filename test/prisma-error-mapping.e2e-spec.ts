@@ -128,22 +128,16 @@ describe('Prisma 7 runtime errors through AllExceptionsFilter (e2e)', () => {
       expect(known.code).toBe('P2002');
       expect(known.constructor.name).toBe('PrismaClientKnownRequestError');
 
-      // F9-9 — REGRESSION, pinned deliberately.
+      // F9-9 — the shape the fix is built on, pinned so a future Prisma change is loud.
       //
-      // Prisma 6 (Rust engine) put the conflicting columns in `meta.target`, and
-      // `uniqueTargetToFieldErrors` in AllExceptionsFilter still reads exactly that. Prisma 7 +
-      // PrismaPg does NOT populate `meta.target` at all: the information moved under
+      // Prisma 6 (Rust engine) put the conflicting fields in `meta.target`. Prisma 7 + PrismaPg
+      // does NOT populate `meta.target` at all: the information lives at
       // `meta.driverAdapterError.cause.constraint.fields`, and the values there are DATABASE
-      // COLUMN names (`category_id`) rather than Prisma field names (`categoryId`).
+      // COLUMN names (`category_id`) rather than API field names (`categoryId`).
       //
-      // So the filter's P2002 arm now receives `undefined` and degrades every conflicting field
-      // path to the literal `'unknown'` (asserted in the 422 case below). Nothing caught this:
-      // `all-exceptions.filter.spec.ts` CONSTRUCTS its own error with `meta: { target: [...] }`
-      // and a `clientVersion: '6.0.0'`, so it asserts a shape the runtime no longer produces.
-      //
-      // These assertions pin the ACTUAL Prisma 7 shape so the day someone fixes the filter, this
-      // test fails loudly and tells them where the data really lives. The fix itself is a Phase
-      // 10 decision (it changes client-facing field paths) — not made here.
+      // `uniqueConstraintFields` reads exactly this and normalizes it. If a future version moves
+      // or renames it again, this assertion fails and names the new location — rather than the
+      // API silently losing its field paths, which is precisely how F9-9 shipped.
       expect(known.meta?.target).toBeUndefined();
       const adapterError = (
         known.meta as {
@@ -224,20 +218,53 @@ describe('Prisma 7 runtime errors through AllExceptionsFilter (e2e)', () => {
       // The P2002 arm is the only one that attaches `errors`; its presence proves the response
       // came from `fromPrisma`, not from the DTO ValidationPipe or the generic 500 arm.
       expect(Array.isArray(conflict.body.errors)).toBe(true);
-      // Asserted by VALUE, not merely non-empty — and the value is the F9-9 regression.
+      // The F9-9 regression test, asserted by VALUE.
       //
-      // Under Prisma 6 this was `[{field:'locale'},{field:'slug'}]`. Under Prisma 7 + PrismaPg
-      // `meta.target` is undefined (see the probe above), so `uniqueTargetToFieldErrors` takes
-      // its fallback branch and the client learns only THAT something collided, not WHICH field.
-      // The response is still a valid 422 problem+json and still contract-clean; only the field
-      // paths are lost.
-      //
-      // This is pinned rather than fixed because it bears directly on Phase 10 B-2: removing the
-      // Project-local P2002 translation would swap a specific prose detail for `field: 'unknown'`.
-      // B-2 is therefore NOT unconditionally safe — see the ledger.
+      // `article_translations` maps `locale` and `slug` with no @map, so this pair alone could
+      // pass without any normalization at all. The mapped snake_case case is covered by the
+      // dedicated test below — the two together are what make this discriminating.
       expect(conflict.body.errors).toEqual([
-        { field: 'unknown', message: 'This value is already in use.' },
+        { field: 'locale', message: 'This value is already in use.' },
+        { field: 'slug', message: 'This value is already in use.' },
       ]);
+      expectNoInternalsLeaked(conflict.body);
+    });
+
+    it('reports a MAPPED column under its API name, never its database name', async () => {
+      // The load-bearing F9-9 regression test.
+      //
+      // `locale` and `slug` above carry no `@map`, so that case would pass even with normalization
+      // deleted. This one cannot: `article_translations` maps `articleId` to the column
+      // `article_id`, so the driver reports `article_id` and only a working translation can turn
+      // it into `articleId`.
+      //
+      // Provoked by creating one article with TWO English translations — `article.create` nests
+      // `translations: { create: [...] }` and does not dedupe locales, so the pair violates
+      // @@unique([articleId, locale]) inside Prisma's own nested write.
+      const duplicated = (suffix: string) => ({
+        locale: 'en',
+        title: `Mapped Column Fixture ${unique} ${suffix}`,
+        slug: `mapped-column-${suffix}-${unique}`,
+        excerpt: 'Fixture for the mapped-column field path.',
+        body: '# Heading\n\nBody content long enough for the reading-time computation.',
+      });
+
+      const conflict = await request(httpServer(app))
+        .post('/api/v1/admin/articles')
+        .set(auth())
+        .send({
+          categoryId,
+          translations: [duplicated('a'), duplicated('b')],
+        })
+        .expect(422);
+
+      expect(conflict).toSatisfyApiSpec();
+      expect(conflict.body.errors).toEqual([
+        { field: 'articleId', message: 'This value is already in use.' },
+        { field: 'locale', message: 'This value is already in use.' },
+      ]);
+      // Stated as its own assertion so the failure message names the actual defect.
+      expect(JSON.stringify(conflict.body)).not.toContain('article_id');
       expectNoInternalsLeaked(conflict.body);
     });
   });
