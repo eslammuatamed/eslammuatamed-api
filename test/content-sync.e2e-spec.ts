@@ -10,7 +10,12 @@
 // database (D18-8), and `SCRATCH_DB` is derived from that name rather than fixed — a fixed name
 // would let a second e2e invocation's `DROP DATABASE` destroy this one's database mid-test.
 import { execFileSync } from 'node:child_process';
-import { ContentStatus, MediaKind, PrismaClient } from '@prisma/client';
+import {
+  ContentStatus,
+  MediaKind,
+  PrismaClient,
+} from '../src/generated/prisma/client';
+import { createPrismaClient } from '../src/prisma/standalone-client';
 import {
   buildAdminUrl,
   buildScratchUrl,
@@ -154,7 +159,7 @@ const syncOnce = async (): Promise<Plan> => {
 };
 
 beforeAll(async () => {
-  const admin = new PrismaClient({ datasources: { db: { url: adminUrl() } } });
+  const admin = createPrismaClient(adminUrl());
   await admin.$executeRawUnsafe(`DROP DATABASE IF EXISTS "${SCRATCH_DB}"`);
   await admin.$executeRawUnsafe(`CREATE DATABASE "${SCRATCH_DB}"`);
   await admin.$disconnect();
@@ -166,7 +171,7 @@ beforeAll(async () => {
     stdio: 'pipe',
   });
 
-  prisma = new PrismaClient({ datasources: { db: { url: scratchUrl() } } });
+  prisma = createPrismaClient(scratchUrl());
   await prisma.locale.createMany({
     data: [
       {
@@ -190,7 +195,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await prisma?.$disconnect();
-  const admin = new PrismaClient({ datasources: { db: { url: adminUrl() } } });
+  const admin = createPrismaClient(adminUrl());
   await admin.$executeRawUnsafe(`DROP DATABASE IF EXISTS "${SCRATCH_DB}"`);
   await admin.$disconnect();
 }, 60_000);
@@ -670,9 +675,7 @@ describe('the protected-data guard actually works', () => {
     // This is the original blocker in its exact shape: an admin session rotating a token, or a
     // visitor submitting the contact form, while a two-minute sync is in flight. The pre-fix
     // version failed the run — after committing it — with "This must never happen".
-    const other = new PrismaClient({
-      datasources: { db: { url: scratchUrl() } },
-    });
+    const other = createPrismaClient(scratchUrl());
     try {
       const outcome = await runProtectedTransaction(prisma, async (tx) => {
         await tx.skill.count(); // take the snapshot first
@@ -710,9 +713,7 @@ describe('a real write conflict is reported, not crashed on', () => {
   it('rolls back and reports it as retryable when another session wins the row', async () => {
     await syncOnce();
     const skill = await prisma.skill.findFirstOrThrow({ select: { id: true } });
-    const other = new PrismaClient({
-      datasources: { db: { url: scratchUrl() } },
-    });
+    const other = createPrismaClient(scratchUrl());
 
     try {
       // RepeatableRead is the isolation the protected-data guard requires, and its cost is that a

@@ -1,5 +1,5 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { ContactMessage, Prisma } from '@prisma/client';
+import { ContactMessage, Prisma } from '../../generated/prisma/client';
 import {
   buildPageMeta,
   PaginatedResult,

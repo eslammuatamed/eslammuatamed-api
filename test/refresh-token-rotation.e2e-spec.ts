@@ -1,5 +1,6 @@
 import { INestApplication } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '../src/generated/prisma/client';
+import { createPrismaClient } from '../src/prisma/standalone-client';
 import request, { Response } from 'supertest';
 import {
   createE2eApp,
@@ -64,8 +65,8 @@ describe('Refresh token rotation under concurrency (e2e)', () => {
     app = await createE2eApp();
     // Separate clients: the lock holder keeps a transaction open, and the observer must be
     // able to query while it does.
-    lockHolder = new PrismaClient({ datasourceUrl: process.env.DATABASE_URL });
-    observer = new PrismaClient({ datasourceUrl: process.env.DATABASE_URL });
+    lockHolder = createPrismaClient();
+    observer = createPrismaClient();
   });
 
   afterAll(async () => {

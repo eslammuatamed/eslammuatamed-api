@@ -5,7 +5,11 @@ import {
   ServiceUnavailableException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { MediaKind, MediaVariantFormat, Prisma } from '@prisma/client';
+import {
+  MediaKind,
+  MediaVariantFormat,
+  Prisma,
+} from '../../generated/prisma/client';
 import { createHash, randomUUID } from 'node:crypto';
 import { InjectPinoLogger } from 'nestjs-pino';
 import type { PinoLogger } from 'nestjs-pino';

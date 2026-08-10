@@ -6,7 +6,7 @@
 //
 // There is deliberately no `--force`, no `skipValidation`, and no environment variable that changes
 // what this does. A flag that bypasses the safety check is a flag that will be used in a hurry.
-import { Prisma, PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '../../src/generated/prisma/client';
 import { ARTICLES } from '../content/canonical/articles';
 import { CATEGORIES } from '../content/canonical/categories';
 import { EXPERIENCES } from '../content/canonical/experiences';

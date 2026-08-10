@@ -1,5 +1,5 @@
 import { ApiExtraModels, ApiProperty, getSchemaPath } from '@nestjs/swagger';
-import { ContentStatus } from '@prisma/client';
+import { ContentStatus } from '../../../generated/prisma/client';
 import { PublicMediaImageDescriptor } from '../../media/entities/media-descriptor.entity';
 
 // Resolved category/tag reference embedded in a public article (single locale).

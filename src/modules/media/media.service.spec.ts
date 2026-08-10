@@ -3,7 +3,7 @@ import {
   ServiceUnavailableException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { MediaKind, Prisma } from '@prisma/client';
+import { MediaKind, Prisma } from '../../generated/prisma/client';
 import { createHash } from 'node:crypto';
 import { DeepMockProxy, mockDeep } from 'jest-mock-extended';
 import { PinoLogger } from 'nestjs-pino';

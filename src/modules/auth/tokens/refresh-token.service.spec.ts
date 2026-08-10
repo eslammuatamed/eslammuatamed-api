@@ -1,5 +1,5 @@
 import { UnauthorizedException } from '@nestjs/common';
-import { RefreshToken } from '@prisma/client';
+import { RefreshToken } from '../../../generated/prisma/client';
 import { DeepMockProxy, mockDeep } from 'jest-mock-extended';
 import { AppConfigService } from '../../../config/app-config.service';
 import { PrismaService } from '../../../prisma/prisma.service';

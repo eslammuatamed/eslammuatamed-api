@@ -4,7 +4,12 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { Prisma, Skill, SkillGroup, SkillTranslation } from '@prisma/client';
+import {
+  Prisma,
+  Skill,
+  SkillGroup,
+  SkillTranslation,
+} from '../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocalesService } from '../locales/locales.service';
 import { CreateSkillDto, UpdateSkillDto } from './dto/skill.dto';

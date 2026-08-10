@@ -15,13 +15,13 @@
 // Locales (en/ar) are assumed present — the base seed creates them and the synchronization refuses
 // to run without them. Media FKs are left null so no storage pipeline is required.
 import 'reflect-metadata';
-import { PrismaClient } from '@prisma/client';
+import { createPrismaClient } from '../src/prisma/standalone-client';
 import { applyPlan } from './sync/apply-plan';
 import { buildPlan } from './sync/build-plan';
 import { readOnly } from './sync/read-client';
 import { isNoOp, summarize } from './sync/types';
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient();
 
 const LOCALE_EN = 'en';
 const LOCALE_AR = 'ar';

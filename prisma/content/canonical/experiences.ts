@@ -1,7 +1,7 @@
 // Canonical Experiences (doc 09 §6.1). Natural key: the ENGLISH `(company, role)` pair —
 // see `naturalKey()` in `prisma/sync/keys.ts` for why that pair and how ambiguity is refused.
 // Pure data — no database calls.
-import { EmploymentType } from '@prisma/client';
+import { EmploymentType } from '../../../src/generated/prisma/client';
 
 export interface ExperienceTranslationContent {
   readonly role: string;

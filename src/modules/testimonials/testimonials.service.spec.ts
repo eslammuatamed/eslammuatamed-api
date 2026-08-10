@@ -1,4 +1,4 @@
-import { MediaKind, MediaVariantFormat } from '@prisma/client';
+import { MediaKind, MediaVariantFormat } from '../../generated/prisma/client';
 import { DeepMockProxy, mockDeep } from 'jest-mock-extended';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocalesService } from '../locales/locales.service';

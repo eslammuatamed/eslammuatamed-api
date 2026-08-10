@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ContactMessage } from '@prisma/client';
+import { ContactMessage } from '../../generated/prisma/client';
 import { AppConfigService } from '../../config/app-config.service';
 import { MailMessage } from '../mail/mail-message';
 import { MailService } from '../mail/mail.service';

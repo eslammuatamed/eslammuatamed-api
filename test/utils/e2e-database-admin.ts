@@ -1,7 +1,8 @@
 // The I/O half of the per-run e2e database (doc 18 §2, D18-8). The rules live in
 // `e2e-database.ts`; this file only performs them.
 import { execFileSync } from 'node:child_process';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '../../src/generated/prisma/client';
+import { createPrismaClient } from '../../src/prisma/standalone-client';
 import {
   buildAdminUrl,
   buildScratchUrl,
@@ -9,15 +10,13 @@ import {
 } from './e2e-database';
 
 // `CREATE DATABASE` runs from the maintenance database over a short-lived client. Prisma is used
-// rather than adding a `pg` dependency purely for the harness; `content-sync.e2e-spec.ts` has done
+// rather than talking to `pg` directly purely for the harness; `content-sync.e2e-spec.ts` has done
 // the same since it started provisioning its own database.
 async function withAdminClient<T>(
   configuredDsn: string | undefined,
   work: (admin: PrismaClient) => Promise<T>,
 ): Promise<T> {
-  const admin = new PrismaClient({
-    datasources: { db: { url: buildAdminUrl(configuredDsn) } },
-  });
+  const admin = createPrismaClient(buildAdminUrl(configuredDsn));
   try {
     return await work(admin);
   } finally {

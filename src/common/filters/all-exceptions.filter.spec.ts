@@ -5,7 +5,7 @@ import {
   HttpStatus,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../../generated/prisma/client';
 import { AppConfigService } from '../../config/app-config.service';
 import { ProblemDetails } from '../http/problem-details';
 import { ValidationProblemException } from '../http/validation-problem.exception';

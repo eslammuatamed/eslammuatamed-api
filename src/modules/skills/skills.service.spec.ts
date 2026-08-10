@@ -1,5 +1,9 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
-import { Skill, SkillTranslation, SkillGroup } from '@prisma/client';
+import {
+  Skill,
+  SkillTranslation,
+  SkillGroup,
+} from '../../generated/prisma/client';
 import { DeepMockProxy, mockDeep } from 'jest-mock-extended';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocalesService } from '../locales/locales.service';

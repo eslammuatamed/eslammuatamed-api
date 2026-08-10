@@ -1,5 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
-import { ContactMessage } from '@prisma/client';
+import { ContactMessage } from '../../generated/prisma/client';
 import { plainToInstance } from 'class-transformer';
 import { DeepMockProxy, mockDeep } from 'jest-mock-extended';
 import { PrismaService } from '../../prisma/prisma.service';

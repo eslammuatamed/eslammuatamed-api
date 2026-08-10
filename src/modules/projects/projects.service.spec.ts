@@ -2,7 +2,11 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { MediaKind, MediaVariantFormat, Prisma } from '@prisma/client';
+import {
+  MediaKind,
+  MediaVariantFormat,
+  Prisma,
+} from '../../generated/prisma/client';
 import { DeepMockProxy, mockDeep } from 'jest-mock-extended';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocalesService } from '../locales/locales.service';

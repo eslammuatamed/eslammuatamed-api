@@ -3,7 +3,7 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { ContentStatus, Prisma } from '@prisma/client';
+import { ContentStatus, Prisma } from '../../generated/prisma/client';
 import {
   buildPageMeta,
   PaginatedResult,

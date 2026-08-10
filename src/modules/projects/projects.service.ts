@@ -3,7 +3,7 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { Prisma, SkillGroup } from '@prisma/client';
+import { Prisma, SkillGroup } from '../../generated/prisma/client';
 import {
   buildPageMeta,
   PaginatedResult,
