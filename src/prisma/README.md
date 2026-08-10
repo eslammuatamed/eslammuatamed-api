@@ -73,7 +73,7 @@ service ← PrismaService ← PrismaClient (مولَّد) ← PrismaPg ← pg po
 
 ملاحظتان عمليّتان:
 
-- **الـ `seed` صار صريحًا.** في `Prisma 7` أمر `prisma migrate reset` **لم يعد** يشغّل الـ `seed` تلقائيًّا. لازم تشغّل `npm run db:seed` بنفسك بعده.
+- **الـ `seed` صار صريحًا.** في `Prisma 7` أمر `prisma migrate reset` **لم يعد** يشغّل الـ `seed` تلقائيًّا. لازم تشغّل `npm run db:seed` بنفسك بعده — وقبلها **`npm run build:ops`** مرّة واحدة، لأنّ أمر الـ `seed` صار يشغّل `JavaScript` مُصرَّفًا من `dist-ops/` لا `ts-node` (‏`F9-13`).
 - مكان أمر الـ `seed` واحد فقط: `migrations.seed` داخل `prisma.config.ts`. الحقل القديم `package.json#prisma` أُزيل حتى لا يوجد مصدران للحقيقة.
 
 ## نقطة تمديد آمنة: مقعد الاختبار (test seam)

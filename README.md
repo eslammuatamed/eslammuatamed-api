@@ -23,9 +23,15 @@ createdb -O eslammuatamed eslammuatamed_dev
 createdb -O eslammuatamed eslammuatamed_test
 
 npx prisma migrate deploy     # تطبيق الـ migration المُلتزَم على قاعدة dev
+npm run build:ops             # مطلوب قبل db:seed — يبني البذرة المُصرَّفة في dist-ops/
 npm run db:seed               # locales، دور OWNER (+ منحة '*')، المالك، الإعدادات، التصنيفات
 npm run start:dev             # http://localhost:3001  (Swagger UI على /docs)
 ```
+
+> **لماذا `build:ops` أولًا؟** `db:seed` و`content:sync:*` تعمل الآن من `JavaScript` **مُصرَّف** في
+> `dist-ops/` بدل `ts-node`، لأنّ إصدار الإنتاج المُقلَّم (`npm prune --omit=dev`) لا يحوي `ts-node`
+> ولا مجلّد `src/` (‏`F9-13`/`F9-14`). لم نربط البناء داخل السكربتات نفسها لأنّ `tsc` غير موجود في
+> الإنتاج، فربطُه كان سيكسر الأمر حيث يهمّ فعلًا. `npm run build` الكامل يبنيه أيضًا.
 
 > ملاحظة إعداد: الدور بلا كلمة مرور قد يُفشِل أول `migrate deploy`/`db:seed` لأن `pg_hba.conf` الافتراضي يطلب `scram-sha-256` على `127.0.0.1`؛ أضِف سطر `trust` مُقيَّدًا على loopback (انظر تعليق `.env.example` و`runbooks/setup.md` في `../eslammuatamed-docs`).
 
@@ -50,11 +56,12 @@ export SEED_OWNER_EMAIL=owner@example.com
 export SEED_OWNER_PASSWORD=change-me-minimum-12
 
 npx prisma migrate deploy     # أول مرّة / بعد تغيير المخطّط
+npm run build:ops             # مطلوب قبل db:seed
 npm run db:seed               # idempotent
-npm run test:e2e              # Supertest + jest-openapi (تأكيد مطابقة العقد)
+npm run test:e2e              # Supertest + jest-openapi — يبني dist-ops تلقائيًّا
 ```
 
-الـ CI يعكس هذا: مسار `e2e` في `.github/workflows/ci.yml` يشغّل خدمة `Postgres 16` ثم `generate` → `migrate deploy` → `db:seed` → `test:e2e` ببيانات اعتماد متّسقة.
+في الـ CI: مسار `e2e` في `.github/workflows/ci.yml` يشغّل خدمة `Postgres 16` ثم `npm ci` → `generate` → `test:e2e` فقط. **لا يوجد فيه `migrate deploy` ولا `db:seed`** — فمنذ `D18-8` يملك مِعمار الاختبارات قاعدةً خاصّة به لكلّ تشغيل: ينشئها ويُرحّلها ويبذرها ويُسقطها بنفسه، فلا يوجد سوى مالكٍ واحد للتهيئة. الخطوات اليدوية أعلاه هي للتشغيل المحلّي على قاعدة ثابتة.
 
 ## النشر
 
