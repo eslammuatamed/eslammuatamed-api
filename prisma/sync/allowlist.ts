@@ -80,17 +80,6 @@ export function isCascadeOnly(model: string): boolean {
 }
 
 /**
- * Every model in `schema.prisma`, so the allowlist can be proven EXHAUSTIVE rather than merely
- * long. An unclassified model is the real hazard: it is neither protected by the check nor
- * reviewed as governed, so it would be invisible to both. A schema change that adds a model fails
- * `allowlist.spec.ts` until it is classified here deliberately.
- */
-export const ALL_SCHEMA_MODELS = [
-  ...GOVERNED_MODELS,
-  ...PROTECTED_MODELS,
-] as const;
-
-/**
  * The governed `SiteSettings` scalar columns (doc 09 §6.3). Everything else on the singleton is
  * operator-owned. Listed explicitly so the update statement cannot quietly widen: the apply path
  * builds its `data` object from THIS list, so adding a column to the schema does not silently make

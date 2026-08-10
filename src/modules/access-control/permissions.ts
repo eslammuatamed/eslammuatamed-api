@@ -68,7 +68,3 @@ export const GRANTABLE_PERMISSIONS: readonly string[] = [
   ...PERMISSIONS,
   WILDCARD_PERMISSION,
 ];
-
-export function isGrantablePermission(value: string): boolean {
-  return GRANTABLE_PERMISSIONS.includes(value);
-}
