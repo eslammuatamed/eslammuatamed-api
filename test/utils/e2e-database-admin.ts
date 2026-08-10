@@ -81,8 +81,10 @@ function runPrismaCli(args: readonly string[], scratchUrl: string): void {
 /**
  * Brings a freshly created database to the state the suite expects: the real migration history
  * applied from zero (which doubles as migration validation), then the canonical seed. `db seed`
- * rather than a direct `ts-node prisma/seed.ts` so `package.json`'s `prisma.seed` entry stays the
- * one definition of what seeding means.
+ * rather than a direct `ts-node prisma/seed.ts` so `prisma.config.ts`'s `migrations.seed` entry
+ * stays the one definition of what seeding means. (Prisma 7 moved that entry out of
+ * `package.json#prisma`, which no longer exists; the seed is also explicit now, because
+ * `migrate reset` no longer runs it.)
  */
 export function migrateAndSeed(
   configuredDsn: string | undefined,
