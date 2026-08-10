@@ -1,15 +1,21 @@
 // The permission catalog (D19-8, D09-7): the single code-defined source of truth. Every
 // protected endpoint declares one of these keys via @RequirePermission; grants are data
-// (RolePermission rows) referencing these keys. Keys are `<resource>.<action>` — CRUD verbs
-// plus named actions where a capability exceeds CRUD (e.g. articles.publish). Adding a
-// guarded capability means adding its key here (and a doc-18 test fails if an endpoint
-// declares an unknown one, because the decorator is typed against this list).
+// (RolePermission rows) referencing these keys.
+//
+// The catalog lists capabilities that really exist and are really guarded — nothing else
+// (D19-11). A key here is an offer to the operator: it is grantable, so listing a capability
+// the API does not enforce hands out a role that silently does nothing. Both directions are
+// asserted in route-permissions.spec.ts, so a key with no route fails the build.
+//
+// Keys are `<resource>.<action>`, currently all CRUD verbs. A named action beyond CRUD (a
+// separate `articles.publish`, say) is admitted only once a route separately enforces it —
+// never ahead of the enforcement that gives it meaning (D19-11c). Publishing today rides on
+// `articles.update`, so no separate publish key exists.
 export const PERMISSIONS = [
   'articles.read',
   'articles.create',
   'articles.update',
   'articles.delete',
-  'articles.publish',
   'projects.read',
   'projects.create',
   'projects.update',
@@ -40,15 +46,8 @@ export const PERMISSIONS = [
   'media.delete',
   'messages.read',
   'messages.update',
-  'messages.delete',
   'settings.read',
   'settings.update',
-  'seo.read',
-  'seo.update',
-  'redirects.read',
-  'redirects.create',
-  'redirects.update',
-  'redirects.delete',
   'roles.read',
   'roles.create',
   'roles.update',
@@ -56,7 +55,6 @@ export const PERMISSIONS = [
   'users.read',
   'users.create',
   'users.update',
-  'users.delete',
 ] as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[number];

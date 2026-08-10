@@ -110,4 +110,30 @@ describe('Access control (e2e)', () => {
       .send({ name: `Bogus ${unique}`, permissions: ['articles.frobnicate'] })
       .expect(422);
   });
+
+  // D19-11, operator-facing half: the removed keys are not merely absent from the catalog
+  // listing, they are no longer grantable. Before the removal this request returned 201 and
+  // handed back a role that silently conferred nothing.
+  it('refuses to grant a capability that authorizes no route (422)', async () => {
+    for (const removed of ['articles.publish', 'seo.update', 'users.delete']) {
+      await request(httpServer(app))
+        .post('/api/v1/admin/roles')
+        .set(owner())
+        .send({ name: `Removed ${removed} ${unique}`, permissions: [removed] })
+        .expect(422);
+    }
+  });
+
+  // The wildcard is unchanged by D19-11: it is a grant that matches every capability, not a
+  // capability a route declares, so it stays grantable while never appearing in the catalog.
+  it('still accepts the "*" wildcard grant', async () => {
+    const res = await request(httpServer(app))
+      .post('/api/v1/admin/roles')
+      .set(owner())
+      .send({ name: `Wildcard ${unique}`, permissions: ['*'] })
+      .expect(201);
+    expect(envelopeData<{ permissions: string[] }>(res).permissions).toEqual([
+      '*',
+    ]);
+  });
 });

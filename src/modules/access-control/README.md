@@ -8,14 +8,14 @@
 
 ## خريطة الملفّات
 
-| الملف | الدور |
-|---|---|
-| `permissions.ts` | كتالوج الصلاحيات (`PERMISSIONS` كـ `const`) + النوع `PermissionKey` + `WILDCARD_PERMISSION` (`'*'`) |
-| `guards/permissions.guard.ts` | `PermissionsGuard` العام: يحلّ منح المستخدم من DB ويقارنها بالمطلوب |
-| `decorators/require-permission.decorator.ts` | `@RequirePermission('<resource>.<action>')` — مُنمَّط ضدّ الكتالوج (مفتاح مجهول = خطأ ترجمة) |
-| `access-control.service.ts` | CRUD الأدوار والمستخدمين + كتالوج للقراءة |
-| `roles.admin.controller.ts` · `users.admin.controller.ts` | نقاط `/admin` المحروسة |
-| `dto/*` · `entities/*` | مدخلات/مخرجات |
+| الملف                                                     | الدور                                                                                               |
+| --------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `permissions.ts`                                          | كتالوج الصلاحيات (`PERMISSIONS` كـ `const`) + النوع `PermissionKey` + `WILDCARD_PERMISSION` (`'*'`) |
+| `guards/permissions.guard.ts`                             | `PermissionsGuard` العام: يحلّ منح المستخدم من DB ويقارنها بالمطلوب                                 |
+| `decorators/require-permission.decorator.ts`              | `@RequirePermission('<resource>.<action>')` — مُنمَّط ضدّ الكتالوج (مفتاح مجهول = خطأ ترجمة)        |
+| `access-control.service.ts`                               | CRUD الأدوار والمستخدمين + كتالوج للقراءة                                                           |
+| `roles.admin.controller.ts` · `users.admin.controller.ts` | نقاط `/admin` المحروسة                                                                              |
+| `dto/*` · `entities/*`                                    | مدخلات/مخرجات                                                                                       |
 
 ## خريطة الاتصال
 
@@ -40,7 +40,7 @@ PermissionsGuard.canActivate (بعد JwtAuthGuard، فـ request.user مضبوط
 
 ## قرارات جوهرية (شرح لمطوّر مبتدئ)
 
-- **الكتالوج كود، المنح بيانات.** كل مفتاح صلاحية (`articles.read`, `articles.publish`, …) مُعرَّف في `permissions.ts` ومرتبط بدالّة محروسة، فلا يمكن إنشاؤه عبر الـ API (يُكشف للقراءة فقط عبر `GET /admin/permissions`). المشغّل ينشئ الأدوار ويمنحها مفاتيح من هذا الكتالوج (صفوف `RolePermission`).
+- **الكتالوج كود، المنح بيانات.** كل مفتاح صلاحية (`articles.read`, `articles.update`, …) مُعرَّف في `permissions.ts` ومرتبط بدالّة محروسة، فلا يمكن إنشاؤه عبر الـ API (يُكشف للقراءة فقط عبر `GET /admin/permissions`). والكتالوج يسرد القدرات المُنفَّذة فعليًا فقط: اختبار `route-permissions.spec.ts` يُثبت الاتجاهين معًا، فأي مفتاح لا يحرس مسارًا يُسقط البناء (D19-11). المشغّل ينشئ الأدوار ويمنحها مفاتيح من هذا الكتالوج (صفوف `RolePermission`).
 - **المنحة `'*'` (superadmin).** تطابق كل صلاحية حاضرة ومستقبلية. الدور `OWNER` (نظامي، غير قابل للتعديل/الحذف) يملكها كمنحته الوحيدة — فلا يستطيع كتالوج متنامٍ أن يحبس المشغّل خارجًا.
 - **الأدوار النظامية محميّة.** `isSystem=true` يمنع التعديل/الحذف (422)، وحذف دور مُسنَد لمستخدمين مرفوض حتى إعادة الإسناد.
 

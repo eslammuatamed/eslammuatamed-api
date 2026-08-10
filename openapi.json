@@ -8383,7 +8383,7 @@
           "permissions": {
             "example": [
               "articles.read",
-              "articles.publish",
+              "articles.update",
               "settings.update"
             ],
             "description": "Every grantable permission key. The reserved \"*\" wildcard grants all of them.",
@@ -8422,7 +8422,7 @@
             "example": [
               "articles.read",
               "articles.create",
-              "articles.publish"
+              "articles.update"
             ],
             "description": "Granted permission keys (or \"*\").",
             "type": "array",
@@ -8464,7 +8464,7 @@
             "example": [
               "articles.read",
               "articles.create",
-              "articles.publish"
+              "articles.update"
             ],
             "description": "Catalog keys or \"*\".",
             "type": "array",

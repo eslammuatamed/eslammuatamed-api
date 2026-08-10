@@ -91,6 +91,81 @@ describe('Articles (e2e)', () => {
     expect(detail.readingTimeMin).toBeGreaterThanOrEqual(1);
   });
 
+  // D19-11: there is no separate publish permission — articles.update confers publishing. This
+  // proves it for a NON-owner role, which is the claim that matters: the removed articles.publish
+  // key never gated this transition, so a role designed as "may edit but not publish" would not
+  // have existed. Using the OWNER token here would prove nothing (the '*' wildcard matches
+  // everything); the role below holds articles.update and nothing else.
+  it('lets a role holding only articles.update publish an article (D19-11)', async () => {
+    const roleRes = await request(httpServer(app))
+      .post('/api/v1/admin/roles')
+      .set(auth())
+      .send({
+        name: `Updater ${unique}`,
+        permissions: ['articles.update'],
+      })
+      .expect(201);
+    const roleId = envelopeData<{ id: string }>(roleRes).id;
+
+    const email = `articles-updater-${unique}@example.com`;
+    const password = 'change-me-minimum-12';
+    await request(httpServer(app))
+      .post('/api/v1/admin/users')
+      .set(auth())
+      .send({ email, password, roleId })
+      .expect(201);
+
+    const login = await request(httpServer(app))
+      .post('/api/v1/auth/login')
+      .send({ email, password })
+      .expect(200);
+    const updaterAuth = {
+      Authorization: `Bearer ${envelopeData<{ accessToken: string }>(login).accessToken}`,
+    };
+
+    // OWNER creates the draft (the role cannot create — it holds update only).
+    const created = await request(httpServer(app))
+      .post('/api/v1/admin/articles')
+      .set(auth())
+      .send({
+        categoryId,
+        status: 'DRAFT',
+        translations: [
+          {
+            locale: 'en',
+            title: `Updater Fixture ${unique}`,
+            slug: `updater-fixture-${unique}`,
+            excerpt: 'Fixture for the D19-11 publishing model.',
+            body: '# Heading\n\nBody content for the publishing-permission proof.',
+          },
+        ],
+      })
+      .expect(201);
+    const id = envelopeData<{ id: string }>(created).id;
+
+    // The status transition to PUBLISHED succeeds on articles.update alone.
+    const published = await request(httpServer(app))
+      .patch(`/api/v1/admin/articles/${id}`)
+      .set(updaterAuth)
+      .send({ status: 'PUBLISHED' })
+      .expect(200);
+    expect(published).toSatisfyApiSpec();
+    expect(envelopeData<{ status: string }>(published).status).toBe(
+      'PUBLISHED',
+    );
+
+    // And the article is now publicly reachable — publishing really happened.
+    await request(httpServer(app))
+      .get(`/api/v1/articles/updater-fixture-${unique}?locale=en`)
+      .expect(200);
+
+    // The same role still cannot delete: update is not a blanket articles grant.
+    await request(httpServer(app))
+      .delete(`/api/v1/admin/articles/${id}`)
+      .set(updaterAuth)
+      .expect(403);
+  });
+
   it('rejects a duplicate slug in the same locale with a contract-valid 422', async () => {
     const conflict = await request(httpServer(app))
       .post('/api/v1/admin/articles')

@@ -36,8 +36,9 @@ import { CreateArticleDto, UpdateArticleDto } from './dto/article.dto';
 import { AdminArticleEntity } from './entities/article.entities';
 
 // Each method declares its articles.* permission (doc 19 §3, D19-8). Status transitions
-// (including publish) currently ride on articles.update; articles.publish is reserved in the
-// catalog for a dedicated publish action.
+// (including publish) ride on articles.update — there is no separate publish permission, so
+// articles.update confers publishing (D19-11). A distinct publish capability would need a route
+// that separately enforces it; until then the catalog does not advertise one.
 @ApiTags('articles')
 @ApiBearerAuth('access-token')
 @Throttle({ default: THROTTLE_TIERS.admin })
