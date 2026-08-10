@@ -68,10 +68,14 @@ export async function dropDatabase(
 // no shell is spawned, so nothing in the connection string can be interpreted as a command. The
 // child needs the WHOLE environment, not just `DATABASE_URL` — `prisma/seed.ts` calls the same
 // `validate()` the application boots with and aborts on a missing `JWT_ACCESS_SECRET`.
+//
+// `stdio: 'inherit'` on purpose: with `'pipe'`, a failing `migrate deploy` or `db seed` leaves the
+// real Prisma error unread on `error.stderr` and surfaces only "Command failed: npx prisma …", so
+// the first CI failure would arrive with no diagnosis. Provisioning must fail loudly.
 function runPrismaCli(args: readonly string[], scratchUrl: string): void {
   execFileSync('npx', ['prisma', ...args], {
     env: { ...process.env, DATABASE_URL: scratchUrl },
-    stdio: 'pipe',
+    stdio: 'inherit',
   });
 }
 

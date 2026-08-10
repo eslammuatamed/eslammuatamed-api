@@ -13,6 +13,7 @@ import {
   generateDatabaseName,
   parseServerDsn,
 } from './e2e-database';
+import { createDatabase, dropDatabase } from './e2e-database-admin';
 
 const DEV_DSN = 'postgresql://eslammuatamed@localhost:5432/eslammuatamed_dev';
 const PRODUCTION_SHAPED_DSN =
@@ -189,6 +190,31 @@ describe('deriveSuiteDatabaseName — teardown targets exactly the owned databas
       deriveSuiteDatabaseName(run, 'a"; DROP DATABASE x --'),
     ).toThrow(/must be 1-20 characters/);
   });
+});
+
+// The pattern tests above prove the RULE; these prove the admin layer actually APPLIES it. Without
+// them, deleting `assertCreatable` from `dropDatabase` would break no test. No database is
+// contacted: the throw happens before any client is constructed.
+describe('the admin layer refuses to administer anything outside the harness', () => {
+  it.each([
+    ['eslammuatamed_dev'],
+    ['postgres'],
+    ['template1'],
+    ['"; DROP DATABASE eslammuatamed_dev; --'],
+  ])('dropDatabase refuses %p', async (name) => {
+    await expect(dropDatabase(DEV_DSN, name)).rejects.toThrow(
+      /refusing to administer/,
+    );
+  });
+
+  it.each([['eslammuatamed_dev'], ['postgres']])(
+    'createDatabase refuses %p',
+    async (name) => {
+      await expect(createDatabase(DEV_DSN, name)).rejects.toThrow(
+        /refusing to administer/,
+      );
+    },
+  );
 });
 
 describe('E2E_CREATABLE_NAME_PATTERN — the control on raw SQL identifier interpolation', () => {

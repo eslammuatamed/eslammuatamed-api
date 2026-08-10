@@ -66,6 +66,14 @@ export function generateDatabaseName(): string {
 }
 
 /**
+ * Suites that provision a database of their own on top of the run's. Listed here so `globalTeardown`
+ * can drop them too: a suite that dies before its own `afterAll` (SIGKILL, crash) would otherwise
+ * leak one silently. This is still exactly the set of databases THIS invocation created — not a
+ * prefix sweep.
+ */
+export const SUITE_DATABASES = ['content_sync'] as const;
+
+/**
  * A database owned by a single suite that provisions its own (currently only the content
  * synchronization e2e). Derived from the run's name so two concurrent invocations cannot collide —
  * a fixed name would let one run's `DROP DATABASE` destroy the other's mid-test.
