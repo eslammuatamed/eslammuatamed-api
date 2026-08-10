@@ -133,7 +133,8 @@
     "testEnvironment": "node",
     "roots": [
       "<rootDir>",
-      "<rootDir>/../prisma"
+      "<rootDir>/../prisma",
+      "<rootDir>/../test/utils"
     ]
   }
 }

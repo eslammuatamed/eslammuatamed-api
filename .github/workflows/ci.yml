@@ -172,11 +172,9 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
-      - name: Apply migrations
-        run: npx prisma migrate deploy
-
-      - name: Seed
-        run: npm run db:seed
-
+      # No migrate/seed step: the e2e harness creates, migrates, seeds and drops its own database
+      # per run (D18-8). DATABASE_URL above still matters — the harness derives the SERVER from it
+      # and discards its database pathname — but nothing here provisions `eslammuatamed_test`, so
+      # there is exactly one setup owner.
       - name: E2E tests
         run: npm run test:e2e

@@ -5,11 +5,18 @@
 //
 // ISOLATION. This suite provisions and drops its OWN database rather than using the shared e2e one.
 // It creates, mutates and deletes governed content wholesale, so sharing a database with the other
-// e2e specs would couple them to this suite's execution order. It also means the suite is
-// self-contained: `DATABASE_URL` is derived, never read from a `.env`, and never points anywhere but
-// a scratch database this file created (see `SCRATCH_DB`).
+// e2e specs would couple them to this suite's execution order. `DATABASE_URL` is never read from a
+// `.env`: by the time this file runs, the harness has already replaced it with this run's scratch
+// database (D18-8), and `SCRATCH_DB` is derived from that name rather than fixed — a fixed name
+// would let a second e2e invocation's `DROP DATABASE` destroy this one's database mid-test.
 import { execFileSync } from 'node:child_process';
 import { ContentStatus, MediaKind, PrismaClient } from '@prisma/client';
+import {
+  buildAdminUrl,
+  buildScratchUrl,
+  databaseNameOf,
+  deriveSuiteDatabaseName,
+} from './utils/e2e-database';
 import { ARTICLES } from '../prisma/content/canonical/articles';
 import { PROJECTS } from '../prisma/content/canonical/projects';
 import { SETTINGS_TRANSLATIONS } from '../prisma/content/canonical/site-settings';
@@ -24,22 +31,17 @@ import { readOnly } from '../prisma/sync/read-client';
 import { isNoOp, summarize } from '../prisma/sync/types';
 import type { Plan } from '../prisma/sync/types';
 
-const SCRATCH_DB = 'emu_content_sync_e2e';
+// The harness guarantees `DATABASE_URL` points at this run's scratch database before any spec
+// loads, so both names below hang off one run and cannot collide with a concurrent invocation.
+const RUN_DSN = process.env.DATABASE_URL;
+const SCRATCH_DB = deriveSuiteDatabaseName(
+  databaseNameOf(RUN_DSN ?? ''),
+  'content_sync',
+);
 
-const adminUrl = (): string => {
-  const url = new URL(
-    process.env.DATABASE_URL ??
-      'postgresql://eslammuatamed:eslammuatamed@localhost:5432/eslammuatamed_test',
-  );
-  url.pathname = '/postgres';
-  return url.toString();
-};
+const adminUrl = (): string => buildAdminUrl(RUN_DSN);
 
-const scratchUrl = (): string => {
-  const url = new URL(adminUrl());
-  url.pathname = `/${SCRATCH_DB}`;
-  return url.toString();
-};
+const scratchUrl = (): string => buildScratchUrl(RUN_DSN, SCRATCH_DB);
 
 let prisma: PrismaClient;
 
