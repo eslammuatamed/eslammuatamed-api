@@ -7937,7 +7937,13 @@
             "description": "Resolved cover image (null when no cover is set)."
           },
           "category": {
-            "$ref": "#/components/schemas/ArticleTaxonomyRefEntity"
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ArticleTaxonomyRefEntity"
+              }
+            ],
+            "description": "Resolved category (null when it has no translation in the requested locale)."
           },
           "tags": {
             "type": "array",
@@ -8015,7 +8021,13 @@
             "description": "Resolved cover image (null when no cover is set)."
           },
           "category": {
-            "$ref": "#/components/schemas/ArticleTaxonomyRefEntity"
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ArticleTaxonomyRefEntity"
+              }
+            ],
+            "description": "Resolved category (null when it has no translation in the requested locale)."
           },
           "tags": {
             "type": "array",

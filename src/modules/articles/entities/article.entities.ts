@@ -55,9 +55,19 @@ export class PublicArticleListItemEntity {
   })
   readonly coverImage!: PublicMediaImageDescriptor | null;
 
-  @ApiProperty({ type: ArticleTaxonomyRefEntity })
-  readonly category!: ArticleTaxonomyRefEntity;
+  // Nullable $ref: explicit allOf + sibling nullable, no `type: object` (jest-openapi/AJV null fix).
+  // Null when the category exists but has no translation in the requested locale (D10-20): the
+  // article's own translation governs its visibility, so it stays readable while the label is absent.
+  @ApiProperty({
+    nullable: true,
+    allOf: [{ $ref: getSchemaPath(ArticleTaxonomyRefEntity) }],
+    description:
+      'Resolved category (null when it has no translation in the requested locale).',
+  })
+  readonly category!: ArticleTaxonomyRefEntity | null;
 
+  // Tags follow the same rule by omission (D10-20): an untranslated tag is absent from the array
+  // rather than present-and-blank, so this is never a list of empty labels.
   @ApiProperty({ type: [ArticleTaxonomyRefEntity] })
   readonly tags!: ArticleTaxonomyRefEntity[];
 

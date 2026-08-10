@@ -482,10 +482,12 @@ export class ArticlesService {
       coverImage: article.coverImage
         ? this.mediaDescriptors.resolveImage(article.coverImage, locale)
         : null,
+      // Absence is asymmetric by contract (D10-20): an untranslated category is `null` on the
+      // article, an untranslated tag drops out of the list instead of appearing blank.
       category: taxonomyRef(article.category.id, article.category.translations),
-      tags: article.tags.map((link) =>
-        taxonomyRef(link.tag.id, link.tag.translations),
-      ),
+      tags: article.tags
+        .map((link) => taxonomyRef(link.tag.id, link.tag.translations))
+        .filter((tag): tag is ArticleTaxonomyRefEntity => tag !== null),
       availableLocales: article.translations.map((t) => t.locale).sort(),
     };
   }
@@ -604,12 +606,20 @@ function computeReadingTime(body: string): number {
   return Math.max(1, Math.ceil(words / 200));
 }
 
+// The article's translation exists, but its category/tag translation may not — the include
+// already scoped these to the requested locale, so this array is empty when there is none.
+// Returning `null` rather than `{ name: '', slug: '' }` is D10-20: a blank placeholder is a real
+// object the client renders and links to, which hides the locale gap behind an empty label
+// pointing at an empty filter. Callers decide what absence means for them (doc 10 §6).
 function taxonomyRef(
   id: string,
   localeTranslations: { name: string; slug: string }[],
-): ArticleTaxonomyRefEntity {
+): ArticleTaxonomyRefEntity | null {
   const translation = localeTranslations[0];
-  return { id, name: translation?.name ?? '', slug: translation?.slug ?? '' };
+  if (!translation) {
+    return null;
+  }
+  return { id, name: translation.name, slug: translation.slug };
 }
 
 function toAdminEntity(article: ArticleAdminPayload): AdminArticleEntity {

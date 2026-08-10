@@ -229,11 +229,94 @@ describe('ArticlesService', () => {
 
       expect(locales.assertEnabled).toHaveBeenCalledWith('en');
       expect(result.title).toBe('Title en');
-      expect(result.category.slug).toBe('engineering');
+      expect(result.category).toEqual({
+        id: 'c1',
+        name: 'Engineering',
+        slug: 'engineering',
+      });
       expect(result.readingTimeMin).toBe(2);
       expect(result.body).toContain('word');
       // Slug map covers every translation for locale switching (doc 10 §6).
       expect(result.slugs).toEqual({ en: 'slug-en', ar: 'slug-ar' });
+    });
+  });
+
+  // D10-20: the article's own translation governs its visibility, so an article whose category
+  // (or tag) has no translation in the requested locale stays readable. The include already
+  // scopes taxonomy translations to that locale, so "absent here" means "absent in this locale".
+  describe('taxonomy resolution (D10-20)', () => {
+    // The payload the include produces when the category row exists but its translation for the
+    // requested locale does not: the relation is loaded, its filtered translations array is empty.
+    function untranslatedCategoryPayload() {
+      const article = articlePayload(ContentStatus.PUBLISHED);
+      return {
+        ...article,
+        category: { ...article.category, translations: [] },
+      };
+    }
+
+    it('keeps the article visible and nulls the category when its translation is missing', async () => {
+      prisma.articleTranslation.findUnique.mockResolvedValue({
+        article: untranslatedCategoryPayload(),
+      } as never);
+
+      const result = await service.getPublicBySlug('slug-en', 'en');
+
+      // The article itself is unaffected — this is an absent label, not an absent article.
+      expect(result.title).toBe('Title en');
+      expect(result.body).toContain('word');
+      // Explicit null, not an omitted key and not `{ name: '', slug: '' }`.
+      expect(result).toHaveProperty('category', null);
+      expect(Object.keys(result)).toContain('category');
+    });
+
+    it('nulls the category rather than borrowing another locale’s label', async () => {
+      // The AR read: the include filtered on 'ar', so the EN category translation the row also
+      // owns is simply not in the payload. Nothing may reconstruct it.
+      const article = articlePayload(ContentStatus.PUBLISHED, 'ar');
+      prisma.articleTranslation.findUnique.mockResolvedValue({
+        article: {
+          ...article,
+          category: { ...article.category, translations: [] },
+        },
+      } as never);
+
+      const result = await service.getPublicBySlug('slug-ar', 'ar');
+
+      expect(result.category).toBeNull();
+      expect(JSON.stringify(result)).not.toContain('engineering');
+      expect(JSON.stringify(result)).not.toContain('Engineering');
+    });
+
+    it('omits an untranslated tag instead of listing it blank', async () => {
+      const article = articlePayload(ContentStatus.PUBLISHED);
+      prisma.articleTranslation.findUnique.mockResolvedValue({
+        article: {
+          ...article,
+          tags: [
+            {
+              articleId: 'a1',
+              tagId: 'tag-translated',
+              tag: {
+                id: 'tag-translated',
+                translations: [{ name: 'NestJS', slug: 'nestjs' }],
+              },
+            },
+            {
+              articleId: 'a1',
+              tagId: 'tag-untranslated',
+              tag: { id: 'tag-untranslated', translations: [] },
+            },
+          ],
+        },
+      } as never);
+
+      const result = await service.getPublicBySlug('slug-en', 'en');
+
+      // Omission, not a null entry and not a blank label (D10-20 §6).
+      expect(result.tags).toEqual([
+        { id: 'tag-translated', name: 'NestJS', slug: 'nestjs' },
+      ]);
     });
   });
 
