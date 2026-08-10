@@ -40,8 +40,23 @@ export class EnvironmentVariables {
   @Max(65535)
   PORT!: number;
 
+  // Structural, not merely present (D16-12). `@IsNotEmpty()` alone was a fail-open gate: it
+  // accepted a whitespace-only value, a bare database name, `mysql://`, and a newline-injected
+  // second assignment — including the exact historical value that created a URL-encoded 63-byte
+  // database instead of aborting. The malformed string reached Prisma and became runtime behavior
+  // an hour later, which is the failure doc 16 §1 promises never to have.
+  //
+  // A regex rather than a DSN parser on purpose: a parser is a second implementation of a format
+  // PostgreSQL already defines, and every field it checked would be one more way to wrongly reject
+  // a legitimate production URL. This asserts only what is unambiguous — a supported scheme and no
+  // whitespace — and deliberately says NOTHING about the database name: pointing at the wrong
+  // database is D18-8's fail-closed assertion in the e2e harness, while this gate must accept any
+  // legitimate production name.
   @IsString()
-  @IsNotEmpty()
+  @Matches(/^postgres(ql)?:\/\/\S+$/, {
+    message:
+      'DATABASE_URL must be a whitespace-free postgresql:// or postgres:// connection string.',
+  })
   DATABASE_URL!: string;
 
   // Exact public-site origin allowed by CORS (doc 19 §2) — never "*".
