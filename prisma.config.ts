@@ -32,7 +32,13 @@ export default defineConfig({
     path: 'prisma/migrations',
     // Prisma 7 only ever runs this from an explicit `prisma db seed`.
     // `migrate reset` no longer seeds on its own — see prisma/README.md.
-    seed: 'ts-node --transpile-only prisma/seed.ts',
+    //
+    // The COMPILED seed, not `ts-node prisma/seed.ts` (F9-13). This command is read at runtime
+    // from whatever directory `prisma db seed` runs in — including an extracted production
+    // release, where `ts-node` is pruned and `src/` is not packaged. `dist-ops/` is built by
+    // `npm run build` and shipped in the release tarball, so one command works in both places.
+    // Run `npm run build:ops` before seeding from a source checkout.
+    seed: 'node dist-ops/prisma/seed.js',
   },
 
   datasource: {

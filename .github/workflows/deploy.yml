@@ -292,8 +292,14 @@ jobs:
       # so `prisma migrate deploy` below exits 1 with "The datasource.url property is required
       # in your Prisma config file" without it (9D-8). The pruned tree loads that .ts config
       # unaided — @prisma/config bundles its own loader, so no ts-node is required.
+      #
+      # `dist-ops` IS packaged: it holds the COMPILED governed operator entrypoints — the
+      # production seed (doc 09 §6) and the content-synchronization CLI (doc 09 §6.2, doc 23 §4).
+      # Both used to run through `ts-node` against `prisma/*.ts` files that import `../src/…`;
+      # from a pruned release that is `ts-node` ENOENT and a missing `src/` (F9-13 / F9-14).
+      # `npm run build` emits it, so it is the same code the gates tested.
       - name: Package release tarball
-        run: tar -czf "eslammuatamed-api-${RELEASE}.tar.gz" dist node_modules prisma prisma.config.ts package.json package-lock.json
+        run: tar -czf "eslammuatamed-api-${RELEASE}.tar.gz" dist dist-ops node_modules prisma prisma.config.ts package.json package-lock.json
 
       - name: Write deploy key and pin the host key
         env:

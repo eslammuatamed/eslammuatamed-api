@@ -1,0 +1,24 @@
+{
+  // Operator-command build (F9-13 / F9-14).
+  //
+  // The application build (`nest build`, tsconfig.build.json) deliberately EXCLUDES `prisma/`,
+  // and its output is flat over `src/` — `src/main.ts` becomes `dist/main.js`. Widening that
+  // build to cover `prisma/` would make `.` the common root and move every emitted file to
+  // `dist/src/…`, breaking `start:prod`, the systemd ExecStart and the release tarball.
+  //
+  // So the governed operator entrypoints — the production seed (doc 09 §6) and the content
+  // synchronization CLI (doc 09 §6.2, doc 23 §4) — are compiled separately into `dist-ops/`,
+  // which the app build never touches (`deleteOutDir` only clears `dist`).
+  //
+  // `rootDir: "."` keeps the source layout in the output, so `prisma/seed.ts`'s
+  // `../src/prisma/load-env` resolves to `dist-ops/src/prisma/load-env.js` — inside the
+  // artifact, never reaching back into a `src/` tree the tarball does not ship (F9-14's cause).
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "./dist-ops",
+    "declaration": false,
+    "incremental": false
+  },
+  "include": ["prisma/seed.ts", "prisma/sync/cli.ts"]
+}

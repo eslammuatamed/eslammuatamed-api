@@ -85,6 +85,10 @@ function runPrismaCli(args: readonly string[], scratchUrl: string): void {
  * stays the one definition of what seeding means. (Prisma 7 moved that entry out of
  * `package.json#prisma`, which no longer exists; the seed is also explicit now, because
  * `migrate reset` no longer runs it.)
+ *
+ * That entry now runs the COMPILED seed from `dist-ops/` (F9-13), which is why `npm run test:e2e`
+ * builds it first. The gain is that this suite exercises the exact seed binary a production
+ * release runs, instead of a `ts-node` path that only ever worked from a source checkout.
  */
 export function migrateAndSeed(
   configuredDsn: string | undefined,
