@@ -25,10 +25,18 @@ function tokenRow(overrides: Partial<RefreshToken>): RefreshToken {
 
 describe('RefreshTokenService', () => {
   let prisma: DeepMockProxy<PrismaService>;
+  let tx: DeepMockProxy<PrismaService>;
   let service: RefreshTokenService;
 
   beforeEach(() => {
     prisma = mockDeep<PrismaService>();
+    // A distinct client for the interactive transaction, so a test can tell a write issued
+    // inside the transaction (rolled back on failure) from one committed on its own.
+    tx = mockDeep<PrismaService>();
+    (prisma.$transaction as unknown as jest.Mock).mockImplementation(
+      (run: (client: PrismaService) => Promise<unknown>) => run(tx),
+    );
+    tx.refreshToken.updateMany.mockResolvedValue({ count: 1 });
     service = new RefreshTokenService(prisma, config);
   });
 
@@ -52,20 +60,64 @@ describe('RefreshTokenService', () => {
       );
     });
 
-    it('rotates a valid token: revokes the old and issues a new one in the same family', async () => {
+    it('claims the presented token conditionally and issues exactly one successor', async () => {
       prisma.refreshToken.findUnique.mockResolvedValue(tokenRow({}));
-      prisma.$transaction.mockResolvedValue([]);
 
       const rotated = await service.rotateOrThrow('valid-token');
 
       expect(rotated.userId).toBe('user-1');
-      expect(prisma.refreshToken.update).toHaveBeenCalledWith({
-        where: { id: 'rt-1' },
+      // `revokedAt: null` in the WHERE is the whole guarantee: without it two concurrent
+      // presentations both match by id and both mint a successor.
+      expect(tx.refreshToken.updateMany).toHaveBeenCalledWith({
+        where: { id: 'rt-1', revokedAt: null },
         data: { revokedAt: expect.any(Date) },
       });
-      const createArg = prisma.refreshToken.create.mock.calls[0]?.[0];
+      expect(tx.refreshToken.create).toHaveBeenCalledTimes(1);
+      const createArg = tx.refreshToken.create.mock.calls[0]?.[0];
       expect(createArg?.data.familyId).toBe('family-1');
+      expect(createArg?.data.tokenHash).not.toEqual(rotated.token);
+      // Claim and successor share one transaction; neither is committed on its own.
+      expect(prisma.refreshToken.updateMany).not.toHaveBeenCalled();
+      expect(prisma.refreshToken.create).not.toHaveBeenCalled();
       expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    });
+
+    it('treats a claim that matches no row as reuse: no successor, family revoked, 401', async () => {
+      prisma.refreshToken.findUnique.mockResolvedValue(tokenRow({}));
+      tx.refreshToken.updateMany.mockResolvedValue({ count: 0 });
+
+      // Byte-identical to the replayed-revoked-token response: losing the race must not be
+      // distinguishable from theft.
+      await expect(service.rotateOrThrow('raced-token')).rejects.toThrow(
+        new UnauthorizedException('Refresh token has been revoked.'),
+      );
+      expect(tx.refreshToken.create).not.toHaveBeenCalled();
+      // Family revocation runs on the client, after the claim transaction rolled back —
+      // never inside it, which would roll the revocation back too.
+      expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
+        where: { familyId: 'family-1', revokedAt: null },
+        data: { revokedAt: expect.any(Date) },
+      });
+    });
+
+    it('rolls the claim back and revokes nothing when the successor cannot be created', async () => {
+      prisma.refreshToken.findUnique.mockResolvedValue(tokenRow({}));
+      tx.refreshToken.create.mockRejectedValue(new Error('connection lost'));
+
+      const failure: unknown = await service
+        .rotateOrThrow('valid-token')
+        .catch((error: unknown) => error);
+
+      // Not converted to a 401: the operator keeps a token that still works rather than
+      // being logged out with no replacement, and no family is revoked over an
+      // infrastructure failure.
+      expect(failure).not.toBeInstanceOf(UnauthorizedException);
+      expect(failure).toEqual(new Error('connection lost'));
+      expect(prisma.refreshToken.updateMany).not.toHaveBeenCalled();
+      // The claim was issued on the transaction client, so Prisma discards it with the
+      // failed transaction. That rollback is proven for real in refresh-token-rotation.e2e-spec.
+      expect(tx.refreshToken.updateMany).toHaveBeenCalledTimes(1);
+      expect(prisma.refreshToken.update).not.toHaveBeenCalled();
     });
 
     it('detects reuse: presenting a revoked token revokes the whole family and throws 401', async () => {
@@ -80,7 +132,8 @@ describe('RefreshTokenService', () => {
         where: { familyId: 'family-1', revokedAt: null },
         data: { revokedAt: expect.any(Date) },
       });
-      expect(prisma.refreshToken.create).not.toHaveBeenCalled();
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+      expect(tx.refreshToken.create).not.toHaveBeenCalled();
     });
 
     it('throws 401 for an expired token', async () => {
