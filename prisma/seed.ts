@@ -1,6 +1,7 @@
 // Standalone script: class-transformer decorators in env.validation need the metadata
 // polyfill that Nest's bootstrap normally provides.
 import 'reflect-metadata';
+import { loadEnvFileIfPresent } from '../src/prisma/load-env';
 import { createPrismaClient } from '../src/prisma/standalone-client';
 import * as argon2 from 'argon2';
 import { ARGON2_OPTIONS } from '../src/modules/auth/hashing/argon2.options';
@@ -16,6 +17,7 @@ import {
 // every write is an upsert or guarded by an existence check, and the owner password/role are
 // never clobbered once set.
 
+loadEnvFileIfPresent();
 const prisma = createPrismaClient();
 
 interface CategorySeed {

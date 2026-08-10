@@ -10,6 +10,7 @@
 // Deliberately absent: `--force`. A flag that bypasses validation is a flag that gets used in a
 // hurry, and the validation is the only thing standing between a mistyped dataset and production.
 import 'reflect-metadata';
+import { loadEnvFileIfPresent } from '../../src/prisma/load-env';
 import { createPrismaClient } from '../../src/prisma/standalone-client';
 import {
   applyPlan,
@@ -47,6 +48,7 @@ function parseArgs(argv: readonly string[]): {
 
 async function main(): Promise<void> {
   const { mode, json, verbose } = parseArgs(process.argv);
+  loadEnvFileIfPresent();
   const prisma = createPrismaClient();
 
   try {

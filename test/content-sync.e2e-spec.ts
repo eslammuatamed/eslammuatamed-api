@@ -32,6 +32,10 @@ import {
   TransactionConflictError,
 } from '../prisma/sync/apply-plan';
 import { buildPlan } from '../prisma/sync/build-plan';
+import {
+  articleScalars,
+  projectScalars,
+} from '../prisma/sync/governed-scalars';
 import { readOnly } from '../prisma/sync/read-client';
 import { isNoOp, summarize } from '../prisma/sync/types';
 import type { Plan } from '../prisma/sync/types';
@@ -848,5 +852,162 @@ describe('published content reads back correctly in both locales', () => {
       expect(stored.aboutBio).toBe(canonical.aboutBio);
       expect(stored.currentFocus).toBe(canonical.currentFocus);
     }
+  });
+});
+
+// 9C-11 C. Everything above proves the sync CONVERGES and stays idempotent. None of it proves the
+// converged rows carry the canonical VALUES — a sync that wrote the right number of rows with the
+// wrong contents would satisfy every assertion in this file and every `count(*)` fingerprint taken
+// in 9C-α.
+//
+// The comparison is coupled to the sync's own ownership rules BY CONSTRUCTION: `projectScalars`,
+// `experienceScalars` and `articleScalars` are the exact functions `build-plan` diffs and
+// `apply-plan` writes, applied here to the DATABASE ROW as well as to the canonical seed. A field
+// added to a governed scalar set therefore enters this comparison automatically — there is no
+// second list to keep in step, which is the failure mode this project has been bitten by before.
+//
+// Translation fields are derived from `Object.keys(seed.en)` for the same reason.
+//
+// BOUNDED CLAIM — exactly what is compared:
+//   Project    — featured, isPublished, order, year, liveUrl, repoUrl (via projectScalars)
+//                + every key of the canonical en/ar translation content
+//   Article    — status, publishAt (via articleScalars)
+//                + every key of the canonical en/ar translation content
+//   Skill      — slug + every key of the canonical en/ar translation content
+// NOT compared: createdAt/updatedAt (volatile, not owned by the contract), ids (assigned by the
+// database), and every PROTECTED model (the sync deliberately does not own them).
+describe('governed content matches the canonical source field-for-field', () => {
+  const normalize = (value: unknown): unknown =>
+    value instanceof Date ? value.toISOString() : value;
+
+  const project = (row: Record<string, unknown>) =>
+    projectScalars(row as never);
+  const article = (row: Record<string, unknown>) =>
+    articleScalars(row as never);
+
+  const sameShape = (
+    actual: Record<string, unknown>,
+    expected: Record<string, unknown>,
+  ): void => {
+    const keys = Object.keys(expected);
+    expect(keys.length).toBeGreaterThan(0);
+    for (const key of keys) {
+      expect([key, normalize(actual[key])]).toEqual([
+        key,
+        normalize(expected[key]),
+      ]);
+    }
+  };
+
+  // beforeEACH, not beforeAll: the suite-level `beforeEach` calls `resetGovernedContent()` before
+  // every test, and a parent's beforeEach runs before the child's — so a one-time beforeAll here
+  // would be wiped before the first assertion ever ran.
+  beforeEach(async () => {
+    await syncOnce();
+  });
+
+  it('writes every canonical Project scalar exactly', async () => {
+    for (const seed of PROJECTS) {
+      const row = await prisma.projectTranslation
+        .findFirstOrThrow({
+          where: { locale: 'en', slug: seed.en.slug },
+          include: { project: true },
+        })
+        .then((t) => t.project);
+
+      sameShape(
+        project(row),
+        project(seed as unknown as Record<string, unknown>),
+      );
+    }
+  });
+
+  it('writes every canonical Project translation field in both locales', async () => {
+    for (const seed of PROJECTS) {
+      for (const locale of ['en', 'ar'] as const) {
+        const content = seed[locale] as unknown as Record<string, unknown>;
+        const row = await prisma.projectTranslation.findFirstOrThrow({
+          where: { locale, slug: content.slug as string },
+        });
+        sameShape(row, content);
+      }
+    }
+  });
+
+  it('writes every canonical Article scalar and translation exactly', async () => {
+    for (const seed of ARTICLES) {
+      const translation = await prisma.articleTranslation.findFirstOrThrow({
+        where: { locale: 'en', slug: seed.en.slug },
+        include: { article: true },
+      });
+
+      sameShape(
+        article(translation.article),
+        article(seed as unknown as Record<string, unknown>),
+      );
+
+      for (const locale of ['en', 'ar'] as const) {
+        const content = seed[locale] as unknown as Record<string, unknown>;
+        const row = await prisma.articleTranslation.findFirstOrThrow({
+          where: { locale, slug: content.slug as string },
+        });
+        sameShape(row, content);
+      }
+    }
+  });
+
+  it('writes every canonical Skill label in both locales', async () => {
+    // SkillSeed carries flat `labelEn`/`labelAr` rather than nested per-locale objects, so the
+    // pairing is spelled out here instead of derived from Object.keys.
+    for (const seed of SKILLS) {
+      for (const [locale, label] of [
+        ['en', seed.labelEn],
+        ['ar', seed.labelAr],
+      ] as const) {
+        const row = await prisma.skillTranslation.findFirstOrThrow({
+          where: { locale, skill: { slug: seed.slug } },
+        });
+        expect([seed.slug, locale, row.label]).toEqual([
+          seed.slug,
+          locale,
+          label,
+        ]);
+      }
+    }
+  });
+
+  it('is discriminating: a single mutated governed scalar is detected', async () => {
+    // The instrument's own negative control, run in-place against the scratch database so the
+    // claim "these tests would notice" is demonstrated rather than asserted.
+    const seed = PROJECTS[0]!;
+    const before = await prisma.projectTranslation
+      .findFirstOrThrow({
+        where: { locale: 'en', slug: seed.en.slug },
+        include: { project: true },
+      })
+      .then((t) => t.project);
+
+    const originalYear = before.year;
+    expect(originalYear).not.toBeNull();
+    await prisma.project.update({
+      where: { id: before.id },
+      data: { year: (originalYear ?? 0) + 1 },
+    });
+
+    const mutated = await prisma.project.findUniqueOrThrow({
+      where: { id: before.id },
+    });
+    expect(() =>
+      sameShape(
+        project(mutated as unknown as Record<string, unknown>),
+        project(seed as unknown as Record<string, unknown>),
+      ),
+    ).toThrow();
+
+    // Converge again so no later expectation inherits the mutation.
+    await prisma.project.update({
+      where: { id: before.id },
+      data: { year: originalYear },
+    });
   });
 });
