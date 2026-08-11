@@ -109,8 +109,20 @@ export class MessagesAdminController {
   @ApiOperation({
     summary:
       'List the reply attempts for one contact message, chronologically.',
+    description:
+      'Ordered by `createdAt` ascending, tie-broken by `id` — reply ids are time-ordered UUIDv7, so ' +
+      'the tie-break is chronologically meaningful and two identical requests cannot disagree. ' +
+      "Scoped strictly to `:id`: no other message's attempts appear. " +
+      'An empty array and a 404 are DIFFERENT facts and must not be conflated — a 404 means no such ' +
+      'message, while `200 []` means the message exists and has no reply attempts. The latter ' +
+      'includes a phone-only message that carries no email address and therefore can never be ' +
+      'replied to at all: its history is readable and empty, even though POSTing to it answers 409.',
   })
   @ApiOkEnvelope(ContactMessageReplyEntity, { isArray: true })
+  @ApiProblemResponse(
+    HttpStatus.BAD_REQUEST,
+    'The message id in the path is not a well-formed UUID.',
+  )
   @ApiProblemResponse(HttpStatus.NOT_FOUND, 'Message not found.')
   listReplies(
     @Param('id', ParseUUIDPipe) id: string,
@@ -158,6 +170,10 @@ export class MessagesAdminController {
   })
   @ApiCreatedEnvelope(ContactMessageReplyEntity)
   @ApiOkEnvelope(ContactMessageReplyEntity)
+  @ApiProblemResponse(
+    HttpStatus.BAD_REQUEST,
+    'The message id in the path is not a well-formed UUID.',
+  )
   @ApiProblemResponse(HttpStatus.NOT_FOUND, 'Message not found.')
   @ApiProblemResponse(
     HttpStatus.CONFLICT,

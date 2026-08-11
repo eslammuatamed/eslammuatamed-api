@@ -6023,6 +6023,7 @@
     },
     "/api/v1/admin/messages/{id}/replies": {
       "get": {
+        "description": "Ordered by `createdAt` ascending, tie-broken by `id` — reply ids are time-ordered UUIDv7, so the tie-break is chronologically meaningful and two identical requests cannot disagree. Scoped strictly to `:id`: no other message's attempts appear. An empty array and a 404 are DIFFERENT facts and must not be conflated — a 404 means no such message, while `200 []` means the message exists and has no reply attempts. The latter includes a phone-only message that carries no email address and therefore can never be replied to at all: its history is readable and empty, even though POSTing to it answers 409.",
         "operationId": "MessagesAdminController_listReplies_v1",
         "parameters": [
           {
@@ -6052,6 +6053,16 @@
                       }
                     }
                   }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The message id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
                 }
               }
             }
@@ -6174,6 +6185,16 @@
                       "$ref": "#/components/schemas/ContactMessageReplyEntity"
                     }
                   }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The message id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
                 }
               }
             }
