@@ -1,6 +1,5 @@
 import {
   NotFoundException,
-  ServiceUnavailableException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { MediaKind, Prisma } from '../../generated/prisma/client';
@@ -774,42 +773,202 @@ describe('MediaService', () => {
       expect(prisma.mediaAsset.delete).not.toHaveBeenCalled();
     });
 
-    it('deletes objects then the row when unreferenced', async () => {
+    // The C-6 ordering invariant, asserted as an ORDER and not merely as two calls: the previous
+    // implementation also called both of these, just the other way round, so a test that only
+    // checked "was each called" passed against the defect. `invocationCallOrder` is what
+    // discriminates. (D07-7)
+    it('deletes the row FIRST and the objects only after it commits', async () => {
       prisma.mediaAsset.findUnique.mockResolvedValue(unreferenced());
 
       await service.remove('asset-1');
 
+      const [dbAt] = prisma.mediaAsset.delete.mock.invocationCallOrder;
+      const [storageAt] = storage.deleteMany.mock.invocationCallOrder;
+      // Both must have run at all — `toBeLessThan(undefined)` would otherwise decide the test.
+      expect(dbAt).toBeDefined();
+      expect(storageAt).toBeDefined();
+      expect(dbAt as number).toBeLessThan(storageAt as number);
+
+      expect(prisma.mediaAsset.delete).toHaveBeenCalledWith({
+        where: { id: 'asset-1' },
+      });
+      // Every key exactly once, read from the row rather than reconstructed (§12).
+      expect(storage.deleteMany).toHaveBeenCalledTimes(1);
       expect(storage.deleteMany).toHaveBeenCalledWith([
         'media/px/master.webp',
         'media/px/640-webp.webp',
       ]);
-      expect(prisma.mediaAsset.delete).toHaveBeenCalledWith({
-        where: { id: 'asset-1' },
-      });
     });
 
-    it('does not delete the row when object deletion fails', async () => {
+    // THE C-6 RACE (§11 at the service seam; the e2e proves it against a real FK). The pre-check
+    // sees no usage, a reference appears, and the authoritative delete is rejected. Storage must
+    // never be touched — that is the whole point of the reordering.
+    it('leaves storage untouched and 409s when the FK rejects the delete after a clean pre-check', async () => {
+      prisma.mediaAsset.findUnique
+        .mockResolvedValueOnce(unreferenced())
+        // The re-read behind the rejection: the usage that appeared in the race.
+        .mockResolvedValueOnce({
+          id: 'asset-1',
+          galleryItems: [{ id: 'gallery-1', projectId: 'project-1' }],
+          articleCovers: [],
+          articleOgImages: [],
+          projectOgImages: [],
+          testimonialAvatars: [],
+          pageSeoOgImages: [],
+          resumeForSettings: [],
+          portraitForSettings: [],
+        } as never);
+      prisma.mediaAsset.delete.mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError('FK violation', {
+          code: 'P2003',
+          clientVersion: Prisma.prismaVersion.client,
+        }),
+      );
+
+      const error = await service.remove('asset-1').catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(MediaInUseException);
+      expect((error as MediaInUseException).getResponse()).toMatchObject({
+        usages: [
+          {
+            type: 'project-gallery',
+            id: 'gallery-1',
+            reference: { projectId: 'project-1' },
+          },
+        ],
+      });
+      // The invariant that makes the ordering worth changing.
+      expect(storage.deleteMany).not.toHaveBeenCalled();
+    });
+
+    // The blocking transaction rolled back between the rejection and the re-read. The database
+    // still refused the delete, so the answer stays a 409 — never a fall-through to success.
+    it('still 409s when the FK rejects but the re-read finds no usages', async () => {
+      prisma.mediaAsset.findUnique
+        .mockResolvedValueOnce(unreferenced())
+        .mockResolvedValueOnce(null);
+      prisma.mediaAsset.delete.mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError('FK violation', {
+          code: 'P2003',
+          clientVersion: Prisma.prismaVersion.client,
+        }),
+      );
+
+      await expect(service.remove('asset-1')).rejects.toBeInstanceOf(
+        MediaInUseException,
+      );
+      expect(storage.deleteMany).not.toHaveBeenCalled();
+    });
+
+    // §17 — the loser of a concurrent double delete. P2025 must reach AllExceptionsFilter as a 404
+    // and must NOT be swept into the FK branch, which would answer 409 with an empty usages array.
+    it('rethrows P2025 untouched so a concurrent double delete stays a 404', async () => {
+      prisma.mediaAsset.findUnique.mockResolvedValue(unreferenced());
+      const notFound = new Prisma.PrismaClientKnownRequestError('No record', {
+        code: 'P2025',
+        clientVersion: Prisma.prismaVersion.client,
+      });
+      prisma.mediaAsset.delete.mockRejectedValue(notFound);
+
+      await expect(service.remove('asset-1')).rejects.toBe(notFound);
+      expect(storage.deleteMany).not.toHaveBeenCalled();
+    });
+
+    // §13 — partial post-commit failure. The row stays deleted, the request still succeeds, and the
+    // log names ONLY the objects that survive.
+    it('keeps the deletion and logs only the failed keys when cleanup partly fails', async () => {
       prisma.mediaAsset.findUnique.mockResolvedValue(unreferenced());
       storage.deleteMany.mockResolvedValue({
         deleted: ['media/px/master.webp'],
         failed: [{ key: 'media/px/640-webp.webp', reason: 'network' }],
       });
 
-      await expect(service.remove('asset-1')).rejects.toBeInstanceOf(
-        ServiceUnavailableException,
-      );
-      expect(prisma.mediaAsset.delete).not.toHaveBeenCalled();
-      expect(logger.error).toHaveBeenCalledWith(
-        expect.objectContaining({ event: 'media.delete_cleanup_incomplete' }),
-        expect.any(String),
-      );
+      await expect(service.remove('asset-1')).resolves.toBeUndefined();
+
+      expect(prisma.mediaAsset.delete).toHaveBeenCalledWith({
+        where: { id: 'asset-1' },
+      });
+      // No compensation: the row is not re-created, and no second delete is attempted.
+      expect(prisma.mediaAsset.create).not.toHaveBeenCalled();
+      expect(prisma.mediaAsset.delete).toHaveBeenCalledTimes(1);
+
+      const [payload] = (logger.error as jest.Mock).mock.calls[0] as [
+        {
+          event: string;
+          assetId: string;
+          failedCount: number;
+          failed: unknown;
+        },
+      ];
+      expect(payload.event).toBe('media.delete_orphaned_objects');
+      expect(payload.assetId).toBe('asset-1');
+      expect(payload.failedCount).toBe(1);
+      expect(payload.failed).toEqual([
+        { key: 'media/px/640-webp.webp', reason: 'network' },
+      ]);
+      // The key that WAS deleted must not be reported as an orphan.
+      expect(JSON.stringify(payload)).not.toContain('media/px/master.webp');
     });
 
-    it('404s an unknown asset', async () => {
+    // §14 — total post-commit failure. Every intended key is represented, and the row stays gone.
+    it('keeps the deletion and logs every key when no object could be deleted', async () => {
+      prisma.mediaAsset.findUnique.mockResolvedValue(unreferenced());
+      storage.deleteMany.mockResolvedValue({
+        deleted: [],
+        failed: [
+          { key: 'media/px/master.webp', reason: 'network' },
+          { key: 'media/px/640-webp.webp', reason: 'network' },
+        ],
+      });
+
+      await expect(service.remove('asset-1')).resolves.toBeUndefined();
+
+      const [payload] = (logger.error as jest.Mock).mock.calls[0] as [
+        { event: string; failedCount: number; failed: { key: string }[] },
+      ];
+      expect(payload.event).toBe('media.delete_orphaned_objects');
+      expect(payload.failedCount).toBe(2);
+      expect(payload.failed.map((f) => f.key)).toEqual([
+        'media/px/master.webp',
+        'media/px/640-webp.webp',
+      ]);
+    });
+
+    // §15 — this is REACHABLE, not hypothetical: `LocalStorageAdapter.deleteMany` catches per key,
+    // but `R2StorageAdapter.deleteMany` awaits an unguarded `client.send`, so a transport or
+    // credential failure rejects. Containment lives in the service so the guarantee is
+    // driver-independent. The exception must not escape into the response and must not resurrect
+    // the row.
+    it('contains an adapter that throws outright, keeping the row deleted', async () => {
+      prisma.mediaAsset.findUnique.mockResolvedValue(unreferenced());
+      storage.deleteMany.mockRejectedValue(new Error('R2 unreachable'));
+
+      await expect(service.remove('asset-1')).resolves.toBeUndefined();
+
+      expect(prisma.mediaAsset.delete).toHaveBeenCalledTimes(1);
+      expect(prisma.mediaAsset.create).not.toHaveBeenCalled();
+      const [payload] = (logger.error as jest.Mock).mock.calls[0] as [
+        { event: string; failed: { key: string; reason: string }[] },
+      ];
+      expect(payload.event).toBe('media.delete_orphaned_objects');
+      // Nothing is known to have been deleted, so every key is a candidate orphan.
+      expect(payload.failed.map((f) => f.key)).toEqual([
+        'media/px/master.webp',
+        'media/px/640-webp.webp',
+      ]);
+      expect(payload.failed.map((f) => f.reason)).toEqual([
+        'R2 unreachable',
+        'R2 unreachable',
+      ]);
+    });
+
+    it('404s an unknown asset and never reaches storage', async () => {
       prisma.mediaAsset.findUnique.mockResolvedValue(null);
       await expect(service.remove('missing')).rejects.toBeInstanceOf(
         NotFoundException,
       );
+      expect(storage.deleteMany).not.toHaveBeenCalled();
+      expect(prisma.mediaAsset.delete).not.toHaveBeenCalled();
     });
   });
 });
