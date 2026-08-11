@@ -46,6 +46,11 @@ export const PERMISSIONS = [
   'media.delete',
   'messages.read',
   'messages.update',
+  // A named action beyond CRUD, admitted under D19-11c because the route that enforces it ships in
+  // the same change: replying is not "updating a message", it is an outbound send visible to a
+  // third party (D19-12). Deliberately `messages.reply` and not `messages.send` / `mail.send` — a
+  // general send capability would authorize the next mail feature by accident.
+  'messages.reply',
   'settings.read',
   'settings.update',
   'roles.read',

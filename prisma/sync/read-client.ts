@@ -29,6 +29,9 @@ export interface ReadOnlyDb {
   readonly rolePermission: ReadDelegate<PrismaClient['rolePermission']>;
   readonly refreshToken: ReadDelegate<PrismaClient['refreshToken']>;
   readonly contactMessage: ReadDelegate<PrismaClient['contactMessage']>;
+  readonly contactMessageReply: ReadDelegate<
+    PrismaClient['contactMessageReply']
+  >;
   readonly mediaAsset: ReadDelegate<PrismaClient['mediaAsset']>;
   readonly mediaAssetAlt: ReadDelegate<PrismaClient['mediaAssetAlt']>;
   readonly mediaAssetVariant: ReadDelegate<PrismaClient['mediaAssetVariant']>;

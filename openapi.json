@@ -6021,6 +6021,235 @@
         ]
       }
     },
+    "/api/v1/admin/messages/{id}/replies": {
+      "get": {
+        "operationId": "MessagesAdminController_listReplies_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ContactMessageReplyEntity"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Message not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "List the reply attempts for one contact message, chronologically.",
+        "tags": [
+          "messages"
+        ]
+      },
+      "post": {
+        "description": "Idempotent per (message, Idempotency-Key): a repeated request with the same key returns the existing attempt with 200 instead of sending again. A deliberate second reply uses a new key. Sending is not yet implemented — a created attempt is PENDING and no mail is dispatched.",
+        "operationId": "MessagesAdminController_createReply_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "An opaque client-generated value, 8–200 printable ASCII characters without whitespace (a UUID is the obvious choice). Scoped to this message: the same key against a different message is a different logical attempt.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 200
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMessageReplyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ContactMessageReplyEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ContactMessageReplyEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Message not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The message carries no email address and cannot be replied to.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error — including a missing or malformed Idempotency-Key header.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Send a plain-text reply to a contact message. The recipient is the message sender and cannot be chosen.",
+        "tags": [
+          "messages"
+        ]
+      }
+    },
     "/api/v1/admin/articles/{id}/preview-token": {
       "post": {
         "operationId": "PreviewAdminController_mintArticleToken_v1",
@@ -10326,6 +10555,88 @@
             "description": "Archive (true) or unarchive (false) the message."
           }
         }
+      },
+      "ContactMessageReplyStatus": {
+        "type": "string",
+        "enum": [
+          "PENDING",
+          "SENT",
+          "FAILED"
+        ],
+        "description": "PENDING — the attempt exists but no terminal outcome has been recorded. SENT — the mail transport confirmed acceptance and that outcome was persisted. FAILED — the transport conclusively failed and the failure was persisted. A PENDING attempt is never evidence that nothing was delivered (D09-23)."
+      },
+      "ContactMessageReplyEntity": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "contactMessageId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The ContactMessage this reply answers."
+          },
+          "body": {
+            "type": "string",
+            "example": "Thanks for reaching out — I can take a look at this next week.",
+            "description": "The plain-text reply body as it was submitted."
+          },
+          "status": {
+            "description": "PENDING — the attempt exists but no terminal outcome has been recorded. SENT — the mail transport confirmed acceptance and that outcome was persisted. FAILED — the transport conclusively failed and the failure was persisted. A PENDING attempt is never evidence that nothing was delivered (D09-23).",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ContactMessageReplyStatus"
+              }
+            ]
+          },
+          "initiatedByUserId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The authenticated operator who initiated this attempt. An opaque user id — the operator email is not published here, so reply history requires no user-directory access to read."
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "sentAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "When acceptance was recorded, or null unless status is SENT."
+          },
+          "failedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "When the failure was recorded, or null unless status is FAILED."
+          }
+        },
+        "required": [
+          "id",
+          "contactMessageId",
+          "body",
+          "status",
+          "initiatedByUserId",
+          "createdAt",
+          "sentAt",
+          "failedAt"
+        ]
+      },
+      "CreateMessageReplyDto": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "string",
+            "description": "The plain-text reply body. Plain text only — no HTML representation exists (D02-13e).",
+            "minLength": 1,
+            "maxLength": 5000,
+            "example": "Thanks for reaching out — I can take a look at this next week."
+          }
+        },
+        "required": [
+          "body"
+        ]
       },
       "PreviewTokenEntity": {
         "type": "object",

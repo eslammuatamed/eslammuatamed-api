@@ -141,6 +141,9 @@ export function canonicalState(): FakeState {
       rolePermission: 1,
       refreshToken: 0,
       contactMessage: 3,
+      // Non-zero on purpose: a protected count that is always 0 cannot tell "preserved" from
+      // "never existed", so the preservation assertion would pass against a plan that dropped them.
+      contactMessageReply: 2,
       mediaAsset: 2,
       mediaAssetAlt: 0,
       mediaAssetVariant: 0,
@@ -228,6 +231,10 @@ export function fakeDb(state: FakeState): ReadOnlyDb {
     contactMessage: {
       findMany: rows([]),
       count: counter(state.protectedCounts.contactMessage ?? 0),
+    },
+    contactMessageReply: {
+      findMany: rows([]),
+      count: counter(state.protectedCounts.contactMessageReply ?? 0),
     },
     mediaAsset: {
       findMany: rows([]),

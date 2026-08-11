@@ -3,6 +3,8 @@ import { ContactMessage } from '../../generated/prisma/client';
 import { AppConfigService } from '../../config/app-config.service';
 import { MailMessage } from '../mail/mail-message';
 import { MailService } from '../mail/mail.service';
+import { RepliableContactMessage } from './contact-reply.service';
+import { deriveReplySubject } from './reply-subject';
 
 // Collapses CR/LF to spaces before a visitor-supplied value is used in a mail HEADER. `subject`
 // reaches this API through a DTO that trims and length-caps it but does not forbid newlines, and a
@@ -79,6 +81,29 @@ export class ContactMailService {
           (error instanceof Error ? error.message : 'Unknown error.'),
       );
     }
+  }
+
+  // Builds the operator's reply to a visitor (D02-13). CONTENT only — this method sends nothing;
+  // it is the message the delivery step will hand to `MailService.send`. It lives here because this
+  // module already owns contact mail content while MailService owns delivery, and extending that
+  // seam is what the boundary asks for rather than a second reply-specific mail service.
+  //
+  // THE RECIPIENT INVARIANT, in code (D19-12): `to` is `message.email` and there is no parameter,
+  // field or fallback through which a caller could supply a different address. The parameter type
+  // requires an already-narrowed message, so the address is not merely unvalidated-but-trusted —
+  // it is the only value in scope that could be used.
+  //
+  // Public so that the invariant is directly assertable by a test rather than only observable
+  // through an endpoint that would also have to be authenticated, permitted and persisted first.
+  buildReply(message: RepliableContactMessage, body: string): MailMessage {
+    return {
+      to: message.email,
+      subject: deriveReplySubject(message.subject),
+      // The operator's text, verbatim. Not templated, not wrapped in a signature block, and not
+      // given an "automated message" disclaimer — unlike the acknowledgement below, this IS a
+      // person writing to a person, and decorating it would misrepresent who wrote it.
+      text: body,
+    };
   }
 
   // Owner notification. Carries the message and how to answer it — no secrets, no host names, no

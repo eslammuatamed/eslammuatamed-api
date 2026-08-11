@@ -9,9 +9,9 @@
 // `npm run db:generate`. `moduleFormat = "cjs"` because this project is
 // CommonJS — see docs/research/prisma-7-migration-2026-08.md, decision P9-1.
 generator client {
-  provider     = "prisma-client"
-  output       = "../src/generated/prisma"
-  moduleFormat = "cjs"
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "cjs"
   // Emit extensionless relative imports inside the generated client. The default
   // (".js") is an ESM convention that Jest's resolver cannot follow back to the
   // .ts source; extensionless matches how the rest of this repository imports.
@@ -102,8 +102,10 @@ model User {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  role          Role           @relation(fields: [roleId], references: [id], onDelete: Restrict)
-  refreshTokens RefreshToken[]
+  role           Role                  @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  refreshTokens  RefreshToken[]
+  // Replies this operator initiated (D09-23). Restricts on delete — attribution is not erasable.
+  contactReplies ContactMessageReply[]
 
   @@index([roleId])
   @@map("users")
@@ -649,8 +651,60 @@ model ContactMessage {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  // Operator replies to this message (D09-23). Cascades on delete — see ContactMessageReply.
+  replies ContactMessageReply[]
+
   @@index([isArchived, isRead, createdAt])
   @@map("contact_messages")
+}
+
+// One logical operator reply to one ContactMessage (D09-23, D02-13). A row is ONE send attempt:
+// created PENDING, and moves once — to SENT or FAILED — when a terminal outcome is recorded.
+//
+// The visitor's name, address and original subject are deliberately NOT copied here. They are read
+// through `message`, so there is exactly one answer to "who was this sent to" and no way for a
+// stored copy to disagree with the recipient rule. The CASCADE below guarantees the relation is
+// always there to read.
+model ContactMessageReply {
+  id                String                    @id @default(uuid(7))
+  contactMessageId  String                    @map("contact_message_id")
+  body              String
+  status            ContactMessageReplyStatus @default(PENDING)
+  // Client-supplied opaque value. Unique PER MESSAGE, not globally (D09-23): a global key space
+  // would let a key first used against another message replay into THAT message's reply row.
+  idempotencyKey    String                    @map("idempotency_key")
+  initiatedByUserId String                    @map("initiated_by_user_id")
+  // Transport's own id for the accepted message. Internal — never on a response (D10-21e).
+  providerMessageId String?                   @map("provider_message_id")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  sentAt    DateTime? @map("sent_at")
+  failedAt  DateTime? @map("failed_at")
+
+  // Cascade, NOT restrict: the 12-month retention purge (D19-10) hard-deletes archived messages,
+  // and a restricting reply could veto the deletion of the visitor PII the purge exists to remove.
+  message         ContactMessage @relation(fields: [contactMessageId], references: [id], onDelete: Cascade)
+  // Restrict, NOT cascade: a sent reply must not lose the record of who sent it. Currently
+  // unexercisable — there is no users.delete capability and no delete route — which is the point:
+  // the answer is fixed before a delete path exists rather than after (D09-23).
+  initiatedByUser User           @relation(fields: [initiatedByUserId], references: [id], onDelete: Restrict)
+
+  // The duplicate-send invariant. Two concurrent POSTs carrying one key race to INSERT here and
+  // exactly one wins; the loser reads the winner's row. This index is also the access path for the
+  // history query, whose leading column it already carries — no second index is added for it.
+  @@unique([contactMessageId, idempotencyKey])
+  @@map("contact_message_replies")
+}
+
+// D09-23. Three values, deliberately: the unique index above already establishes which request owns
+// an attempt, so a SENDING/claim state would only add a stale row to clean up after a crash.
+//
+// PENDING is "no terminal outcome was recorded" — which honestly covers both "not sent yet" and the
+// hard case where a provider accepted the message and the process died before the status commit.
+enum ContactMessageReplyStatus {
+  PENDING
+  SENT
+  FAILED
 }
 
 model SiteSettings {

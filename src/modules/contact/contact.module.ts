@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ContactThrottlerGuard } from '../../common/throttling/contact-throttler.guard';
 import { MailModule } from '../mail/mail.module';
 import { ContactMailService } from './contact-mail.service';
+import { ContactReplyService } from './contact-reply.service';
 import { ContactController } from './contact.controller';
 import { ContactPurgeScheduler } from './contact-purge.scheduler';
 import { ContactService } from './contact.service';
@@ -21,6 +22,9 @@ import { MessagesAdminController } from './messages.admin.controller';
   providers: [
     ContactService,
     ContactMailService,
+    // The reply domain (D02-13). A provider only — its routes live on MessagesAdminController,
+    // which already exists and is already covered by the route-permission scan.
+    ContactReplyService,
     ContactThrottlerGuard,
     ContactPurgeScheduler,
   ],

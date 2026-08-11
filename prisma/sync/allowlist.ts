@@ -56,6 +56,13 @@ export const PROTECTED_MODELS = [
   'RolePermission',
   'RefreshToken',
   'ContactMessage',
+  // Operator reply history (D09-23). Protected for the same reason as the message it answers, plus
+  // one of its own: these rows record outbound email that a person actually sent, so a content
+  // synchronization that could touch them could rewrite an audit trail. It is also unreachable by
+  // construction — the canonical dataset has no concept of a reply — but "unreachable" and
+  // "classified as protected" are different guarantees, and the second is the one that holds when
+  // the dataset changes.
+  'ContactMessageReply',
   'MediaAsset',
   'MediaAssetAlt',
   'MediaAssetVariant',
