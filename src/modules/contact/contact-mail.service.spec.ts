@@ -224,4 +224,94 @@ describe('ContactMailService', () => {
       ).resolves.toBeUndefined();
     });
   });
+
+  // D19-12: the recipient invariant, asserted at the one function that produces the outbound
+  // message. `buildReply` is pure and takes no address, so these tests can prove the property
+  // directly rather than inferring it from an endpoint that would also have to be authenticated,
+  // permitted and persisted first.
+  describe('reply content (buildReply)', () => {
+    const repliable = (overrides: Partial<ContactMessage> = {}) =>
+      message({ email: 'alex@example.com', ...overrides }) as ContactMessage & {
+        email: string;
+      };
+
+    it('addresses the reply to the message sender and nobody else', () => {
+      const mail = mailStub();
+      const service = new ContactMailService(mail.service, config());
+
+      const built = service.buildReply(
+        repliable({ email: 'visitor@example.com' }),
+        'Thanks for reaching out.',
+      );
+
+      expect(built.to).toBe('visitor@example.com');
+    });
+
+    // Discriminating: the address must come from THIS message, not from a configured constant.
+    // A builder that hard-coded the owner address would pass a weaker assertion.
+    it('derives the address per message rather than from configuration', () => {
+      const mail = mailStub();
+      const service = new ContactMailService(mail.service, config());
+
+      const first = service.buildReply(
+        repliable({ email: 'a@example.com' }),
+        'x',
+      );
+      const second = service.buildReply(
+        repliable({ email: 'b@example.com' }),
+        'x',
+      );
+
+      expect([first.to, second.to]).toEqual(['a@example.com', 'b@example.com']);
+      expect([first.to, second.to]).not.toContain(OWNER_TO);
+    });
+
+    // A reply must not silently invite the visitor to answer a third party, and no CC/BCC path
+    // exists at all — MailMessage has no such fields, which is why this asserts the whole shape.
+    it('sets no replyTo and carries no recipient field beyond `to`', () => {
+      const mail = mailStub();
+      const service = new ContactMailService(mail.service, config());
+
+      const built = service.buildReply(repliable(), 'Thanks.');
+
+      expect(Object.keys(built).sort()).toEqual(['subject', 'text', 'to']);
+      expect(built.replyTo).toBeUndefined();
+    });
+
+    it('derives the subject from the original and does not double the reply prefix', () => {
+      const mail = mailStub();
+      const service = new ContactMailService(mail.service, config());
+
+      expect(
+        service.buildReply(repliable({ subject: 'Website enquiry' }), 'x')
+          .subject,
+      ).toBe('Re: Website enquiry');
+      expect(
+        service.buildReply(repliable({ subject: 'Re: Website enquiry' }), 'x')
+          .subject,
+      ).toBe('Re: Website enquiry');
+    });
+
+    // The operator's words reach the visitor verbatim: this is a person writing to a person, not a
+    // templated notification, so a signature block or an "automated message" footer would
+    // misrepresent who wrote it.
+    it('sends the operator text verbatim, with no template decoration', () => {
+      const mail = mailStub();
+      const service = new ContactMailService(mail.service, config());
+
+      const body = 'Line one.\n\nLine two, with a link: https://example.com';
+      expect(service.buildReply(repliable(), body).text).toBe(body);
+    });
+
+    // 11A builds content and does not deliver it. A builder that sent would make the PENDING
+    // status a lie on the very first request.
+    it('builds without sending — content and delivery stay separate', () => {
+      const mail = mailStub();
+      const service = new ContactMailService(mail.service, config());
+
+      service.buildReply(repliable(), 'Thanks.');
+
+      expect(mail.send).not.toHaveBeenCalled();
+    });
+  });
 });
