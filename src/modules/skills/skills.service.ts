@@ -67,13 +67,14 @@ export class SkillsService {
       });
       return toAdminEntity(row);
     } catch (error) {
-      // A duplicate slug is a caller error, not a server fault: the unique constraint would
-      // otherwise surface as a 500. Two skills behind one public filter URL is exactly what the
-      // constraint exists to prevent, so it is reported as a conflict.
-      if (isPrismaCode(error, 'P2002'))
-        throw new ConflictException(
-          `Skill slug "${dto.slug}" is already taken.`,
-        );
+      // No P2002 arm (Phase 12A, extending B-2). A duplicate slug is left to
+      // `AllExceptionsFilter`, which owns unique violations for every module and answers 422
+      // "Validation failed" with `errors[]`. The arm removed here answered 409 with a
+      // skills-only message — a status this operation does not declare in the OpenAPI contract
+      // (`201/401/403/422/429`) and that no peer create route returns. Its stated justification
+      // ("otherwise a 500") was also false: the global filter has mapped P2002 since before this
+      // code was written. `prisma-error-mapping.e2e-spec.ts` §B3 pins the resulting parity.
+      //
       // A CHECK-constraint violation is `P2004`, and it is a bad REQUEST, not a server fault.
       // `CreateSkillDto` rejects the same inputs first, so this is unreachable today — it is here
       // so that the day the constraint and the DTO drift apart (a new rule added to one and not the
@@ -118,6 +119,15 @@ export class SkillsService {
     try {
       await this.prisma.skill.delete({ where: { id } });
     } catch (error) {
+      // KEPT — DOMAIN-SPECIFIC, and deliberately not removed alongside the P2002 arm above.
+      // `P2014` (a required-relation violation) is a code `AllExceptionsFilter` does NOT own: it
+      // falls to the filter's `default` arm and would answer 400 "The request could not be
+      // processed." for what is a referential conflict. `DELETE /admin/skills/{id}` declares
+      // **409**, so the local mapping is what makes the runtime match the published contract —
+      // the exact opposite of the P2002 case, where the local mapping is what BROKE it. The
+      // P2003 half is caught in the same predicate so both codes answer with one domain sentence
+      // ("still linked to a project") instead of the filter's generic wording; the status is
+      // identical either way, so that half is message quality only.
       if (isPrismaCode(error, 'P2003') || isPrismaCode(error, 'P2014'))
         throw new ConflictException('Skill is still linked to a project.');
       throw error;

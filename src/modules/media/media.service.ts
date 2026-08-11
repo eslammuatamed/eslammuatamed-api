@@ -69,7 +69,11 @@ type AdminMediaAsset = Prisma.MediaAssetGetPayload<{
 
 // Every foreign key that can reference an asset (doc 10 §6). Selected in one query so usages and
 // the delete-in-use check never fan out (no N+1).
-const USAGE_INCLUDE = {
+// Exported for `media-usage-invariant.spec.ts`, which asserts that this set and the schema's
+// RESTRICT-guarded relations to `MediaAsset` stay the same set. Nothing else imports it: the
+// export exists so the invariant can read the OBJECT THE QUERY ACTUALLY USES rather than a
+// second hand-maintained copy of the same list.
+export const USAGE_INCLUDE = {
   articleCovers: { select: { id: true } },
   articleOgImages: { select: { id: true, articleId: true, locale: true } },
   projectOgImages: { select: { id: true, projectId: true, locale: true } },

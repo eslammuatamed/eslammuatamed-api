@@ -57,6 +57,8 @@ describe('Prisma 7 runtime errors through AllExceptionsFilter (e2e)', () => {
   const unique = Date.now();
   // Projects created by section B2. Tracked so teardown removes exactly this spec's rows.
   const createdProjectIds: string[] = [];
+  // Skills created by section B3, tracked for the same reason.
+  const createdSkillIds: string[] = [];
 
   const auth = (): Record<string, string> => ({
     Authorization: `Bearer ${ownerToken}`,
@@ -95,6 +97,13 @@ describe('Prisma 7 runtime errors through AllExceptionsFilter (e2e)', () => {
     if (createdProjectIds.length > 0) {
       await prisma.project.deleteMany({
         where: { id: { in: createdProjectIds } },
+      });
+    }
+    // Section B3's skills. Cascade removes their translations; none are linked to a project, so
+    // the RESTRICT guard section C exercises does not apply here.
+    if (createdSkillIds.length > 0) {
+      await prisma.skill.deleteMany({
+        where: { id: { in: createdSkillIds } },
       });
     }
     await prisma.$disconnect();
@@ -424,6 +433,113 @@ describe('Prisma 7 runtime errors through AllExceptionsFilter (e2e)', () => {
       );
       // Guards the guard: `instance` must genuinely differ, or the comparison above is trivial.
       expect(projectConflict.body.instance).not.toBe(
+        articleConflict.body.instance,
+      );
+    });
+  });
+
+  // ── B3. The SAME path through SKILLS, the last module that translated P2002 itself ─────────
+  //
+  // Phase 12A. Until this phase `SkillsService.create` caught P2002 and threw
+  // `ConflictException('Skill slug "…" is already taken.')` — a **409**. That was not merely an
+  // inconsistency with B-2: `POST /api/v1/admin/skills` declares `201/401/403/422/429` and no
+  // 409 at all, so the runtime answered a status its own published contract did not admit, on a
+  // trivially reachable path. Every peer admin create (categories, tags, articles, roles, users,
+  // experiences, testimonials, projects) declares 422 and returns it. The local arm is gone; the
+  // contract is unchanged; these tests pin the resulting PUBLIC behaviour by value.
+  describe('a skill unique violation takes the same global path as an article one', () => {
+    const skillBody = (suffix: string) => ({
+      slug: `e2e-prisma-error-skill-${suffix}-${unique}`,
+      group: 'FRONTEND',
+      order: 9100,
+      translations: [{ locale: 'en', label: `Prisma Error Skill ${suffix}` }],
+    });
+
+    it('answers a duplicate slug with 422, not the undeclared 409 it used to return', async () => {
+      const created = await request(httpServer(app))
+        .post('/api/v1/admin/skills')
+        .set(auth())
+        .send(skillBody('a'))
+        .expect(201);
+      createdSkillIds.push(envelopeData<{ id: string }>(created).id);
+
+      const conflict = await request(httpServer(app))
+        .post('/api/v1/admin/skills')
+        .set(auth())
+        .send(skillBody('a'))
+        .expect(422);
+
+      // The contract assertion is the load-bearing one here: under the old 409 this line failed,
+      // because 409 is not among the declared responses for this operation.
+      expect(conflict).toSatisfyApiSpec();
+      expect(conflict.headers['content-type']).toContain(
+        'application/problem+json',
+      );
+      expect(conflict.body.status).toBe(422);
+      // Was 'Conflict' / 409 under the local translation — the status AND title both change.
+      expect(conflict.body.title).toBe('Validation failed');
+      // Was `Skill slug "…" is already taken.`
+      expect(conflict.body.detail).toBe(
+        'A record with these values already exists.',
+      );
+      // Was ABSENT entirely — the local path never attached field paths. `Skill.slug` is a
+      // single-column base-model unique carrying no `@map`, so the API name is the column name.
+      expect(conflict.body.errors).toEqual([
+        { field: 'slug', message: 'This value is already in use.' },
+      ]);
+      expectNoInternalsLeaked(conflict.body);
+    });
+
+    // The architecture assertion. `errors` legitimately differs (different unique constraint), so
+    // the comparison is over the four members that encode WHICH arm of the filter answered —
+    // those are what a re-added local translation would change.
+    it('returns the same problem shape as the article collision, from the same filter arm', async () => {
+      const articleSlug = `e2e-parity-skill-article-${unique}`;
+      const articleBody = {
+        categoryId,
+        translations: [
+          {
+            locale: 'en',
+            title: `Parity Skill Article ${unique}`,
+            slug: articleSlug,
+            excerpt: 'Fixture for the skills cross-module parity check.',
+            body: '# Heading\n\nBody content long enough for reading-time to compute.',
+          },
+        ],
+      };
+      await request(httpServer(app))
+        .post('/api/v1/admin/articles')
+        .set(auth())
+        .send(articleBody)
+        .expect(201);
+      const articleConflict = await request(httpServer(app))
+        .post('/api/v1/admin/articles')
+        .set(auth())
+        .send(articleBody)
+        .expect(422);
+
+      const created = await request(httpServer(app))
+        .post('/api/v1/admin/skills')
+        .set(auth())
+        .send(skillBody('parity'))
+        .expect(201);
+      createdSkillIds.push(envelopeData<{ id: string }>(created).id);
+      const skillConflict = await request(httpServer(app))
+        .post('/api/v1/admin/skills')
+        .set(auth())
+        .send(skillBody('parity'))
+        .expect(422);
+
+      const arm = (body: Record<string, unknown>) => ({
+        type: body.type,
+        title: body.title,
+        status: body.status,
+        detail: body.detail,
+      });
+      expect(arm(skillConflict.body)).toEqual(arm(articleConflict.body));
+      // Guards the guard: `instance` must genuinely differ, or the comparison above could be
+      // reading one response twice.
+      expect(skillConflict.body.instance).not.toBe(
         articleConflict.body.instance,
       );
     });
