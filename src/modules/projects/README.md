@@ -8,12 +8,12 @@
 
 ## خريطة الملفّات
 
-| الملف | الدور |
-|---|---|
-| `projects.controller.ts` | قراءات عامّة: `GET /projects`, `/projects/:slug` |
-| `projects.admin.controller.ts` | CRUD محروس تحت `/admin/projects` |
-| `projects.service.ts` | المنطق: القوائم، التفاصيل، الكتابة مع gallery/technologies |
-| `dto/*` · `entities/*` | مدخلات/مخرجات (public list/detail + admin بخريطة كاملة) |
+| الملف                          | الدور                                                      |
+| ------------------------------ | ---------------------------------------------------------- |
+| `projects.controller.ts`       | قراءات عامّة: `GET /projects`, `/projects/:slug`           |
+| `projects.admin.controller.ts` | CRUD محروس تحت `/admin/projects`                           |
+| `projects.service.ts`          | المنطق: القوائم، التفاصيل، الكتابة مع gallery/technologies |
+| `dto/*` · `entities/*`         | مدخلات/مخرجات (public list/detail + admin بخريطة كاملة)    |
 
 ## خريطة الاتصال
 
@@ -25,7 +25,11 @@
 - **البوابة العامّة `isPublished`** (لا حالة `ContentStatus` كالمقالات): القائمة والتفاصيل العامّة تُرجِع المنشور فقط؛ غير المنشور → 404.
 - **الترتيب:** `featured` تنازليًّا ثم `order` تصاعديًّا.
 - **الكتابة المركّبة:** `technologies` و`gallery` يُستبدَلان كليًّا عند تمريرهما (`deleteMany` ثم إعادة الإنشاء) داخل `$transaction`. تعليقات المعرض تُخزَّن كترجمات لكل عنصر.
-- **تعيين خطأ محلّي:** `mapProjectWriteError` يحوّل `P2002` (تصادم slug/علاقة) إلى 422.
+- **لا تعيين خطأ محلّي (B-2):** لم تعد الوحدة تلتقط `P2002` بنفسها. يصعد الخطأ إلى
+  `AllExceptionsFilter` — نقطة الترجمة الوحيدة (وثيقة 15 §3) — فيُجيب بـ 422 `problem+json` مع
+  `errors[]` تحمل أسماء الحقول كما تنشرها الواجهة (`slug`, `locale`, `projectId`) لا أسماء أعمدة
+  قاعدة البيانات. النتيجة: تصادم slug في مشروع ومثله في مقال يُرجِعان **العقد نفسه**، بعد أن كانا
+  يختلفان.
 - **وسائط التفاصيل العامّة:** كل عنصر معرض يُرجِع `mediaAssetId` ومعه واصف `mediaAsset` العام
   (`url`, `width`, `height`, `blurDataUrl`, `alt`, `variants`) والتعليق المترجم والترتيب. يبقى
   `ogImageId` مرجعًا خامًا في هذا العقد.
@@ -54,4 +58,6 @@
 
 - [Prisma nested writes](https://www.prisma.io/docs/orm/prisma-client/queries/relation-queries#nested-writes) · [Prisma transactions](https://www.prisma.io/docs/orm/prisma-client/queries/transactions).
 
-**حالة التوافق:** `Compatible`. الكتابات المتداخلة والاستبدال الكلّي للعلاقات داخل `$transaction` أنماط `Prisma` رسمية. **لا انحراف.**
+**حالة التوافق:** `Compatible`. الكتابة المتداخلة في `create` **ذرّية بذاتها** فلا تُغلَّف بـ
+`$transaction` (C-5)، بينما الاستبدال الكلّي للعلاقات في `update` يبقى داخل `$transaction` لأنه
+عمليات متعدّدة فعلًا. كلاهما نمط `Prisma` رسمي. **لا انحراف.**
