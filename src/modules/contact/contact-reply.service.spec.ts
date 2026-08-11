@@ -380,6 +380,19 @@ describe('ContactReplyService', () => {
     });
 
     describe('a same-key replay', () => {
+      // Time is pinned INSIDE the provider window on purpose. With a stale fixture these tests
+      // would pass even if the status branch fell through, because the window check would refuse
+      // the send instead — they would be pinning the wrong rule. Holding the clock here makes the
+      // terminal-status branch the only thing that can prevent a re-send.
+      beforeEach(() => {
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date('2026-02-01T01:00:00.000Z'));
+      });
+
+      afterEach(() => {
+        jest.useRealTimers();
+      });
+
       it('returns an already SENT attempt without sending again', async () => {
         replays(sentRow());
 
