@@ -235,6 +235,8 @@ describe('ContactMailService', () => {
         email: string;
       };
 
+    const PROVIDER_KEY = 'contact-reply/reply-1';
+
     it('addresses the reply to the message sender and nobody else', () => {
       const mail = mailStub();
       const service = new ContactMailService(mail.service, config());
@@ -242,6 +244,7 @@ describe('ContactMailService', () => {
       const built = service.buildReply(
         repliable({ email: 'visitor@example.com' }),
         'Thanks for reaching out.',
+        PROVIDER_KEY,
       );
 
       expect(built.to).toBe('visitor@example.com');
@@ -256,10 +259,12 @@ describe('ContactMailService', () => {
       const first = service.buildReply(
         repliable({ email: 'a@example.com' }),
         'x',
+        PROVIDER_KEY,
       );
       const second = service.buildReply(
         repliable({ email: 'b@example.com' }),
         'x',
+        PROVIDER_KEY,
       );
 
       expect([first.to, second.to]).toEqual(['a@example.com', 'b@example.com']);
@@ -272,10 +277,28 @@ describe('ContactMailService', () => {
       const mail = mailStub();
       const service = new ContactMailService(mail.service, config());
 
-      const built = service.buildReply(repliable(), 'Thanks.');
+      const built = service.buildReply(repliable(), 'Thanks.', PROVIDER_KEY);
 
-      expect(Object.keys(built).sort()).toEqual(['subject', 'text', 'to']);
+      expect(Object.keys(built).sort()).toEqual([
+        'providerIdempotencyKey',
+        'subject',
+        'text',
+        'to',
+      ]);
       expect(built.replyTo).toBeUndefined();
+    });
+
+    // The key is carried provider-neutrally: the domain states "same logical email", and only
+    // MailService knows which header expresses that. The provider's name must not appear here.
+    it('carries the provider key without naming the provider', () => {
+      const mail = mailStub();
+      const service = new ContactMailService(mail.service, config());
+
+      const built = service.buildReply(repliable(), 'Thanks.', PROVIDER_KEY);
+
+      expect(built.providerIdempotencyKey).toBe(PROVIDER_KEY);
+      expect(Object.keys(built)).not.toContain('headers');
+      expect(JSON.stringify(built)).not.toContain('Resend');
     });
 
     it('derives the subject from the original and does not double the reply prefix', () => {
@@ -283,12 +306,18 @@ describe('ContactMailService', () => {
       const service = new ContactMailService(mail.service, config());
 
       expect(
-        service.buildReply(repliable({ subject: 'Website enquiry' }), 'x')
-          .subject,
+        service.buildReply(
+          repliable({ subject: 'Website enquiry' }),
+          'x',
+          PROVIDER_KEY,
+        ).subject,
       ).toBe('Re: Website enquiry');
       expect(
-        service.buildReply(repliable({ subject: 'Re: Website enquiry' }), 'x')
-          .subject,
+        service.buildReply(
+          repliable({ subject: 'Re: Website enquiry' }),
+          'x',
+          PROVIDER_KEY,
+        ).subject,
       ).toBe('Re: Website enquiry');
     });
 
@@ -300,18 +329,117 @@ describe('ContactMailService', () => {
       const service = new ContactMailService(mail.service, config());
 
       const body = 'Line one.\n\nLine two, with a link: https://example.com';
-      expect(service.buildReply(repliable(), body).text).toBe(body);
+      expect(service.buildReply(repliable(), body, PROVIDER_KEY).text).toBe(
+        body,
+      );
     });
 
-    // 11A builds content and does not deliver it. A builder that sent would make the PENDING
-    // status a lie on the very first request.
-    it('builds without sending — content and delivery stay separate', () => {
+    // Content and delivery stay separate even now that delivery exists: `buildReply` describes an
+    // email and `dispatchReply` sends one. Keeping the builder inert is what lets the recipient
+    // invariant be asserted directly, with no transport, auth or persistence in the way.
+    it('builds without sending', () => {
       const mail = mailStub();
       const service = new ContactMailService(mail.service, config());
 
-      service.buildReply(repliable(), 'Thanks.');
+      service.buildReply(repliable(), 'Thanks.', PROVIDER_KEY);
 
       expect(mail.send).not.toHaveBeenCalled();
+    });
+  });
+
+  // 11B-α §3 — the provider-neutral delivery result the reply domain persists.
+  describe('reply delivery (dispatchReply)', () => {
+    const repliable = (overrides: Partial<ContactMessage> = {}) =>
+      message({ email: 'alex@example.com', ...overrides }) as ContactMessage & {
+        email: string;
+      };
+
+    const PROVIDER_KEY = 'contact-reply/reply-1';
+
+    const dispatch = (mail: MailStub) =>
+      new ContactMailService(mail.service, config()).dispatchReply(
+        repliable(),
+        'Thanks.',
+        PROVIDER_KEY,
+        'reply-1',
+      );
+
+    it('reports acceptance and the transport message id', async () => {
+      const mail = mailStub(true, {
+        status: 'sent',
+        messageId: '<abc@relay>',
+        attempts: 1,
+      });
+
+      await expect(dispatch(mail)).resolves.toEqual({
+        accepted: true,
+        providerMessageId: '<abc@relay>',
+      });
+    });
+
+    // `readMessageId` reports the literal string 'unknown' when a transport omits the id. That is
+    // fine in a log line and a lie in a column whose absence means "we have no id" — so it is
+    // normalized here. Asserted as `toBeNull()` rather than "not the real id", which 'unknown'
+    // would also satisfy.
+    it('normalizes an unknown transport id to null rather than storing the word', async () => {
+      const mail = mailStub(true, {
+        status: 'sent',
+        messageId: 'unknown',
+        attempts: 1,
+      });
+
+      await expect(dispatch(mail)).resolves.toEqual({
+        accepted: true,
+        providerMessageId: null,
+      });
+    });
+
+    it('reports non-acceptance when the transport refuses', async () => {
+      const mail = mailStub(true, {
+        status: 'failed',
+        attempts: 3,
+        reason: 'ECONNREFUSED smtp.example.com:465',
+      });
+
+      await expect(dispatch(mail)).resolves.toEqual({ accepted: false });
+    });
+
+    // Mail being off is a deployment state, not a transient fault, but it is still "the provider
+    // did not take this message" — and the reply domain has nothing to wait for either way.
+    it('reports non-acceptance when mail is disabled, without attempting a send', async () => {
+      const mail = mailStub(true, { status: 'disabled' });
+
+      await expect(dispatch(mail)).resolves.toEqual({ accepted: false });
+    });
+
+    // §22 — the outcome the domain persists carries no transport text at all. The reason string
+    // exists only in the log, so no response body or stored row can leak it.
+    it('returns no provider diagnostics on failure', async () => {
+      const mail = mailStub(true, {
+        status: 'failed',
+        attempts: 3,
+        reason: 'ECONNREFUSED smtp.example.com:465',
+      });
+
+      const outcome = await dispatch(mail);
+
+      expect(Object.keys(outcome)).toEqual(['accepted']);
+      expect(JSON.stringify(outcome)).not.toContain('smtp.example.com');
+      expect(JSON.stringify(outcome)).not.toContain('ECONNREFUSED');
+    });
+
+    // §4 — the regression that matters most about extending this shared service. The reply path is
+    // awaited because an operator is waiting on its outcome; the visitor's submission path must
+    // stay detached and best-effort, and must never acquire the reply's idempotency key.
+    it('leaves the notification path unawaited in shape and free of a provider key', async () => {
+      const mail = mailStub();
+      const service = new ContactMailService(mail.service, config());
+
+      await service.dispatchForSubmission(message());
+
+      for (const [sent] of mail.send.mock.calls) {
+        expect(Object.keys(sent)).not.toContain('providerIdempotencyKey');
+      }
     });
   });
 });

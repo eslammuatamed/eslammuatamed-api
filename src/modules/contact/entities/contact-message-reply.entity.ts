@@ -32,10 +32,15 @@ export class ContactMessageReplyEntity {
     enum: ContactMessageReplyStatus,
     enumName: 'ContactMessageReplyStatus',
     description:
-      'PENDING — the attempt exists but no terminal outcome has been recorded. ' +
-      'SENT — the mail transport confirmed acceptance and that outcome was persisted. ' +
-      'FAILED — the transport conclusively failed and the failure was persisted. ' +
-      'A PENDING attempt is never evidence that nothing was delivered (D09-23).',
+      'PENDING — the attempt exists but no terminal outcome has been recorded. It is ambiguous ' +
+      'by design: it covers both "not sent" and "accepted by the provider, outcome not written". ' +
+      'A PENDING attempt is never evidence that nothing was delivered (D09-23). ' +
+      'SENT — the mail provider ACCEPTED the message and that acceptance was persisted. It does ' +
+      'not mean inbox delivery, a passed spam filter, or a read message. ' +
+      'FAILED — no provider acceptance was observed. Weaker than "no email was sent": delivery ' +
+      'retries internally, so an accepted first attempt followed by a lost connection can still ' +
+      'end here. This is why repeating a request with the same Idempotency-Key never re-sends — ' +
+      'a deliberate retry uses a NEW key, which is a new attempt.',
   })
   readonly status!: ContactMessageReplyStatus;
 

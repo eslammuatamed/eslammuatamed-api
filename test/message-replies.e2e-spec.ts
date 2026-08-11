@@ -17,9 +17,11 @@ import {
 // decide there is a loser at all. The second is the recipient invariant, which is a claim about
 // what the whole request pipeline — pipe, guard, controller, service — will accept.
 //
-// NO MAIL IS SENT BY THIS SUITE. 11A persists a PENDING attempt and stops, `SMTP_ENABLED` is off in
-// the e2e environment, and every assertion below is about persistence and contract. Nothing here
-// contacts a relay, a provider, or a real address.
+// NO MAIL IS SENT BY THIS SUITE. `SMTP_ENABLED` is off in the e2e environment, so there is no
+// transport to send through: delivery reports "the provider did not take this" and the attempt is
+// recorded FAILED. Every assertion below is about persistence and contract. Nothing here contacts a
+// relay, a provider, or a real address — and a suite that ever reported SENT would mean this
+// environment had acquired real credentials, which is a failure, not a pass.
 
 const BARRIER_DEADLINE_MS = 2_000;
 const BARRIER_POLL_MS = 25;
@@ -111,7 +113,7 @@ describe('Message replies (e2e)', () => {
   });
 
   describe('creating a reply', () => {
-    it('creates a PENDING attempt with 201 and attributes it to the caller', async () => {
+    it('creates an attempt with 201, records the delivery outcome, and attributes it to the caller', async () => {
       const messageId = await createMessage();
 
       const res = await request(httpServer(app))
@@ -124,10 +126,11 @@ describe('Message replies (e2e)', () => {
       const reply = envelopeData<Reply>(res);
       expect(reply.contactMessageId).toBe(messageId);
       expect(reply.body).toBe('Thanks for reaching out.');
-      // Truthful state: nothing was sent, so nothing claims to have been.
-      expect(reply.status).toBe('PENDING');
+      // Truthful state: with no transport configured the provider never accepted anything, so the
+      // attempt is FAILED and — the part that matters — it does NOT claim to have been sent.
+      expect(reply.status).toBe('FAILED');
       expect(reply.sentAt).toBeNull();
-      expect(reply.failedAt).toBeNull();
+      expect(reply.failedAt).toEqual(expect.any(String));
       expect(reply.initiatedByUserId).toEqual(expect.any(String));
       // Internal fields never reach a response (D10-21e).
       expect(Object.keys(reply)).not.toContain('providerMessageId');

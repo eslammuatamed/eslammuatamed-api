@@ -137,7 +137,11 @@ export class MessagesAdminController {
     description:
       'Idempotent per (message, Idempotency-Key): a repeated request with the same key returns the ' +
       'existing attempt with 200 instead of sending again. A deliberate second reply uses a new key. ' +
-      'Sending is not yet implemented — a created attempt is PENDING and no mail is dispatched.',
+      'The response carries the outcome as `status` — a request that reaches the provider returns ' +
+      'SENT, one the provider does not accept returns FAILED with 201/200 rather than an error, ' +
+      'since the attempt was recorded either way. An attempt left PENDING has an unknown outcome ' +
+      'and may be recovered by repeating the request with the SAME key within 24 hours; after that ' +
+      'it is returned unchanged and never re-sent automatically.',
   })
   @ApiHeader({
     name: IDEMPOTENCY_KEY_HEADER,

@@ -6108,7 +6108,7 @@
         ]
       },
       "post": {
-        "description": "Idempotent per (message, Idempotency-Key): a repeated request with the same key returns the existing attempt with 200 instead of sending again. A deliberate second reply uses a new key. Sending is not yet implemented — a created attempt is PENDING and no mail is dispatched.",
+        "description": "Idempotent per (message, Idempotency-Key): a repeated request with the same key returns the existing attempt with 200 instead of sending again. A deliberate second reply uses a new key. The response carries the outcome as `status` — a request that reaches the provider returns SENT, one the provider does not accept returns FAILED with 201/200 rather than an error, since the attempt was recorded either way. An attempt left PENDING has an unknown outcome and may be recovered by repeating the request with the SAME key within 24 hours; after that it is returned unchanged and never re-sent automatically.",
         "operationId": "MessagesAdminController_createReply_v1",
         "parameters": [
           {
@@ -10563,7 +10563,7 @@
           "SENT",
           "FAILED"
         ],
-        "description": "PENDING — the attempt exists but no terminal outcome has been recorded. SENT — the mail transport confirmed acceptance and that outcome was persisted. FAILED — the transport conclusively failed and the failure was persisted. A PENDING attempt is never evidence that nothing was delivered (D09-23)."
+        "description": "PENDING — the attempt exists but no terminal outcome has been recorded. It is ambiguous by design: it covers both \"not sent\" and \"accepted by the provider, outcome not written\". A PENDING attempt is never evidence that nothing was delivered (D09-23). SENT — the mail provider ACCEPTED the message and that acceptance was persisted. It does not mean inbox delivery, a passed spam filter, or a read message. FAILED — no provider acceptance was observed. Weaker than \"no email was sent\": delivery retries internally, so an accepted first attempt followed by a lost connection can still end here. This is why repeating a request with the same Idempotency-Key never re-sends — a deliberate retry uses a NEW key, which is a new attempt."
       },
       "ContactMessageReplyEntity": {
         "type": "object",
@@ -10583,7 +10583,7 @@
             "description": "The plain-text reply body as it was submitted."
           },
           "status": {
-            "description": "PENDING — the attempt exists but no terminal outcome has been recorded. SENT — the mail transport confirmed acceptance and that outcome was persisted. FAILED — the transport conclusively failed and the failure was persisted. A PENDING attempt is never evidence that nothing was delivered (D09-23).",
+            "description": "PENDING — the attempt exists but no terminal outcome has been recorded. It is ambiguous by design: it covers both \"not sent\" and \"accepted by the provider, outcome not written\". A PENDING attempt is never evidence that nothing was delivered (D09-23). SENT — the mail provider ACCEPTED the message and that acceptance was persisted. It does not mean inbox delivery, a passed spam filter, or a read message. FAILED — no provider acceptance was observed. Weaker than \"no email was sent\": delivery retries internally, so an accepted first attempt followed by a lost connection can still end here. This is why repeating a request with the same Idempotency-Key never re-sends — a deliberate retry uses a NEW key, which is a new attempt.",
             "allOf": [
               {
                 "$ref": "#/components/schemas/ContactMessageReplyStatus"
