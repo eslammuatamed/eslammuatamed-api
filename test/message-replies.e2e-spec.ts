@@ -482,8 +482,13 @@ describe('Message replies (e2e)', () => {
       );
     });
 
-    // messages.reply does not smuggle in unrelated message powers.
-    it('does not let messages.reply alone read the inbox', async () => {
+    // Pins NON-IMPLICATION, not a usable role. Capabilities in this catalog are independent and
+    // never hierarchical (D19-8), so messages.reply confers no read — which also means a role
+    // holding only messages.reply is grantable but not useful: it can send, yet cannot open the
+    // inbox to compose against. That is deliberate (D19-12e); the alternative — reply silently
+    // conferring read — would be a permission hierarchy this model does not have. In practice
+    // messages.reply is granted ALONGSIDE messages.read, which the test above exercises.
+    it('does not let messages.reply imply messages.read on any inbox route', async () => {
       const messageId = await createMessage();
       const auth = await buildOperator(['messages.reply'], 'ReplyOnly');
 
