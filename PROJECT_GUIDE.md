@@ -9,7 +9,7 @@
 
 ## 1. الغرض من المستودع
 
-`eslammuatamed-api` هو خدمة REST مبنية بـ `NestJS 11` فوق `Prisma 6` و`PostgreSQL 16`. مسؤوليتها الوحيدة: أن تكون **مصدر الحقيقة للبيانات والمنطق** لمنصّة `eslammuatamed` (موقع شخصي/portfolio ثنائي اللغة عربي/إنجليزي + لوحة تحكّم CMS).
+`eslammuatamed-api` هو خدمة REST مبنية بـ `NestJS 11` فوق `Prisma 7` و`PostgreSQL 16`. مسؤوليتها الوحيدة: أن تكون **مصدر الحقيقة للبيانات والمنطق** لمنصّة `eslammuatamed` (موقع شخصي/portfolio ثنائي اللغة عربي/إنجليزي + لوحة تحكّم CMS).
 
 الخدمة تقدّم سطحين:
 
@@ -177,7 +177,7 @@ ThrottlerGuard → JwtAuthGuard → PermissionsGuard → (Controller)
 
 ## 9. نموذج قاعدة البيانات والتخزين
 
-- **الـ ORM:** `Prisma 6.19` فوق `PostgreSQL 16`. نماذج PascalCase / حقول camelCase؛ أسماء الجداول snake_case عبر `@map`/`@@map` (`D09-1`). مفاتيح `UUIDv7` (`D09-2`). كل جدول يحمل `createdAt`/`updatedAt`.
+- **الـ ORM:** `Prisma 7.9` فوق `PostgreSQL 16` (المحرّك الأصلي أُزيل؛ المحوّل هو `@prisma/adapter-pg`). نماذج PascalCase / حقول camelCase؛ أسماء الجداول snake_case عبر `@map`/`@@map` (`D09-1`). مفاتيح `UUIDv7` (`D09-2`). كل جدول يحمل `createdAt`/`updatedAt`.
 - **الترجمة:** جداول ترجمة منفصلة لكل كيان؛ فرادة الـ slug لكل لغة (`@@unique([locale, slug])`).
 - **البحث النصّي الكامل (FTS):** عمود `tsvector` + فهرس `GIN` على `article_translations`، يُضاف بـ migration يدوي (`D09-6`) لأن `Prisma` لا يعبّر عن الأعمدة المولّدة.
 - **التخزين:** التخزين الفعلي وراء واجهة `StorageAdapter` (`D07-4`) صار مُسلَّمًا مع Feature 003: `LocalStorageAdapter` للتطوير/الاختبار و`R2StorageAdapter` المتوافق مع `S3` على `Cloudflare R2` للإنتاج، يُختاران بـ `STORAGE_DRIVER`. التفاصيل في [`src/modules/media/README.md`](src/modules/media/README.md).

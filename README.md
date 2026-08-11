@@ -1,6 +1,6 @@
 # eslammuatamed-api
 
-خدمة REST بـ `NestJS 11` + `Prisma 6` + `PostgreSQL 16` لمنصّة `eslammuatamed`.
+خدمة REST بـ `NestJS 11` + `Prisma 7` + `PostgreSQL 16` لمنصّة `eslammuatamed`.
 
 هذا الملف مرجع تشغيل سريع فقط. **لفهم المعمارية والتدفّقات ومراجعة التوافق ابدأ من [`PROJECT_GUIDE.md`](PROJECT_GUIDE.md)**، ثم ملفات `README.md` داخل مجلدات `src/`.
 
