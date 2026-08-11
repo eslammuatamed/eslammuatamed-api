@@ -29,9 +29,9 @@ import { MediaUsageEntity } from './entities/media-usage.entity';
 import { IMMUTABLE_CACHE_CONTROL, MEDIA_KEY_ROOT } from './media.constants';
 import { MediaInUseException } from './media-in-use.exception';
 import {
+  budgetTierFor,
   PDF_MIME_TYPE,
   RENDITION_BUDGETS,
-  RENDITION_WIDTHS,
 } from './media-processing.constants';
 import { MediaProcessingService } from './media-processing.service';
 import {
@@ -477,7 +477,13 @@ export class MediaService {
           width: variant.width,
           format: variant.format,
           bytes: variant.sizeBytes,
-          budget: budgetForWidth(variant.width, variant.format),
+          // The tier is resolved by the canonical `budgetTierFor` (B-3) — the SAME rule the
+          // encoder measured against. A local re-implementation here previously rounded a
+          // non-tier width DOWN to 640, so an over-budget 1086px rendition was measured against
+          // the 1280 row but reported the 640 one: the operator saw a budget the encoder never used.
+          budget:
+            RENDITION_BUDGETS[budgetTierFor(variant.width)]?.[variant.format] ??
+            0,
           floorQuality: variant.quality,
         },
         'Rendition kept above its width×format budget at the quality floor (D20-6)',
@@ -567,11 +573,6 @@ interface UsageRelations {
   pageSeoOgImages: { id: string; pageKey: string; locale: string }[];
   resumeForSettings: { id: string }[];
   portraitForSettings: { id: string }[];
-}
-
-function budgetForWidth(width: number, format: ImageVariantFormat): number {
-  const tier = RENDITION_WIDTHS.includes(width) ? width : 640;
-  return RENDITION_BUDGETS[tier]?.[format] ?? 0;
 }
 
 function buildUsages(asset: UsageRelations): MediaUsageEntity[] {

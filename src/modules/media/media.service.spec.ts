@@ -534,6 +534,54 @@ describe('MediaService', () => {
         expect.any(String),
       );
     });
+
+    // B-3 regression. The reported `budget` must be the tier the ENCODER measured against — the
+    // canonical `budgetTierFor` rule (smallest tier ≥ width, D20-20). A local re-implementation
+    // used to round every non-tier width DOWN to 640, so the operator was shown a budget the
+    // encoder never applied. These widths are exactly the ones that discriminate the two rules:
+    // the 640 case above is an exact tier and passes under either, which is why it did not catch it.
+    it.each([
+      // width, format, expected tier, expected budget
+      [1086, 'webp' as const, 1280, 150_000], // the D20-20 worked example — the known divergence
+      [1086, 'avif' as const, 1280, 100_000], // same tier, other format row
+      [700, 'webp' as const, 1280, 150_000], // just above the smallest tier
+      [1281, 'webp' as const, 1920, 200_000], // just above the middle tier
+      [400, 'webp' as const, 640, 90_000], // below the smallest tier — still borrows 640
+    ])(
+      'reports the canonical %ipx/%s budget tier (%i → %i B), not a downward-rounded one',
+      async (width, format, _tier, expectedBudget) => {
+        prisma.mediaAsset.findUnique.mockResolvedValue(null);
+        processing.processImage.mockResolvedValue(
+          processedImage({
+            variants: [
+              {
+                format,
+                mimeType: `image/${format}`,
+                buffer: Buffer.from('big'),
+                width,
+                height: width,
+                sizeBytes: 999_000,
+                quality: 55,
+                overBudget: true,
+              },
+            ],
+          }),
+        );
+        prisma.mediaAsset.create.mockResolvedValue(imageAssetRow());
+
+        await service.upload(imageUpload());
+
+        expect(logger.warn).toHaveBeenCalledWith(
+          expect.objectContaining({
+            event: 'media.rendition_over_budget',
+            width,
+            format,
+            budget: expectedBudget,
+          }),
+          expect.any(String),
+        );
+      },
+    );
   });
 
   describe('upload — concurrency cap (Q3)', () => {
