@@ -39,6 +39,9 @@
 **`Shipped` (على `main`):** البنية التحتية العرضية كاملة (`config`, `prisma`, `common`, `contract`, `main`) + الوحدات التالية:
 `health`, `locales`, `auth`, `users`, `access-control`, `settings`, `taxonomy` (categories + tags), `articles`, `projects`, `experiences`, `skills`, `testimonials`, و`media` (Feature 003 — مدموجة 2026-07-19، PR #7؛ راجع [`src/modules/media/README.md`](src/modules/media/README.md)).
 
+**ترقية `Prisma 7` — مكتملة في الكود (`Shipped`):** `prisma` و`@prisma/client` و`@prisma/adapter-pg` و`@prisma/config` كلّها على `7.9.1`، عبر مولّد `prisma-client` الدائم ومحوّل التعريف `PrismaPg` — أي `Prisma Client → PrismaPg → pg → PostgreSQL` (`pg` تبعية غير مباشرة عبر المحوّل، لا مباشرة). القرار الحاكم `D16-13` ([الوثيقة 16](../eslammuatamed-docs/docs/16-development-conventions.md)) وهو يَنسَخ `D16-6` و`D16-10`؛ الدليل في `docs/research/prisma-7-migration-2026-08.md` (القرارات `P9-1`…`P9-9`).
+> **تنبيه حالة:** «مكتملة في الكود» **لا تعني** «منشورة على الإنتاج». `Prisma v7 Production deployed: NO` — النشر يخصّ إصدار الواجهة الخلفية المنسّق اللاحق.
+
 **`In Progress`:** — لا شيء حاليًّا. (Feature 003 `media` اكتملت — `T1`–`T11` — ودُمجت إلى `main`؛ انظر `Shipped` أعلاه.)
 
 **`Planned` (مجدولة، غير مكتوبة بعد):**
@@ -47,7 +50,6 @@
 - `api-hardening`: طبقات throttle كاملة + نسخ احتياطي (Feature 005).
 
 **`Deferred` (مؤجّلة بقرار):**
-- ترقية `Prisma 7` — مؤجّلة عمدًا عند `6.19.x` (`D16-6`: تزيل `datasourceUrl` وتفرض إعادة كتابة `PrismaService`، وتُهدّد ضمان تصدير العقد بلا قاعدة بيانات).
 - طبقة cache للقراءة داخل الـ API (`Redis`) — فقط إذا خُرقت ميزانية الأداء `NFR-006` (الوثيقة 07 §11).
 - `TOTP 2FA` — عند وجود حساب مشغّل ثانٍ حقيقي.
 
