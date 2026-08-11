@@ -9,7 +9,10 @@
 شقّ الردّ من `D02-4`). لا إنشاء إداري. الرسائل المقبولة تُحفَظ في `contact_messages`، ومحاولات الردّ في
 `contact_message_replies`.
 
-**الإرسال الفعليّ غير مُنفَّذ بعد**: الردّ يُحفَظ بحالة `PENDING` ولا يُستدعى أيّ ناقل بريد في هذه المرحلة.
+**الإرسال الفعليّ مُنفَّذ**: الردّ يُحفَظ ثمّ يُسلَّم عبر ناقل البريد، وتُسجَّل النتيجة في حالة الصفّ
+(`SENT` / `FAILED` / `PENDING`). حالة النضج بدقّة — وهي ثلاث جُمَل منفصلة عمدًا:
+`Reply backend ready: YES` · `Reply frontend UI: NO` (لا واجهة في `/dashboard` تستهلكه) ·
+`Reply Production deployed: NO`.
 
 ## خريطة الملفّات
 
@@ -17,13 +20,14 @@
 |---|---|
 | `contact.controller.ts` | `POST /api/v1/contact` عامّ (`@Public`) + `@UseGuards(ContactThrottlerGuard)` |
 | `messages.admin.controller.ts` | `GET /api/v1/admin/messages` · `GET :id` · `GET :id/replies` (`messages.read`) · `PATCH :id` (`messages.update`) · `POST :id/replies` (`messages.reply`) |
-| `contact-reply.service.ts` | نطاق الردّ: الحفظ، ومنع التكرار (`Idempotency-Key`)، والحالة — **لا يملك التسليم** |
+| `contact-reply.service.ts` | نطاق الردّ: الحفظ، ومنع التكرار (`Idempotency-Key`)، وآلة الحالة `PENDING`→`SENT`/`FAILED` + مسار التعافي. يُنسّق التسليم ولا **يبنيه**: بناء الرسالة وإرسالها في `contact-mail.service.ts` |
 | `idempotency-key.pipe.ts` | التحقّق من ترويسة `Idempotency-Key` كـ pipe، أي **قبل** أيّ قراءة من قاعدة البيانات |
 | `reply-subject.ts` | اشتقاق `Re: <الموضوع>` دون تكرار البادئة |
+| `provider-idempotency.ts` | اشتقاق مفتاح تكرار **المزوّد** (`contact-reply/<id>`) وحساب نافذة الـ 24 ساعة |
 | `message-not-repliable.exception.ts` | `409` لرسالة بلا بريد (`D02-10` يسمح برقم هاتف وحده) |
 | `contact.service.ts` | مكافحة السبام + `meta` + الترقيم (unread-first) + الفرز + ضبط `archivedAt` عند الأرشفة + `purgeArchivedOlderThan` |
 | `contact-purge.scheduler.ts` | مهمّة `@Cron` يوميّة داخل العمليّة (`D07-3`): حذف نهائيّ للرسائل المؤرشفة منذ أكثر من ١٢ شهرًا (`D19-10`) |
-| `contact-mail.service.ts` | **محتوى** بريدَي الاستقبال (إشعار المالك + إقرار الزائر) وإرسالهما بعد الحفظ |
+| `contact-mail.service.ts` | **محتوى** بريدَي الاستقبال (إشعار المالك + إقرار الزائر) وإرسالهما بعد الحفظ، **و`dispatchReply`** الذي يبني رسالة الردّ ويُسلّمها حاملةً مفتاح تكرار المزوّد |
 | `anti-spam.ts` | مُساعد نقيّ `isSpam(...)` — مصيدة العسل + فخّ الزمن |
 | `dto/*` · `entities/*` | مدخلات الطلب + أشكال الردّ (Swagger) |
 
@@ -101,8 +105,9 @@
 ## القيود المقبولة والمؤجَّل
 
 - **لا إنشاء إداريّ**: الرسالة تُنشأ حصرًا عبر الاستقبال العام؛ مفتاح `messages.create` محجوز غير مُستخدَم.
-- **الردّ الإداريّ مُتاح الآن** (`D02-13`) بعد أن كان مرفوضًا في `D02-4`، لكنّه **بلا تسليم بعد**: الصفّ يُنشأ
-  `PENDING` ولا يُرسَل بريد. الحالة صادقة عمدًا — `PENDING` تعني «لم تُسجَّل نتيجة نهائيّة»، لا «لم يُسلَّم شيء».
+- **الردّ الإداريّ مُتاح الآن** (`D02-13`) بعد أن كان مرفوضًا في `D02-4`، **ومع تسليم فعليّ**: الصفّ يُنشأ
+  `PENDING` ثمّ يُحسَم إلى `SENT` أو `FAILED` حسب ما يُقرّه الناقل. وتبقى `PENDING` صادقة عمدًا حين تلزم —
+  فهي تعني «لم تُسجَّل نتيجة نهائيّة»، لا «لم يُسلَّم شيء»؛ والغموض ليس فشلًا.
 - **خارج النطاق قصدًا**: لا استقبال بريد وارد، ولا IMAP، ولا webhooks، ولا سلاسل محادثة، ولا مرفقات، ولا HTML،
   ولا `CC`/`BCC`، ولا إرسال جماعي أو مجدول، ولا أيّ مسار إرسال لمستقبِل حرّ في الـ API كلّه.
 - **تطهير الرسائل بعد ١٢ شهرًا مُنفَّذ في F005** (قسم «الاحتفاظ والتطهير» أعلاه، `D19-10`) — استبدل تأجيل F004.
@@ -113,8 +118,15 @@
 `contact-purge.scheduler.spec.ts` (حدّ `retentionCutoff` ١٣/١٢/١١ شهرًا + تفويض المجدول + تسجيل العدد فقط بلا PII) ·
 `anti-spam.spec.ts` (حدود المصيدتَين) ·
 `create-contact-message.dto.spec.ts` (تفاعل البوابة: الفخّ لا يُنتج 422، والحقل المجهول يُرفَض) ·
-`contact.controller.spec.ts` (تطابق الإيصال محفوظ/مُسقَط + ميتاداتا الصلاحيات) ·
-`test/contact.e2e-spec.ts` · `test/contact-retention.e2e-spec.ts` (انتقال `archivedAt` عبر HTTP + التطهير على Postgres).
+`contact.controller.spec.ts` (تطابق الإيصال محفوظ/مُسقَط + ميتاداتا الصلاحيات).
+
+وللردّ تحديدًا — **وحدات:** `contact-reply.service.spec.ts` (آلة الحالة كاملة، Prisma مُموَّه) ·
+`provider-idempotency.spec.ts` (شكل المفتاح + حدّا النافذة بالمللي ثانية) · `reply-subject.spec.ts` ·
+`idempotency-key.pipe.spec.ts` · `dto/create-message-reply.dto.spec.ts`.
+**e2e:** `test/contact.e2e-spec.ts` · `test/contact-retention.e2e-spec.ts` (انتقال `archivedAt` عبر HTTP +
+التطهير على Postgres) · `test/message-replies.e2e-spec.ts` · `test/reply-delivery.e2e-spec.ts` ·
+`test/reply-http-delivery.e2e-spec.ts` (مصفوفة التسليم عبر HTTP، ومنها سباق حقيقيّ بحاجز على فهرس الفرادة) ·
+`test/reply-http-security.e2e-spec.ts` (تهريب المستلِم، مصفوفة الصلاحيات، النافذة، والسجلّ).
 
 ## المرجع الرسمي وحالة التوافق
 
