@@ -139,19 +139,41 @@ export class ContactMailService {
   // caller records what it concluded. `dispatchForSubmission` above stays detached and best-effort;
   // extending this service must never make a visitor's contact submission wait on SMTP (§4).
   //
-  // Resolves on every path. `MailService.send` contracts not to throw, so a provider failure
-  // arrives here as a VALUE and never as an exception — which is what keeps raw transport text out
-  // of ProblemDetails by construction rather than by remembering to catch it (§22).
+  // `MailService.send` contracts not to throw, so a provider failure arrives here as a VALUE and
+  // never as an exception — which is what keeps raw transport text out of ProblemDetails by
+  // construction rather than by remembering to catch it (§22).
+  //
+  // The backstop below keeps that contract from being LOAD-BEARING, which is the same reason
+  // `dispatchForSubmission` has one. The difference is what it does with the failure: that path
+  // swallows, because its database write already committed and no caller is left. This one
+  // RE-THROWS, sanitized, because the reply's outcome is genuinely unknown at that point and the
+  // caller must be allowed to leave the attempt PENDING rather than record a terminal state.
   async dispatchReply(
     message: RepliableContactMessage,
     body: string,
     providerIdempotencyKey: string,
     correlationId: string,
   ): Promise<ReplyDeliveryOutcome> {
-    const result = await this.mail.send(
-      this.buildReply(message, body, providerIdempotencyKey),
-      correlationId,
-    );
+    let result;
+    try {
+      result = await this.mail.send(
+        this.buildReply(message, body, providerIdempotencyKey),
+        correlationId,
+      );
+    } catch (error: unknown) {
+      // Sanitized at the boundary. The original message is logged and then dropped: a raw
+      // Nodemailer message reaching here would otherwise land in ProblemDetails' `detail` outside
+      // production (all-exceptions.filter.ts), which is exactly the transport text §22 forbids.
+      this.logger.error(
+        `Reply ${correlationId} delivery raised unexpectedly: ` +
+          (error instanceof Error ? error.message : 'Unknown error.'),
+      );
+      // `cause` carries the original for a debugger without publishing it: the filter's `detail`
+      // is `exception.message` (this sanitized string) and its log line is `exception.stack`,
+      // neither of which serializes a cause. So the chain is preserved where it is useful and
+      // absent everywhere it would be a leak.
+      throw new Error('Reply delivery failed unexpectedly.', { cause: error });
+    }
 
     if (result.status === 'sent') {
       return {

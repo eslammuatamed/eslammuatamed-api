@@ -428,6 +428,30 @@ describe('ContactMailService', () => {
       expect(JSON.stringify(outcome)).not.toContain('ECONNREFUSED');
     });
 
+    // The backstop, and specifically what it does NOT do. An unexpected throw from the delivery
+    // layer leaves the outcome unknown, so it must reach the caller — which keeps the attempt
+    // PENDING and recoverable — while carrying none of the original transport text, which would
+    // otherwise reach ProblemDetails' `detail` outside production.
+    it('rethrows an unexpected transport error without its message', async () => {
+      const mail = mailStub();
+      mail.send.mockRejectedValue(
+        Object.assign(new Error('Invalid login: 535 auth failed'), {
+          auth: { user: 'relay-user', pass: 'super-secret-relay-password' },
+        }),
+      );
+      const service = new ContactMailService(mail.service, config());
+
+      await expect(
+        service.dispatchReply(repliable(), 'Thanks.', PROVIDER_KEY, 'reply-1'),
+      ).rejects.toThrow('Reply delivery failed unexpectedly.');
+
+      // Not swallowed into a FAILED-shaped outcome: that would record a terminal state for a send
+      // whose fate nobody knows, and close off the recovery that is still safe.
+      await expect(
+        service.dispatchReply(repliable(), 'Thanks.', PROVIDER_KEY, 'reply-1'),
+      ).rejects.not.toMatchObject({ message: expect.stringContaining('535') });
+    });
+
     // §4 — the regression that matters most about extending this shared service. The reply path is
     // awaited because an operator is waiting on its outcome; the visitor's submission path must
     // stay detached and best-effort, and must never acquire the reply's idempotency key.

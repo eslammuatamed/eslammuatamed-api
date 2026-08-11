@@ -1,4 +1,4 @@
-import { Test } from '@nestjs/testing';
+import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaClient } from '../src/generated/prisma/client';
 import { ContactMailService } from '../src/modules/contact/contact-mail.service';
 import {
@@ -23,6 +23,39 @@ import { createPrismaClient } from '../src/prisma/standalone-client';
 // to drive a provider OUTCOME on demand — a disabled real transport can only ever say "no".
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const BARRIER_DEADLINE_MS = 2_000;
+const BARRIER_POLL_MS = 25;
+
+// Counts backends this database is currently making wait. Copied from message-replies.e2e-spec.ts,
+// which took it from refresh-token-rotation.e2e-spec.ts — `pg_blocking_pids` rather than counting
+// `pg_locks` rows, because two backends queued on one unique index produce a mix of lock types and
+// reading pg_locks by locktype miscounts.
+async function waitUntilBlocked(
+  observer: PrismaClient,
+  expected: number,
+): Promise<void> {
+  const startedAt = Date.now();
+  for (;;) {
+    const rows = await observer.$queryRaw<{ blocked: number }[]>`
+      SELECT count(*)::int AS blocked
+        FROM pg_stat_activity
+       WHERE datname = current_database()
+         AND cardinality(pg_blocking_pids(pid)) > 0
+    `;
+    if ((rows[0]?.blocked ?? 0) >= expected) {
+      return;
+    }
+    if (Date.now() - startedAt > BARRIER_DEADLINE_MS) {
+      // Throws rather than proceeding. Without this the suite could run the two inserts in sequence
+      // and every assertion below would still pass — a race test that can pass without racing is
+      // decoration. This is the instrument's own self-check.
+      throw new Error(
+        `Barrier never formed: expected ${expected} blocked backend(s) within ${BARRIER_DEADLINE_MS}ms.`,
+      );
+    }
+    await new Promise((resolve) => setTimeout(resolve, BARRIER_POLL_MS));
+  }
+}
 
 // Models the provider, not the mail service: it records every domain call, and separately records
 // how many DISTINCT external sends those calls would actually have produced. The distinction is
@@ -72,6 +105,7 @@ describe('Reply delivery (service/database seam, e2e)', () => {
   let db: PrismaClient;
   let provider: FakeProvider;
   let operatorId: string;
+  let moduleRef: TestingModule;
 
   const messageWith = async (email: string | null = 'visitor@example.com') => {
     const row = await db.contactMessage.create({
@@ -102,7 +136,7 @@ describe('Reply delivery (service/database seam, e2e)', () => {
 
   beforeEach(async () => {
     provider = new FakeProvider();
-    const moduleRef = await Test.createTestingModule({
+    moduleRef = await Test.createTestingModule({
       // AppConfigModule is @Global in the running app, which a standalone testing module does not
       // inherit — PrismaService reads its DSN from it, so it is imported explicitly here.
       imports: [AppConfigModule, PrismaModule],
@@ -116,6 +150,14 @@ describe('Reply delivery (service/database seam, e2e)', () => {
     // The real PrismaService the module built, pointed at the scratch database like every other
     // e2e suite — the service under test is wired exactly as production wires it.
     expect(moduleRef.get(PrismaService)).toBeDefined();
+  });
+
+  // Each test compiles a fresh module, and each module builds its own PrismaService connection
+  // pool. Closing it per test keeps this suite from accumulating pools across the run — the e2e
+  // lane is --runInBand across 31 suites and a leaked pool per test is a connection-exhaustion
+  // flake waiting for a slower machine.
+  afterEach(async () => {
+    await moduleRef.close();
   });
 
   afterAll(async () => {
@@ -139,35 +181,89 @@ describe('Reply delivery (service/database seam, e2e)', () => {
       expect(second.reply.body).toBe('Thanks.');
     });
 
-    // §14 — the load-bearing concurrency invariant, on the real unique index. No sleeps: the two
-    // creates are issued together and the database decides which one wins.
-    it('yields one row and no duplicate email when two callers race the same key', async () => {
+    // §14 — the load-bearing concurrency invariant, on the real unique index.
+    //
+    // The barrier is that index, not a sleep and not two hopeful concurrent calls: a separate
+    // connection INSERTs the key and holds its transaction open, so the caller under test must
+    // WAIT on the index. Under READ COMMITTED it cannot see the uncommitted row, so it proceeds
+    // exactly as in the unguarded case and queues at its own INSERT — the precise interleaving two
+    // simultaneous requests produce, forced deterministically.
+    //
+    // Firing two `service.create` calls and awaiting both would NOT prove this. Run sequentially,
+    // the second would simply find a committed row and replay it, and every assertion below would
+    // pass without any contention having occurred.
+    it('yields one row and one external email when two callers race the same key', async () => {
       const messageId = await messageWith();
+      const key = 'key-race';
 
-      const outcomes = await Promise.allSettled([
-        reply(messageId, 'key-race'),
-        reply(messageId, 'key-race'),
-      ]);
+      const blocker = createPrismaClient(process.env.DATABASE_URL ?? '');
+      const observer = createPrismaClient(process.env.DATABASE_URL ?? '');
+      let releaseBlocker: () => void = () => {};
+      const blockerReleased = new Promise<void>((resolve) => {
+        releaseBlocker = resolve;
+      });
+      let inserted: (id: string) => void = () => {};
+      const blockerInserted = new Promise<string>((resolve) => {
+        inserted = resolve;
+      });
 
-      // Both requests must succeed — losing the insert race is the idempotency guarantee firing,
-      // not an error to surface.
-      const fulfilled = outcomes.filter(
-        (o): o is PromiseFulfilledResult<ReplyCreateOutcome> =>
-          o.status === 'fulfilled',
+      const held = blocker.$transaction(
+        async (tx) => {
+          const row = await tx.contactMessageReply.create({
+            data: {
+              contactMessageId: messageId,
+              body: 'Held by the barrier transaction.',
+              idempotencyKey: key,
+              initiatedByUserId: operatorId,
+            },
+          });
+          // Signal only AFTER the insert exists (uncommitted). Signalling earlier would let the
+          // caller win outright and prove nothing about contention.
+          inserted(row.id);
+          await blockerReleased;
+        },
+        { timeout: 15_000 },
       );
-      expect(fulfilled).toHaveLength(2);
-      expect(fulfilled.filter((o) => o.value.created)).toHaveLength(1);
 
-      // The invariant, both halves. One row in the database...
-      const rows = await rowsFor(messageId);
-      expect(rows).toHaveLength(1);
-      // ...and at most one external email, however many domain calls reached the provider. The
-      // call count is recorded rather than asserted to be 1: both callers CAN legitimately reach
-      // the transport (the loser may find the row still PENDING), and it is provider idempotency,
-      // not call count, that stops the second email.
+      let winnerId: string;
+      let outcome: ReplyCreateOutcome;
+      try {
+        winnerId = await blockerInserted;
+
+        // Dispatched, not merely constructed: `service.create` is an async function, so calling it
+        // starts the work — but it is deliberately NOT awaited here, or the barrier below could
+        // never observe it queued.
+        const pending = reply(messageId, key);
+
+        // Confirm the contention actually formed. This is the assertion that makes the rest mean
+        // something.
+        await waitUntilBlocked(observer, 1);
+
+        releaseBlocker();
+        await held;
+        outcome = await pending;
+      } finally {
+        releaseBlocker();
+        await held.catch(() => undefined);
+        await Promise.all([blocker.$disconnect(), observer.$disconnect()]);
+      }
+
+      // Losing the insert race is the idempotency guarantee firing, not an error to surface.
+      expect(outcome.created).toBe(false);
+      expect(outcome.reply.id).toBe(winnerId);
+      expect(outcome.reply.body).toBe('Held by the barrier transaction.');
+
+      // The invariant, both halves. One row for the logical key...
+      expect(await rowsFor(messageId)).toHaveLength(1);
+      // ...and exactly one external email. The loser found the winner's row still PENDING and
+      // recovered it, which is correct — the send it made carries the WINNER's provider key, so
+      // the provider treats it as the same logical email rather than a second one. Note this is
+      // one external send, NOT necessarily one MailService call: what protects the recipient here
+      // is provider idempotency, not a call count.
       expect(provider.externalSends).toBe(1);
-      expect(provider.calls.length).toBeGreaterThanOrEqual(1);
-      expect(new Set(provider.calls.map((c) => c.key)).size).toBe(1);
+      expect(provider.calls.map((c) => c.key)).toEqual([
+        `contact-reply/${winnerId}`,
+      ]);
     });
 
     // §15 — two deliberate attempts are two rows and two sends. A design that serialized the whole
