@@ -43,7 +43,9 @@
     ]
   },
   "overrides": {
-    "axios": "^1.13.2",
+    "openapi-validator": {
+      "axios": "^1.13.2"
+    },
     "@nestjs/swagger": {
       "js-yaml": "^5.2.3"
     }
