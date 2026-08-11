@@ -40,6 +40,7 @@ import {
 import {
   ApiAdminErrorResponses,
   ApiProblemResponse,
+  ApiUuidParamBadRequest,
 } from '../../common/swagger/api-problem-response';
 import { THROTTLE_TIERS } from '../../common/throttling/throttle-tiers';
 import { UploadUserIpThrottlerGuard } from '../../common/throttling/upload-user-ip-throttler.guard';
@@ -167,6 +168,7 @@ export class MediaAdminController {
   })
   @ApiOkEnvelope(AdminMediaAssetEntity)
   @ApiProblemResponse(HttpStatus.NOT_FOUND, 'Media asset not found.')
+  @ApiUuidParamBadRequest('media asset')
   get(@Param('id', ParseUUIDPipe) id: string): Promise<AdminMediaAssetEntity> {
     return this.media.getAdmin(id);
   }
@@ -183,6 +185,7 @@ export class MediaAdminController {
     HttpStatus.UNPROCESSABLE_ENTITY,
     'Alt text is not allowed on a PDF asset, or the locale is invalid.',
   )
+  @ApiUuidParamBadRequest('media asset')
   updateAlt(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateMediaAltDto,
@@ -197,6 +200,7 @@ export class MediaAdminController {
   })
   @ApiOkEnvelope(MediaUsageEntity, { isArray: true })
   @ApiProblemResponse(HttpStatus.NOT_FOUND, 'Media asset not found.')
+  @ApiUuidParamBadRequest('media asset')
   usages(@Param('id', ParseUUIDPipe) id: string): Promise<MediaUsageEntity[]> {
     return this.media.usages(id);
   }
@@ -210,6 +214,7 @@ export class MediaAdminController {
     HttpStatus.CONFLICT,
     'The asset is referenced; the response body enumerates its usages.',
   )
+  @ApiUuidParamBadRequest('media asset')
   async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     await this.media.remove(id);
   }

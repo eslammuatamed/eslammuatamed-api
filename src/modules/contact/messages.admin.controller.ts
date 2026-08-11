@@ -31,6 +31,7 @@ import { AuthenticatedUser } from '../../common/auth/authenticated-user';
 import {
   ApiAdminErrorResponses,
   ApiProblemResponse,
+  ApiUuidParamBadRequest,
 } from '../../common/swagger/api-problem-response';
 import { THROTTLE_TIERS } from '../../common/throttling/throttle-tiers';
 import { RequirePermission } from '../access-control/decorators/require-permission.decorator';
@@ -83,6 +84,7 @@ export class MessagesAdminController {
   @ApiOperation({ summary: 'Get one contact message.' })
   @ApiOkEnvelope(ContactMessageEntity)
   @ApiProblemResponse(HttpStatus.NOT_FOUND, 'Message not found.')
+  @ApiUuidParamBadRequest('message')
   get(@Param('id', ParseUUIDPipe) id: string): Promise<ContactMessageEntity> {
     return this.contact.getById(id);
   }
@@ -93,6 +95,7 @@ export class MessagesAdminController {
   @ApiOkEnvelope(ContactMessageEntity)
   @ApiProblemResponse(HttpStatus.NOT_FOUND, 'Message not found.')
   @ApiProblemResponse(HttpStatus.UNPROCESSABLE_ENTITY, 'Validation error.')
+  @ApiUuidParamBadRequest('message')
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateMessageDto,
@@ -119,10 +122,7 @@ export class MessagesAdminController {
       'replied to at all: its history is readable and empty, even though POSTing to it answers 409.',
   })
   @ApiOkEnvelope(ContactMessageReplyEntity, { isArray: true })
-  @ApiProblemResponse(
-    HttpStatus.BAD_REQUEST,
-    'The message id in the path is not a well-formed UUID.',
-  )
+  @ApiUuidParamBadRequest('message')
   @ApiProblemResponse(HttpStatus.NOT_FOUND, 'Message not found.')
   listReplies(
     @Param('id', ParseUUIDPipe) id: string,
@@ -170,10 +170,7 @@ export class MessagesAdminController {
   })
   @ApiCreatedEnvelope(ContactMessageReplyEntity)
   @ApiOkEnvelope(ContactMessageReplyEntity)
-  @ApiProblemResponse(
-    HttpStatus.BAD_REQUEST,
-    'The message id in the path is not a well-formed UUID.',
-  )
+  @ApiUuidParamBadRequest('message')
   @ApiProblemResponse(HttpStatus.NOT_FOUND, 'Message not found.')
   @ApiProblemResponse(
     HttpStatus.CONFLICT,

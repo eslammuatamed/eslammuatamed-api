@@ -27,6 +27,7 @@ import {
 import {
   ApiAdminErrorResponses,
   ApiProblemResponse,
+  ApiUuidParamBadRequest,
 } from '../../common/swagger/api-problem-response';
 import { THROTTLE_TIERS } from '../../common/throttling/throttle-tiers';
 import { RequirePermission } from '../access-control/decorators/require-permission.decorator';
@@ -64,6 +65,7 @@ export class ArticlesAdminController {
   @ApiOperation({ summary: 'Get one article with its full translation map.' })
   @ApiOkEnvelope(AdminArticleEntity)
   @ApiProblemResponse(HttpStatus.NOT_FOUND, 'Article not found.')
+  @ApiUuidParamBadRequest('article')
   get(@Param('id', ParseUUIDPipe) id: string): Promise<AdminArticleEntity> {
     return this.articles.getAdmin(id);
   }
@@ -93,6 +95,7 @@ export class ArticlesAdminController {
     HttpStatus.UNPROCESSABLE_ENTITY,
     'Validation error, slug collision, or invalid publishAt.',
   )
+  @ApiUuidParamBadRequest('article')
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateArticleDto,
@@ -106,6 +109,7 @@ export class ArticlesAdminController {
   @ApiOperation({ summary: 'Delete an article.' })
   @ApiNoContentResponse({ description: 'Article deleted.' })
   @ApiProblemResponse(HttpStatus.NOT_FOUND, 'Article not found.')
+  @ApiUuidParamBadRequest('article')
   async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     await this.articles.remove(id);
   }

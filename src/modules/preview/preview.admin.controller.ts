@@ -19,6 +19,7 @@ import { ApiOkEnvelope } from '../../common/swagger/api-envelope';
 import {
   ApiAdminErrorResponses,
   ApiProblemResponse,
+  ApiUuidParamBadRequest,
 } from '../../common/swagger/api-problem-response';
 import { THROTTLE_TIERS } from '../../common/throttling/throttle-tiers';
 import { RequirePermission } from '../access-control/decorators/require-permission.decorator';
@@ -63,6 +64,7 @@ export class PreviewAdminController {
       'The minted token, its absolute rendered-Web preview url, and its expiry.',
   })
   @ApiProblemResponse(HttpStatus.NOT_FOUND, 'Article not found.')
+  @ApiUuidParamBadRequest()
   async mintArticleToken(
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<PreviewTokenEntity> {
@@ -86,6 +88,7 @@ export class PreviewAdminController {
       'The minted token, its absolute rendered-Web preview url, and its expiry.',
   })
   @ApiProblemResponse(HttpStatus.NOT_FOUND, 'Project not found.')
+  @ApiUuidParamBadRequest()
   async mintProjectToken(
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<PreviewTokenEntity> {

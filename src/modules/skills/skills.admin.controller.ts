@@ -24,6 +24,7 @@ import {
 import {
   ApiAdminErrorResponses,
   ApiProblemResponse,
+  ApiUuidParamBadRequest,
 } from '../../common/swagger/api-problem-response';
 import { THROTTLE_TIERS } from '../../common/throttling/throttle-tiers';
 import { RequirePermission } from '../access-control/decorators/require-permission.decorator';
@@ -49,6 +50,7 @@ export class SkillsAdminController {
   @RequirePermission('skills.read')
   @ApiOkEnvelope(AdminSkillEntity)
   @ApiProblemResponse(HttpStatus.NOT_FOUND, 'Skill not found.')
+  @ApiUuidParamBadRequest('skill')
   get(@Param('id', ParseUUIDPipe) id: string): Promise<AdminSkillEntity> {
     return this.skills.getAdmin(id);
   }
@@ -70,6 +72,7 @@ export class SkillsAdminController {
     HttpStatus.UNPROCESSABLE_ENTITY,
     'Validation error or invalid locale.',
   )
+  @ApiUuidParamBadRequest('skill')
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateSkillDto,
@@ -82,6 +85,7 @@ export class SkillsAdminController {
   @ApiNoContentResponse({ description: 'Skill deleted.' })
   @ApiProblemResponse(HttpStatus.NOT_FOUND, 'Skill not found.')
   @ApiProblemResponse(HttpStatus.CONFLICT, 'Skill is linked to a project.')
+  @ApiUuidParamBadRequest('skill')
   async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     await this.skills.remove(id);
   }

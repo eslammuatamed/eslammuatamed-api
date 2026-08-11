@@ -901,6 +901,16 @@
               }
             }
           },
+          "400": {
+            "description": "The media asset id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing or invalid access token.",
             "content": {
@@ -993,6 +1003,16 @@
               }
             }
           },
+          "400": {
+            "description": "The media asset id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing or invalid access token.",
             "content": {
@@ -1069,6 +1089,16 @@
         "responses": {
           "204": {
             "description": "Media asset and its objects deleted."
+          },
+          "400": {
+            "description": "The media asset id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
           },
           "401": {
             "description": "Missing or invalid access token.",
@@ -1162,6 +1192,16 @@
                       }
                     }
                   }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The media asset id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
                 }
               }
             }
@@ -1473,6 +1513,16 @@
               }
             }
           },
+          "400": {
+            "description": "The category id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing or invalid access token.",
             "content": {
@@ -1549,6 +1599,16 @@
         "responses": {
           "204": {
             "description": "Category deleted."
+          },
+          "400": {
+            "description": "The category id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
           },
           "401": {
             "description": "Missing or invalid access token.",
@@ -1867,6 +1927,16 @@
               }
             }
           },
+          "400": {
+            "description": "The tag id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing or invalid access token.",
             "content": {
@@ -1943,6 +2013,16 @@
         "responses": {
           "204": {
             "description": "Tag deleted."
+          },
+          "400": {
+            "description": "The tag id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
           },
           "401": {
             "description": "Missing or invalid access token.",
@@ -2511,6 +2591,16 @@
               }
             }
           },
+          "400": {
+            "description": "The article id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing or invalid access token.",
             "content": {
@@ -2603,6 +2693,16 @@
               }
             }
           },
+          "400": {
+            "description": "The article id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing or invalid access token.",
             "content": {
@@ -2679,6 +2779,16 @@
         "responses": {
           "204": {
             "description": "Article deleted."
+          },
+          "400": {
+            "description": "The article id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
           },
           "401": {
             "description": "Missing or invalid access token.",
@@ -3059,6 +3169,16 @@
               }
             }
           },
+          "400": {
+            "description": "The role id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing or invalid access token.",
             "content": {
@@ -3151,6 +3271,16 @@
               }
             }
           },
+          "400": {
+            "description": "The role id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing or invalid access token.",
             "content": {
@@ -3227,6 +3357,16 @@
         "responses": {
           "204": {
             "description": "Role deleted."
+          },
+          "400": {
+            "description": "The role id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
           },
           "401": {
             "description": "Missing or invalid access token.",
@@ -3476,6 +3616,16 @@
                       "$ref": "#/components/schemas/UserEntity"
                     }
                   }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The user id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
                 }
               }
             }
@@ -3788,6 +3938,16 @@
               }
             }
           },
+          "400": {
+            "description": "The skill id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing or invalid access token.",
             "content": {
@@ -3879,6 +4039,16 @@
               }
             }
           },
+          "400": {
+            "description": "The skill id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing or invalid access token.",
             "content": {
@@ -3954,6 +4124,16 @@
         "responses": {
           "204": {
             "description": "Skill deleted."
+          },
+          "400": {
+            "description": "The skill id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
           },
           "401": {
             "description": "Missing or invalid access token.",
@@ -4262,6 +4442,16 @@
               }
             }
           },
+          "400": {
+            "description": "The experience id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing or invalid access token.",
             "content": {
@@ -4353,6 +4543,16 @@
               }
             }
           },
+          "400": {
+            "description": "The experience id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing or invalid access token.",
             "content": {
@@ -4428,6 +4628,16 @@
         "responses": {
           "204": {
             "description": "Experience deleted."
+          },
+          "400": {
+            "description": "The experience id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
           },
           "401": {
             "description": "Missing or invalid access token.",
@@ -4727,6 +4937,16 @@
               }
             }
           },
+          "400": {
+            "description": "The testimonial id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing or invalid access token.",
             "content": {
@@ -4818,6 +5038,16 @@
               }
             }
           },
+          "400": {
+            "description": "The testimonial id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing or invalid access token.",
             "content": {
@@ -4893,6 +5123,16 @@
         "responses": {
           "204": {
             "description": "Testimonial deleted."
+          },
+          "400": {
+            "description": "The testimonial id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
           },
           "401": {
             "description": "Missing or invalid access token.",
@@ -5411,6 +5651,16 @@
               }
             }
           },
+          "400": {
+            "description": "The project id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing or invalid access token.",
             "content": {
@@ -5503,6 +5753,16 @@
               }
             }
           },
+          "400": {
+            "description": "The project id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing or invalid access token.",
             "content": {
@@ -5579,6 +5839,16 @@
         "responses": {
           "204": {
             "description": "Project deleted."
+          },
+          "400": {
+            "description": "The project id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
           },
           "401": {
             "description": "Missing or invalid access token.",
@@ -5867,6 +6137,16 @@
               }
             }
           },
+          "400": {
+            "description": "The message id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing or invalid access token.",
             "content": {
@@ -5955,6 +6235,16 @@
                       "$ref": "#/components/schemas/ContactMessageEntity"
                     }
                   }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The message id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
                 }
               }
             }
@@ -6304,6 +6594,16 @@
               }
             }
           },
+          "400": {
+            "description": "The resource id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing or invalid access token.",
             "content": {
@@ -6385,6 +6685,16 @@
                       "$ref": "#/components/schemas/PreviewTokenEntity"
                     }
                   }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The resource id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
                 }
               }
             }
@@ -6495,7 +6805,7 @@
             }
           },
           "400": {
-            "description": "Unknown or disabled locale.",
+            "description": "The resource id in the path is not a well-formed UUID.\n\nUnknown or disabled locale.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -6585,7 +6895,7 @@
             }
           },
           "400": {
-            "description": "Unknown or disabled locale.",
+            "description": "The resource id in the path is not a well-formed UUID.\n\nUnknown or disabled locale.",
             "content": {
               "application/problem+json": {
                 "schema": {
