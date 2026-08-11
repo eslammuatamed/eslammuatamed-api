@@ -504,6 +504,48 @@ describe('ContactReplyService', () => {
         expect(mail.dispatchReply).toHaveBeenCalledTimes(shouldSend ? 1 : 0);
       });
 
+      // A refused RECOVERY must NOT become terminal. The row was already ambiguous — the email may
+      // have been accepted the first time — so a refusal now says nothing about that, and writing
+      // FAILED would both invent an outcome and foreclose every later recovery, since a FAILED
+      // replay never re-sends. Only the window may end recovery.
+      it('stays PENDING when a recovery send is refused, rather than becoming FAILED', async () => {
+        at(2 * HOUR);
+        replays(reply({ status: 'PENDING', createdAt: CLAIMED_AT }));
+        mail.dispatchReply.mockResolvedValue({ accepted: false });
+
+        const { reply: result } = await service.create(
+          'msg-1',
+          dto(),
+          KEY,
+          OPERATOR_ID,
+        );
+
+        expect(mail.dispatchReply).toHaveBeenCalledTimes(1);
+        expect(prisma.contactMessageReply.update).not.toHaveBeenCalled();
+        expect(result.status).toBe('PENDING');
+        expect(result.failedAt).toBeNull();
+      });
+
+      // The contrast that makes the rule above meaningful: a FIRST send has nothing preceding it,
+      // so a refusal IS the whole story of that attempt and is recorded.
+      it('records FAILED when the FIRST send is refused, unlike a recovery', async () => {
+        at(0);
+        prisma.contactMessage.findUnique.mockResolvedValue(message());
+        prisma.contactMessageReply.create.mockResolvedValue(reply());
+        mail.dispatchReply.mockResolvedValue({ accepted: false });
+        finalizesTo(failedRow());
+
+        const { reply: result } = await service.create(
+          'msg-1',
+          dto(),
+          KEY,
+          OPERATOR_ID,
+        );
+
+        expect(prisma.contactMessageReply.update).toHaveBeenCalledTimes(1);
+        expect(result.status).toBe('FAILED');
+      });
+
       // §12. Past the window the provider may no longer recognise the key, so a re-send is a
       // possible duplicate. The only safe action is none — and in particular NOT inventing a
       // terminal state for an outcome nobody knows.

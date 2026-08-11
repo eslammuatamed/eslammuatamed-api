@@ -39,11 +39,12 @@ export type RepliableContactMessage = ContactMessage & { email: string };
 //            not land". Nothing may read it as "not delivered".
 //   SENT     the transport accepted the message AND that acceptance was recorded here. It does NOT
 //            mean inbox delivery, a passed spam filter, a later successful hop, or a read message.
-//   FAILED   no provider acceptance was OBSERVED. Weaker than "no email was sent": MailService
-//            retries internally, so a first attempt the provider accepted followed by a dropped
-//            connection looks transient, and an exhausted retry loop then reports failure for a
-//            message that may in fact have gone out. This is precisely why a same-key replay of a
-//            FAILED attempt does not re-send.
+//   FAILED   no provider acceptance was OBSERVED **on a first send**. Weaker than "no email was
+//            sent": MailService retries internally, so a first attempt the provider accepted
+//            followed by a dropped connection looks transient, and an exhausted retry loop then
+//            reports failure for a message that may in fact have gone out. This is precisely why a
+//            same-key replay of a FAILED attempt does not re-send. A refused RECOVERY does not
+//            reach this state at all — it stays PENDING (see `deliver`).
 //
 // Nothing in this file may be changed to report SENT before a transport has confirmed acceptance.
 @Injectable()
@@ -110,7 +111,10 @@ export class ContactReplyService {
     // failure the send or the finalize could raise would have to pass the P2002 predicate first,
     // and the day one of them did, a delivery fault would be reported as an idempotent replay.
     return created
-      ? { reply: toEntity(await this.deliver(row, message)), created: true }
+      ? {
+          reply: toEntity(await this.deliver(row, message, 'first')),
+          created: true,
+        }
       : { reply: toEntity(await this.replay(row, message)), created: false };
   }
 
@@ -193,7 +197,7 @@ export class ContactReplyService {
       return existing;
     }
 
-    return this.deliver(existing, message);
+    return this.deliver(existing, message, 'recovery');
   }
 
   // Sends one persisted attempt and records what the send concluded.
@@ -202,9 +206,13 @@ export class ContactReplyService {
   // retry loop behind it; holding a Postgres transaction open across it would keep row locks for
   // the duration of a remote party's latency, and a relay that is merely slow would become a
   // database problem. The claim is already committed, so there is nothing to keep open.
+  //
+  // `attempt` distinguishes the FIRST send for a freshly-claimed row from a RECOVERY send for a row
+  // that was already PENDING. It changes only what a refusal means — see below.
   private async deliver(
     row: ContactMessageReply,
     message: RepliableContactMessage,
+    attempt: 'first' | 'recovery',
   ): Promise<ContactMessageReply> {
     // Re-derived, never stored and never passed in. The same row yields the same key on every
     // attempt for as long as it exists, which is exactly the property a recovery re-send needs:
@@ -218,6 +226,24 @@ export class ContactReplyService {
     );
 
     if (!outcome.accepted) {
+      // A refused RECOVERY leaves the row PENDING. This is not symmetry for its own sake — it is
+      // the same argument §10 makes, applied one step later. The row was already ambiguous, which
+      // means the email may ALREADY have been accepted; a refusal now is evidence about this
+      // attempt, not about that one, and the SMTP relay's replay behaviour is undocumented, so it
+      // is weak evidence even about this one. Writing FAILED here would assert an outcome nobody
+      // knows AND foreclose every further recovery, because a FAILED replay never re-sends. The
+      // window expiring is what ends recovery, not a refusal inside it.
+      if (attempt === 'recovery') {
+        this.logger.warn(
+          `Reply ${row.id} recovery was not accepted; leaving it PENDING rather than ` +
+            `recording a terminal state for an attempt whose outcome is still unknown.`,
+        );
+        return row;
+      }
+
+      // A FIRST send is different: nothing preceded it, so "no acceptance observed" is the whole
+      // story of this attempt. (It is still weaker than "no email was sent" — the delivery layer
+      // retries internally — which is why even THIS state never triggers an automatic re-send.)
       return this.prisma.contactMessageReply.update({
         where: { id: row.id },
         data: { status: 'FAILED', failedAt: new Date() },
