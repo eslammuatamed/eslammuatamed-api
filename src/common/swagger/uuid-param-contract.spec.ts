@@ -196,6 +196,12 @@ describe('every UUID-parsing route documents the 400 its pipe can produce', () =
     // The half that keeps the contract from becoming broader-and-vaguer. The public read routes
     // are the one legitimate exception: `ApiPublicReadErrorResponses()` declares 400 for an
     // unknown or disabled locale, which is a different and pre-existing cause.
+    //
+    // The exemption is stated as it is ACTUALLY scoped, not as it is motivated: it excuses every
+    // NON-ADMIN route, not only the ones that resolve a locale. Narrowing it to a locale test
+    // would mean asking the contract whether a route takes `?locale=`, which is a second and
+    // weaker guess at the same thing. The admin surface — where over-declaration was the real
+    // risk, because that is where a class-level decorator would have applied — is fully guarded.
     const localeAware = (route: Route): boolean =>
       contract.paths[route.path]?.[route.verb]?.responses?.['400'] !==
         undefined && !route.path.startsWith(`${GLOBAL_PREFIX}/admin/`);
