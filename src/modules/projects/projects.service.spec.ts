@@ -1,7 +1,4 @@
-import {
-  NotFoundException,
-  UnprocessableEntityException,
-} from '@nestjs/common';
+import { NotFoundException } from '@nestjs/common';
 import {
   MediaKind,
   MediaVariantFormat,
@@ -798,12 +795,81 @@ describe('ProjectsService', () => {
   });
 
   describe('create', () => {
-    it('maps a per-locale slug collision to 422', async () => {
-      prisma.$transaction.mockRejectedValue({ code: 'P2002' });
+    // C-5. The create is ONE nested Prisma write, which is already atomic, so it must not be
+    // wrapped in `$transaction`. Asserting both halves — the direct call happened AND no
+    // transaction was opened — is what makes this discriminating; the second assertion alone
+    // would pass on a service that never wrote at all.
+    it('issues a single nested create, with no transaction wrapper', async () => {
+      prisma.project.create.mockResolvedValue(projectPayload(true));
 
-      await expect(service.create(createDto)).rejects.toBeInstanceOf(
-        UnprocessableEntityException,
-      );
+      await service.create(createDto);
+
+      expect(prisma.project.create).toHaveBeenCalledTimes(1);
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    // C-5 relation semantics: the nested writes must survive unwrapping unchanged. `createDto`
+    // carries no technologies and no gallery, so a populated DTO is used here — against the bare
+    // fixture both relations are `undefined` by design and the assertion would prove nothing.
+    it('keeps translations, technologies and gallery as nested writes in that one call', async () => {
+      prisma.project.create.mockResolvedValue(projectPayload(true));
+      const populated = {
+        ...createDto,
+        technologyIds: ['skill-1', 'skill-2'],
+        gallery: [
+          { mediaAssetId: 'asset-1', order: 0, translations: {} },
+          { mediaAssetId: 'asset-2', order: 1, translations: {} },
+        ],
+      };
+
+      await service.create(populated);
+
+      const { data } = prisma.project.create.mock.calls[0]?.[0] ?? {};
+      expect(data?.translations).toEqual({
+        create: expect.arrayContaining([
+          expect.objectContaining({ locale: 'en', slug: 'project' }),
+        ]),
+      });
+      expect(data?.technologies).toEqual({
+        create: [{ skillId: 'skill-1' }, { skillId: 'skill-2' }],
+      });
+      expect(data?.gallery).toEqual({
+        create: [
+          expect.objectContaining({ mediaAssetId: 'asset-1', order: 0 }),
+          expect.objectContaining({ mediaAssetId: 'asset-2', order: 1 }),
+        ],
+      });
+    });
+
+    // The empty-relation shape is deliberate (`undefined`, not `{ create: [] }`) and unchanged by
+    // C-5 — pinned so unwrapping the transaction cannot quietly start writing empty relations.
+    it('omits the optional relations entirely when none are supplied', async () => {
+      prisma.project.create.mockResolvedValue(projectPayload(true));
+
+      await service.create(createDto);
+
+      const { data } = prisma.project.create.mock.calls[0]?.[0] ?? {};
+      expect(data?.technologies).toBeUndefined();
+      expect(data?.gallery).toBeUndefined();
+    });
+
+    // B-2. The service must NOT translate Prisma errors any more: `AllExceptionsFilter` is the
+    // single translation point (doc 15 §3). A local catch here produced a bare 422 with no
+    // `errors[]`, so the same failure returned a different contract than every sibling module.
+    //
+    // This asserts propagation ONLY. It deliberately does not assert a status code: turning P2002
+    // into a 422 is now the filter's job, and a mocked error object cannot prove the filter's
+    // behaviour — a plain `{ code: 'P2002' }` is not `instanceof PrismaClientKnownRequestError`
+    // and would take the sanitized-500 arm. The real proof is
+    // `test/prisma-error-mapping.e2e-spec.ts`, against a REAL PostgreSQL conflict.
+    it('propagates a Prisma unique violation untranslated, for the global filter to map', async () => {
+      const p2002 = new Prisma.PrismaClientKnownRequestError('Unique failed', {
+        code: 'P2002',
+        clientVersion: 'test',
+      });
+      prisma.project.create.mockRejectedValue(p2002);
+
+      await expect(service.create(createDto)).rejects.toBe(p2002);
     });
   });
 

@@ -55,6 +55,8 @@ describe('Prisma 7 runtime errors through AllExceptionsFilter (e2e)', () => {
   let ownerToken: string;
   let categoryId: string;
   const unique = Date.now();
+  // Projects created by section B2. Tracked so teardown removes exactly this spec's rows.
+  const createdProjectIds: string[] = [];
 
   const auth = (): Record<string, string> => ({
     Authorization: `Bearer ${ownerToken}`,
@@ -89,6 +91,12 @@ describe('Prisma 7 runtime errors through AllExceptionsFilter (e2e)', () => {
       where: { slug: { contains: `-${unique}` } },
     });
     await prisma.category.deleteMany({ where: { translations: { none: {} } } });
+    // Section B2's projects. Cascade removes their translations (onDelete: Cascade).
+    if (createdProjectIds.length > 0) {
+      await prisma.project.deleteMany({
+        where: { id: { in: createdProjectIds } },
+      });
+    }
     await prisma.$disconnect();
     await app.close();
   });
@@ -266,6 +274,158 @@ describe('Prisma 7 runtime errors through AllExceptionsFilter (e2e)', () => {
       // Stated as its own assertion so the failure message names the actual defect.
       expect(JSON.stringify(conflict.body)).not.toContain('article_id');
       expectNoInternalsLeaked(conflict.body);
+    });
+  });
+
+  // ── B2. The SAME path through PROJECTS, which used to translate P2002 itself (B-2) ──────────
+  //
+  // Until Phase 10A, `ProjectsService` caught P2002 and threw a bare
+  // `UnprocessableEntityException('A project translation slug or relation value already exists.')`.
+  // That took the `fromHttpException` branch: still a 422, but `title: 'Unprocessable Entity'`,
+  // a project-specific `detail`, and NO `errors[]` — a different contract from Articles above for
+  // the identical failure. The local translation is gone; these tests pin the resulting PUBLIC
+  // behaviour, and they are written as VALUE assertions against the Articles wording precisely so
+  // that "the two modules now answer the same way" is what is being checked.
+  describe('a project unique violation takes the same global path as an article one', () => {
+    const projectBody = (suffix: string, slugSuffix = suffix) => ({
+      featured: false,
+      isPublished: false,
+      order: 0,
+      technologyIds: [],
+      gallery: [],
+      translations: [
+        {
+          locale: 'en',
+          title: `Prisma Error Project ${unique} ${suffix}`,
+          slug: `e2e-prisma-error-project-${slugSuffix}-${unique}`,
+          summary: 'Fixture for the project P2002 mapping.',
+          overview: '## Overview\n\nFixture overview.',
+          businessProblem: '## Problem\n\nFixture problem.',
+          solution: '## Solution\n\nFixture solution.',
+          role: '## Role\n\nFixture role.',
+          architecture: '## Architecture\n\nFixture architecture.',
+          challenges: '## Challenges\n\nFixture challenges.',
+          features: '## Features\n\nFixture features.',
+          lessonsLearned: '## Lessons\n\nFixture lessons.',
+        },
+      ],
+    });
+
+    it('answers a per-locale slug collision with the GLOBAL 422 shape, errors[] included', async () => {
+      const created = await request(httpServer(app))
+        .post('/api/v1/admin/projects')
+        .set(auth())
+        .send(projectBody('a'))
+        .expect(201);
+      createdProjectIds.push(envelopeData<{ id: string }>(created).id);
+
+      const conflict = await request(httpServer(app))
+        .post('/api/v1/admin/projects')
+        .set(auth())
+        .send(projectBody('a'))
+        .expect(422);
+
+      expect(conflict).toSatisfyApiSpec();
+      expect(conflict.headers['content-type']).toContain(
+        'application/problem+json',
+      );
+      expect(conflict.body.status).toBe(422);
+      // Was 'Unprocessable Entity' under the local translation — the title IS part of the change.
+      expect(conflict.body.title).toBe('Validation failed');
+      // Was 'A project translation slug or relation value already exists.'
+      expect(conflict.body.detail).toBe(
+        'A record with these values already exists.',
+      );
+      // Was ABSENT entirely — the local path never attached field paths. @@unique([locale, slug]).
+      expect(conflict.body.errors).toEqual([
+        { field: 'locale', message: 'This value is already in use.' },
+        { field: 'slug', message: 'This value is already in use.' },
+      ]);
+      expectNoInternalsLeaked(conflict.body);
+    });
+
+    it('reports the MAPPED project_id column under its API name', async () => {
+      // `project_translations` maps `projectId` → `project_id`, so this is the discriminating
+      // half: only a working normalization turns the driver's `project_id` into `projectId`.
+      // Provoked the same way as the article case — one create with TWO English translations,
+      // which violates @@unique([projectId, locale]) inside Prisma's own nested write.
+      const body = projectBody('dup');
+      const conflict = await request(httpServer(app))
+        .post('/api/v1/admin/projects')
+        .set(auth())
+        .send({
+          ...body,
+          translations: [
+            body.translations[0],
+            {
+              ...body.translations[0],
+              slug: `${body.translations[0]?.slug ?? ''}-second`,
+              title: `${body.translations[0]?.title ?? ''} second`,
+            },
+          ],
+        })
+        .expect(422);
+
+      expect(conflict).toSatisfyApiSpec();
+      expect(conflict.body.errors).toEqual([
+        { field: 'projectId', message: 'This value is already in use.' },
+        { field: 'locale', message: 'This value is already in use.' },
+      ]);
+      expect(JSON.stringify(conflict.body)).not.toContain('project_id');
+      expectNoInternalsLeaked(conflict.body);
+    });
+
+    // The architecture assertion, not just the shape one: projects and articles must now be
+    // byte-identical on everything except `instance`. This is what B-2 actually bought, and it
+    // fails the moment either module reacquires a local translation.
+    it('returns a body identical to the article collision apart from `instance`', async () => {
+      const articleSlug = `e2e-parity-article-${unique}`;
+      const articleBody = {
+        categoryId,
+        translations: [
+          {
+            locale: 'en',
+            title: `Parity Article ${unique}`,
+            slug: articleSlug,
+            excerpt: 'Fixture for the cross-module parity check.',
+            body: '# Heading\n\nBody content long enough for reading-time to compute.',
+          },
+        ],
+      };
+      await request(httpServer(app))
+        .post('/api/v1/admin/articles')
+        .set(auth())
+        .send(articleBody)
+        .expect(201);
+      const articleConflict = await request(httpServer(app))
+        .post('/api/v1/admin/articles')
+        .set(auth())
+        .send(articleBody)
+        .expect(422);
+
+      const created = await request(httpServer(app))
+        .post('/api/v1/admin/projects')
+        .set(auth())
+        .send(projectBody('parity'))
+        .expect(201);
+      createdProjectIds.push(envelopeData<{ id: string }>(created).id);
+      const projectConflict = await request(httpServer(app))
+        .post('/api/v1/admin/projects')
+        .set(auth())
+        .send(projectBody('parity'))
+        .expect(422);
+
+      const withoutInstance = (body: Record<string, unknown>) => {
+        const { instance: _instance, ...rest } = body;
+        return rest;
+      };
+      expect(withoutInstance(projectConflict.body)).toEqual(
+        withoutInstance(articleConflict.body),
+      );
+      // Guards the guard: `instance` must genuinely differ, or the comparison above is trivial.
+      expect(projectConflict.body.instance).not.toBe(
+        articleConflict.body.instance,
+      );
     });
   });
 
