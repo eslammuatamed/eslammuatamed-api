@@ -5,18 +5,29 @@
 ## المسؤولية
 
 نقطة التحويل الوحيدة للمنصّة: استقبال عامّ لرسائل التواصل (`POST /api/v1/contact`) مع طبقتَي مكافحة سبام
-خفيفتَين، وصندوق وارد إداري للقراءة والفرز فقط (`/api/v1/admin/messages`). لا ردّ ولا إنشاء إداري (`D02-4`).
-الرسائل المقبولة تُحفَظ في جدول `contact_messages`.
+خفيفتَين، وصندوق وارد إداري للقراءة والفرز (`/api/v1/admin/messages`) **وللردّ بالبريد** (`D02-13`، ينقض
+شقّ الردّ من `D02-4`). لا إنشاء إداري. الرسائل المقبولة تُحفَظ في `contact_messages`، ومحاولات الردّ في
+`contact_message_replies`.
+
+**الإرسال الفعليّ مُنفَّذ**: الردّ يُحفَظ ثمّ يُسلَّم عبر ناقل البريد، وتُسجَّل النتيجة في حالة الصفّ
+(`SENT` / `FAILED` / `PENDING`). حالة النضج بدقّة — وهي ثلاث جُمَل منفصلة عمدًا:
+`Reply backend ready: YES` · `Reply frontend UI: NO` (لا واجهة في `/dashboard` تستهلكه) ·
+`Reply Production deployed: NO`.
 
 ## خريطة الملفّات
 
 | الملف | الدور |
 |---|---|
 | `contact.controller.ts` | `POST /api/v1/contact` عامّ (`@Public`) + `@UseGuards(ContactThrottlerGuard)` |
-| `messages.admin.controller.ts` | `GET /api/v1/admin/messages` · `GET :id` (`messages.read`) · `PATCH :id` (`messages.update`) |
+| `messages.admin.controller.ts` | `GET /api/v1/admin/messages` · `GET :id` · `GET :id/replies` (`messages.read`) · `PATCH :id` (`messages.update`) · `POST :id/replies` (`messages.reply`) |
+| `contact-reply.service.ts` | نطاق الردّ: الحفظ، ومنع التكرار (`Idempotency-Key`)، وآلة الحالة `PENDING`→`SENT`/`FAILED` + مسار التعافي. يُنسّق التسليم ولا **يبنيه**: بناء الرسالة وإرسالها في `contact-mail.service.ts` |
+| `idempotency-key.pipe.ts` | التحقّق من ترويسة `Idempotency-Key` كـ pipe، أي **قبل** أيّ قراءة من قاعدة البيانات |
+| `reply-subject.ts` | اشتقاق `Re: <الموضوع>` دون تكرار البادئة |
+| `provider-idempotency.ts` | اشتقاق مفتاح تكرار **المزوّد** (`contact-reply/<id>`) وحساب نافذة الـ 24 ساعة |
+| `message-not-repliable.exception.ts` | `409` لرسالة بلا بريد (`D02-10` يسمح برقم هاتف وحده) |
 | `contact.service.ts` | مكافحة السبام + `meta` + الترقيم (unread-first) + الفرز + ضبط `archivedAt` عند الأرشفة + `purgeArchivedOlderThan` |
 | `contact-purge.scheduler.ts` | مهمّة `@Cron` يوميّة داخل العمليّة (`D07-3`): حذف نهائيّ للرسائل المؤرشفة منذ أكثر من ١٢ شهرًا (`D19-10`) |
-| `contact-mail.service.ts` | **محتوى** بريدَي الاستقبال (إشعار المالك + إقرار الزائر) وإرسالهما بعد الحفظ |
+| `contact-mail.service.ts` | **محتوى** بريدَي الاستقبال (إشعار المالك + إقرار الزائر) وإرسالهما بعد الحفظ، **و`dispatchReply`** الذي يبني رسالة الردّ ويُسلّمها حاملةً مفتاح تكرار المزوّد |
 | `anti-spam.ts` | مُساعد نقيّ `isSpam(...)` — مصيدة العسل + فخّ الزمن |
 | `dto/*` · `entities/*` | مدخلات الطلب + أشكال الردّ (Swagger) |
 
@@ -80,14 +91,25 @@
 ## العقود والثوابت
 
 - التحكّم بالمعدّل route-local عبر `ContactThrottlerGuard` (3/ساعة + 10/يوم لكلّ IP، `429` + `Retry-After`).
-- كلّ نقطة إدارية تُعلن `messages.read`/`messages.update`؛ **لا مفتاح `messages.create`** (محجوز غير مُستخدَم).
+- كلّ نقطة إدارية تُعلن `messages.read`/`messages.update`/`messages.reply`؛ **لا مفتاح `messages.create`**.
+- **المستقبِل لا يختاره العميل أبدًا** (`D19-12`): يُشتقّ خادميًّا من `ContactMessage.email` للرسالة المُعنونة،
+  و`CreateMessageReplyDto` لا يحمل أيّ حقل مستقبِل — فأيّ `to`/`cc`/`bcc` في الجسم يُرفَض بـ `422` (لا يُحذَف
+  صامتًا)، لأنّ الأنبوب العامّ يعمل بـ `whitelist` + `forbidNonWhitelisted`.
+- **منع التكرار في قاعدة البيانات** عبر `@@unique([contactMessageId, idempotencyKey])`: مفتاح واحد ⇒ محاولة
+  منطقيّة واحدة. المفتاح مقصور على الرسالة وليس عامًّا، وإلّا لأعاد مفتاحٌ استُخدم مع رسالة أخرى صفَّ **تلك**
+  الرسالة. `201` عند الإنشاء و`200` عند إعادة التشغيل — لأنّ إعادة التشغيل لم تُنشئ موردًا.
 - كلّ رد يمرّ بالغلاف الموحّد (`{ data }` / `{ data, meta }`)، وكلّ DTO/كيان مُزيَّن بالكامل.
 - الأخطاء بصيغة RFC 7807 (problem+json): `422` للتحقّق، و`404` لرسالة غير موجودة في القراءة/التحديث الإداريّين.
 - خصوصيّة وتسجيل: **لا مفهوم رمز/توكن هنا**؛ حقلا مكافحة السبام (`website`/`elapsedMs`) طلبيّان فقط **ولا يُحفظان أبدًا**، والمحفوظ من الترويسات هو `meta = { userAgent, referrer }` فقط (كائن فارغ `{}` عند الغياب).
 
 ## القيود المقبولة والمؤجَّل
 
-- **لا إنشاء ولا ردّ إداريّ** (`D02-4`): الرسالة تُنشأ حصرًا عبر الاستقبال العام؛ مفتاح `messages.create` محجوز غير مُستخدَم، والصندوق قراءة + فرز فقط.
+- **لا إنشاء إداريّ**: الرسالة تُنشأ حصرًا عبر الاستقبال العام؛ مفتاح `messages.create` محجوز غير مُستخدَم.
+- **الردّ الإداريّ مُتاح الآن** (`D02-13`) بعد أن كان مرفوضًا في `D02-4`، **ومع تسليم فعليّ**: الصفّ يُنشأ
+  `PENDING` ثمّ يُحسَم إلى `SENT` أو `FAILED` حسب ما يُقرّه الناقل. وتبقى `PENDING` صادقة عمدًا حين تلزم —
+  فهي تعني «لم تُسجَّل نتيجة نهائيّة»، لا «لم يُسلَّم شيء»؛ والغموض ليس فشلًا.
+- **خارج النطاق قصدًا**: لا استقبال بريد وارد، ولا IMAP، ولا webhooks، ولا سلاسل محادثة، ولا مرفقات، ولا HTML،
+  ولا `CC`/`BCC`، ولا إرسال جماعي أو مجدول، ولا أيّ مسار إرسال لمستقبِل حرّ في الـ API كلّه.
 - **تطهير الرسائل بعد ١٢ شهرًا مُنفَّذ في F005** (قسم «الاحتفاظ والتطهير» أعلاه، `D19-10`) — استبدل تأجيل F004.
 
 ## الاختبارات
@@ -96,8 +118,15 @@
 `contact-purge.scheduler.spec.ts` (حدّ `retentionCutoff` ١٣/١٢/١١ شهرًا + تفويض المجدول + تسجيل العدد فقط بلا PII) ·
 `anti-spam.spec.ts` (حدود المصيدتَين) ·
 `create-contact-message.dto.spec.ts` (تفاعل البوابة: الفخّ لا يُنتج 422، والحقل المجهول يُرفَض) ·
-`contact.controller.spec.ts` (تطابق الإيصال محفوظ/مُسقَط + ميتاداتا الصلاحيات) ·
-`test/contact.e2e-spec.ts` · `test/contact-retention.e2e-spec.ts` (انتقال `archivedAt` عبر HTTP + التطهير على Postgres).
+`contact.controller.spec.ts` (تطابق الإيصال محفوظ/مُسقَط + ميتاداتا الصلاحيات).
+
+وللردّ تحديدًا — **وحدات:** `contact-reply.service.spec.ts` (آلة الحالة كاملة، Prisma مُموَّه) ·
+`provider-idempotency.spec.ts` (شكل المفتاح + حدّا النافذة بالمللي ثانية) · `reply-subject.spec.ts` ·
+`idempotency-key.pipe.spec.ts` · `dto/create-message-reply.dto.spec.ts`.
+**e2e:** `test/contact.e2e-spec.ts` · `test/contact-retention.e2e-spec.ts` (انتقال `archivedAt` عبر HTTP +
+التطهير على Postgres) · `test/message-replies.e2e-spec.ts` · `test/reply-delivery.e2e-spec.ts` ·
+`test/reply-http-delivery.e2e-spec.ts` (مصفوفة التسليم عبر HTTP، ومنها سباق حقيقيّ بحاجز على فهرس الفرادة) ·
+`test/reply-http-security.e2e-spec.ts` (تهريب المستلِم، مصفوفة الصلاحيات، النافذة، والسجلّ).
 
 ## المرجع الرسمي وحالة التوافق
 

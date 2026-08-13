@@ -14,6 +14,11 @@ export interface RotatedRefreshToken extends IssuedRefreshToken {
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
+// Raised when the conditional claim matches no row: something revoked the presented token
+// between our read and our write. Module-private — it never escapes rotateOrThrow, whose
+// catch turns it back into the ordinary revoked-token response.
+class RefreshTokenAlreadyClaimedError extends Error {}
+
 // Opaque rotating refresh tokens with family-based reuse detection (doc 19 §2, D19-2). The
 // raw 256-bit token is returned to the caller (delivered as an httpOnly cookie) and never
 // stored — only its keyed SHA-256 hash lives in the database.
@@ -34,43 +39,74 @@ export class RefreshTokenService {
     return { token, expiresAt };
   }
 
-  // Rotation (D19-2): a valid presented token is revoked and replaced within the same family
+  // Rotation (D19-2): a valid presented token is claimed and replaced within the same family
   // in one transaction. Presenting an already-revoked member is a theft signal — the whole
-  // family is revoked, forcing re-login.
+  // family is revoked, forcing re-login. The invariant is that one token can be claimed
+  // successfully exactly once, however many requests present it at the same moment.
   async rotateOrThrow(presentedToken: string): Promise<RotatedRefreshToken> {
-    const existing = await this.prisma.refreshToken.findUnique({
+    const presented = await this.prisma.refreshToken.findUnique({
       where: { tokenHash: this.hash(presentedToken) },
     });
 
-    if (!existing) {
+    if (!presented) {
       throw new UnauthorizedException('Invalid refresh token.');
     }
-    if (existing.revokedAt) {
-      await this.revokeFamily(existing.familyId);
+    if (presented.revokedAt) {
+      await this.revokeFamily(presented.familyId);
       throw new UnauthorizedException('Refresh token has been revoked.');
     }
-    if (existing.expiresAt.getTime() <= Date.now()) {
+    if (presented.expiresAt.getTime() <= Date.now()) {
       throw new UnauthorizedException('Refresh token has expired.');
     }
 
-    const token = this.generateOpaqueToken();
-    const expiresAt = this.computeExpiry();
-    await this.prisma.$transaction([
-      this.prisma.refreshToken.update({
-        where: { id: existing.id },
-        data: { revokedAt: new Date() },
-      }),
-      this.prisma.refreshToken.create({
-        data: {
-          userId: existing.userId,
-          familyId: existing.familyId,
-          tokenHash: this.hash(token),
-          expiresAt,
-        },
-      }),
-    ]);
+    const successorToken = this.generateOpaqueToken();
+    const successorExpiresAt = this.computeExpiry();
 
-    return { token, expiresAt, userId: existing.userId };
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        // WHY a conditional updateMany rather than update({ where: { id } }): the revokedAt
+        // check above cannot enforce "claimed exactly once". Two requests presenting the same
+        // token both read revokedAt = null before either writes, so both pass that check and
+        // both mint a successor. Carrying `revokedAt: null` into the WHERE clause hands the
+        // decision to PostgreSQL instead — under READ COMMITTED the losing UPDATE blocks on
+        // the row, re-evaluates the predicate against the committed version once the winner
+        // ends, and matches nothing. `count` is the verdict; our earlier read is not.
+        const claim = await tx.refreshToken.updateMany({
+          where: { id: presented.id, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+        if (claim.count === 0) {
+          throw new RefreshTokenAlreadyClaimedError();
+        }
+
+        // Same transaction as the claim, so a token is never left revoked without its
+        // replacement: if this fails, the revocation rolls back with it and the operator
+        // keeps a token that still works.
+        await tx.refreshToken.create({
+          data: {
+            userId: presented.userId,
+            familyId: presented.familyId,
+            tokenHash: this.hash(successorToken),
+            expiresAt: successorExpiresAt,
+          },
+        });
+      });
+    } catch (error) {
+      if (!(error instanceof RefreshTokenAlreadyClaimedError)) {
+        throw error;
+      }
+      // The claim transaction has already rolled back here, so this revocation is not undone
+      // with it. Losing the claim is deliberately indistinguishable from replaying a stolen
+      // token (D19-2): same family revocation, same response.
+      await this.revokeFamily(presented.familyId);
+      throw new UnauthorizedException('Refresh token has been revoked.');
+    }
+
+    return {
+      token: successorToken,
+      expiresAt: successorExpiresAt,
+      userId: presented.userId,
+    };
   }
 
   // Logout revokes the whole family (doc 19 §2). Idempotent: an unknown token is a no-op.

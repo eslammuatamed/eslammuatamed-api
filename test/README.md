@@ -6,26 +6,29 @@
 
 ## خريطة الملفّات
 
-| الملف/المجلد | الدور |
-|---|---|
-| `jest-e2e.json` | إعداد `jest` لمسار الـ e2e (منفصل عن إعداد الوحدة في `package.json`) |
-| `utils/e2e-app.ts` | تهيئة تطبيق `Nest` كامل للاختبار (نفس الـ pipes/filters/guards) |
-| `utils/contract.ts` | تحميل `openapi.json` لتأكيدات `jest-openapi` |
-| `<domain>.e2e-spec.ts` | مجموعة لكل مجال: `auth`, `articles`, `articles-related`, `projects`, `settings`, `experiences`, `skills`, `testimonials`, `access-control`, `list-envelopes`, `health` |
+| الملف/المجلد                  | الدور                                                                                                                                                                  |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `jest-e2e.json`               | إعداد `jest` لمسار الـ e2e (منفصل عن إعداد الوحدة في `package.json`)                                                                                                   |
+| `utils/e2e-app.ts`            | تهيئة تطبيق `Nest` كامل للاختبار (نفس الـ pipes/filters/guards)                                                                                                        |
+| `utils/contract.ts`           | تحميل `openapi.json` لتأكيدات `jest-openapi`                                                                                                                           |
+| `utils/e2e-database.ts`       | قواعد عزل قاعدة البيانات (`D18-8`): توليد الاسم، اشتقاق الـ DSN، والحارس الذي **يرفض الإقلاع** خارج قاعدة الجولة                                                       |
+| `utils/e2e-database-admin.ts` | تنفيذ الإنشاء/الترحيل/البذر/الإسقاط لقاعدة الجولة                                                                                                                      |
+| `<domain>.e2e-spec.ts`        | مجموعة لكل مجال: `auth`, `articles`, `articles-related`, `projects`, `settings`, `experiences`, `skills`, `testimonials`, `access-control`, `list-envelopes`, `health` |
 
 ## ما تُثبته الاختبارات
 
 - **مطابقة العقد:** `jest-openapi` يؤكّد أن كل استجابة (نجاح **وخطأ**) تطابق مخطّط `openapi.json` — فلا ينحرف التنفيذ عن العقد بصمت.
 - **السلوك عبر الحرّاس الحقيقيين:** الدخول/التجديد/الخروج، default-deny، إنفاذ الصلاحيات، إخفاء المسودّات (404)، أغلفة القوائم، تحليل اللغة.
 
-## كيف تُشغَّل (تحتاج Postgres)
+## كيف تُشغَّل (تحتاج خادم Postgres يعمل)
 
 ```bash
-export DATABASE_URL=postgresql://eslammuatamed@localhost:5432/eslammuatamed_test
-npx prisma migrate deploy && npm run db:seed
 npm run test:e2e            # --runInBand
 ```
-الـ CI يشغّلها في مسار `e2e` بخدمة `postgres:16` (انظر `.github/workflows/ci.yml`).
+
+لا ترحيل ولا بذر يدويًّا: الحزمة **تملك قاعدة بياناتها** (`D18-8`). في كل تشغيل تُنشئ قاعدة جديدة باسم `eslammuatamed_e2e_<run-id>`، تُرحّلها وتبذرها، ثم تُسقطها في النهاية. من `DATABASE_URL` المُهيَّأ تُشتقّ **بيانات الخادم فقط** (المضيف، المنفذ، الاعتماد) ويُهمَل اسم قاعدته — فتشغيل `npm run test:e2e` بملف `.env` تطويري **لا يمكن** أن يكتب في `eslammuatamed_dev`. وحارس `fail-closed` في `utils/e2e-setup.ts` يرفض إقلاع التطبيق أصلًا إن لم تُشِر `DATABASE_URL` إلى قاعدة وَلَّدَتْها هذه الجولة.
+
+الـ CI يشغّلها في مسار `e2e` بخدمة `postgres:16` (انظر `.github/workflows/ci.yml`)؛ وهو أيضًا لا يُرحّل ولا يبذر — مالك التهيئة واحد.
 
 ## العلاقة بالوثيقة الحاكمة
 
@@ -33,8 +36,8 @@ npm run test:e2e            # --runInBand
 
 ## أخطاء شائعة
 
-- وضع اختبارات وحدة هنا بدل جوار المصدر (`D08-3`).
-- تشغيل e2e دون `migrate`/`seed` مسبقين.
+- وضع اختبارات وحدة هنا بدل جوار المصدر (`D08-3`). الاستثناء الوحيد `utils/e2e-database.spec.ts`: يختبر **أداة** المسار نفسها، وقواعده يجب أن تَثبُت قبل لمس أي قاعدة بيانات — فإثباتها من تشغيل e2e ناجح مصادرة على المطلوب.
+- إضافة `migrate`/`seed` يدوي أو في الـ CI قبل الحزمة: صار للتهيئة مالك واحد هو الحزمة نفسها، ومالكان متنافسان يُخفيان أيّهما فعل ماذا.
 
 ## المرجع الرسمي وحالة التوافق
 

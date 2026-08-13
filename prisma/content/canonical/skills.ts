@@ -1,6 +1,6 @@
 // Canonical Skills taxonomy (doc 09 §6.1). Pure data — no database calls — so exactly one
 // definition is shared by the production synchronization, the development overlay and the tests.
-import { SkillGroup } from '@prisma/client';
+import { SkillGroup } from '../../../src/generated/prisma/client';
 
 export interface SkillSeed {
   readonly group: SkillGroup;

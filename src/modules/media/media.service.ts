@@ -2,10 +2,13 @@ import {
   Inject,
   Injectable,
   NotFoundException,
-  ServiceUnavailableException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { MediaKind, MediaVariantFormat, Prisma } from '@prisma/client';
+import {
+  MediaKind,
+  MediaVariantFormat,
+  Prisma,
+} from '../../generated/prisma/client';
 import { createHash, randomUUID } from 'node:crypto';
 import { InjectPinoLogger } from 'nestjs-pino';
 import type { PinoLogger } from 'nestjs-pino';
@@ -25,9 +28,9 @@ import { MediaUsageEntity } from './entities/media-usage.entity';
 import { IMMUTABLE_CACHE_CONTROL, MEDIA_KEY_ROOT } from './media.constants';
 import { MediaInUseException } from './media-in-use.exception';
 import {
+  budgetTierFor,
   PDF_MIME_TYPE,
   RENDITION_BUDGETS,
-  RENDITION_WIDTHS,
 } from './media-processing.constants';
 import { MediaProcessingService } from './media-processing.service';
 import {
@@ -37,7 +40,10 @@ import {
 import { sanitizeFilename } from './media-processing.util';
 import { ProcessingConcurrencyLimiter } from './processing-concurrency.limiter';
 import { STORAGE_ADAPTER } from './storage/storage-adapter.interface';
-import type { StorageAdapter } from './storage/storage-adapter.interface';
+import type {
+  StorageAdapter,
+  StorageDeletionFailure,
+} from './storage/storage-adapter.interface';
 
 // The bytes + client hints a validated multipart upload hands the service. Neither hint is
 // trusted for type — the T5 processor sniffs magic bytes — but the declared MIME routes IMAGE vs
@@ -63,7 +69,11 @@ type AdminMediaAsset = Prisma.MediaAssetGetPayload<{
 
 // Every foreign key that can reference an asset (doc 10 §6). Selected in one query so usages and
 // the delete-in-use check never fan out (no N+1).
-const USAGE_INCLUDE = {
+// Exported for `media-usage-invariant.spec.ts`, which asserts that this set and the schema's
+// RESTRICT-guarded relations to `MediaAsset` stay the same set. Nothing else imports it: the
+// export exists so the invariant can read the OBJECT THE QUERY ACTUALLY USES rather than a
+// second hand-maintained copy of the same list.
+export const USAGE_INCLUDE = {
   articleCovers: { select: { id: true } },
   articleOgImages: { select: { id: true, articleId: true, locale: true } },
   projectOgImages: { select: { id: true, projectId: true, locale: true } },
@@ -383,6 +393,12 @@ export class MediaService {
   }
 
   // ── Delete (DELETE /admin/media/:id) ─────────────────────────────────────────────────────────
+  // Row first, objects only after it commits (D07-7). PostgreSQL and object storage cannot share a
+  // transaction, so one of the two must be able to fail alone; this ordering chooses which. The
+  // usage read below is a UX affordance that produces the rich `usages` body — it is NOT the
+  // correctness boundary, because it is already stale by the time the delete runs. The RESTRICT
+  // foreign key is the only check that is current at the moment of deletion, and it can only
+  // protect the asset while its objects still exist.
   async remove(id: string): Promise<void> {
     const asset = await this.prisma.mediaAsset.findUnique({
       where: { id },
@@ -398,25 +414,85 @@ export class MediaService {
       throw new MediaInUseException(usages);
     }
 
-    // Objects first (idempotent), then the row — CASCADE removes variants + alts (D07-6). If any
-    // object deletion fails we keep the row and surface it; an idempotent retry converges.
+    // Read from the rows that are about to disappear — the keys are never reconstructed from a
+    // naming convention, because the database is the authoritative record of what was stored.
     const keys = [asset.storageKey, ...asset.variants.map((v) => v.storageKey)];
-    const result = await this.storage.deleteMany(keys);
-    if (result.failed.length > 0) {
-      this.logger.error(
-        {
-          event: 'media.delete_cleanup_incomplete',
-          assetId: id,
-          failed: result.failed,
-        },
-        'Media object deletion incomplete; DB row retained for retry',
-      );
-      throw new ServiceUnavailableException(
-        'Stored media objects could not be fully removed. Please retry.',
-      );
+
+    // THE COMMIT POINT. A single `delete` is its own PostgreSQL transaction and the alts/variants
+    // CASCADE resolve inside it, so an explicit `$transaction` would add nothing: a rejected delete
+    // rolls back its own cascade (verified against the database, not assumed). Storage I/O is kept
+    // strictly outside it — a Postgres transaction is never held open across a network call to R2.
+    try {
+      await this.prisma.mediaAsset.delete({ where: { id } });
+    } catch (error) {
+      if (isForeignKeyViolation(error)) {
+        // The race D07-7 exists for: a reference appeared between the read above and this delete.
+        // The FK rejected it, so the row and every object are still intact — storage is never
+        // reached on this path. Re-read the usages so the answer keeps the established 409 + usages
+        // contract instead of the filter's generic P2003 → 409, which carries no `usages`.
+        throw new MediaInUseException(await this.usagesAfterRejection(id));
+      }
+      // Anything else stays with AllExceptionsFilter: P2025 from a concurrent delete that won
+      // becomes 404, and no failure is ever mistranslated into a false 409.
+      throw error;
     }
 
-    await this.prisma.mediaAsset.delete({ where: { id } });
+    // Committed — the asset no longer exists as far as the domain is concerned. Everything past
+    // this point is best-effort cleanup that can never change the outcome of the request.
+    await this.cleanupAfterDelete(id, keys);
+  }
+
+  // The usages behind an FK rejection, read after the fact. An empty result is possible and is not
+  // an error: the blocking transaction may have rolled back in the moment between the rejection and
+  // this read. The response stays a 409 either way — the database already refused the delete, and
+  // reporting anything else would contradict what actually happened.
+  private async usagesAfterRejection(id: string): Promise<MediaUsageEntity[]> {
+    const asset = await this.prisma.mediaAsset.findUnique({
+      where: { id },
+      include: USAGE_INCLUDE,
+    });
+    return asset ? buildUsages(asset) : [];
+  }
+
+  // Post-commit object cleanup. The row is already gone, so there is nothing to compensate and
+  // nothing to roll back — deleting the row again is impossible and re-creating it would be a lie.
+  // A failure here leaves an orphaned object: wasted bytes no reader can observe, removable by
+  // hand. That is the recoverable side of D07-7, so it is logged for an operator and never thrown.
+  // Throwing would tell the client the deletion failed after it had already succeeded, and invite a
+  // retry of a request that has nothing left to delete.
+  private async cleanupAfterDelete(
+    assetId: string,
+    keys: string[],
+  ): Promise<void> {
+    // Only the LOCAL adapter is internally total (it catches per key); the S3/R2 adapter can reject
+    // outright on a transport or credential failure. Both are contained here so the guarantee holds
+    // for every driver rather than for the one that happens to be configured.
+    let failed: readonly StorageDeletionFailure[];
+    try {
+      failed = (await this.storage.deleteMany(keys)).failed;
+    } catch (error) {
+      // Total failure: nothing is known to have been deleted, so every key is a potential orphan.
+      failed = keys.map((key) => ({
+        key,
+        reason: error instanceof Error ? error.message : 'unknown error',
+      }));
+    }
+
+    if (failed.length > 0) {
+      // Keys and the asset id only — enough to find and remove the objects by hand, and never the
+      // original filename, a signed URL or any credential. `failed` alone, never the full key list:
+      // an object that WAS deleted must not be reported as an orphan.
+      this.logger.error(
+        {
+          event: 'media.delete_orphaned_objects',
+          assetId,
+          driver: this.storage.constructor.name,
+          failedCount: failed.length,
+          failed,
+        },
+        'Media row deleted; these stored objects remain and must be removed by hand',
+      );
+    }
   }
 
   // ── Internals ────────────────────────────────────────────────────────────────────────────────
@@ -473,7 +549,13 @@ export class MediaService {
           width: variant.width,
           format: variant.format,
           bytes: variant.sizeBytes,
-          budget: budgetForWidth(variant.width, variant.format),
+          // The tier is resolved by the canonical `budgetTierFor` (B-3) — the SAME rule the
+          // encoder measured against. A local re-implementation here previously rounded a
+          // non-tier width DOWN to 640, so an over-budget 1086px rendition was measured against
+          // the 1280 row but reported the 640 one: the operator saw a budget the encoder never used.
+          budget:
+            RENDITION_BUDGETS[budgetTierFor(variant.width)]?.[variant.format] ??
+            0,
           floorQuality: variant.quality,
         },
         'Rendition kept above its width×format budget at the quality floor (D20-6)',
@@ -553,6 +635,22 @@ function isUniqueViolationOnContentHash(error: unknown): boolean {
   return asText.includes('content_hash') || asText.includes('contentHash');
 }
 
+// A referential rejection of the authoritative delete (D07-7). This is NOT a second Prisma error
+// translator: `AllExceptionsFilter` still owns every mapping, including its generic P2003 → 409.
+// This predicate only decides whether THIS delete has earned the richer 409 that carries `usages`,
+// which is domain knowledge the global filter cannot have. Verified against a real database under
+// Prisma 7 + PrismaPg: a RESTRICT rejection arrives as a `PrismaClientKnownRequestError` with code
+// `P2003`, and an already-deleted row arrives as `P2025` — which must NOT be caught here, or a
+// concurrent double delete would answer 409 with no usages instead of the governed 404. The code is
+// the whole test: `meta` carries the constraint name, but v7 has already moved that shape once
+// (F9-9, P2002's `meta.target`), and matching on it would buy nothing a delete on this model needs.
+function isForeignKeyViolation(error: unknown): boolean {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === 'P2003'
+  );
+}
+
 // Structural relations shared by the usages and delete queries (decoupled from the exact include).
 interface UsageRelations {
   articleCovers: { id: string }[];
@@ -563,11 +661,6 @@ interface UsageRelations {
   pageSeoOgImages: { id: string; pageKey: string; locale: string }[];
   resumeForSettings: { id: string }[];
   portraitForSettings: { id: string }[];
-}
-
-function budgetForWidth(width: number, format: ImageVariantFormat): number {
-  const tier = RENDITION_WIDTHS.includes(width) ? width : 640;
-  return RENDITION_BUDGETS[tier]?.[format] ?? 0;
 }
 
 function buildUsages(asset: UsageRelations): MediaUsageEntity[] {

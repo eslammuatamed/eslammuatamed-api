@@ -1,5 +1,5 @@
 import { ApiExtraModels, ApiProperty, getSchemaPath } from '@nestjs/swagger';
-import { SkillGroup } from '@prisma/client';
+import { SkillGroup } from '../../../generated/prisma/client';
 
 export class PublicSkillEntity {
   @ApiProperty({ format: 'uuid' }) readonly id!: string;

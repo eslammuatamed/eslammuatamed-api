@@ -10,7 +10,6 @@
 |---|---|
 | `guards/jwt-auth.guard.ts` | `JwtAuthGuard` العام (default-deny): يتحقّق من access token بـ `JwtService`، يضع `request.user` |
 | `decorators/public.decorator.ts` | `@Public()` — يُعلن مسارًا عامًّا (يتخطّى الحارس) عبر metadata `IS_PUBLIC_KEY` |
-| `decorators/current-user.decorator.ts` | `@CurrentUser()` — يحقن `request.user` في المعاملات |
 | `auth/authenticated-user.ts` | نوع `AuthenticatedUser` (`{ id }`) — مُبقًى في `common/` كي لا يستورد الحارس من `modules/` |
 | `filters/all-exceptions.filter.ts` | `AllExceptionsFilter` العام: كل استثناء → `RFC 7807 problem+json` |
 | `http/problem-details.ts` | نوع `ProblemDetails` + `ProblemDetailsDto` (لـ Swagger) + `PROBLEM_TYPES` |
@@ -39,7 +38,7 @@ providers: [
 
 الترتيب مقصود: throttle يطبَّق حتى على العامّ، ثم المصادقة تضع `request.user`، ثم التفويض يحلّ الصلاحيات. `PermissionsGuard` نفسه يعيش في وحدة `access-control` (لأنه يحتاج `PrismaService`)، لكنه يعمل في هذا الترتيب العالمي.
 
-- **وارد:** كل controller/DTO في `modules/` يستخدم `@Public()`, `@CurrentUser()`, `PaginationQueryDto`, `LocaleQueryDto`, ومساعدات Swagger.
+- **وارد:** كل controller/DTO في `modules/` يستخدم `@Public()`, `PaginationQueryDto`, `LocaleQueryDto`, ومساعدات Swagger.
 - **صادر:** حزم `@nestjs/*` + `AppConfigService`. **لا استيراد من `modules/`.**
 
 ## التدفّقات الأساسية

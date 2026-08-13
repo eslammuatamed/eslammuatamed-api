@@ -1,5 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { MediaKind, MediaVariantFormat } from '@prisma/client';
+import {
+  MediaKind,
+  MediaVariantFormat,
+} from '../../../generated/prisma/client';
 
 // The PUBLIC media descriptors (D10-10, doc 10 §6). Resolved additively onto public responses
 // alongside the retained `*Id` fields. Deliberately narrower than the admin entity: NO overBudget,

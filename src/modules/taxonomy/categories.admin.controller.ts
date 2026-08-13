@@ -24,6 +24,7 @@ import {
 import {
   ApiAdminErrorResponses,
   ApiProblemResponse,
+  ApiUuidParamBadRequest,
 } from '../../common/swagger/api-problem-response';
 import { THROTTLE_TIERS } from '../../common/throttling/throttle-tiers';
 import { RequirePermission } from '../access-control/decorators/require-permission.decorator';
@@ -70,6 +71,7 @@ export class CategoriesAdminController {
     HttpStatus.UNPROCESSABLE_ENTITY,
     'Validation error or slug already in use.',
   )
+  @ApiUuidParamBadRequest('category')
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateCategoryDto,
@@ -89,6 +91,7 @@ export class CategoriesAdminController {
     HttpStatus.CONFLICT,
     'Category is still referenced by articles.',
   )
+  @ApiUuidParamBadRequest('category')
   async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     await this.categories.remove(id);
   }

@@ -10,7 +10,8 @@
 // Deliberately absent: `--force`. A flag that bypasses validation is a flag that gets used in a
 // hurry, and the validation is the only thing standing between a mistyped dataset and production.
 import 'reflect-metadata';
-import { PrismaClient } from '@prisma/client';
+import { loadEnvFileIfPresent } from '../../src/prisma/load-env';
+import { createPrismaClient } from '../../src/prisma/standalone-client';
 import {
   applyPlan,
   PlanRejectedError,
@@ -47,7 +48,8 @@ function parseArgs(argv: readonly string[]): {
 
 async function main(): Promise<void> {
   const { mode, json, verbose } = parseArgs(process.argv);
-  const prisma = new PrismaClient();
+  loadEnvFileIfPresent();
+  const prisma = createPrismaClient();
 
   try {
     // `readOnly` narrows the client so the builder CANNOT write — the dry-run's zero-write

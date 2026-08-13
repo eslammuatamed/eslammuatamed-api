@@ -8,7 +8,7 @@ import {
   Experience,
   ExperienceTranslation,
   Prisma,
-} from '@prisma/client';
+} from '../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocalesService } from '../locales/locales.service';
 import { CreateExperienceDto, UpdateExperienceDto } from './dto/experience.dto';

@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { EmploymentType } from '@prisma/client';
+import { EmploymentType } from '../../../generated/prisma/client';
 import { Type } from 'class-transformer';
 import {
   ArrayMinSize,

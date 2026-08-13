@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { SlugRedirect } from '@prisma/client';
+import { SlugRedirect } from '../../generated/prisma/client';
 import { DeepMockProxy, mockDeep } from 'jest-mock-extended';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocalesService } from '../locales/locales.service';

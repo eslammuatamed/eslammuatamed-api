@@ -12,6 +12,19 @@ export interface MailMessage {
   // Set on the owner notification so a reply in the mail client reaches the visitor rather than
   // the envelope sender. Never set to a value the API did not itself validate.
   readonly replyTo?: string;
+  // Opt-in duplicate-send protection for a message whose send the caller may legitimately RE-ATTEMPT
+  // with an ambiguous prior outcome. Provider-neutral on purpose: the caller states "these two send
+  // attempts are the same logical email", and MailService alone decides which transport header
+  // expresses that. The provider's name does not appear in any domain module.
+  //
+  // Absent on the notification path, and that absence is asserted rather than assumed: those sends
+  // are independent logical operations that must never be collapsed into one another (11B-α §25).
+  //
+  // NOT the client's application `Idempotency-Key`. That value identifies the logical OPERATION and
+  // lives forever in the database; this one identifies the external SEND and is honoured by the
+  // provider for a bounded window. Distinct names because they are distinct values with distinct
+  // lifetimes — see contact/provider-idempotency.ts.
+  readonly providerIdempotencyKey?: string;
 }
 
 // What a send attempt concluded. MailService returns this instead of throwing: delivery is a side

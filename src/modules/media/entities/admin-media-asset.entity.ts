@@ -1,5 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { MediaKind, MediaVariantFormat } from '@prisma/client';
+import {
+  MediaKind,
+  MediaVariantFormat,
+} from '../../../generated/prisma/client';
 
 // One delivered rendition as the admin sees it. Carries `overBudget` (D20-6) — the public
 // descriptor (T7) omits it. `url` is absolute on the media origin.

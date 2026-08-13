@@ -1,9 +1,5 @@
-import {
-  Injectable,
-  NotFoundException,
-  UnprocessableEntityException,
-} from '@nestjs/common';
-import { Prisma, SkillGroup } from '@prisma/client';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma, SkillGroup } from '../../generated/prisma/client';
 import {
   buildPageMeta,
   PaginatedResult,
@@ -182,41 +178,44 @@ export class ProjectsService {
 
   async create(dto: CreateProjectDto): Promise<AdminProjectEntity> {
     await this.assertLocales(dto.translations, dto.gallery);
-    try {
-      const [project] = await this.prisma.$transaction([
-        this.prisma.project.create({
-          data: {
-            featured: dto.featured,
-            isPublished: dto.isPublished ?? false,
-            order: dto.order,
-            liveUrl: dto.liveUrl,
-            repoUrl: dto.repoUrl,
-            year: dto.year,
-            translations: {
-              create: dto.translations.map(translationWriteFields),
-            },
-            technologies:
-              dto.technologyIds.length > 0
-                ? {
-                    create: dto.technologyIds.map((skillId) => ({ skillId })),
-                  }
-                : undefined,
-            gallery:
-              dto.gallery.length > 0
-                ? {
-                    create: dto.gallery.map((gallery) =>
-                      galleryNestedCreateFields(gallery),
-                    ),
-                  }
-                : undefined,
-          },
-          include: ADMIN_INCLUDE,
-        }),
-      ]);
-      return toAdminEntity(project);
-    } catch (error) {
-      throw mapProjectWriteError(error);
-    }
+    // C-5: a nested create is ALREADY atomic, so no `$transaction` wrapper — one operation in a
+    // transaction implied a multi-write invariant that does not exist here, and `articles.service`
+    // does the same create without one. Relation semantics are unchanged: `translations`,
+    // `technologies` and `gallery` are still nested writes in this single statement.
+    //
+    // B-2: no try/catch either. A P2002 propagates to `AllExceptionsFilter`, the single translation
+    // point (doc 15 §3), which answers it as a 422 problem+json WITH `errors[]` field paths. The
+    // local translation this replaces emitted a bare 422 with no `errors[]`, so a project slug
+    // collision and an article slug collision — the same failure — returned two different contracts.
+    const project = await this.prisma.project.create({
+      data: {
+        featured: dto.featured,
+        isPublished: dto.isPublished ?? false,
+        order: dto.order,
+        liveUrl: dto.liveUrl,
+        repoUrl: dto.repoUrl,
+        year: dto.year,
+        translations: {
+          create: dto.translations.map(translationWriteFields),
+        },
+        technologies:
+          dto.technologyIds.length > 0
+            ? {
+                create: dto.technologyIds.map((skillId) => ({ skillId })),
+              }
+            : undefined,
+        gallery:
+          dto.gallery.length > 0
+            ? {
+                create: dto.gallery.map((gallery) =>
+                  galleryNestedCreateFields(gallery),
+                ),
+              }
+            : undefined,
+      },
+      include: ADMIN_INCLUDE,
+    });
+    return toAdminEntity(project);
   }
 
   async update(id: string, dto: UpdateProjectDto): Promise<AdminProjectEntity> {
@@ -307,11 +306,9 @@ export class ProjectsService {
       }
     }
 
-    try {
-      if (operations.length > 0) await this.prisma.$transaction(operations);
-    } catch (error) {
-      throw mapProjectWriteError(error);
-    }
+    // A genuine multi-write transaction (the rename + its D04-6 redirect ops must land together),
+    // kept. B-2: no catch — a P2002 reaches `AllExceptionsFilter` like every other module's.
+    if (operations.length > 0) await this.prisma.$transaction(operations);
     return this.getAdmin(id);
   }
 
@@ -742,22 +739,4 @@ function toAdminEntity(project: ProjectAdminPayload): AdminProjectEntity {
     createdAt: project.createdAt.toISOString(),
     updatedAt: project.updatedAt.toISOString(),
   };
-}
-
-function mapProjectWriteError(error: unknown): Error {
-  if (isPrismaCode(error, 'P2002')) {
-    return new UnprocessableEntityException(
-      'A project translation slug or relation value already exists.',
-    );
-  }
-  return error instanceof Error ? error : new Error('Project write failed.');
-}
-
-function isPrismaCode(error: unknown, code: string): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    (error as { code?: unknown }).code === code
-  );
 }

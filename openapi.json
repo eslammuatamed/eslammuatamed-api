@@ -901,6 +901,16 @@
               }
             }
           },
+          "400": {
+            "description": "The media asset id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing or invalid access token.",
             "content": {
@@ -993,6 +1003,16 @@
               }
             }
           },
+          "400": {
+            "description": "The media asset id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing or invalid access token.",
             "content": {
@@ -1069,6 +1089,16 @@
         "responses": {
           "204": {
             "description": "Media asset and its objects deleted."
+          },
+          "400": {
+            "description": "The media asset id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
           },
           "401": {
             "description": "Missing or invalid access token.",
@@ -1162,6 +1192,16 @@
                       }
                     }
                   }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The media asset id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
                 }
               }
             }
@@ -1473,6 +1513,16 @@
               }
             }
           },
+          "400": {
+            "description": "The category id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing or invalid access token.",
             "content": {
@@ -1549,6 +1599,16 @@
         "responses": {
           "204": {
             "description": "Category deleted."
+          },
+          "400": {
+            "description": "The category id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
           },
           "401": {
             "description": "Missing or invalid access token.",
@@ -1867,6 +1927,16 @@
               }
             }
           },
+          "400": {
+            "description": "The tag id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing or invalid access token.",
             "content": {
@@ -1943,6 +2013,16 @@
         "responses": {
           "204": {
             "description": "Tag deleted."
+          },
+          "400": {
+            "description": "The tag id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
           },
           "401": {
             "description": "Missing or invalid access token.",
@@ -2511,6 +2591,16 @@
               }
             }
           },
+          "400": {
+            "description": "The article id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing or invalid access token.",
             "content": {
@@ -2603,6 +2693,16 @@
               }
             }
           },
+          "400": {
+            "description": "The article id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing or invalid access token.",
             "content": {
@@ -2679,6 +2779,16 @@
         "responses": {
           "204": {
             "description": "Article deleted."
+          },
+          "400": {
+            "description": "The article id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
           },
           "401": {
             "description": "Missing or invalid access token.",
@@ -3059,6 +3169,16 @@
               }
             }
           },
+          "400": {
+            "description": "The role id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing or invalid access token.",
             "content": {
@@ -3151,6 +3271,16 @@
               }
             }
           },
+          "400": {
+            "description": "The role id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing or invalid access token.",
             "content": {
@@ -3227,6 +3357,16 @@
         "responses": {
           "204": {
             "description": "Role deleted."
+          },
+          "400": {
+            "description": "The role id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
           },
           "401": {
             "description": "Missing or invalid access token.",
@@ -3476,6 +3616,16 @@
                       "$ref": "#/components/schemas/UserEntity"
                     }
                   }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The user id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
                 }
               }
             }
@@ -3788,6 +3938,16 @@
               }
             }
           },
+          "400": {
+            "description": "The skill id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing or invalid access token.",
             "content": {
@@ -3879,6 +4039,16 @@
               }
             }
           },
+          "400": {
+            "description": "The skill id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing or invalid access token.",
             "content": {
@@ -3954,6 +4124,16 @@
         "responses": {
           "204": {
             "description": "Skill deleted."
+          },
+          "400": {
+            "description": "The skill id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
           },
           "401": {
             "description": "Missing or invalid access token.",
@@ -4262,6 +4442,16 @@
               }
             }
           },
+          "400": {
+            "description": "The experience id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing or invalid access token.",
             "content": {
@@ -4353,6 +4543,16 @@
               }
             }
           },
+          "400": {
+            "description": "The experience id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing or invalid access token.",
             "content": {
@@ -4428,6 +4628,16 @@
         "responses": {
           "204": {
             "description": "Experience deleted."
+          },
+          "400": {
+            "description": "The experience id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
           },
           "401": {
             "description": "Missing or invalid access token.",
@@ -4727,6 +4937,16 @@
               }
             }
           },
+          "400": {
+            "description": "The testimonial id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing or invalid access token.",
             "content": {
@@ -4818,6 +5038,16 @@
               }
             }
           },
+          "400": {
+            "description": "The testimonial id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing or invalid access token.",
             "content": {
@@ -4893,6 +5123,16 @@
         "responses": {
           "204": {
             "description": "Testimonial deleted."
+          },
+          "400": {
+            "description": "The testimonial id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
           },
           "401": {
             "description": "Missing or invalid access token.",
@@ -5411,6 +5651,16 @@
               }
             }
           },
+          "400": {
+            "description": "The project id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing or invalid access token.",
             "content": {
@@ -5503,6 +5753,16 @@
               }
             }
           },
+          "400": {
+            "description": "The project id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing or invalid access token.",
             "content": {
@@ -5579,6 +5839,16 @@
         "responses": {
           "204": {
             "description": "Project deleted."
+          },
+          "400": {
+            "description": "The project id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
           },
           "401": {
             "description": "Missing or invalid access token.",
@@ -5867,6 +6137,16 @@
               }
             }
           },
+          "400": {
+            "description": "The message id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing or invalid access token.",
             "content": {
@@ -5959,6 +6239,16 @@
               }
             }
           },
+          "400": {
+            "description": "The message id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing or invalid access token.",
             "content": {
@@ -6021,6 +6311,256 @@
         ]
       }
     },
+    "/api/v1/admin/messages/{id}/replies": {
+      "get": {
+        "description": "Ordered by `createdAt` ascending, tie-broken by `id` — reply ids are time-ordered UUIDv7, so the tie-break is chronologically meaningful and two identical requests cannot disagree. Scoped strictly to `:id`: no other message's attempts appear. An empty array and a 404 are DIFFERENT facts and must not be conflated — a 404 means no such message, while `200 []` means the message exists and has no reply attempts. The latter includes a phone-only message that carries no email address and therefore can never be replied to at all: its history is readable and empty, even though POSTing to it answers 409.",
+        "operationId": "MessagesAdminController_listReplies_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ContactMessageReplyEntity"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The message id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Message not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "List the reply attempts for one contact message, chronologically.",
+        "tags": [
+          "messages"
+        ]
+      },
+      "post": {
+        "description": "Idempotent per (message, Idempotency-Key): a repeated request with the same key returns the existing attempt with 200 instead of sending again. A deliberate second reply uses a new key. The response carries the outcome as `status` — a request that reaches the provider returns SENT, one the provider does not accept returns FAILED with 201/200 rather than an error, since the attempt was recorded either way. An attempt left PENDING has an unknown outcome and may be recovered by repeating the request with the SAME key within 24 hours; after that it is returned unchanged and never re-sent automatically.",
+        "operationId": "MessagesAdminController_createReply_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "An opaque client-generated value, 8–200 printable ASCII characters without whitespace (a UUID is the obvious choice). Scoped to this message: the same key against a different message is a different logical attempt.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 200
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMessageReplyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ContactMessageReplyEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ContactMessageReplyEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The message id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Message not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The message carries no email address and cannot be replied to.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error — including a missing or malformed Idempotency-Key header.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Send a plain-text reply to a contact message. The recipient is the message sender and cannot be chosen.",
+        "tags": [
+          "messages"
+        ]
+      }
+    },
     "/api/v1/admin/articles/{id}/preview-token": {
       "post": {
         "operationId": "PreviewAdminController_mintArticleToken_v1",
@@ -6050,6 +6590,16 @@
                       "$ref": "#/components/schemas/PreviewTokenEntity"
                     }
                   }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The resource id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
                 }
               }
             }
@@ -6135,6 +6685,16 @@
                       "$ref": "#/components/schemas/PreviewTokenEntity"
                     }
                   }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The resource id in the path is not a well-formed UUID.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
                 }
               }
             }
@@ -6245,7 +6805,7 @@
             }
           },
           "400": {
-            "description": "Unknown or disabled locale.",
+            "description": "The resource id in the path is not a well-formed UUID.\n\nUnknown or disabled locale.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -6335,7 +6895,7 @@
             }
           },
           "400": {
-            "description": "Unknown or disabled locale.",
+            "description": "The resource id in the path is not a well-formed UUID.\n\nUnknown or disabled locale.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -7937,7 +8497,13 @@
             "description": "Resolved cover image (null when no cover is set)."
           },
           "category": {
-            "$ref": "#/components/schemas/ArticleTaxonomyRefEntity"
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ArticleTaxonomyRefEntity"
+              }
+            ],
+            "description": "Resolved category (null when it has no translation in the requested locale)."
           },
           "tags": {
             "type": "array",
@@ -8015,7 +8581,13 @@
             "description": "Resolved cover image (null when no cover is set)."
           },
           "category": {
-            "$ref": "#/components/schemas/ArticleTaxonomyRefEntity"
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ArticleTaxonomyRefEntity"
+              }
+            ],
+            "description": "Resolved category (null when it has no translation in the requested locale)."
           },
           "tags": {
             "type": "array",
@@ -8371,7 +8943,7 @@
           "permissions": {
             "example": [
               "articles.read",
-              "articles.publish",
+              "articles.update",
               "settings.update"
             ],
             "description": "Every grantable permission key. The reserved \"*\" wildcard grants all of them.",
@@ -8410,7 +8982,7 @@
             "example": [
               "articles.read",
               "articles.create",
-              "articles.publish"
+              "articles.update"
             ],
             "description": "Granted permission keys (or \"*\").",
             "type": "array",
@@ -8452,7 +9024,7 @@
             "example": [
               "articles.read",
               "articles.create",
-              "articles.publish"
+              "articles.update"
             ],
             "description": "Catalog keys or \"*\".",
             "type": "array",
@@ -10314,6 +10886,88 @@
             "description": "Archive (true) or unarchive (false) the message."
           }
         }
+      },
+      "ContactMessageReplyStatus": {
+        "type": "string",
+        "enum": [
+          "PENDING",
+          "SENT",
+          "FAILED"
+        ],
+        "description": "PENDING — the attempt exists but no terminal outcome has been recorded. It is ambiguous by design: it covers both \"not sent\" and \"accepted by the provider, outcome not written\". A PENDING attempt is never evidence that nothing was delivered (D09-23). SENT — the mail provider ACCEPTED the message and that acceptance was persisted. It does not mean inbox delivery, a passed spam filter, or a read message. FAILED — no provider acceptance was observed. Weaker than \"no email was sent\": delivery retries internally, so an accepted first attempt followed by a lost connection can still end here. This is why repeating a request with the same Idempotency-Key never re-sends — a deliberate retry uses a NEW key, which is a new attempt."
+      },
+      "ContactMessageReplyEntity": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "contactMessageId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The ContactMessage this reply answers."
+          },
+          "body": {
+            "type": "string",
+            "example": "Thanks for reaching out — I can take a look at this next week.",
+            "description": "The plain-text reply body as it was submitted."
+          },
+          "status": {
+            "description": "PENDING — the attempt exists but no terminal outcome has been recorded. It is ambiguous by design: it covers both \"not sent\" and \"accepted by the provider, outcome not written\". A PENDING attempt is never evidence that nothing was delivered (D09-23). SENT — the mail provider ACCEPTED the message and that acceptance was persisted. It does not mean inbox delivery, a passed spam filter, or a read message. FAILED — no provider acceptance was observed. Weaker than \"no email was sent\": delivery retries internally, so an accepted first attempt followed by a lost connection can still end here. This is why repeating a request with the same Idempotency-Key never re-sends — a deliberate retry uses a NEW key, which is a new attempt.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ContactMessageReplyStatus"
+              }
+            ]
+          },
+          "initiatedByUserId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The authenticated operator who initiated this attempt. An opaque user id — the operator email is not published here, so reply history requires no user-directory access to read."
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "sentAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "When acceptance was recorded, or null unless status is SENT."
+          },
+          "failedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "When the failure was recorded, or null unless status is FAILED."
+          }
+        },
+        "required": [
+          "id",
+          "contactMessageId",
+          "body",
+          "status",
+          "initiatedByUserId",
+          "createdAt",
+          "sentAt",
+          "failedAt"
+        ]
+      },
+      "CreateMessageReplyDto": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "string",
+            "description": "The plain-text reply body. Plain text only — no HTML representation exists (D02-13e).",
+            "minLength": 1,
+            "maxLength": 5000,
+            "example": "Thanks for reaching out — I can take a look at this next week."
+          }
+        },
+        "required": [
+          "body"
+        ]
       },
       "PreviewTokenEntity": {
         "type": "object",

@@ -67,10 +67,3 @@ export class CreateTestimonialDto {
 }
 
 export class UpdateTestimonialDto extends PartialType(CreateTestimonialDto) {}
-
-export class TestimonialQueryDto {
-  @ApiPropertyOptional({ default: 'en', example: 'ar' })
-  @IsOptional()
-  @Matches(/^[a-z]{2}$/)
-  readonly locale: string = 'en';
-}

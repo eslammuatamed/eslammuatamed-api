@@ -4,7 +4,7 @@ import { ApiProperty } from '@nestjs/swagger';
 export class PermissionCatalogEntity {
   @ApiProperty({
     type: [String],
-    example: ['articles.read', 'articles.publish', 'settings.update'],
+    example: ['articles.read', 'articles.update', 'settings.update'],
     description:
       'Every grantable permission key. The reserved "*" wildcard grants all of them.',
   })
@@ -33,7 +33,7 @@ export class RoleEntity {
 
   @ApiProperty({
     type: [String],
-    example: ['articles.read', 'articles.create', 'articles.publish'],
+    example: ['articles.read', 'articles.create', 'articles.update'],
     description: 'Granted permission keys (or "*").',
   })
   readonly permissions!: string[];

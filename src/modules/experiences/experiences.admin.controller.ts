@@ -24,6 +24,7 @@ import {
 import {
   ApiAdminErrorResponses,
   ApiProblemResponse,
+  ApiUuidParamBadRequest,
 } from '../../common/swagger/api-problem-response';
 import { THROTTLE_TIERS } from '../../common/throttling/throttle-tiers';
 import { RequirePermission } from '../access-control/decorators/require-permission.decorator';
@@ -49,6 +50,7 @@ export class ExperiencesAdminController {
   @RequirePermission('experiences.read')
   @ApiOkEnvelope(AdminExperienceEntity)
   @ApiProblemResponse(HttpStatus.NOT_FOUND, 'Experience not found.')
+  @ApiUuidParamBadRequest('experience')
   get(@Param('id', ParseUUIDPipe) id: string): Promise<AdminExperienceEntity> {
     return this.experiences.getAdmin(id);
   }
@@ -70,6 +72,7 @@ export class ExperiencesAdminController {
     HttpStatus.UNPROCESSABLE_ENTITY,
     'Validation error or invalid employment type.',
   )
+  @ApiUuidParamBadRequest('experience')
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateExperienceDto,
@@ -81,6 +84,7 @@ export class ExperiencesAdminController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiNoContentResponse({ description: 'Experience deleted.' })
   @ApiProblemResponse(HttpStatus.NOT_FOUND, 'Experience not found.')
+  @ApiUuidParamBadRequest('experience')
   async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     await this.experiences.remove(id);
   }

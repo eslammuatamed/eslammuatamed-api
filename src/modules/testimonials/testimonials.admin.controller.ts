@@ -24,6 +24,7 @@ import {
 import {
   ApiAdminErrorResponses,
   ApiProblemResponse,
+  ApiUuidParamBadRequest,
 } from '../../common/swagger/api-problem-response';
 import { THROTTLE_TIERS } from '../../common/throttling/throttle-tiers';
 import { RequirePermission } from '../access-control/decorators/require-permission.decorator';
@@ -52,6 +53,7 @@ export class TestimonialsAdminController {
   @RequirePermission('testimonials.read')
   @ApiOkEnvelope(AdminTestimonialEntity)
   @ApiProblemResponse(HttpStatus.NOT_FOUND, 'Testimonial not found.')
+  @ApiUuidParamBadRequest('testimonial')
   get(@Param('id', ParseUUIDPipe) id: string): Promise<AdminTestimonialEntity> {
     return this.testimonials.getAdmin(id);
   }
@@ -73,6 +75,7 @@ export class TestimonialsAdminController {
     HttpStatus.UNPROCESSABLE_ENTITY,
     'Validation error or invalid locale.',
   )
+  @ApiUuidParamBadRequest('testimonial')
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateTestimonialDto,
@@ -84,6 +87,7 @@ export class TestimonialsAdminController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiNoContentResponse({ description: 'Testimonial deleted.' })
   @ApiProblemResponse(HttpStatus.NOT_FOUND, 'Testimonial not found.')
+  @ApiUuidParamBadRequest('testimonial')
   async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     await this.testimonials.remove(id);
   }

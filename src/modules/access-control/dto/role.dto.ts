@@ -28,7 +28,7 @@ export class CreateRoleDto {
   // the pipe, so the guarded surface can never reference a permission that does not exist.
   @ApiProperty({
     type: [String],
-    example: ['articles.read', 'articles.create', 'articles.publish'],
+    example: ['articles.read', 'articles.create', 'articles.update'],
     description: 'Catalog keys or "*".',
   })
   @IsArray()

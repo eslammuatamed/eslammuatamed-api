@@ -1,5 +1,5 @@
 import { GUARDS_METADATA } from '@nestjs/common/constants';
-import { ContactMessage } from '@prisma/client';
+import { ContactMessage } from '../../generated/prisma/client';
 import { DeepMockProxy, mockDeep } from 'jest-mock-extended';
 import { IS_PUBLIC_KEY } from '../../common/decorators/public.decorator';
 import { ContactThrottlerGuard } from '../../common/throttling/contact-throttler.guard';

@@ -16,6 +16,23 @@ function isPermanentRejection(error: unknown): boolean {
   return typeof code === 'number' && code >= 500 && code < 600;
 }
 
+// The provider's name for a client-supplied duplicate-send key, and the ONLY place in the codebase
+// it appears. Resend honours idempotency on the SMTP relay through this email header (the HTTP API
+// uses `Idempotency-Key`); a key it has seen within its retention window does not send a second
+// email. Confined to this file so `MailMessage.providerIdempotencyKey` stays provider-neutral and
+// swapping transports is a one-line change here rather than a sweep through the contact domain.
+//
+// What may be relied on is ONLY the documented duplicate-send prevention. The 409 replay semantics
+// and the "cached response is returned" behaviour Resend documents are HTTP-API properties: an SMTP
+// relay has no HTTP response through which to express them, and Resend does not document what its
+// relay returns on replay. Nothing here or downstream may assume a replay yields the original
+// message id, or indeed any particular response (ledger §5aj-E).
+const PROVIDER_IDEMPOTENCY_HEADER = 'Resend-Idempotency-Key';
+
+// The provider's retention window for an idempotency key. Exported for the domain's stale-attempt
+// rule, which must not re-attempt a send whose key the provider may already have forgotten.
+export const PROVIDER_IDEMPOTENCY_WINDOW_MS = 24 * 60 * 60 * 1000;
+
 // Only the error's own message is ever logged — never the error object, which for Nodemailer
 // carries the full transport options including `auth.pass` (doc 19 §7, constitution rule 5).
 function describeFailure(error: unknown): string {
@@ -80,6 +97,17 @@ export class MailService implements OnModuleDestroy {
           replyTo: message.replyTo,
           subject: message.subject,
           text: message.text,
+          // Spread, so a message without the key produces an object with NO `headers` property at
+          // all rather than one carrying `undefined`. The notification path's message shape is
+          // therefore byte-for-byte what it was before replies existed, which is what lets its
+          // regression assert the header's ABSENCE structurally instead of just its emptiness.
+          ...(message.providerIdempotencyKey === undefined
+            ? {}
+            : {
+                headers: {
+                  [PROVIDER_IDEMPOTENCY_HEADER]: message.providerIdempotencyKey,
+                },
+              }),
         });
         const messageId = readMessageId(info);
         // Recipient is deliberately absent: it is visitor PII on the acknowledgement path, and the

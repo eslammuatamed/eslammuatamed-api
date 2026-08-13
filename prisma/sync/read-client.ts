@@ -5,7 +5,7 @@
 // inside the builder is a compile error rather than something a reviewer has to notice. A runtime
 // interceptor still guards it in the tests (`content-sync.e2e-spec.ts`), because a type is erased
 // at runtime and the guarantee is worth proving twice.
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient } from '../../src/generated/prisma/client';
 
 type ReadDelegate<D extends { findMany: unknown; count: unknown }> = Pick<
   D,
@@ -29,6 +29,9 @@ export interface ReadOnlyDb {
   readonly rolePermission: ReadDelegate<PrismaClient['rolePermission']>;
   readonly refreshToken: ReadDelegate<PrismaClient['refreshToken']>;
   readonly contactMessage: ReadDelegate<PrismaClient['contactMessage']>;
+  readonly contactMessageReply: ReadDelegate<
+    PrismaClient['contactMessageReply']
+  >;
   readonly mediaAsset: ReadDelegate<PrismaClient['mediaAsset']>;
   readonly mediaAssetAlt: ReadDelegate<PrismaClient['mediaAssetAlt']>;
   readonly mediaAssetVariant: ReadDelegate<PrismaClient['mediaAssetVariant']>;

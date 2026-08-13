@@ -1337,6 +1337,7 @@ export async function countProtected(
     RolePermission: db.rolePermission,
     RefreshToken: db.refreshToken,
     ContactMessage: db.contactMessage,
+    ContactMessageReply: db.contactMessageReply,
     MediaAsset: db.mediaAsset,
     MediaAssetAlt: db.mediaAssetAlt,
     MediaAssetVariant: db.mediaAssetVariant,

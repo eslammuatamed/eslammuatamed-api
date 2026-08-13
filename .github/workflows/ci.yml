@@ -119,11 +119,15 @@ jobs:
           name: openapi
           path: openapi.json
 
-      # Dependency-advisory gate (doc 19 §7). Informational for now so a transitive advisory
-      # doesn't block unrelated work; promote to a hard gate once the baseline is clean.
+      # Dependency-advisory gate (doc 19 §7). PROMOTED TO BLOCKING: the precondition this step's
+      # own comment set — "once the baseline is clean" — was met in Phase 9, which measured
+      # `npm audit` at 0 vulnerabilities in both scopes (and 0 with `--omit=dev`) from a fresh
+      # `npm ci`. An advisory-only gate on a clean baseline reports nothing it would not also
+      # report while blocking, so leaving it soft only preserved the ability to miss the first
+      # regression. NOTE: this has never been exercised by a real Actions run — the account has
+      # been billing-blocked since 2026-08-06 — so the first unblocked run is itself the check.
       - name: Audit dependencies (high)
         run: npm audit --audit-level=high
-        continue-on-error: true
 
   # Integration lane — spins up Postgres 16 and runs migrations, seed, and the e2e suite.
   e2e:
@@ -172,11 +176,9 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
-      - name: Apply migrations
-        run: npx prisma migrate deploy
-
-      - name: Seed
-        run: npm run db:seed
-
+      # No migrate/seed step: the e2e harness creates, migrates, seeds and drops its own database
+      # per run (D18-8). DATABASE_URL above still matters — the harness derives the SERVER from it
+      # and discards its database pathname — but nothing here provisions `eslammuatamed_test`, so
+      # there is exactly one setup owner.
       - name: E2E tests
         run: npm run test:e2e

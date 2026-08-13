@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { ContentStatus } from '@prisma/client';
+import { ContentStatus } from '../../../generated/prisma/client';
 import { Type } from 'class-transformer';
 import {
   ArrayMinSize,

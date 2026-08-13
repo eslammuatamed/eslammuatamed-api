@@ -14,6 +14,7 @@ import { ApiOkEnvelope } from '../../common/swagger/api-envelope';
 import {
   ApiProblemResponse,
   ApiPublicReadErrorResponses,
+  ApiUuidParamBadRequest,
 } from '../../common/swagger/api-problem-response';
 import { ArticlesService } from '../articles/articles.service';
 import { PublicArticleDetailEntity } from '../articles/entities/article.entities';
@@ -51,6 +52,7 @@ export class PreviewController {
     HttpStatus.NOT_FOUND,
     'Missing/invalid/expired token, or no such article.',
   )
+  @ApiUuidParamBadRequest()
   async previewArticle(
     @Param('id', ParseUUIDPipe) id: string,
     @Query() query: PreviewConsumeQueryDto,
@@ -79,6 +81,7 @@ export class PreviewController {
     HttpStatus.NOT_FOUND,
     'Missing/invalid/expired token, or no such project.',
   )
+  @ApiUuidParamBadRequest()
   async previewProject(
     @Param('id', ParseUUIDPipe) id: string,
     @Query() query: PreviewConsumeQueryDto,

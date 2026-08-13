@@ -5,7 +5,7 @@ import {
   HttpStatus,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../../generated/prisma/client';
 import { AppConfigService } from '../../config/app-config.service';
 import { ProblemDetails } from '../http/problem-details';
 import { ValidationProblemException } from '../http/validation-problem.exception';
@@ -81,19 +81,84 @@ describe('AllExceptionsFilter', () => {
     ]);
   });
 
-  it('maps Prisma P2002 (unique) to 422 with the conflicting field paths', () => {
+  // F9-9. This case previously constructed the v6-era `meta.target` shape and asserted it back,
+  // so it proved an assumption rather than any real behaviour — and survived the v7 major that
+  // broke it. The fixture below is the shape Prisma 7 + PrismaPg ACTUALLY produces, copied from a
+  // live probe; branch coverage for the translation lives in `prisma-error-metadata.spec.ts`, and
+  // the authoritative proof is the real-database test in `test/prisma-error-mapping.e2e-spec.ts`.
+  it('maps Prisma P2002 to 422 with API field names, not database columns', () => {
     const exception = new Prisma.PrismaClientKnownRequestError(
       'Unique constraint failed',
       {
         code: 'P2002',
-        clientVersion: '6.0.0',
-        meta: { target: ['locale', 'slug'] },
+        clientVersion: Prisma.prismaVersion.client,
+        meta: {
+          modelName: 'CategoryTranslation',
+          driverAdapterError: {
+            name: 'DriverAdapterError',
+            cause: {
+              originalCode: '23505',
+              kind: 'UniqueConstraintViolation',
+              constraint: { fields: ['category_id', 'locale'] },
+            },
+          },
+        },
       },
     );
     const result = capture(exception);
 
     expect(result.status).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
-    expect(result.body.errors?.map((e) => e.field)).toEqual(['locale', 'slug']);
+    expect(result.body.errors?.map((e) => e.field)).toEqual([
+      'categoryId',
+      'locale',
+    ]);
+    expect(JSON.stringify(result.body)).not.toContain('category_id');
+  });
+
+  it('omits errors[] entirely when P2002 carries no usable field information', () => {
+    const exception = new Prisma.PrismaClientKnownRequestError(
+      'Unique constraint failed',
+      { code: 'P2002', clientVersion: Prisma.prismaVersion.client },
+    );
+    const result = capture(exception);
+
+    expect(result.status).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+    expect(result.body.detail).toBe(
+      'A record with these values already exists.',
+    );
+    // No placeholder: the API must not claim to know a field it cannot identify.
+    expect(result.body.errors).toBeUndefined();
+    expect(JSON.stringify(result.body)).not.toContain('unknown');
+  });
+
+  it('leaks no driver internals or constraint names on P2002', () => {
+    const exception = new Prisma.PrismaClientKnownRequestError(
+      'Unique constraint failed',
+      {
+        code: 'P2002',
+        clientVersion: Prisma.prismaVersion.client,
+        meta: {
+          driverAdapterError: {
+            cause: {
+              originalMessage:
+                'duplicate key value violates unique constraint "category_translations_category_id_locale_key"',
+              constraint: { fields: ['category_id'] },
+            },
+          },
+        },
+      },
+    );
+    const body = JSON.stringify(capture(exception).body);
+
+    for (const needle of [
+      'driverAdapterError',
+      'category_translations',
+      '_key',
+      'duplicate key',
+      '23505',
+    ]) {
+      expect(body).not.toContain(needle);
+    }
   });
 
   it('maps Prisma P2025 (not found) to 404', () => {
@@ -101,7 +166,7 @@ describe('AllExceptionsFilter', () => {
       'Record not found',
       {
         code: 'P2025',
-        clientVersion: '6.0.0',
+        clientVersion: Prisma.prismaVersion.client,
       },
     );
     const result = capture(exception);

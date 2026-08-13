@@ -37,6 +37,67 @@ describe('validate (environment schema)', () => {
     expect(() => validate(env)).toThrow(/DATABASE_URL/);
   });
 
+  // D16-12. Every case below runs the REAL exported `validate()`, because the defect being closed
+  // was that this exact function accepted six of six malformed values and let the process boot.
+  describe('DATABASE_URL is validated structurally (D16-12)', () => {
+    const withDatabaseUrl = (value: string): Record<string, string> => ({
+      ...validEnv(),
+      DATABASE_URL: value,
+    });
+
+    // The shapes every lane actually uses. A gate that rejected one of these would break a lane,
+    // so they are asserted rather than assumed.
+    it.each([
+      [
+        '.env.example / local dev',
+        'postgresql://eslammuatamed@localhost:5432/eslammuatamed_dev',
+      ],
+      [
+        'CI e2e job',
+        'postgresql://eslammuatamed:eslammuatamed@localhost:5432/eslammuatamed_test',
+      ],
+      [
+        'e2e harness generated (D18-8)',
+        'postgresql://eslammuatamed@localhost:5432/eslammuatamed_e2e_0123456789abcdef01234567',
+      ],
+      [
+        'production-shaped: encoded password + query parameters',
+        'postgresql://api_user:p%40ss%3Aword@db.internal:6432/eslammuatamed?sslmode=require&connection_limit=10',
+      ],
+      [
+        'postgres:// scheme',
+        'postgres://eslammuatamed@localhost:5432/eslammuatamed_dev',
+      ],
+    ])('accepts the %s DSN', (_label, dsn) => {
+      expect(validate(withDatabaseUrl(dsn)).DATABASE_URL).toBe(dsn);
+    });
+
+    // The six values the audit proved `validate()` accepted before this rule existed.
+    it.each([
+      [
+        'the historical bug — a shell-injected second assignment',
+        'postgresql://u@localhost:5432/eslammuatamed_test SEED_OWNER_EMAIL=x SEED_OWNER_PASSWORD=y',
+      ],
+      ['no scheme at all, just a database name', 'eslammuatamed_dev'],
+      ['no scheme, host:port form', 'localhost:5432/eslammuatamed_dev'],
+      ['a foreign scheme', 'mysql://user@localhost:3306/db'],
+      ['whitespace only', '   '],
+      ['empty', ''],
+      [
+        'a newline-injected environment fragment',
+        'postgresql://u@localhost:5432/db\nFOO=bar',
+      ],
+      ['an embedded space', 'postgresql://u@local host:5432/db'],
+      ['a leading space', ' postgresql://u@localhost:5432/db'],
+      ['a trailing newline', 'postgresql://u@localhost:5432/db\n'],
+      ['a scheme with nothing after it', 'postgresql://'],
+    ])('aborts the boot on %s', (_label, dsn) => {
+      expect(() => validate(withDatabaseUrl(dsn))).toThrow(
+        /DATABASE_URL: .*whitespace-free postgresql:\/\/ or postgres:\/\//,
+      );
+    });
+  });
+
   it('rejects an access secret shorter than 32 characters', () => {
     const env = validEnv();
     env.JWT_ACCESS_SECRET = 'too-short';
