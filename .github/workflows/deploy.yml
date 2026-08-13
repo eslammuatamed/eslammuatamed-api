@@ -7,8 +7,13 @@
 #                         push->main event is intermittently dropped by GitHub (proven in
 #                         the runbook). Both converge on this exact-SHA path.
 #   workflow_dispatch   : manual recovery / the fallback dispatcher (optional target_sha).
-# No tag trigger, no manual approval gate, no scheduled reconciliation (cost + schedule
-# reliability — owner Option 4). Direct pushes to main are prohibited by policy.
+# No tag trigger and no scheduled reconciliation (cost + schedule reliability — owner
+# Option 4). Direct pushes to main are prohibited by policy.
+#
+# MANUAL APPROVAL GATE (Stage 2C): the `deploy` job below — the only job here that
+# mutates the server — is bound to the `production` environment, so every path pauses
+# for the owner's approval before the first remote write. See that job for the full
+# rationale and the environment's settings.
 #
 # EXACT-SHA + IDEMPOTENCY: `preflight` resolves the target SHA (push -> github.sha;
 # workflow_dispatch -> target_sha, which must equal github.sha), asserts it is the current
@@ -255,6 +260,22 @@ jobs:
     name: Build · Ship · Migrate · Cut over
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # PRODUCTION APPROVAL GATE (Stage 2C). This is the ONLY job in this workflow that
+    # mutates the server, and it is bound in full: a job that references an environment
+    # does not start until every protection rule of that environment passes, so the
+    # required-reviewer approval lands BEFORE the first remote write ("Ship the tarball",
+    # scp). Everything upstream is free to run unapproved: preflight is remote READ-ONLY
+    # (one `readlink` of the release symlink) and verify/e2e are local verification, so
+    # cheap checks still fail fast without spending the owner's attention.
+    #
+    # The `production` environment carries the repository owner as a required reviewer,
+    # prevent-self-review OFF (solo-owner release flow: the owner both triggers and
+    # approves), administrator bypass DISALLOWED, and a deployment branch policy of `main`
+    # only. Every production path converges on a run whose GITHUB_REF is refs/heads/main:
+    # push->main directly, and the merged-PR fallback because deploy-fallback.yml
+    # dispatches `deploy.yml --ref main`. Manual workflow_dispatch from any other ref is
+    # rejected twice over — by the preflight ref check and by the branch policy.
+    environment: production
     # Cannot start unless preflight decided `deploy` AND both verification jobs of THIS run
     # (same github.sha) pass.
     needs: [preflight, verify, e2e]

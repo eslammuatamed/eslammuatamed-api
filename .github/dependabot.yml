@@ -1,0 +1,31 @@
+version: 2
+
+# Dependabot version updates.
+#
+# IMPORTANT — where this file is read from:
+# Dependabot reads its configuration from the repository's DEFAULT branch (`main`).
+# While this file exists only on `dev`, it is PREPARED but NOT YET ACTIVE. It becomes
+# operational only after it reaches `main` through a gated release.
+#
+# `target-branch: dev` keeps every Dependabot pull request off `main`. `main` is the
+# deploy branch: a merge into it triggers `deploy.yml`, which is gated behind the
+# `production` environment approval. Dependency updates must land on `dev`, pass CI
+# there, and be promoted through the normal release path — never straight to `main`.
+#
+# Automated security updates (Dependabot security fixes) remain DISABLED at the
+# repository level. Those ignore `target-branch` and open pull requests against the
+# default branch regardless of what this file says. Do not enable them until this
+# config is live on `main` and the owner has authorized it.
+#
+# No auto-merge is configured here or anywhere else for Dependabot pull requests.
+
+updates:
+  - package-ecosystem: npm
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: Europe/Berlin
+    open-pull-requests-limit: 5
