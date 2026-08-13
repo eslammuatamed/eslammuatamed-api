@@ -45,7 +45,10 @@
     ]
   },
   "overrides": {
-    "axios": "^1.13.2"
+    "axios": "^1.13.2",
+    "@nestjs/swagger": {
+      "js-yaml": "^5.2.3"
+    }
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1090.0",
