@@ -1,4 +1,5 @@
 import { INestApplication } from '@nestjs/common';
+import sharp from 'sharp';
 import request from 'supertest';
 import {
   createE2eApp,
@@ -25,12 +26,54 @@ interface ProjectDetail extends ProjectListItem {
   lessonsLearned: string;
   availableLocales: string[];
   slugs: Record<string, string>;
+  gallery: Array<{
+    mediaAssetId: string;
+    order: number;
+    caption: string | null;
+    mediaAsset: {
+      id: string;
+      kind: 'IMAGE';
+      url: string;
+      width: number;
+      height: number;
+      blurhash: string | null;
+      alt: string | null;
+      variants: Array<{
+        format: 'AVIF' | 'WEBP';
+        width: number;
+        height: number;
+        url: string;
+      }>;
+    };
+  }>;
+}
+
+interface AdminMediaAsset {
+  id: string;
+}
+
+async function galleryImage(seed: number): Promise<Buffer> {
+  return sharp({
+    create: {
+      width: 720,
+      height: 480,
+      channels: 3,
+      background: {
+        r: seed % 256,
+        g: (seed >> 8) % 256,
+        b: (seed >> 16) % 256,
+      },
+    },
+  })
+    .png()
+    .toBuffer();
 }
 
 describe('Projects (e2e)', () => {
   let app: INestApplication;
   let ownerToken: string;
   let projectId: string | undefined;
+  const mediaAssetIds: string[] = [];
   const unique = Date.now();
   const slug = `e2e-project-${unique}`;
   const arSlug = `e2e-project-ar-${unique}`;
@@ -66,6 +109,12 @@ describe('Projects (e2e)', () => {
         .set(auth())
         .expect(204);
       expect(removed).toSatisfyApiSpec();
+    }
+    for (const mediaAssetId of mediaAssetIds) {
+      await request(httpServer(app))
+        .delete(`/api/v1/admin/media/${mediaAssetId}`)
+        .set(auth())
+        .expect(204);
     }
     await app.close();
   });
@@ -137,10 +186,43 @@ describe('Projects (e2e)', () => {
       .expect(404);
     expect(unpublishedLookup).toSatisfyApiSpec();
 
+    // Persist the gallery through the real admin relation write. The request order is deliberately
+    // the reverse of the authored `order`, so the public assertion below proves the relation query's
+    // ordering rather than accidentally inheriting JSON input order.
+    for (const [index, filename] of ['desktop.png', 'mobile.png'].entries()) {
+      const uploaded = await request(httpServer(app))
+        .post('/api/v1/admin/media')
+        .set(auth())
+        .attach('file', await galleryImage(unique + index + 1), filename)
+        .expect(201);
+      expect(uploaded).toSatisfyApiSpec();
+      mediaAssetIds.push(envelopeData<AdminMediaAsset>(uploaded).id);
+    }
+
     const publishedUpdate = await request(httpServer(app))
       .patch(`/api/v1/admin/projects/${projectId}`)
       .set(auth())
-      .send({ isPublished: true })
+      .send({
+        isPublished: true,
+        gallery: [
+          {
+            mediaAssetId: mediaAssetIds[0],
+            order: 20,
+            translations: {
+              en: { caption: 'Desktop project view' },
+              ar: { caption: 'واجهة المشروع على سطح المكتب' },
+            },
+          },
+          {
+            mediaAssetId: mediaAssetIds[1],
+            order: 10,
+            translations: {
+              en: { caption: 'Mobile project view' },
+              ar: { caption: 'واجهة المشروع على الهاتف' },
+            },
+          },
+        ],
+      })
       .expect(200);
     expect(publishedUpdate).toSatisfyApiSpec();
 
@@ -169,15 +251,58 @@ describe('Projects (e2e)', () => {
     );
     expect(detail.slugs).toEqual({ en: slug, ar: arSlug });
 
+    expect(detail.gallery.map((item) => item.order)).toEqual([10, 20]);
+    expect(detail.gallery.map((item) => item.mediaAssetId)).toEqual([
+      mediaAssetIds[1],
+      mediaAssetIds[0],
+    ]);
+    expect(detail.gallery.map((item) => item.caption)).toEqual([
+      'Mobile project view',
+      'Desktop project view',
+    ]);
+    for (const item of detail.gallery) {
+      expect(item.mediaAsset).toMatchObject({
+        id: item.mediaAssetId,
+        kind: 'IMAGE',
+        width: 720,
+        height: 480,
+        alt: null,
+      });
+      expect(item.mediaAsset.url).toMatch(/\/720-webp\.webp$/);
+      expect(item.mediaAsset.variants).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ format: 'AVIF', width: 640 }),
+          expect.objectContaining({ format: 'WEBP', width: 640 }),
+          expect.objectContaining({ format: 'AVIF', width: 720 }),
+          expect.objectContaining({ format: 'WEBP', width: 720 }),
+        ]),
+      );
+      expect(
+        item.mediaAsset.variants.every((variant) =>
+          variant.url.startsWith('http'),
+        ),
+      ).toBe(true);
+    }
+
     // The counterpart slug resolves in the other locale (locale-switch round-trip).
     const arLookup = await request(httpServer(app))
       .get(`/api/v1/projects/${arSlug}?locale=ar`)
       .expect(200);
     expect(arLookup).toSatisfyApiSpec();
-    expect(envelopeData<ProjectDetail>(arLookup).slugs).toEqual({
+    const arDetail = envelopeData<ProjectDetail>(arLookup);
+    expect(arDetail.slugs).toEqual({
       en: slug,
       ar: arSlug,
     });
+    expect(arDetail.gallery.map((item) => item.order)).toEqual([10, 20]);
+    expect(arDetail.gallery.map((item) => item.caption)).toEqual([
+      'واجهة المشروع على الهاتف',
+      'واجهة المشروع على سطح المكتب',
+    ]);
+    expect(arDetail.gallery.map((item) => item.mediaAsset.id)).toEqual([
+      mediaAssetIds[1],
+      mediaAssetIds[0],
+    ]);
   });
 
   it('rejects a slug collision in the same locale with a contract-valid 422', async () => {
