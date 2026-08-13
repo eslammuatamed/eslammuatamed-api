@@ -27,6 +27,7 @@ import {
 import {
   ApiAdminErrorResponses,
   ApiProblemResponse,
+  ApiUuidParamBadRequest,
 } from '../../common/swagger/api-problem-response';
 import { THROTTLE_TIERS } from '../../common/throttling/throttle-tiers';
 import { RequirePermission } from '../access-control/decorators/require-permission.decorator';
@@ -64,6 +65,7 @@ export class ProjectsAdminController {
   @ApiOperation({ summary: 'Get one project with its full translation map.' })
   @ApiOkEnvelope(AdminProjectEntity)
   @ApiProblemResponse(HttpStatus.NOT_FOUND, 'Project not found.')
+  @ApiUuidParamBadRequest('project')
   get(@Param('id', ParseUUIDPipe) id: string): Promise<AdminProjectEntity> {
     return this.projects.getAdmin(id);
   }
@@ -91,6 +93,7 @@ export class ProjectsAdminController {
     HttpStatus.UNPROCESSABLE_ENTITY,
     'Validation error, invalid locale, or slug collision.',
   )
+  @ApiUuidParamBadRequest('project')
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateProjectDto,
@@ -103,6 +106,7 @@ export class ProjectsAdminController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiNoContentResponse({ description: 'Project deleted.' })
   @ApiProblemResponse(HttpStatus.NOT_FOUND, 'Project not found.')
+  @ApiUuidParamBadRequest('project')
   async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     await this.projects.remove(id);
   }

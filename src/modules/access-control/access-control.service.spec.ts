@@ -30,9 +30,22 @@ describe('AccessControlService', () => {
 
   it('exposes the code-defined permission catalog', () => {
     const catalog = service.getPermissionCatalog();
-    expect(catalog.permissions).toContain('articles.publish');
+    expect(catalog.permissions).toContain('articles.update');
     expect(catalog.permissions).toContain('roles.create');
     expect(catalog.permissions).not.toContain('*');
+  });
+
+  // D19-11: the catalog must not offer a capability no route enforces. Publishing rides on
+  // articles.update, so a separate articles.publish would confer nothing while implying a
+  // draft/publish separation the API does not have.
+  it('does not offer capabilities that authorize no route', () => {
+    const catalog = service.getPermissionCatalog();
+
+    expect(catalog.permissions).not.toContain('articles.publish');
+    expect(catalog.permissions).not.toContain('messages.delete');
+    expect(catalog.permissions).not.toContain('users.delete');
+    expect(catalog.permissions).not.toContain('seo.read');
+    expect(catalog.permissions).not.toContain('redirects.create');
   });
 
   it('creates a role with de-duplicated grants', async () => {

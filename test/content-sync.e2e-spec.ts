@@ -5,11 +5,23 @@
 //
 // ISOLATION. This suite provisions and drops its OWN database rather than using the shared e2e one.
 // It creates, mutates and deletes governed content wholesale, so sharing a database with the other
-// e2e specs would couple them to this suite's execution order. It also means the suite is
-// self-contained: `DATABASE_URL` is derived, never read from a `.env`, and never points anywhere but
-// a scratch database this file created (see `SCRATCH_DB`).
+// e2e specs would couple them to this suite's execution order. `DATABASE_URL` is never read from a
+// `.env`: by the time this file runs, the harness has already replaced it with this run's scratch
+// database (D18-8), and `SCRATCH_DB` is derived from that name rather than fixed — a fixed name
+// would let a second e2e invocation's `DROP DATABASE` destroy this one's database mid-test.
 import { execFileSync } from 'node:child_process';
-import { ContentStatus, MediaKind, PrismaClient } from '@prisma/client';
+import {
+  ContentStatus,
+  MediaKind,
+  PrismaClient,
+} from '../src/generated/prisma/client';
+import { createPrismaClient } from '../src/prisma/standalone-client';
+import {
+  buildAdminUrl,
+  buildScratchUrl,
+  databaseNameOf,
+  deriveSuiteDatabaseName,
+} from './utils/e2e-database';
 import { ARTICLES } from '../prisma/content/canonical/articles';
 import { PROJECTS } from '../prisma/content/canonical/projects';
 import { SETTINGS_TRANSLATIONS } from '../prisma/content/canonical/site-settings';
@@ -20,26 +32,25 @@ import {
   TransactionConflictError,
 } from '../prisma/sync/apply-plan';
 import { buildPlan } from '../prisma/sync/build-plan';
+import {
+  articleScalars,
+  projectScalars,
+} from '../prisma/sync/governed-scalars';
 import { readOnly } from '../prisma/sync/read-client';
 import { isNoOp, summarize } from '../prisma/sync/types';
 import type { Plan } from '../prisma/sync/types';
 
-const SCRATCH_DB = 'emu_content_sync_e2e';
+// The harness guarantees `DATABASE_URL` points at this run's scratch database before any spec
+// loads, so both names below hang off one run and cannot collide with a concurrent invocation.
+const RUN_DSN = process.env.DATABASE_URL;
+const SCRATCH_DB = deriveSuiteDatabaseName(
+  databaseNameOf(RUN_DSN ?? ''),
+  'content_sync',
+);
 
-const adminUrl = (): string => {
-  const url = new URL(
-    process.env.DATABASE_URL ??
-      'postgresql://eslammuatamed:eslammuatamed@localhost:5432/eslammuatamed_test',
-  );
-  url.pathname = '/postgres';
-  return url.toString();
-};
+const adminUrl = (): string => buildAdminUrl(RUN_DSN);
 
-const scratchUrl = (): string => {
-  const url = new URL(adminUrl());
-  url.pathname = `/${SCRATCH_DB}`;
-  return url.toString();
-};
+const scratchUrl = (): string => buildScratchUrl(RUN_DSN, SCRATCH_DB);
 
 let prisma: PrismaClient;
 
@@ -152,7 +163,7 @@ const syncOnce = async (): Promise<Plan> => {
 };
 
 beforeAll(async () => {
-  const admin = new PrismaClient({ datasources: { db: { url: adminUrl() } } });
+  const admin = createPrismaClient(adminUrl());
   await admin.$executeRawUnsafe(`DROP DATABASE IF EXISTS "${SCRATCH_DB}"`);
   await admin.$executeRawUnsafe(`CREATE DATABASE "${SCRATCH_DB}"`);
   await admin.$disconnect();
@@ -164,7 +175,7 @@ beforeAll(async () => {
     stdio: 'pipe',
   });
 
-  prisma = new PrismaClient({ datasources: { db: { url: scratchUrl() } } });
+  prisma = createPrismaClient(scratchUrl());
   await prisma.locale.createMany({
     data: [
       {
@@ -188,7 +199,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await prisma?.$disconnect();
-  const admin = new PrismaClient({ datasources: { db: { url: adminUrl() } } });
+  const admin = createPrismaClient(adminUrl());
   await admin.$executeRawUnsafe(`DROP DATABASE IF EXISTS "${SCRATCH_DB}"`);
   await admin.$disconnect();
 }, 60_000);
@@ -668,9 +679,7 @@ describe('the protected-data guard actually works', () => {
     // This is the original blocker in its exact shape: an admin session rotating a token, or a
     // visitor submitting the contact form, while a two-minute sync is in flight. The pre-fix
     // version failed the run — after committing it — with "This must never happen".
-    const other = new PrismaClient({
-      datasources: { db: { url: scratchUrl() } },
-    });
+    const other = createPrismaClient(scratchUrl());
     try {
       const outcome = await runProtectedTransaction(prisma, async (tx) => {
         await tx.skill.count(); // take the snapshot first
@@ -708,9 +717,7 @@ describe('a real write conflict is reported, not crashed on', () => {
   it('rolls back and reports it as retryable when another session wins the row', async () => {
     await syncOnce();
     const skill = await prisma.skill.findFirstOrThrow({ select: { id: true } });
-    const other = new PrismaClient({
-      datasources: { db: { url: scratchUrl() } },
-    });
+    const other = createPrismaClient(scratchUrl());
 
     try {
       // RepeatableRead is the isolation the protected-data guard requires, and its cost is that a
@@ -845,5 +852,162 @@ describe('published content reads back correctly in both locales', () => {
       expect(stored.aboutBio).toBe(canonical.aboutBio);
       expect(stored.currentFocus).toBe(canonical.currentFocus);
     }
+  });
+});
+
+// 9C-11 C. Everything above proves the sync CONVERGES and stays idempotent. None of it proves the
+// converged rows carry the canonical VALUES — a sync that wrote the right number of rows with the
+// wrong contents would satisfy every assertion in this file and every `count(*)` fingerprint taken
+// in 9C-α.
+//
+// The comparison is coupled to the sync's own ownership rules BY CONSTRUCTION: `projectScalars`,
+// `experienceScalars` and `articleScalars` are the exact functions `build-plan` diffs and
+// `apply-plan` writes, applied here to the DATABASE ROW as well as to the canonical seed. A field
+// added to a governed scalar set therefore enters this comparison automatically — there is no
+// second list to keep in step, which is the failure mode this project has been bitten by before.
+//
+// Translation fields are derived from `Object.keys(seed.en)` for the same reason.
+//
+// BOUNDED CLAIM — exactly what is compared:
+//   Project    — featured, isPublished, order, year, liveUrl, repoUrl (via projectScalars)
+//                + every key of the canonical en/ar translation content
+//   Article    — status, publishAt (via articleScalars)
+//                + every key of the canonical en/ar translation content
+//   Skill      — slug + every key of the canonical en/ar translation content
+// NOT compared: createdAt/updatedAt (volatile, not owned by the contract), ids (assigned by the
+// database), and every PROTECTED model (the sync deliberately does not own them).
+describe('governed content matches the canonical source field-for-field', () => {
+  const normalize = (value: unknown): unknown =>
+    value instanceof Date ? value.toISOString() : value;
+
+  const project = (row: Record<string, unknown>) =>
+    projectScalars(row as never);
+  const article = (row: Record<string, unknown>) =>
+    articleScalars(row as never);
+
+  const sameShape = (
+    actual: Record<string, unknown>,
+    expected: Record<string, unknown>,
+  ): void => {
+    const keys = Object.keys(expected);
+    expect(keys.length).toBeGreaterThan(0);
+    for (const key of keys) {
+      expect([key, normalize(actual[key])]).toEqual([
+        key,
+        normalize(expected[key]),
+      ]);
+    }
+  };
+
+  // beforeEACH, not beforeAll: the suite-level `beforeEach` calls `resetGovernedContent()` before
+  // every test, and a parent's beforeEach runs before the child's — so a one-time beforeAll here
+  // would be wiped before the first assertion ever ran.
+  beforeEach(async () => {
+    await syncOnce();
+  });
+
+  it('writes every canonical Project scalar exactly', async () => {
+    for (const seed of PROJECTS) {
+      const row = await prisma.projectTranslation
+        .findFirstOrThrow({
+          where: { locale: 'en', slug: seed.en.slug },
+          include: { project: true },
+        })
+        .then((t) => t.project);
+
+      sameShape(
+        project(row),
+        project(seed as unknown as Record<string, unknown>),
+      );
+    }
+  });
+
+  it('writes every canonical Project translation field in both locales', async () => {
+    for (const seed of PROJECTS) {
+      for (const locale of ['en', 'ar'] as const) {
+        const content = seed[locale] as unknown as Record<string, unknown>;
+        const row = await prisma.projectTranslation.findFirstOrThrow({
+          where: { locale, slug: content.slug as string },
+        });
+        sameShape(row, content);
+      }
+    }
+  });
+
+  it('writes every canonical Article scalar and translation exactly', async () => {
+    for (const seed of ARTICLES) {
+      const translation = await prisma.articleTranslation.findFirstOrThrow({
+        where: { locale: 'en', slug: seed.en.slug },
+        include: { article: true },
+      });
+
+      sameShape(
+        article(translation.article),
+        article(seed as unknown as Record<string, unknown>),
+      );
+
+      for (const locale of ['en', 'ar'] as const) {
+        const content = seed[locale] as unknown as Record<string, unknown>;
+        const row = await prisma.articleTranslation.findFirstOrThrow({
+          where: { locale, slug: content.slug as string },
+        });
+        sameShape(row, content);
+      }
+    }
+  });
+
+  it('writes every canonical Skill label in both locales', async () => {
+    // SkillSeed carries flat `labelEn`/`labelAr` rather than nested per-locale objects, so the
+    // pairing is spelled out here instead of derived from Object.keys.
+    for (const seed of SKILLS) {
+      for (const [locale, label] of [
+        ['en', seed.labelEn],
+        ['ar', seed.labelAr],
+      ] as const) {
+        const row = await prisma.skillTranslation.findFirstOrThrow({
+          where: { locale, skill: { slug: seed.slug } },
+        });
+        expect([seed.slug, locale, row.label]).toEqual([
+          seed.slug,
+          locale,
+          label,
+        ]);
+      }
+    }
+  });
+
+  it('is discriminating: a single mutated governed scalar is detected', async () => {
+    // The instrument's own negative control, run in-place against the scratch database so the
+    // claim "these tests would notice" is demonstrated rather than asserted.
+    const seed = PROJECTS[0]!;
+    const before = await prisma.projectTranslation
+      .findFirstOrThrow({
+        where: { locale: 'en', slug: seed.en.slug },
+        include: { project: true },
+      })
+      .then((t) => t.project);
+
+    const originalYear = before.year;
+    expect(originalYear).not.toBeNull();
+    await prisma.project.update({
+      where: { id: before.id },
+      data: { year: (originalYear ?? 0) + 1 },
+    });
+
+    const mutated = await prisma.project.findUniqueOrThrow({
+      where: { id: before.id },
+    });
+    expect(() =>
+      sameShape(
+        project(mutated as unknown as Record<string, unknown>),
+        project(seed as unknown as Record<string, unknown>),
+      ),
+    ).toThrow();
+
+    // Converge again so no later expectation inherits the mutation.
+    await prisma.project.update({
+      where: { id: before.id },
+      data: { year: originalYear },
+    });
   });
 });

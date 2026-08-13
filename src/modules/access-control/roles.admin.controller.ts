@@ -24,6 +24,7 @@ import {
 import {
   ApiAdminErrorResponses,
   ApiProblemResponse,
+  ApiUuidParamBadRequest,
 } from '../../common/swagger/api-problem-response';
 import { THROTTLE_TIERS } from '../../common/throttling/throttle-tiers';
 import { AccessControlService } from './access-control.service';
@@ -65,6 +66,7 @@ export class RolesAdminController {
   @ApiOperation({ summary: 'Get one role.' })
   @ApiOkEnvelope(RoleEntity)
   @ApiProblemResponse(HttpStatus.NOT_FOUND, 'Role not found.')
+  @ApiUuidParamBadRequest('role')
   getRole(@Param('id', ParseUUIDPipe) id: string): Promise<RoleEntity> {
     return this.accessControl.getRole(id);
   }
@@ -94,6 +96,7 @@ export class RolesAdminController {
     HttpStatus.UNPROCESSABLE_ENTITY,
     'System role, unknown key, or duplicate name.',
   )
+  @ApiUuidParamBadRequest('role')
   updateRole(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateRoleDto,
@@ -113,6 +116,7 @@ export class RolesAdminController {
     HttpStatus.UNPROCESSABLE_ENTITY,
     'System role or still assigned to users.',
   )
+  @ApiUuidParamBadRequest('role')
   async deleteRole(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     await this.accessControl.deleteRole(id);
   }

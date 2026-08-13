@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Category, CategoryTranslation } from '@prisma/client';
+import { Category, CategoryTranslation } from '../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocalesService } from '../locales/locales.service';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';

@@ -179,6 +179,14 @@ jobs:
       - name: Typecheck
         run: npx tsc --noEmit
 
+      # Present in ci.yml's verify job but previously ABSENT here, which is the direction that
+      # matters: this job is a `needs:` gate on the production deploy, so the release path was the
+      # one lane that could ship a migration destroying the FTS index/column (D09-6/D02-3) after
+      # PR CI had already approved the branch. Pure filesystem check over prisma/migrations — no
+      # database, so it needs no service container in this job.
+      - name: FTS migration guard (protects article search — D09-6/D02-3)
+        run: npm run guard:fts
+
       - name: Unit tests
         run: npm test
 
@@ -243,12 +251,8 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
-      - name: Apply migrations
-        run: npx prisma migrate deploy
-
-      - name: Seed
-        run: npm run db:seed
-
+      # No migrate/seed step: the e2e harness owns its own per-run database (D18-8). See the same
+      # note in ci.yml — one setup owner, not two competing ones.
       - name: E2E tests
         run: npm run test:e2e
 
@@ -307,11 +311,24 @@ jobs:
       - name: Prune to production dependencies
         run: npm prune --omit=dev
 
-      - name: Regenerate Prisma client into the pruned tree
-        run: npx prisma generate
-
+      # No second `prisma generate` here. Under Prisma 7 the client is generated as TypeScript
+      # into `src/generated/prisma` and compiled by `nest build` into `dist/generated/prisma`
+      # (CommonJS), so the artifact that ships already contains it — the tested build is the
+      # build that runs. A post-prune regenerate wrote TS back into `src/`, which this tarball
+      # does not package, leaving `dist` byte-identical: proven dead work, removed (9D-7).
+      #
+      # `prisma.config.ts` IS packaged: Prisma 7 takes the datasource URL from the config file,
+      # so `prisma migrate deploy` below exits 1 with "The datasource.url property is required
+      # in your Prisma config file" without it (9D-8). The pruned tree loads that .ts config
+      # unaided — @prisma/config bundles its own loader, so no ts-node is required.
+      #
+      # `dist-ops` IS packaged: it holds the COMPILED governed operator entrypoints — the
+      # production seed (doc 09 §6) and the content-synchronization CLI (doc 09 §6.2, doc 23 §4).
+      # Both used to run through `ts-node` against `prisma/*.ts` files that import `../src/…`;
+      # from a pruned release that is `ts-node` ENOENT and a missing `src/` (F9-13 / F9-14).
+      # `npm run build` emits it, so it is the same code the gates tested.
       - name: Package release tarball
-        run: tar -czf "eslammuatamed-api-${RELEASE}.tar.gz" dist node_modules prisma package.json package-lock.json
+        run: tar -czf "eslammuatamed-api-${RELEASE}.tar.gz" dist dist-ops node_modules prisma prisma.config.ts package.json package-lock.json
 
       - name: Write deploy key and pin the host key
         env:

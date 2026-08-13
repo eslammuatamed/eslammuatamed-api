@@ -6,16 +6,16 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../../generated/prisma/client';
 import type { Request, Response } from 'express';
 import { AppConfigService } from '../../config/app-config.service';
 import {
-  FieldError,
   PROBLEM_CONTENT_TYPE,
   PROBLEM_TYPES,
   ProblemDetails,
 } from '../http/problem-details';
 import { ValidationProblemException } from '../http/validation-problem.exception';
+import { uniqueConstraintFields } from './prisma-error-metadata';
 
 // The single exception → RFC 7807 translation point (doc 07 §3). Every non-2xx response
 // leaves the process as application/problem+json. Prisma known-error codes are mapped to
@@ -104,17 +104,29 @@ export class AllExceptionsFilter implements ExceptionFilter {
     instance: string,
   ): ProblemDetails {
     switch (exception.code) {
-      // Unique constraint — a slug/email collision. 422 with the offending field paths.
+      // Unique constraint — a slug/email collision. 422, with the offending field paths when
+      // Prisma identifies them (F9-9: the shape moved in v7, so extraction lives behind
+      // `uniqueConstraintFields`). When it cannot, the 422 is returned WITHOUT an `errors` member
+      // rather than with a placeholder — `errors` is optional in the contract, and reporting a
+      // field the API cannot identify would be a lie a client may act on.
       case 'P2002': {
-        const errors = uniqueTargetToFieldErrors(exception.meta?.target);
-        return {
+        const fields = uniqueConstraintFields(exception);
+        const problem: ProblemDetails = {
           type: PROBLEM_TYPES.validation,
           title: 'Validation failed',
           status: HttpStatus.UNPROCESSABLE_ENTITY,
           detail: 'A record with these values already exists.',
           instance,
-          errors,
         };
+        return fields === null
+          ? problem
+          : {
+              ...problem,
+              errors: fields.map((field) => ({
+                field,
+                message: 'This value is already in use.',
+              })),
+            };
       }
       // Record not found (update/delete of an absent row).
       case 'P2025':
@@ -235,20 +247,6 @@ function extractDetail(exception: HttpException): string {
     }
   }
   return exception.message;
-}
-
-// Prisma reports the P2002 target as a column list, a constraint name, or (rarely) null.
-function uniqueTargetToFieldErrors(target: unknown): FieldError[] {
-  const message = 'This value is already in use.';
-  if (Array.isArray(target)) {
-    return target
-      .filter((field): field is string => typeof field === 'string')
-      .map((field) => ({ field, message }));
-  }
-  if (typeof target === 'string') {
-    return [{ field: target, message }];
-  }
-  return [{ field: 'unknown', message }];
 }
 
 // http-errors (thrown by Express body-parser and similar middleware) expose a numeric `status` /

@@ -1,5 +1,5 @@
 import { ApiExtraModels, ApiProperty, getSchemaPath } from '@nestjs/swagger';
-import { EmploymentType } from '@prisma/client';
+import { EmploymentType } from '../../../generated/prisma/client';
 
 // Same {id, slug, label} shape as ProjectTechnologyEntity (D10-13) so one client component serves
 // both surfaces. Declared here rather than imported to keep module independence; the exported

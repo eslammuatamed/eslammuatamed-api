@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Tag, TagTranslation } from '@prisma/client';
+import { Tag, TagTranslation } from '../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocalesService } from '../locales/locales.service';
 import { CreateTagDto, UpdateTagDto } from './dto/tag.dto';

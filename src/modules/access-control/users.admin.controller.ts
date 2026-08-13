@@ -17,6 +17,7 @@ import {
 import {
   ApiAdminErrorResponses,
   ApiProblemResponse,
+  ApiUuidParamBadRequest,
 } from '../../common/swagger/api-problem-response';
 import { THROTTLE_TIERS } from '../../common/throttling/throttle-tiers';
 import { AccessControlService } from './access-control.service';
@@ -60,6 +61,7 @@ export class UsersAdminController {
   @ApiOkEnvelope(UserEntity)
   @ApiProblemResponse(HttpStatus.NOT_FOUND, 'User not found.')
   @ApiProblemResponse(HttpStatus.UNPROCESSABLE_ENTITY, 'Unknown role.')
+  @ApiUuidParamBadRequest('user')
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateUserDto,

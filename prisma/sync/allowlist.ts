@@ -56,6 +56,13 @@ export const PROTECTED_MODELS = [
   'RolePermission',
   'RefreshToken',
   'ContactMessage',
+  // Operator reply history (D09-23). Protected for the same reason as the message it answers, plus
+  // one of its own: these rows record outbound email that a person actually sent, so a content
+  // synchronization that could touch them could rewrite an audit trail. It is also unreachable by
+  // construction — the canonical dataset has no concept of a reply — but "unreachable" and
+  // "classified as protected" are different guarantees, and the second is the one that holds when
+  // the dataset changes.
+  'ContactMessageReply',
   'MediaAsset',
   'MediaAssetAlt',
   'MediaAssetVariant',
@@ -78,17 +85,6 @@ export function isGoverned(model: string): model is GovernedModel {
 export function isCascadeOnly(model: string): boolean {
   return CASCADE_ONLY_SET.has(model);
 }
-
-/**
- * Every model in `schema.prisma`, so the allowlist can be proven EXHAUSTIVE rather than merely
- * long. An unclassified model is the real hazard: it is neither protected by the check nor
- * reviewed as governed, so it would be invisible to both. A schema change that adds a model fails
- * `allowlist.spec.ts` until it is classified here deliberately.
- */
-export const ALL_SCHEMA_MODELS = [
-  ...GOVERNED_MODELS,
-  ...PROTECTED_MODELS,
-] as const;
 
 /**
  * The governed `SiteSettings` scalar columns (doc 09 §6.3). Everything else on the singleton is

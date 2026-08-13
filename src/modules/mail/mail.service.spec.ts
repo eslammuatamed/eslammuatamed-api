@@ -198,4 +198,97 @@ describe('MailService', () => {
       spies.forEach((spy) => spy.mockRestore());
     });
   });
+
+  // 11B-α §18 — the STRUCTURAL proof, at the transport seam rather than the domain one.
+  //
+  // Everything else about reply idempotency is domain logic and is tested against a fake
+  // MailService. This block is the only place that answers a different question: does the REAL
+  // production MailService actually put the provider's header on the wire? Nothing below reaches a
+  // network — `sendMail` is a jest.fn() and the assertions are on the object handed to it.
+  describe('provider idempotency header', () => {
+    const sendMailArg = (t: Transporter): Record<string, unknown> =>
+      sendMailOf(t).mock.calls[0]?.[0] as Record<string, unknown>;
+
+    it('maps the provider-neutral key onto the Resend SMTP header, verbatim', async () => {
+      const t = transport();
+      sendMailOf(t).mockResolvedValue({ messageId: '<abc@relay>' });
+      const service = new MailService(config(), t, NO_DELAY);
+
+      await service.send(
+        {
+          to: 'visitor@example.com',
+          subject: 'Re: Project inquiry',
+          text: 'The operator’s reply, verbatim.',
+          providerIdempotencyKey: 'contact-reply/reply-1',
+        },
+        'reply-1',
+      );
+
+      const arg = sendMailArg(t);
+      // The exact header name. This string is the entire duplicate-send protection: a typo here
+      // costs nothing at compile time, passes every domain test, and silently sends twice.
+      expect(arg.headers).toEqual({
+        'Resend-Idempotency-Key': 'contact-reply/reply-1',
+      });
+      // The rest of the reply message, asserted exactly rather than loosely — the recipient in
+      // particular, which is the one field a defect here could turn into a leak.
+      expect(arg.to).toBe('visitor@example.com');
+      expect(arg.subject).toBe('Re: Project inquiry');
+      expect(arg.text).toBe('The operator’s reply, verbatim.');
+      // Plain text only, no HTML alternative, and nothing carbon-copied anywhere.
+      expect(arg).not.toHaveProperty('html');
+      expect(arg).not.toHaveProperty('cc');
+      expect(arg).not.toHaveProperty('bcc');
+      // The configured sender, never one the caller chose — `MailMessage` has no `from` at all.
+      expect(arg.from).toBe('no-reply@eslammuatamed.com');
+    });
+
+    // §25. The notification path must not acquire the header as a side effect of the reply path
+    // existing: those sends are independent logical operations, and a shared key would let the
+    // provider suppress one of them as a duplicate of the other.
+    //
+    // Structural, not vacuous: `headers?.['…']` would read `undefined` on a message that HAS a
+    // headers object with the wrong contents, so the assertion is that the property is absent from
+    // the object's own keys — see the absent-vs-empty rule.
+    it('attaches no header at all to a message that did not ask for one', async () => {
+      const t = transport();
+      sendMailOf(t).mockResolvedValue({ messageId: '<abc@relay>' });
+      const service = new MailService(config(), t, NO_DELAY);
+
+      await service.send(message, 'corr-1');
+
+      const arg = sendMailArg(t);
+      expect(Object.keys(arg)).not.toContain('headers');
+      expect('headers' in arg).toBe(false);
+    });
+
+    // The header must survive the internal retry loop — which is the whole point of attaching it.
+    // A retry that dropped the key would turn MailService's own resilience into a duplicate-send
+    // mechanism: the first attempt may already have been accepted by the provider.
+    it('repeats the same key on every retry', async () => {
+      const t = transport();
+      sendMailOf(t)
+        .mockRejectedValueOnce(smtpError('451 try again'))
+        .mockResolvedValue({ messageId: '<abc@relay>' });
+      const service = new MailService(config(), t, NO_DELAY);
+
+      await service.send(
+        {
+          to: 'visitor@example.com',
+          subject: 'Re: Project inquiry',
+          text: 'body',
+          providerIdempotencyKey: 'contact-reply/reply-1',
+        },
+        'reply-1',
+      );
+
+      const keys = sendMailOf(t).mock.calls.map(
+        (call) =>
+          (call[0] as { headers?: Record<string, string> }).headers?.[
+            'Resend-Idempotency-Key'
+          ],
+      );
+      expect(keys).toEqual(['contact-reply/reply-1', 'contact-reply/reply-1']);
+    });
+  });
 });

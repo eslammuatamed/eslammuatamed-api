@@ -3,7 +3,7 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PasswordService } from '../auth/hashing/password.service';
 import { CreateRoleDto, UpdateRoleDto } from './dto/role.dto';

@@ -1,5 +1,13 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
-import { Skill, SkillTranslation, SkillGroup } from '@prisma/client';
+import {
+  ConflictException,
+  HttpException,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  Skill,
+  SkillTranslation,
+  SkillGroup,
+} from '../../generated/prisma/client';
 import { DeepMockProxy, mockDeep } from 'jest-mock-extended';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocalesService } from '../locales/locales.service';
@@ -124,16 +132,24 @@ describe('SkillsService', () => {
   // Two skills behind one public filter URL is precisely what the unique constraint prevents, so a
   // duplicate is a caller error. Left unmapped it surfaces as a 500, which reads as a server fault
   // and tells the caller nothing about how to fix the request.
-  it('maps a duplicate slug to conflict rather than letting it surface as a server error', async () => {
-    prisma.skill.create.mockRejectedValue({ code: 'P2002' });
+  // Phase 12A: the inverse of what this test used to assert. A duplicate slug must NOT be
+  // translated here — it belongs to `AllExceptionsFilter`, like every other module's unique
+  // violation (B-2). Asserting "rejects with the raw Prisma error" is what makes this
+  // discriminating: re-adding any local P2002 arm turns the rejection into an `HttpException`
+  // and fails both assertions. The public 422 this produces is proven against real PostgreSQL in
+  // `test/prisma-error-mapping.e2e-spec.ts` §B3.
+  it('lets a duplicate slug reach the global filter instead of translating it locally', async () => {
+    const violation = { code: 'P2002' };
+    prisma.skill.create.mockRejectedValue(violation);
 
-    await expect(
-      service.create({
-        slug: 'typescript',
-        group: SkillGroup.LANGUAGE,
-        order: 0,
-        translations: [{ locale: 'en', label: 'TypeScript' }],
-      }),
-    ).rejects.toBeInstanceOf(ConflictException);
+    const rejection = service.create({
+      slug: 'typescript',
+      group: SkillGroup.LANGUAGE,
+      order: 0,
+      translations: [{ locale: 'en', label: 'TypeScript' }],
+    });
+
+    await expect(rejection).rejects.toBe(violation);
+    await expect(rejection).rejects.not.toBeInstanceOf(HttpException);
   });
 });

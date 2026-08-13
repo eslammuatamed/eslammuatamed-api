@@ -588,6 +588,9 @@ describe('buildPlan', () => {
 
       expect(Object.keys(plan.protectedCounts).sort()).toEqual([
         'ContactMessage',
+        // Operator reply history (D09-23). Under count verification for the same reason as the
+        // message it answers, plus its own: these rows record email a person actually sent.
+        'ContactMessageReply',
         'Locale',
         'MediaAsset',
         'MediaAssetAlt',

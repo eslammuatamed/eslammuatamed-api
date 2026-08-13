@@ -1,6 +1,6 @@
 # eslammuatamed-api
 
-خدمة REST بـ `NestJS 11` + `Prisma 6` + `PostgreSQL 16` لمنصّة `eslammuatamed`.
+خدمة REST بـ `NestJS 11` + `Prisma 7` + `PostgreSQL 16` لمنصّة `eslammuatamed`.
 
 هذا الملف مرجع تشغيل سريع فقط. **لفهم المعمارية والتدفّقات ومراجعة التوافق ابدأ من [`PROJECT_GUIDE.md`](PROJECT_GUIDE.md)**، ثم ملفات `README.md` داخل مجلدات `src/`.
 
@@ -20,12 +20,18 @@ cp .env.example .env          # مُتحقَّق منه عند الإقلاع؛ 
 # قواعد البيانات المحلّية (Postgres أصلي، دور eslammuatamed بلا كلمة مرور):
 createuser eslammuatamed
 createdb -O eslammuatamed eslammuatamed_dev
-createdb -O eslammuatamed eslammuatamed_test
+# لا تُنشئ قاعدة اختبار ثابتة: حزمة e2e تُنشئ قاعدتها وتُسقطها بنفسها (D18-8) — انظر قسم e2e أدناه.
 
 npx prisma migrate deploy     # تطبيق الـ migration المُلتزَم على قاعدة dev
+npm run build:ops             # مطلوب قبل db:seed — يبني البذرة المُصرَّفة في dist-ops/
 npm run db:seed               # locales، دور OWNER (+ منحة '*')، المالك، الإعدادات، التصنيفات
 npm run start:dev             # http://localhost:3001  (Swagger UI على /docs)
 ```
+
+> **لماذا `build:ops` أولًا؟** `db:seed` و`content:sync:*` تعمل الآن من `JavaScript` **مُصرَّف** في
+> `dist-ops/` بدل `ts-node`، لأنّ إصدار الإنتاج المُقلَّم (`npm prune --omit=dev`) لا يحوي `ts-node`
+> ولا مجلّد `src/` (‏`F9-13`/`F9-14`). لم نربط البناء داخل السكربتات نفسها لأنّ `tsc` غير موجود في
+> الإنتاج، فربطُه كان سيكسر الأمر حيث يهمّ فعلًا. `npm run build` الكامل يبنيه أيضًا.
 
 > ملاحظة إعداد: الدور بلا كلمة مرور قد يُفشِل أول `migrate deploy`/`db:seed` لأن `pg_hba.conf` الافتراضي يطلب `scram-sha-256` على `127.0.0.1`؛ أضِف سطر `trust` مُقيَّدًا على loopback (انظر تعليق `.env.example` و`runbooks/setup.md` في `../eslammuatamed-docs`).
 
@@ -40,21 +46,25 @@ npm test                      # اختبارات الوحدة
 npm run contract:export       # → openapi.json (العقد الرسمي)
 ```
 
-## اختبارات e2e (تحتاج Postgres)
+## اختبارات e2e (تحتاج خادم Postgres يعمل)
 
-تعمل ضدّ قاعدة **الاختبار** — هيّئها (migrate ثم seed) ثم شغّلها ببيانات اعتماد متّسقة مع الـ seed:
+**لا تُهيّئ قاعدة بيانات يدويًّا، ولا تُصدِّر `DATABASE_URL` لقاعدة اختبار.** الحزمة **تملك قاعدتها**
+(`D18-8`/`D18-9`): في كل تشغيل تُولّد اسمًا فريدًا `eslammuatamed_e2e_<run-id>`، تُنشئه وتُرحّله وتبذره،
+ثم تُسقطه في النهاية.
 
 ```bash
-export DATABASE_URL=postgresql://eslammuatamed@localhost:5432/eslammuatamed_test
-export SEED_OWNER_EMAIL=owner@example.com
-export SEED_OWNER_PASSWORD=change-me-minimum-12
-
-npx prisma migrate deploy     # أول مرّة / بعد تغيير المخطّط
-npm run db:seed               # idempotent
-npm run test:e2e              # Supertest + jest-openapi (تأكيد مطابقة العقد)
+npm run test:e2e              # Supertest + jest-openapi — يبني dist-ops تلقائيًّا
 ```
 
-الـ CI يعكس هذا: مسار `e2e` في `.github/workflows/ci.yml` يشغّل خدمة `Postgres 16` ثم `generate` → `migrate deploy` → `db:seed` → `test:e2e` ببيانات اعتماد متّسقة.
+> **ليه مفيش خطوة `migrate`/`seed` يدويّة؟** لأنّ للتهيئة **مالكًا واحدًا** هو الحزمة نفسها؛ مالكان
+> متنافسان يُخفيان أيّهما فعل ماذا.
+>
+> **وليه ده آمن مع `.env` تطويريّ؟** من `DATABASE_URL` المُهيَّأ تُؤخَذ **بيانات الخادم فقط** (المضيف،
+> المنفذ، الاعتماد) ويُهمَل اسم قاعدته، فلا يمكن لتشغيل e2e أن يكتب في `eslammuatamed_dev`. وحارس
+> `fail-closed` في `test/utils/e2e-setup.ts` يرفض إقلاع التطبيق أصلًا إن لم تُشِر `DATABASE_URL` إلى قاعدة
+> وَلَّدَتْها هذه الجولة. التفاصيل في [`test/README.md`](test/README.md).
+
+في الـ CI: مسار `e2e` في `.github/workflows/ci.yml` يشغّل خدمة `Postgres 16` ثم `npm ci` → `generate` → `test:e2e` فقط. **لا يوجد فيه `migrate deploy` ولا `db:seed`** — فمنذ `D18-8` يملك مِعمار الاختبارات قاعدةً خاصّة به لكلّ تشغيل: ينشئها ويُرحّلها ويبذرها ويُسقطها بنفسه، فلا يوجد سوى مالكٍ واحد للتهيئة. ولا توجد خطوات يدويّة مقابلة للتشغيل المحلّي: المسار المحلّي والـ CI يستعملان نفس الحزمة المالكة لقاعدتها.
 
 ## النشر
 

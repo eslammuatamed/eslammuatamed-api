@@ -6,7 +6,15 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['eslint.config.mjs', 'dist', 'coverage', 'prisma/migrations'],
+    // `src/generated/prisma` is the Prisma Client. It is generated, gitignored, and
+    // already ships its own `@ts-nocheck` + eslint-disable headers.
+    ignores: [
+      'eslint.config.mjs',
+      'dist',
+      'coverage',
+      'prisma/migrations',
+      'src/generated/prisma',
+    ],
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,

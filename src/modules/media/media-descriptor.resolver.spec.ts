@@ -1,4 +1,4 @@
-import { MediaKind, MediaVariantFormat } from '@prisma/client';
+import { MediaKind, MediaVariantFormat } from '../../generated/prisma/client';
 import { PinoLogger } from 'nestjs-pino';
 import {
   DescriptorImageInput,

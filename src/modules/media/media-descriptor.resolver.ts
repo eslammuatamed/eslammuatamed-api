@@ -1,5 +1,5 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
-import { MediaKind, MediaVariantFormat } from '@prisma/client';
+import { MediaKind, MediaVariantFormat } from '../../generated/prisma/client';
 import { InjectPinoLogger } from 'nestjs-pino';
 import type { PinoLogger } from 'nestjs-pino';
 import {

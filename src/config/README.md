@@ -36,12 +36,19 @@ get isProduction(): boolean { return this.nodeEnv === NodeEnv.Production; }
 ## العقود والثوابت (invariants)
 
 - كل متغيّر مطلوب له قاعدة تحقّق صريحة (طول أدنى للأسرار، نطاق للمنافذ، صيغة مدّة لـ `JWT_ACCESS_TTL` عبر `@Matches(/^\d+(ms|s|m|h|d)$/)`).
+- **`DATABASE_URL` له قاعدة صيغة صريحة (`D16-12`):** سلسلة اتصال `postgresql://`/`postgres://` بلا مسافات — فقيمة مشوَّهة تُرفَض عند الإقلاع بدل أن تظهر كخطأ اتصال غامض لاحقًا.
 - `COOKIE_DOMAIN` اختياري؛ سلسلة فارغة تُطبَّع إلى `undefined` (كوكي host-only، صحيح لـ localhost).
 - **الأسرار لا تدخل git ولا السجلّات** (تنقيح pino — `D07-5`).
 
-## ملاحظة حالة مهمّة (Shipped vs Planned)
+## نطاق المخطّط اليوم
 
-المخطّط يتحقّق حاليًّا من `STORAGE_DRIVER`, `STORAGE_LOCAL_DIR`, `PUBLIC_MEDIA_URL`, و`PREVIEW_TOKEN_SECRET` **رغم أن وحداتها (`media`, preview tokens) `Planned` ولم تُبنَ بعد** — الإعداد يسبق الوحدات عمدًا. متغيّرات `S3_*` **ليست** في هذا الأساس؛ تُضاف مع Feature 003.
+الوحدات التي كان هذا القسم يصفها `Planned` صارت **مُسلَّمة**: `media` (الميزة 003) و`preview`. والمخطّط
+اليوم يتحقّق من `STORAGE_DRIVER`, `STORAGE_LOCAL_DIR`, `PUBLIC_MEDIA_URL`, `PREVIEW_TOKEN_SECRET`،
+**ومن `S3_*`** (`S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, و`S3_REGION`
+الاختياري) التي دخلت مع الميزة 003، **ومن `SMTP_*`** و`CONTACT_NOTIFICATION_TO` لمسار البريد.
+
+> المبدأ الذي كان يبرّر الوضع القديم ما زال قائمًا: **الإعداد يسبق الوحدة عمدًا** — يُتحقَّق من المتغيّر
+> عند الإقلاع قبل أن توجد الوحدة التي تستهلكه، فلا تُكتشَف بيئة ناقصة وقت أول طلب.
 
 ## الاختبارات وما تُثبته
 

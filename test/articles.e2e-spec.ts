@@ -91,6 +91,81 @@ describe('Articles (e2e)', () => {
     expect(detail.readingTimeMin).toBeGreaterThanOrEqual(1);
   });
 
+  // D19-11: there is no separate publish permission — articles.update confers publishing. This
+  // proves it for a NON-owner role, which is the claim that matters: the removed articles.publish
+  // key never gated this transition, so a role designed as "may edit but not publish" would not
+  // have existed. Using the OWNER token here would prove nothing (the '*' wildcard matches
+  // everything); the role below holds articles.update and nothing else.
+  it('lets a role holding only articles.update publish an article (D19-11)', async () => {
+    const roleRes = await request(httpServer(app))
+      .post('/api/v1/admin/roles')
+      .set(auth())
+      .send({
+        name: `Updater ${unique}`,
+        permissions: ['articles.update'],
+      })
+      .expect(201);
+    const roleId = envelopeData<{ id: string }>(roleRes).id;
+
+    const email = `articles-updater-${unique}@example.com`;
+    const password = 'change-me-minimum-12';
+    await request(httpServer(app))
+      .post('/api/v1/admin/users')
+      .set(auth())
+      .send({ email, password, roleId })
+      .expect(201);
+
+    const login = await request(httpServer(app))
+      .post('/api/v1/auth/login')
+      .send({ email, password })
+      .expect(200);
+    const updaterAuth = {
+      Authorization: `Bearer ${envelopeData<{ accessToken: string }>(login).accessToken}`,
+    };
+
+    // OWNER creates the draft (the role cannot create — it holds update only).
+    const created = await request(httpServer(app))
+      .post('/api/v1/admin/articles')
+      .set(auth())
+      .send({
+        categoryId,
+        status: 'DRAFT',
+        translations: [
+          {
+            locale: 'en',
+            title: `Updater Fixture ${unique}`,
+            slug: `updater-fixture-${unique}`,
+            excerpt: 'Fixture for the D19-11 publishing model.',
+            body: '# Heading\n\nBody content for the publishing-permission proof.',
+          },
+        ],
+      })
+      .expect(201);
+    const id = envelopeData<{ id: string }>(created).id;
+
+    // The status transition to PUBLISHED succeeds on articles.update alone.
+    const published = await request(httpServer(app))
+      .patch(`/api/v1/admin/articles/${id}`)
+      .set(updaterAuth)
+      .send({ status: 'PUBLISHED' })
+      .expect(200);
+    expect(published).toSatisfyApiSpec();
+    expect(envelopeData<{ status: string }>(published).status).toBe(
+      'PUBLISHED',
+    );
+
+    // And the article is now publicly reachable — publishing really happened.
+    await request(httpServer(app))
+      .get(`/api/v1/articles/updater-fixture-${unique}?locale=en`)
+      .expect(200);
+
+    // The same role still cannot delete: update is not a blanket articles grant.
+    await request(httpServer(app))
+      .delete(`/api/v1/admin/articles/${id}`)
+      .set(updaterAuth)
+      .expect(403);
+  });
+
   it('rejects a duplicate slug in the same locale with a contract-valid 422', async () => {
     const conflict = await request(httpServer(app))
       .post('/api/v1/admin/articles')
@@ -211,5 +286,162 @@ describe('Articles (e2e)', () => {
     expect(Object.keys(detail.slugs).sort()).toEqual(
       [...detail.availableLocales].sort(),
     );
+  });
+
+  // D10-20 through the real query. The unit tests cover the mapper, but only a real read can
+  // prove there is no cross-locale fallback: the EN category name genuinely exists in the
+  // database here, and the AR response still must not contain it.
+  describe('untranslated taxonomy (D10-20)', () => {
+    // EN-only taxonomy plus a bilingual article: the article resolves in AR, its category
+    // does not. This is the exact production shape — an editor publishes a translation before
+    // the taxonomy label is translated.
+    const enOnlyName = `EnOnlyCategory${unique}`;
+    const enOnlySlug = `en-only-category-${unique}`;
+    const enOnlyTagName = `EnOnlyTag${unique}`;
+    const bilingualTagEnName = `BilingualTagEn${unique}`;
+    const bilingualTagArName = `وسم-ثنائي-${unique}`;
+    const enArticleSlug = `d1020-en-${unique}`;
+    const arArticleSlug = `d1020-ar-${unique}`;
+
+    beforeAll(async () => {
+      const category = await request(httpServer(app))
+        .post('/api/v1/admin/categories')
+        .set(auth())
+        .send({
+          translations: [{ locale: 'en', name: enOnlyName, slug: enOnlySlug }],
+        })
+        .expect(201);
+      const enOnlyCategoryId = envelopeData<{ id: string }>(category).id;
+
+      const enOnlyTag = await request(httpServer(app))
+        .post('/api/v1/admin/tags')
+        .set(auth())
+        .send({
+          translations: [
+            {
+              locale: 'en',
+              name: enOnlyTagName,
+              slug: `en-only-tag-${unique}`,
+            },
+          ],
+        })
+        .expect(201);
+
+      const bilingualTag = await request(httpServer(app))
+        .post('/api/v1/admin/tags')
+        .set(auth())
+        .send({
+          translations: [
+            {
+              locale: 'en',
+              name: bilingualTagEnName,
+              slug: `bilingual-tag-en-${unique}`,
+            },
+            {
+              locale: 'ar',
+              name: bilingualTagArName,
+              slug: `bilingual-tag-ar-${unique}`,
+            },
+          ],
+        })
+        .expect(201);
+
+      await request(httpServer(app))
+        .post('/api/v1/admin/articles')
+        .set(auth())
+        .send({
+          categoryId: enOnlyCategoryId,
+          status: 'PUBLISHED',
+          tagIds: [
+            envelopeData<{ id: string }>(enOnlyTag).id,
+            envelopeData<{ id: string }>(bilingualTag).id,
+          ],
+          translations: [
+            {
+              locale: 'en',
+              title: `D10-20 ${unique}`,
+              slug: enArticleSlug,
+              excerpt: 'EN excerpt.',
+              body: 'EN body.',
+            },
+            {
+              locale: 'ar',
+              title: `عشرون ${unique}`,
+              slug: arArticleSlug,
+              excerpt: 'مقتطف عربي.',
+              body: 'محتوى عربي.',
+            },
+          ],
+        })
+        .expect(201);
+    });
+
+    it('returns the populated category when the requested locale has a translation', async () => {
+      const res = await request(httpServer(app))
+        .get(`/api/v1/articles/${enArticleSlug}?locale=en`)
+        .expect(200);
+      expect(res).toSatisfyApiSpec();
+
+      const detail = envelopeData<{
+        category: { id: string; name: string; slug: string } | null;
+      }>(res);
+      expect(detail.category).toMatchObject({
+        name: enOnlyName,
+        slug: enOnlySlug,
+      });
+    });
+
+    it('keeps the article visible with category null when its translation is missing', async () => {
+      const res = await request(httpServer(app))
+        .get(`/api/v1/articles/${arArticleSlug}?locale=ar`)
+        .expect(200);
+      // The contract itself must admit the null — a stale schema would fail here.
+      expect(res).toSatisfyApiSpec();
+
+      const detail = envelopeData<{ title: string; category: unknown }>(res);
+      // The article is returned, not hidden.
+      expect(detail.title).toContain(`${unique}`);
+      // Key present, value null — not an omitted key, not `{ name: '', slug: '' }`.
+      expect(detail).toHaveProperty('category', null);
+      expect(Object.keys(detail)).toContain('category');
+    });
+
+    it('never falls back to the EN category label on an AR read', async () => {
+      const res = await request(httpServer(app))
+        .get(`/api/v1/articles/${arArticleSlug}?locale=ar`)
+        .expect(200);
+
+      // The EN name and slug exist in the database; neither may appear in an AR response.
+      expect(JSON.stringify(res.body)).not.toContain(enOnlyName);
+      expect(JSON.stringify(res.body)).not.toContain(enOnlySlug);
+    });
+
+    it('omits an untranslated tag from the array rather than listing it blank', async () => {
+      const res = await request(httpServer(app))
+        .get(`/api/v1/articles/${arArticleSlug}?locale=ar`)
+        .expect(200);
+      expect(res).toSatisfyApiSpec();
+
+      const detail = envelopeData<{
+        tags: { name: string; slug: string }[];
+      }>(res);
+      // Exactly the tag that has an AR translation — the EN-only tag is absent, not blank.
+      expect(detail.tags.map((tag) => tag.name)).toEqual([bilingualTagArName]);
+      expect(detail.tags.every((tag) => tag.name !== '')).toBe(true);
+    });
+
+    it('applies the same rule on the list endpoint, not just the detail', async () => {
+      const res = await request(httpServer(app))
+        .get(`/api/v1/articles?locale=ar&perPage=50`)
+        .expect(200);
+      expect(res).toSatisfyApiSpec();
+
+      const item = envelopeData<
+        { slug: string; category: unknown; tags: { name: string }[] }[]
+      >(res).find((article) => article.slug === arArticleSlug);
+      expect(item).toBeDefined();
+      expect(item).toHaveProperty('category', null);
+      expect(item?.tags.map((tag) => tag.name)).toEqual([bilingualTagArName]);
+    });
   });
 });

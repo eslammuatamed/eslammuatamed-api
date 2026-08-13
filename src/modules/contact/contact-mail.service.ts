@@ -1,8 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ContactMessage } from '@prisma/client';
+import { ContactMessage } from '../../generated/prisma/client';
 import { AppConfigService } from '../../config/app-config.service';
 import { MailMessage } from '../mail/mail-message';
 import { MailService } from '../mail/mail.service';
+// `import type`, not a value import. ContactReplyService now injects THIS service, so a value
+// import here would close a runtime require() cycle between the two files and hand one of them a
+// half-initialized module at load. The `type` keyword makes the elision explicit and permanent
+// rather than a property of how the compiler happens to treat an unused binding today.
+import type { RepliableContactMessage } from './contact-reply.service';
+import { deriveReplySubject } from './reply-subject';
 
 // Collapses CR/LF to spaces before a visitor-supplied value is used in a mail HEADER. `subject`
 // reaches this API through a DTO that trims and length-caps it but does not forbid newlines, and a
@@ -20,6 +26,19 @@ function singleLine(value: string): string {
 function orAbsent(value: string | null): string {
   return value !== null && value.length > 0 ? value : '—';
 }
+
+// What a reply send attempt concluded, in terms the reply domain persists — and nothing more.
+//
+// Deliberately narrower than `MailSendResult`: no SMTP response, no Nodemailer info object, no
+// provider error. The domain records a status and an optional external id; giving it the raw
+// result would let a transport detail reach a response DTO or the stored history, which doc 19 §7
+// forbids and which no amount of care at the call site would keep true over time.
+//
+// `accepted` means the transport took responsibility for the message. It does NOT mean the mail
+// reached an inbox, escaped a spam filter, or was read — see the `SENT` definition on the entity.
+export type ReplyDeliveryOutcome =
+  | { readonly accepted: true; readonly providerMessageId: string | null }
+  | { readonly accepted: false };
 
 // Builds and dispatches the two contact emails. Content lives here, in the module that owns the
 // contact domain; MailService owns delivery only.
@@ -79,6 +98,114 @@ export class ContactMailService {
           (error instanceof Error ? error.message : 'Unknown error.'),
       );
     }
+  }
+
+  // Builds the operator's reply to a visitor (D02-13). CONTENT only — this method sends nothing;
+  // it is the message the delivery step will hand to `MailService.send`. It lives here because this
+  // module already owns contact mail content while MailService owns delivery, and extending that
+  // seam is what the boundary asks for rather than a second reply-specific mail service.
+  //
+  // THE RECIPIENT INVARIANT, in code (D19-12): `to` is `message.email` and there is no parameter,
+  // field or fallback through which a caller could supply a different address. The parameter type
+  // requires an already-narrowed message, so the address is not merely unvalidated-but-trusted —
+  // it is the only value in scope that could be used.
+  //
+  // Public so that the invariant is directly assertable by a test rather than only observable
+  // through an endpoint that would also have to be authenticated, permitted and persisted first.
+  buildReply(
+    message: RepliableContactMessage,
+    body: string,
+    providerIdempotencyKey: string,
+  ): MailMessage {
+    return {
+      to: message.email,
+      subject: deriveReplySubject(message.subject),
+      // The operator's text, verbatim. Not templated, not wrapped in a signature block, and not
+      // given an "automated message" disclaimer — unlike the acknowledgement below, this IS a
+      // person writing to a person, and decorating it would misrepresent who wrote it.
+      text: body,
+      // Required, not optional, on this path: a reply is the one send this API may legitimately
+      // RE-ATTEMPT after an ambiguous outcome, and without the key that re-attempt would be a
+      // second email to a real person. Typed as a required parameter so a caller cannot omit it —
+      // the alternative, an optional field defaulted here, would fail silently and invisibly.
+      providerIdempotencyKey,
+    };
+  }
+
+  // Sends one reply and reports only what the reply domain persists (11B-α §3).
+  //
+  // The reply path differs from the notification path in the one way that matters: an operator
+  // explicitly asked for this email and is waiting on its outcome, so this IS awaited, and the
+  // caller records what it concluded. `dispatchForSubmission` above stays detached and best-effort;
+  // extending this service must never make a visitor's contact submission wait on SMTP (§4).
+  //
+  // `MailService.send` contracts not to throw, so a provider failure arrives here as a VALUE and
+  // never as an exception — which is what keeps raw transport text out of ProblemDetails by
+  // construction rather than by remembering to catch it (§22).
+  //
+  // The backstop below keeps that contract from being LOAD-BEARING, which is the same reason
+  // `dispatchForSubmission` has one. The difference is what it does with the failure: that path
+  // swallows, because its database write already committed and no caller is left. This one
+  // RE-THROWS, sanitized, because the reply's outcome is genuinely unknown at that point and the
+  // caller must be allowed to leave the attempt PENDING rather than record a terminal state.
+  async dispatchReply(
+    message: RepliableContactMessage,
+    body: string,
+    providerIdempotencyKey: string,
+    correlationId: string,
+  ): Promise<ReplyDeliveryOutcome> {
+    let result;
+    try {
+      result = await this.mail.send(
+        this.buildReply(message, body, providerIdempotencyKey),
+        correlationId,
+      );
+    } catch (error: unknown) {
+      // Sanitized at the boundary. The original message is logged and then dropped: a raw
+      // Nodemailer message reaching here would otherwise land in ProblemDetails' `detail` outside
+      // production (all-exceptions.filter.ts), which is exactly the transport text §22 forbids.
+      this.logger.error(
+        `Reply ${correlationId} delivery raised unexpectedly: ` +
+          (error instanceof Error ? error.message : 'Unknown error.'),
+      );
+      // `cause` carries the original for a debugger without publishing it: the filter's `detail`
+      // is `exception.message` (this sanitized string) and its log line is `exception.stack`,
+      // neither of which serializes a cause. So the chain is preserved where it is useful and
+      // absent everywhere it would be a leak.
+      throw new Error('Reply delivery failed unexpectedly.', { cause: error });
+    }
+
+    if (result.status === 'sent') {
+      return {
+        accepted: true,
+        // `MailService` reports the literal string 'unknown' when a transport omits the id, which
+        // is a fine thing to put in a log line and a lie to store in a column whose absence means
+        // "we have no id". Normalized to null at this boundary — the one place that decides what
+        // reaches the database — so no row ever claims 'unknown' is a provider message id.
+        providerMessageId:
+          result.messageId === 'unknown' ? null : result.messageId,
+      };
+    }
+
+    // 'failed' and 'disabled' are both "the provider did not take this message", and the reply
+    // domain treats them identically: there is no outcome to wait for and no external send to
+    // protect against duplicating. They are logged apart because they mean different things to an
+    // operator — a relay refused this message, versus this deployment sends no mail at all.
+    if (result.status === 'disabled') {
+      this.logger.warn(
+        `Reply ${correlationId} not sent: mail is disabled in this deployment.`,
+      );
+    } else {
+      // The reason string comes from `describeFailure`, which already reduces the error to its own
+      // message and never the error object (which carries `auth.pass`). It is logged and NOWHERE
+      // else — not persisted, not returned, not put in a response body (§22).
+      this.logger.error(
+        `Reply ${correlationId} not accepted by the transport after ` +
+          `${result.attempts} attempt(s): ${result.reason}`,
+      );
+    }
+
+    return { accepted: false };
   }
 
   // Owner notification. Carries the message and how to answer it — no secrets, no host names, no

@@ -1,7 +1,13 @@
 # compiled output
 /dist
+/dist-ops
 /node_modules
 /build
+
+# Prisma Client — generated TypeScript source (Prisma 7 emits it into the repo
+# instead of node_modules). Regenerate with `npm run db:generate`; CI and the
+# deploy workflow already run it after `npm ci`. Never edit or commit it.
+/src/generated/prisma
 
 # Logs
 logs

@@ -66,6 +66,30 @@ export function ApiAdminErrorResponses(): MethodDecorator & ClassDecorator {
   );
 }
 
+// The 400 a route earns purely by parsing a UUID path parameter (Phase 12A).
+//
+// `ParseUUIDPipe` runs BEFORE the global `ValidationPipe` and answers a malformed `:id` with 400,
+// not the 422 the rest of the request surface uses — measured in Phase 11B-β2, frozen in β-3.
+// Every route carrying `@Param('…', ParseUUIDPipe)` can therefore return a 400 that no request
+// body or query can explain, and until now only the two reply routes said so.
+//
+// Deliberately NOT folded into `ApiAdminErrorResponses()`. That decorator is applied at the class
+// level, where it would also declare 400 on list and create routes that have no UUID parameter and
+// cannot produce this failure — a contract that is broader and LESS true. This one is applied per
+// handler, next to the pipe that causes it, so the declaration and its cause stay adjacent.
+//
+// `noun` names the resource in the description; the parameter exists so a route can say "message
+// id" rather than the generic form, and pre-existing wordings survive the migration unchanged.
+// `uuid-param-contract.spec.ts` asserts the pipe and the declaration never diverge.
+export function ApiUuidParamBadRequest(
+  noun = 'resource',
+): MethodDecorator & ClassDecorator {
+  return ApiProblemResponse(
+    HttpStatus.BAD_REQUEST,
+    `The ${noun} id in the path is not a well-formed UUID.`,
+  );
+}
+
 // The error set every locale-resolved public read can return: an unknown/disabled locale (400)
 // and a malformed query (422).
 export function ApiPublicReadErrorResponses(): MethodDecorator &

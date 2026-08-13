@@ -6,6 +6,8 @@ import {
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import { createHash } from 'node:crypto';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import cookieParser from 'cookie-parser';
 import sharp from 'sharp';
 import request from 'supertest';
@@ -19,6 +21,8 @@ import {
   STORAGE_ADAPTER,
   StorageAdapter,
 } from '../src/modules/media/storage/storage-adapter.interface';
+import { PrismaClient } from '../src/generated/prisma/client';
+import { createPrismaClient } from '../src/prisma/standalone-client';
 import { PrismaService } from '../src/prisma/prisma.service';
 import {
   createE2eApp,
@@ -35,6 +39,39 @@ import { loadApiSpec } from './utils/contract';
 
 // A run-unique seed so re-runs never collide on contentHash (dedup would turn a 201 into a 200).
 const RUN = Date.now();
+
+// The C-6 race barrier (see the test for why a lock and not a sleep). Same mechanism as the 9C-6
+// rotation barrier: `pg_blocking_pids` is the reliable signal, because a backend queued on a row
+// produces a mix of granted and waiting lock rows that counting `pg_locks` by type miscounts.
+const BARRIER_DEADLINE_MS = 5_000;
+const BARRIER_POLL_MS = 25;
+
+async function waitUntilBlocked(
+  observer: PrismaClient,
+  expected: number,
+): Promise<void> {
+  const startedAt = Date.now();
+  for (;;) {
+    const rows = await observer.$queryRaw<{ blocked: number }[]>`
+      SELECT count(*)::int AS blocked
+        FROM pg_stat_activity
+       WHERE datname = current_database()
+         AND cardinality(pg_blocking_pids(pid)) > 0
+    `;
+    if ((rows[0]?.blocked ?? 0) >= expected) {
+      return;
+    }
+    if (Date.now() - startedAt > BARRIER_DEADLINE_MS) {
+      // Never a silent pass: an unformed barrier means the interleaving never happened, so the
+      // assertions below would be decoration rather than proof.
+      throw new Error(
+        `Barrier never formed: the delete did not reach the row lock within ` +
+          `${BARRIER_DEADLINE_MS} ms. This run proves nothing about the C-6 race.`,
+      );
+    }
+    await new Promise((resolve) => setTimeout(resolve, BARRIER_POLL_MS));
+  }
+}
 
 interface AdminVariant {
   readonly format: string;
@@ -335,6 +372,166 @@ describe('Media pipeline (e2e)', () => {
       .set(owner())
       .expect(204);
   });
+
+  // ── C-6 — the race the pre-check cannot win (D07-7) ────────────────────────────────────────
+  //
+  // The usage read at the top of `remove()` is stale the moment it returns. This proves the
+  // RESTRICT foreign key — not that read — is what decides, and that the reordering keeps the
+  // objects on disk when the database says no.
+  //
+  // The barrier is the FK's own parent-row lock, not a sleep. A separate connection INSERTs a
+  // referencing row and holds the transaction open: under READ COMMITTED the request's pre-check
+  // cannot see the uncommitted row (so it proceeds exactly as in the unguarded case), while the
+  // authoritative DELETE must wait for that transaction to resolve. Committing it turns the wait
+  // into a 23503 → P2003, which is the precise interleaving the defect needed.
+  it('keeps the objects on disk and 409s when a reference is committed mid-delete', async () => {
+    // Its own user, so this upload does not consume the owner's 10/min throttle bucket.
+    const token = await tokenFor(
+      ['media.create', 'media.read', 'media.delete'],
+      'c6-race',
+    );
+    const auth = { Authorization: `Bearer ${token}` };
+    const asset = envelopeData<AdminAsset>(
+      await uploadImage(token, await pngImage(RUN + 90)).expect(201),
+    );
+
+    const prisma = app.get(PrismaService);
+    const stored = await prisma.mediaAsset.findUniqueOrThrow({
+      where: { id: asset.id },
+      include: { variants: { select: { storageKey: true } } },
+    });
+    const keys = [
+      stored.storageKey,
+      ...stored.variants.map((v) => v.storageKey),
+    ];
+    const storageDir = process.env.STORAGE_LOCAL_DIR;
+    expect(storageDir).toBeDefined();
+    const onDisk = (): boolean[] =>
+      keys.map((key) => existsSync(join(storageDir as string, key)));
+    // The instrument itself: if the objects were never written, "still present" proves nothing.
+    expect(onDisk()).toEqual(keys.map(() => true));
+
+    const blocker = createPrismaClient();
+    const observer = createPrismaClient();
+    let released!: () => void;
+    const release = new Promise<void>((resolve) => {
+      released = resolve;
+    });
+    let inserted!: () => void;
+    const referenceExists = new Promise<void>((resolve) => {
+      inserted = resolve;
+    });
+
+    try {
+      // T2: create the reference, and hold it uncommitted until the delete is observably blocked.
+      const held = blocker.$transaction(
+        async (tx) => {
+          const project = await tx.project.create({ data: {} });
+          await tx.projectGalleryItem.create({
+            data: { projectId: project.id, mediaAssetId: asset.id },
+          });
+          inserted();
+          await release;
+        },
+        { timeout: BARRIER_DEADLINE_MS * 4 },
+      );
+
+      // Ordering matters and cannot be left to chance: the reference must already exist
+      // (uncommitted) before the delete starts, or the delete simply wins and removes the asset —
+      // which then makes T2's own insert fail on the FK and proves nothing. Racing against `held`
+      // surfaces an error in the transaction instead of hanging here forever.
+      await Promise.race([referenceExists, held]);
+
+      // T1: the delete. Not awaited — it must be in flight for the barrier to form.
+      const deleting = request(server)
+        .delete(`/api/v1/admin/media/${asset.id}`)
+        .set(auth);
+      const settled = deleting.then((r) => r);
+
+      await waitUntilBlocked(observer, 1);
+      // Blocked, therefore: the pre-check already passed and the authoritative DELETE is queued
+      // behind T2. Objects must still be on disk at this exact moment — the old ordering had
+      // already removed them by now.
+      expect(onDisk()).toEqual(keys.map(() => true));
+
+      released();
+      await held;
+
+      const conflict = await settled;
+
+      expect(conflict.status).toBe(409);
+      expect(conflict.headers['content-type']).toContain(
+        'application/problem+json',
+      );
+      expect(conflict).toSatisfyApiSpec();
+      // Truthful usages: the reference that actually blocked it, re-read after the rejection.
+      const usages = (conflict.body as { usages: Usage[] }).usages;
+      expect(usages.some((u) => u.type === 'project-gallery')).toBe(true);
+      // No raw Prisma/driver detail escapes.
+      const serialized = JSON.stringify(conflict.body);
+      expect(serialized).not.toContain('P2003');
+      expect(serialized).not.toContain('23503');
+      expect(serialized).not.toContain('_fkey');
+
+      // THE C-6 INVARIANT: the database refused, so storage was never touched.
+      expect(onDisk()).toEqual(keys.map(() => true));
+      expect(await prisma.mediaAsset.count({ where: { id: asset.id } })).toBe(
+        1,
+      );
+      expect(
+        await prisma.projectGalleryItem.count({
+          where: { mediaAssetId: asset.id },
+        }),
+      ).toBe(1);
+    } finally {
+      released();
+      await blocker.$disconnect();
+      await observer.$disconnect();
+    }
+    // Provisioning a scoped user (argon2) plus the barrier deadline exceeds jest's 5 s default.
+  }, 30_000);
+
+  // The success path, proven at the object level rather than by status alone (§12).
+  it('removes the row and every stored object exactly once on an unreferenced delete', async () => {
+    const token = await tokenFor(
+      ['media.create', 'media.read', 'media.delete'],
+      'c6-success',
+    );
+    const auth = { Authorization: `Bearer ${token}` };
+    const asset = envelopeData<AdminAsset>(
+      await uploadImage(token, await pngImage(RUN + 91)).expect(201),
+    );
+    const prisma = app.get(PrismaService);
+    const stored = await prisma.mediaAsset.findUniqueOrThrow({
+      where: { id: asset.id },
+      include: { variants: { select: { storageKey: true } } },
+    });
+    const keys = [
+      stored.storageKey,
+      ...stored.variants.map((v) => v.storageKey),
+    ];
+    expect(new Set(keys).size).toBe(keys.length); // each key exactly once
+    const storageDir = process.env.STORAGE_LOCAL_DIR as string;
+    expect(keys.map((k) => existsSync(join(storageDir, k)))).toEqual(
+      keys.map(() => true),
+    );
+
+    await request(server)
+      .delete(`/api/v1/admin/media/${asset.id}`)
+      .set(auth)
+      .expect(204);
+
+    expect(keys.map((k) => existsSync(join(storageDir, k)))).toEqual(
+      keys.map(() => false),
+    );
+    expect(await prisma.mediaAsset.count({ where: { id: asset.id } })).toBe(0);
+    // The CASCADE side of the same single delete.
+    expect(
+      await prisma.mediaAssetVariant.count({
+        where: { mediaAssetId: asset.id },
+      }),
+    ).toBe(0);
+  }, 30_000);
 
   it('rejects a non-image (spoofed extension) with 422 and creates no orphan row', async () => {
     const prisma = app.get(PrismaService);

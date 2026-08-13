@@ -4,7 +4,7 @@ import {
   OmitType,
   PartialType,
 } from '@nestjs/swagger';
-import { SkillGroup } from '@prisma/client';
+import { SkillGroup } from '../../../generated/prisma/client';
 import { Type } from 'class-transformer';
 import {
   ArrayMinSize,
