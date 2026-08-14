@@ -45,18 +45,18 @@ Authoritative status lives in the ledger; this file is the task decomposition.
 | D-7 | Write the deletion authorization request with all proofs attached | DONE — ledger §2b |
 | D-8 | **STOP — owner authorization** (irreversible Production mutation) | OWNER-GATED |
 
-## Phase 2 — Workstream A: API CI efficiency
+## Phase 2 — Workstream A: API CI efficiency  ·  **DONE**
 
 | ID | Task | Status |
 |---|---|---|
-| A-1 | Measure the real API release pipeline from hosted runs — per-job and per-step, with run IDs. The inherited ≈260 s figure is void (R3) | TODO |
-| A-2 | Measure the API `ci.yml` run for comparison | TODO |
-| A-3 | Test whether `deploy.yml` can prove at runtime that `main`'s **tree hash** equals a tree `ci.yml` passed green on `dev` (R4). Tree hash, never commit SHA — D17-4 squashes | TODO |
-| A-4 | If A-3 succeeds: propose gating `verify`/`e2e` on that proof, preserving FR-A3 in full. If it fails: **evidence-defer** with the reason | TODO |
-| A-5 | Identify any intra-job waste with no correctness argument | TODO |
-| A-6 | Implement whatever survives A-4/A-5; negative-control every new guard before trusting it | TODO |
-| A-7 | Re-measure; record improvements **and** regressions; state measured vs projected | TODO |
-| A-8 | Confirm preserved: required checks · exact-SHA · branch policy · production approval · idempotency · four-probe gate · rollback arming | TODO |
+| A-1 | Measure the real API release pipeline from hosted runs | DONE — run `31837891096`: runner 288 s, wall 757 s, **464 s of it owner approval**; duplication = **194 s**, not 260 s |
+| A-2 | Measure the API `ci.yml` run for comparison | DONE — run `31839076806`, same SHA: runner 212 s, wall 215 s |
+| A-3 | Test the tree-hash equivalence | DONE — **held**: `tree(19ebbb40) == tree(1aac882d)`, green on `ci.yml` 21 min earlier. Retrospective, n=1, not a mechanism |
+| A-4 | Decide removal | **EVIDENCE-DEFERRED** — ledger §3c; three new failure modes on a file with no pre-Production validation path, and verification gates the approval prompt |
+| A-5 | Identify any intra-job waste with no correctness argument | DONE — none; the three `npm ci` are on three runners and all are required |
+| A-6 | Implement what survives | DONE — `ea5a7113`, `e2e: needs: [preflight]`; actionlint negative-controlled |
+| A-7 | Re-measure | **BLOCKED BY CONSTRUCTION** — `deploy.yml` runs only on `push: main`; the after-figure (≈131 s to prompt) is **projected** and must be re-measured at the next release |
+| A-8 | Confirm nothing weakened | DONE — ledger §3g; `deploy` still `needs: [preflight, verify, e2e]` |
 
 ## Phase 3 — Workstream B: CodeQL / static security
 
