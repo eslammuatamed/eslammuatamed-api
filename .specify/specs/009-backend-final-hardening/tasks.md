@@ -19,7 +19,7 @@ Authoritative status lives in the ledger; this file is the task decomposition.
 
 ## Phase 1 — Workstream C + D investigations (read-only) → owner decisions  ·  **DONE — blocked at OD-1 / OD-2**
 
-### C — Dependabot
+### C — Dependabot  ·  **DONE**
 
 | ID | Task | Status |
 |---|---|---|
@@ -30,7 +30,11 @@ Authoritative status lives in the ledger; this file is the task decomposition.
 | C-5 | Determine *why* #76's `npm ci` fails — peer-range or resolution evidence | DONE — `jest-mock-extended@4.0.1` peer range `^3\|\|^4\|\|^5\|\|^6` excludes TS 7 (ERESOLVE, run `31752885394`) |
 | C-6 | Classify TypeScript 5.9.3 → 7.0.2 against decorator-heavy Nest + Prisma 7, and its adjacency to the deferred ESM work | DONE — its own upgrade, not a bump; belongs with the deferred ESM sequence |
 | C-7 | Write the decision memo | DONE — ledger §2a |
-| C-8 | **STOP — owner decision** | OWNER-GATED |
+| C-9 | Fresh readback before applying disposition | DONE — #75 unchanged head `5536552e`, MERGEABLE/CLEAN, 3/3 green; #76 unchanged. No material difference |
+| C-10 | Merge #75 into `dev` | DONE — squash, `dev` `5182cac` → `a13af3cd` |
+| C-11 | Close #76 with the proven reason recorded | DONE — ERESOLVE evidence posted on the PR |
+| C-12 | TypeScript-major ignore rule + correct the stale status, on the campaign branch | DONE — `69143f1b`; no separate release for `dependabot.yml` |
+| C-8 | Owner decision | **RESOLVED 2026-08-15** — OD-1 approved |
 
 ### D — Legacy Production release
 
@@ -58,17 +62,17 @@ Authoritative status lives in the ledger; this file is the task decomposition.
 | A-7 | Re-measure | **BLOCKED BY CONSTRUCTION** — `deploy.yml` runs only on `push: main`; the after-figure (≈131 s to prompt) is **projected** and must be re-measured at the next release |
 | A-8 | Confirm nothing weakened | DONE — ledger §3g; `deploy` still `needs: [preflight, verify, e2e]` |
 
-## Phase 3 — Workstream B: CodeQL / static security
+## Phase 3 — Workstream B: CodeQL / static security  ·  **DONE**
 
 | ID | Task | Status |
 |---|---|---|
 | B-1 | Baseline confirmed absent (R2) | DONE |
-| B-2 | Decide the language set — `javascript-typescript` certainly; `actions` assessed on its own cost/benefit given this repo's workflow-defect history | TODO |
-| B-3 | Decide triggers: `pull_request → [dev, main]` + weekly `schedule`; **not** push-on-every-branch, which would give back Stage 2B's win | TODO |
-| B-4 | Implement advisory-only. No SARIF committed. Required-check status is **not** taken in this campaign | TODO |
-| B-5 | Verify it actually runs and produces analyses — evidence, not configuration | TODO |
-| B-6 | Triage findings: fix bounded ones; escalate anything needing an architecture/product/security decision | TODO |
-| B-7 | Confirm no existing gate weakened — `npm audit --audit-level=high`, secret scanning, push protection, four rulesets | TODO |
+| B-2 | Decide the language set | DONE — `javascript-typescript` + `actions`, the latter on its own merits |
+| B-3 | Decide triggers | DONE — `push: main` + `pull_request: [dev, main]` + weekly |
+| B-4 | Implement advisory-only | DONE — `e5b5642c`; no SARIF committed; not a required check |
+| B-5 | Verify by execution | DONE — PR #80 6/6 green; analyses 87 + 17 rules (endpoint was 404). **Negative-controlled locally**, both languages fire on an injected defect |
+| B-6 | Triage findings | DONE — **0 findings, 0 open alerts**; nothing to triage or escalate |
+| B-7 | Confirm no existing gate weakened | DONE — ledger §4f; the "four rulesets" figure resolved as program-wide (API 2 + Web 2), not drift |
 | B-8 | Required-check promotion → **owner decision** if recommended | OWNER-GATED |
 
 ## Phase 4 — Workstream D execution (only if authorized)
