@@ -4,8 +4,14 @@ version: 2
 #
 # IMPORTANT — where this file is read from:
 # Dependabot reads its configuration from the repository's DEFAULT branch (`main`).
-# While this file exists only on `dev`, it is PREPARED but NOT YET ACTIVE. It becomes
-# operational only after it reaches `main` through a gated release.
+#
+# STATUS: ACTIVE. This file reached `main` in 25cd57e5 (PR #73, 2026-08-13) through a gated
+# release, so version updates are LIVE. An earlier version of this comment said "PREPARED but
+# NOT YET ACTIVE"; that was true when written and was falsified by that release. The empirical
+# confirmation is PRs #75 and #76, opened ~7.5 hours later and correctly targeting `dev`.
+#
+# Because the configuration is read from `main`, any edit here takes effect only after the next
+# gated release — this file does not justify a release of its own (owner decision OD-1).
 #
 # `target-branch: dev` keeps every Dependabot pull request off `main`. `main` is the
 # deploy branch: a merge into it triggers `deploy.yml`, which is gated behind the
@@ -29,3 +35,25 @@ updates:
       time: '06:00'
       timezone: Europe/Berlin
     open-pull-requests-limit: 5
+
+    ignore:
+      # TypeScript MAJOR only. Minor and patch updates still flow normally.
+      #
+      # PR #76 (5.9.3 -> 7.0.2) could not install at all: `jest-mock-extended@4.0.1` declares
+      # `peer typescript@"^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0"`, so `npm ci` fails with ERESOLVE
+      # before the compiler is ever invoked. Nothing in this repository can resolve that — it is a
+      # dependency's declared compatibility — so the PR would be reopened every Monday to fail the
+      # same way. Independently, a TypeScript major on a decorator-heavy NestJS 11 + Prisma 7
+      # codebase, adjacent to the deferred CommonJS -> ESM migration, is its own upgrade with its
+      # own verification rather than a dependency bump (OD-1).
+      #
+      # REMOVE THIS when `jest-mock-extended` widens its peer range and the TypeScript upgrade is
+      # scheduled deliberately. This suppresses noise; it is not a decision that TypeScript 7 is
+      # unwanted.
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
+
+    # No `groups:` block, deliberately. Grouping is the right answer to PR volume, but the only
+    # evidence available is one week and two pull requests, which does not demonstrate noise worth
+    # trading per-dependency reviewability for. Revisit with real volume data (OD-1: conservative
+    # and evidence-based).

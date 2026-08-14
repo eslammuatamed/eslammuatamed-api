@@ -1,0 +1,78 @@
+# Static security analysis (CodeQL). ADVISORY, deliberately.
+#
+# Posture (campaign 009, Workstream B). This workflow REPORTS; it does not gate. It is not a
+# required status check, and promoting it to one is an owner decision (OD-3), not a side effect
+# of adding it — the precedent is OD-10-4, where making a job required would have deadlocked
+# every pull request. Adding an advisory scanner is reversible; changing merge policy is not.
+#
+# It also does not replace or weaken anything: `npm audit --audit-level=high` stays blocking in
+# ci.yml, secret scanning and push protection stay on at the repository level, and the four
+# rulesets are untouched. CodeQL answers a different question from `npm audit` — code paths in
+# code we wrote, versus known advisories in code we installed — so it adds coverage rather than
+# duplicating a scan we already pay for.
+name: CodeQL
+
+on:
+  # The default branch, so findings land in the Security tab attributed to `main` and form a
+  # real baseline. A separate workflow, so it never gates or delays deploy.yml.
+  push:
+    branches: [main]
+  # The lanes where a fix is still cheap.
+  pull_request:
+    branches: [dev, main]
+  # Advisories and CodeQL queries both move without the code changing. Weekly, off-peak,
+  # deliberately not daily — this repository changes in bursts, and a nightly scan on a quiet
+  # tree buys nothing but minutes.
+  schedule:
+    - cron: '17 4 * * 1'
+
+# Never cancel a `main` analysis (it writes the baseline); collapse superseded PR analyses.
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      # Required to upload results; this is the only elevated grant in the file.
+      security-events: write
+      contents: read
+    strategy:
+      # One language must not hide the other: a failure in `actions` should still leave a
+      # `javascript-typescript` result, and vice versa.
+      fail-fast: false
+      matrix:
+        include:
+          # Covers JavaScript and TypeScript together — the API source. `build-mode: none`
+          # because CodeQL extracts these directly; there is nothing to compile for analysis,
+          # and `nest build` here would only add ~10s and a second way to fail.
+          - language: javascript-typescript
+            build-mode: none
+          # Workflow analysis. This repository has a documented history of defects that live in
+          # YAML rather than in TypeScript — a prune step exiting 123, a missing
+          # `continue-on-error` deciding whether a gate blocks, and a health gate that passed
+          # while every database endpoint returned 500. deploy.yml additionally has NO
+          # pre-production validation path: it runs only on `push: main`, so its first execution
+          # of any change is a real release. A static reader of these files is worth its minutes
+          # here in a way it would not be in a repository whose workflows are boilerplate.
+          - language: actions
+            build-mode: none
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:${{ matrix.language }}

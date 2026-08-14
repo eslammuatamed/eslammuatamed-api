@@ -141,8 +141,11 @@ jobs:
       # `npm audit` at 0 vulnerabilities in both scopes (and 0 with `--omit=dev`) from a fresh
       # `npm ci`. An advisory-only gate on a clean baseline reports nothing it would not also
       # report while blocking, so leaving it soft only preserved the ability to miss the first
-      # regression. NOTE: this has never been exercised by a real Actions run — the account has
-      # been billing-blocked since 2026-08-06 — so the first unblocked run is itself the check.
+      # regression. It HAS now been exercised by real Actions runs: green on ci.yml run
+      # 31839076806 (2026-08-15) and on every PR run since the billing block was resolved on
+      # 2026-08-12. `deploy.yml`'s verify job deliberately omits it: an advisory can land between
+      # the dev run and the release, so tree equivalence cannot carry it forward — that makes it a
+      # security-cadence question, answered by the weekly CodeQL/alert surface, not a release gate.
       - name: Audit dependencies (high)
         run: npm audit --audit-level=high
 
