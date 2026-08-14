@@ -387,7 +387,15 @@ jobs:
           scp -i "$HOME/.ssh/deploy_key" -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
             "$TARBALL" "${DEPLOY_USER}@${DEPLOY_HOST}:/tmp/${TARBALL}"
 
-      - name: Extract, migrate, cut over, health-gate, prune
+      # The remote half lives in `scripts/deploy/remote-cutover.sh` and is piped over stdin,
+      # so the cutover logic is reviewable in the diff and covered by unit tests
+      # (`scripts/deploy/remote-cutover.spec.ts`) instead of being an untested heredoc.
+      #
+      # Its verification gate is liveness AND readiness AND two DB-backed smoke endpoints
+      # (2026-08-14: a liveness-only gate passed a release with no database connection and,
+      # because auto-rollback hangs off that same gate, left the rollback disarmed). The
+      # rollback target is re-verified with the identical checks.
+      - name: Extract, migrate, cut over, verify, prune
         id: cutover
         if: steps.gate.outputs.proceed == 'true'
         env:
@@ -395,60 +403,24 @@ jobs:
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
         run: |
           set -euo pipefail
+          # `tee` keeps the remote output in the job log while letting us inspect it for the
+          # prune marker. pipefail is on, so a failed cutover still fails this step.
           ssh -i "$HOME/.ssh/deploy_key" -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
-            "${DEPLOY_USER}@${DEPLOY_HOST}" bash -s -- "$RELEASE" <<'REMOTE'
-          set -euo pipefail
-          RELEASE="$1"
-          BASE=/srv/eslammuatamed-api
-          REL_DIR="$BASE/releases/$RELEASE"
-          TARBALL="/tmp/eslammuatamed-api-${RELEASE}.tar.gz"
+            "${DEPLOY_USER}@${DEPLOY_HOST}" bash -s -- "$RELEASE" \
+            < scripts/deploy/remote-cutover.sh | tee /tmp/cutover.log
 
-          PREV="$(readlink -f "$BASE/current" 2>/dev/null || true)"
-
-          # 1. Extract the release (self-contained; carries no secrets).
-          mkdir -p "$REL_DIR"
-          tar -xzf "$TARBALL" -C "$REL_DIR"
-          rm -f "$TARBALL"
-
-          # 2. Pre-deploy migration (fix-forward only — doc 09 §6).
-          set -a
-          . "$BASE/shared/.env"
-          set +a
-          ( cd "$REL_DIR" && npx prisma migrate deploy )
-
-          # 3. Atomic cut over.
-          ln -sfn "$REL_DIR" "$BASE/current.new"
-          mv -Tf "$BASE/current.new" "$BASE/current"
-
-          # 4. Restart via the scoped sudoers rule.
-          sudo systemctl restart eslammuatamed-api
-
-          # 5. Health gate with AUTOMATIC application rollback.
-          if curl --fail --retry 5 --retry-delay 3 --retry-connrefused --max-time 10 \
-               http://127.0.0.1:3001/api/v1/health; then
-            echo "Health gate passed for release $RELEASE."
+          # Pruning superseded releases is cleanup that runs AFTER the release is verified
+          # healthy, so it must not turn a good deployment red — but it must not be silent
+          # either. Anything the server could not remove is named here as a warning and
+          # carried into the summary.
+          if grep -q '^PRUNE_INCOMPLETE:' /tmp/cutover.log; then
+            DIRS="$(grep '^PRUNE_INCOMPLETE:' /tmp/cutover.log | head -1 | cut -d: -f2-)"
+            echo "prune_incomplete=true" >> "$GITHUB_OUTPUT"
+            echo "prune_dirs=$DIRS" >> "$GITHUB_OUTPUT"
+            echo "::warning::Release pruning could not remove:$DIRS — the cutover and its health verification passed; this is cleanup only. Remove the directory out of band (it predates the deploy user)."
           else
-            echo "Health gate FAILED for $RELEASE — rolling the application back." >&2
-            if [ -n "$PREV" ] && [ -d "$PREV" ] && [ "$PREV" != "$REL_DIR" ]; then
-              ln -sfn "$PREV" "$BASE/current.new"
-              mv -Tf "$BASE/current.new" "$BASE/current"
-              sudo systemctl restart eslammuatamed-api
-              if curl --fail --retry 5 --retry-delay 3 --retry-connrefused --max-time 10 \
-                   http://127.0.0.1:3001/api/v1/health; then
-                echo "Rolled back to previous release ($PREV); it is healthy." >&2
-              else
-                echo "Rolled back to $PREV but health still failing — MANUAL INTERVENTION REQUIRED." >&2
-              fi
-            else
-              echo "No previous healthy release to roll back to — MANUAL INTERVENTION REQUIRED." >&2
-            fi
-            exit 1
+            echo "prune_incomplete=false" >> "$GITHUB_OUTPUT"
           fi
-
-          # 6. Keep the last 5 releases.
-          cd "$BASE/releases"
-          ls -1dt */ | tail -n +6 | xargs -r rm -rf
-          REMOTE
 
       - name: Deploy summary (observability)
         if: always()
@@ -457,6 +429,8 @@ jobs:
           SHA: ${{ github.sha }}
           PROCEED: ${{ steps.gate.outputs.proceed }}
           CUTOVER: ${{ steps.cutover.outcome }}
+          PRUNE_INCOMPLETE: ${{ steps.cutover.outputs.prune_incomplete }}
+          PRUNE_DIRS: ${{ steps.cutover.outputs.prune_dirs }}
         run: |
           {
             echo "### Deploy result"
@@ -466,8 +440,15 @@ jobs:
             if [ "${PROCEED:-}" != "true" ]; then
               echo "- result: **superseded** (main moved during verify/e2e; no server mutation)"
             elif [ "${CUTOVER:-}" = "success" ]; then
-              echo "- result: **released** (post-cutover health gate passed; auto-rollback armed)"
+              echo "- result: **released** (liveness + readiness + DB-backed smoke all passed; auto-rollback armed)"
             else
-              echo "- result: **FAILED** (cutover/health outcome: \`${CUTOVER:-unknown}\`; auto-rollback attempted — check logs)"
+              echo "- result: **FAILED** (cutover/verification outcome: \`${CUTOVER:-unknown}\`; auto-rollback attempted and re-verified — check logs)"
+            fi
+            # Cleanup is reported separately from the release result, so an unremovable
+            # legacy directory can never be mistaken for a failed deployment — or hidden.
+            if [ "${PRUNE_INCOMPLETE:-}" = "true" ]; then
+              echo "- cleanup: ⚠️ **pruning incomplete** — could not remove:\`${PRUNE_DIRS:-unknown}\` (release itself is healthy)"
+            elif [ "${PRUNE_INCOMPLETE:-}" = "false" ]; then
+              echo "- cleanup: old releases pruned"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
