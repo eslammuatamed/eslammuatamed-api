@@ -89,6 +89,23 @@ jobs:
       - name: Typecheck
         run: npx tsc --noEmit
 
+      # `remote-cutover.sh` is production-critical: it runs the migration, the atomic
+      # cutover, the health gate and the rollback. Its regression spec also lints it, but
+      # only opportunistically — when the binary is absent that test warns and still passes,
+      # so a runner-image change could drop the check without anything turning red. This is
+      # the authoritative gate. `command -v` first so a missing binary fails with a clear
+      # message instead of a bare exit 127. Severity matches the spec's `-S warning`, which
+      # the script is already proven clean against.
+      - name: ShellCheck deploy scripts
+        run: |
+          set -euo pipefail
+          command -v shellcheck >/dev/null || {
+            echo "::error::shellcheck is not available on this runner — the deploy-script lint gate cannot run. Install it explicitly rather than skipping."
+            exit 1
+          }
+          shellcheck --severity=warning scripts/deploy/remote-cutover.sh
+          echo "shellcheck clean: scripts/deploy/remote-cutover.sh"
+
       - name: FTS migration guard (protects article search — D09-6/D02-3)
         run: npm run guard:fts
 
