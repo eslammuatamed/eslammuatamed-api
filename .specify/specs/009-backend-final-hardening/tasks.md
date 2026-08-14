@@ -75,15 +75,16 @@ Authoritative status lives in the ledger; this file is the task decomposition.
 | B-7 | Confirm no existing gate weakened | DONE — ledger §4f; the "four rulesets" figure resolved as program-wide (API 2 + Web 2), not drift |
 | B-8 | Required-check promotion → **owner decision** if recommended | OWNER-GATED |
 
-## Phase 4 — Workstream D execution (only if authorized)
+## Phase 4 — Workstream D execution  ·  **DONE — OD-2 reaffirmed and executed 2026-08-15**
 
 | ID | Task | Status |
 |---|---|---|
-| D-9 | Delete **only** the explicitly verified obsolete release | OWNER-GATED |
-| D-10 | Verify `current` symlink unchanged | OWNER-GATED |
-| D-11 | Verify **MainPID unchanged** and **NRestarts unchanged** — unconditionally; any movement is a failure, not an expected branch | OWNER-GATED |
-| D-12 | Verify the **four-probe DB-backed** health set green — liveness alone cannot verify this app (D23-23) | OWNER-GATED |
-| D-13 | Verify release inventory correct and the `PRUNE_INCOMPLETE` warning no longer names it | OWNER-GATED |
+| D-8 | Owner authorization | **RESOLVED 2026-08-15** — OD-2 reaffirmed, scoped to one directory |
+| D-9 | Delete **only** the explicitly verified obsolete release | DONE — `20260806T093803Z-572b0e3` and nothing else; guard negative-controlled first and the asserts run inside the same command as the `rm` |
+| D-10 | Verify `current` symlink unchanged | DONE — `20260814T203732Z-19ebbb4`, identical |
+| D-11 | Verify **MainPID unchanged** and **NRestarts unchanged** | DONE — 492176 / 0, plus `ExecMainStartTimestamp` unchanged and monotonic uptime: three independent fields |
+| D-12 | Verify the **four-probe DB-backed** health set green (D23-23) | DONE — all 200 with **bodies asserted**; a code-only check would have passed against the Nuxt app on port 3000 |
+| D-13 | Verify release inventory correct and `PRUNE_INCOMPLETE` no longer names it | DONE — 5 releases, none root-owned. **Note:** the prune set is *not* empty — pruning runs after the new release dir exists (ledger §6d); elimination comes from ownership, not from count |
 
 ## Phase 5 — Workstream E: documentation + Arabic study reconciliation
 
