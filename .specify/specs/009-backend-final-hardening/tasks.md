@@ -17,7 +17,7 @@ Authoritative status lives in the ledger; this file is the task decomposition.
 | 0-6 | Open the campaign ledger and record the baseline | DONE |
 | 0-7 | Checkpoint report to owner | DONE |
 
-## Phase 1 — Workstream C + D investigations (read-only) → owner decisions
+## Phase 1 — Workstream C + D investigations (read-only) → owner decisions  ·  **DONE — blocked at OD-1 / OD-2**
 
 ### C — Dependabot
 
@@ -27,9 +27,9 @@ Authoritative status lives in the ledger; this file is the task decomposition.
 | C-2 | Confirm the security-fixes toggle separately from version updates | DONE — `enabled:false`, correct |
 | C-3 | Establish #75 state: version, update type, CI, compatibility, security relevance | DONE — CI green, `MERGEABLE`/`CLEAN` |
 | C-4 | Establish #76 state; read the **step array**, not the conclusion | DONE — R5, fails at `npm ci` |
-| C-5 | Determine *why* #76's `npm ci` fails — peer-range or resolution evidence | TODO |
-| C-6 | Classify TypeScript 5.9.3 → 7.0.2 against decorator-heavy Nest + Prisma 7, and its adjacency to the deferred ESM work | TODO |
-| C-7 | Write the decision memo: cadence · target branch · grouping · patch/minor vs major · auto-merge · disposition of #75 and #76 · correction of the "not active" falsehood | TODO |
+| C-5 | Determine *why* #76's `npm ci` fails — peer-range or resolution evidence | DONE — `jest-mock-extended@4.0.1` peer range `^3\|\|^4\|\|^5\|\|^6` excludes TS 7 (ERESOLVE, run `31752885394`) |
+| C-6 | Classify TypeScript 5.9.3 → 7.0.2 against decorator-heavy Nest + Prisma 7, and its adjacency to the deferred ESM work | DONE — its own upgrade, not a bump; belongs with the deferred ESM sequence |
+| C-7 | Write the decision memo | DONE — ledger §2a |
 | C-8 | **STOP — owner decision** | OWNER-GATED |
 
 ### D — Legacy Production release
@@ -38,11 +38,11 @@ Authoritative status lives in the ledger; this file is the task decomposition.
 |---|---|---|
 | D-1 | Prove the rollback target is a **pointer**, not an ordering — from `remote-cutover.sh` | DONE — `PREV` = `readlink -f current` captured at cutover start (line 32); the legacy directory is reachable as a rollback target **only if it is `current`**, which it is not |
 | D-2 | Prove the prune selection reaches it — `ls -1dt` beyond `KEEP_RELEASES=5`, live release skipped | DONE (code); confirm against live inventory in D-3 |
-| D-3 | Read-only server probe: directory exists · `current` target · full release inventory · ownership/permissions · sizes | TODO |
-| D-4 | Confirm the root-ownership cause still holds (exit 123 from the run log, already diagnosed — cite, do not re-derive) | TODO |
-| D-5 | Prove no deployment metadata or operational process references it | TODO |
-| D-6 | Capture the pre-state: `current` target · MainPID · NRestarts · four-probe health | TODO |
-| D-7 | Write the deletion authorization request with all proofs attached | TODO |
+| D-3 | Read-only server probe | DONE — ledger §2b; 394 MB, `root:root`, 6th of 6 by mtime |
+| D-4 | Confirm the root-ownership cause still holds | DONE — `test -w` NOT WRITABLE; `deploy` sudo grant is two `systemctl restart` commands only |
+| D-5 | Prove no deployment metadata or operational process references it | DONE — recursive grep over `/srv/eslammuatamed-api` returns zero matches; systemd binds `current`, not a release |
+| D-6 | Capture the pre-state | DONE — MainPID 492176 · NRestarts 0 · four probes 200 |
+| D-7 | Write the deletion authorization request with all proofs attached | DONE — ledger §2b |
 | D-8 | **STOP — owner authorization** (irreversible Production mutation) | OWNER-GATED |
 
 ## Phase 2 — Workstream A: API CI efficiency
