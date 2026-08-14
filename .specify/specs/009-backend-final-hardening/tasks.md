@@ -86,17 +86,38 @@ Authoritative status lives in the ledger; this file is the task decomposition.
 | D-12 | Verify the **four-probe DB-backed** health set green (D23-23) | DONE — all 200 with **bodies asserted**; a code-only check would have passed against the Nuxt app on port 3000 |
 | D-13 | Verify release inventory correct and `PRUNE_INCOMPLETE` no longer names it | DONE — 5 releases, none root-owned. **Note:** the prune set is *not* empty — pruning runs after the new release dir exists (ledger §6d); elimination comes from ownership, not from count |
 
-## Phase 5 — Workstream E: documentation + Arabic study reconciliation
+## Phase 5 — Workstream E: documentation + Arabic study reconciliation  ·  **DONE**
 
 | ID | Task | Status |
 |---|---|---|
-| E-1 | Reconcile each target in `plan.md` §6 against **final shipped behaviour** | TODO |
-| E-2 | Correct the "Dependabot PREPARED but NOT ACTIVE" falsehood everywhere it appears — closure report §11c is **historical and not edited**; the correction lands in current docs and this campaign's ledger | TODO |
-| E-3 | Correct doc 24 §2c's CI-duplication row for R3 — the ≈260 s / double-build remainder is **Web**, not API | TODO |
-| E-4 | Arabic material explains what/how/why/failure modes/verification — study material, not a changelog. Identifiers stay English | TODO |
-| E-5 | Re-run the full sweep after any supersession edit; a supersession can turn true text false | TODO |
-| E-6 | `docs/group`: predict blast radius (expected: **bundle 03 alone**) → positive control → negative control → byte-identical second generation | TODO |
-| E-7 | Synchronize roadmap, ledger, handoff | TODO |
+| E-1 | Reconcile each target in `plan.md` §6 against **final shipped behaviour** | DONE — all 11 targets swept. Edited: docs 16, 17, 18, 19, 23, 24, `BACKEND_STUDY_MAP.md`, `guides/ci-cd-study-guide.md`, `runbooks/manual-ci-deploy-runbook.md`, ledger; API `PROJECT_GUIDE.md`, `scripts/deploy/README.md`, `ci.yml` comment |
+| E-2 | Correct the "Dependabot PREPARED but NOT ACTIVE" falsehood everywhere it appears — closure report §11c is **historical and not edited**; the correction lands in current docs and this campaign's ledger | DONE — doc 24 §2c row rewritten; full live policy now in doc 19 **§7c**; disposition rules in doc 17 §5; doc 16 §12 marked realized-for-API. Closure report untouched, as required. The `npm audit` "never exercised" comment corrected in `ci.yml`; the **ShellCheck omission (A-F1)** closed in the runbook's §A1 difference list |
+| E-3 | Correct doc 24 §2c's CI-duplication row for R3 — the ≈260 s / double-build remainder is **Web**, not API | DONE — §2c row and §3.2 backlog both corrected; API re-measured at **194 s**, ≈260 s reassigned to Web |
+| E-4 | Arabic material explains what/how/why/failure modes/verification — study material, not a changelog. Identifiers stay English | DONE — `ci-cd-study-guide.md` §33 rewritten (four-probe gate, base-URL composition, false-green class), §27 pruning, new §43b CodeQL and §43c Dependabot, job graph, 6 new self-check questions; `BACKEND_STUDY_MAP.md` T30 + stable-facts table |
+| E-5 | Re-run the full sweep after any supersession edit; a supersession can turn true text false | DONE — and it **earned its keep**: the sweep caught 2 defects the supersession itself created (a link to the renamed §B13 anchor, and a stale "additional manual check" label). An in-document anchor checker was built and **negative-controlled** (injected break caught; revert byte-identical `2abf2536`); 8 documents clean. A cross-document anchor sweep confirmed nothing outside links into a renamed section |
+| E-6 | `docs/group`: predict blast radius → positive control → negative control → byte-identical second generation | DONE — ⚠ **prediction corrected**: `plan.md` §6 expected **bundle 03 alone**; actual is **bundles 02 AND 03**, because doc 16 (bundle 02, docs 06–16) was touched by the Dependabot reconciliation. Pre-check named exactly 02 and 03. Negative control fired and restored via `cp -p` to md5 `c0dc87d7`. Second generation **byte-identical**. **25 sources / 3 bundles**; bundle 01 md5 `847df5ef` unchanged throughout; combined sha256 `e87d0565…5ae7542d` |
+| E-7 | Synchronize roadmap, ledger, handoff | DONE — doc 24 §2c/§3.2, ledger §7, SpecKit tasks (this file) |
+
+### Phase 5 finding — API probe/path verification contract
+
+Phase 4 surfaced a false-green class: a probe without the `/api/v1` prefix can reach the **Nuxt
+app on port 3000** and return **200 HTML**, so a status code alone is not evidence the intended
+API endpoint was reached.
+
+**Triaged against the shipped implementation, and the deployed automation is NOT affected.**
+`scripts/deploy/remote-cutover.sh:26` pins `API_BASE="http://127.0.0.1:3001/api/v1"`, all four
+probes compose off it, and `curl --fail` makes a wrong path **fail closed** (port 3001 without the
+prefix → 404). **No release-critical behaviour was changed**, and none needed to be. This was
+documentation / manual-verification drift only, reconciled here per the campaign brief.
+
+## Phase 5b — PR #80 integration (evidence, not merge authorization)
+
+| ID | Task | Status |
+|---|---|---|
+| E-8 | Read back current `dev` and PR #80 before any integration | DONE — `dev` `a13af3cd`, PR #80 head `48afc488`, base `dev`, OPEN/draft, `MERGEABLE`/`CLEAN`. Branch base was `5182cac`, so `a13af3cd` was **not** an ancestor |
+| E-9 | Determine the governed integration method | DONE — **merge `origin/dev` into the campaign branch**, never rebase: doc 17 §9 forbids rebase-heavy rewriting of shared branches, PR #80 is published, and a rebase would rewrite `ea5a7113` / `e5b5642c` / `69143f1b`, the SHAs the ledger cites as evidence throughout §3–§5 |
+| E-10 | Obtain fresh authoritative CI for the real integration candidate | see ledger §7 |
+| E-11 | Confirm every required gate preserved and re-verify CodeQL on the final candidate | see ledger §7 |
 
 ## Phase 6 — Campaign close
 
