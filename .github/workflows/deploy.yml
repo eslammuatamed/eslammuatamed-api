@@ -203,11 +203,29 @@ jobs:
           fi
 
   # Integration gate — Postgres 16 + migrations + seed + the e2e suite. Runs only for a deploy.
+  #
+  # Deliberately NOT `needs: verify` — unlike ci.yml, where that ordering is correct. The two
+  # lanes face different odds and pay different costs:
+  #
+  #   ci.yml runs on every PR and every dev push, where a failing `verify` is ordinary, so
+  #   gating e2e on it avoids spinning up Postgres for a tree that already failed lint.
+  #
+  #   This workflow runs only on a release, on a tree that already passed the full ci.yml
+  #   `verify` on the dev push. A failing `verify` here is the rare case, and the ordering
+  #   costs ~69 s of latency on EVERY release before the owner is even prompted to approve.
+  #
+  # Nothing is removed and no gate is weakened: both jobs still run on the release SHA, and
+  # `deploy` still requires BOTH via `needs: [preflight, verify, e2e]`, so a `verify` failure
+  # still blocks the deployment exactly as before. This is purely the removal of an ordering
+  # constraint that carries no data: this job consumes nothing from `verify` — it checks out,
+  # installs, generates the client and runs the suite from scratch. The only cost is that a
+  # release whose `verify` fails now also spends e2e's runner time, which is the correct trade
+  # on a lane where that outcome is rare and the latency is paid every time.
   e2e:
     name: E2E (Postgres)
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: [preflight, verify]
+    needs: [preflight]
     if: needs.preflight.outputs.action == 'release'
     services:
       postgres:
