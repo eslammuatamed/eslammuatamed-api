@@ -1,6 +1,10 @@
 # 009 — Backend Final Hardening
 
-**Status:** ACTIVE · **Opened:** 2026-08-15 · **Owner authorization:** campaign-level, 2026-08-15
+**Status:** **CLOSED 2026-08-15** · **Opened:** 2026-08-15 · **Owner authorization:** campaign-level, 2026-08-15
+**Closure:** all 10 Definition-of-Done items in §6 verified — ledger §11. Production release
+`20260815T001836Z-73843e3` on `main` `73843e31`; `dev` synchronized per D17-4. Two items remain
+**OWNER-GATED and deliberately not taken**: B-8 (promoting CodeQL to a required check) and A-4
+(removing `verify` from the release lane, evidence-deferred). No Web work was started.
 **Ledger:** `../eslammuatamed-docs/docs/research/backend-final-hardening-ledger.md`
 **Predecessor:** Backend Remediation Campaign — **CLOSED**, phases 0–15, not reopened and not
 renumbered by this spec. Its record is `research/backend-remediation-closure-report.md` and
