@@ -170,7 +170,8 @@ describe('every UUID-parsing route documents the 400 its pipe can produce', () =
   it('finds the routes at all, so the assertions below cannot pass vacuously', () => {
     // Pins the Nest reflection keys. If `__routeArguments__` or the PARAM paramtype index moves,
     // `parsesUuidParam` silently becomes false everywhere and every check below would pass while
-    // testing nothing. 35 is the count measured when this guard was written.
+    // testing nothing. The 35 is asserted, not merely recorded: adding or removing a
+    // UUID-parsed route fails HERE first, which is the point.
     expect(uuidRoutes).toHaveLength(35);
     for (const route of uuidRoutes) {
       expect(contract.paths[route.path]?.[route.verb]).toBeDefined();
