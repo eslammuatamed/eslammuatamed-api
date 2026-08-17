@@ -93,26 +93,33 @@ section is historical narrative, fixed at the commit that wrote it, and may be s
 | Baseline | `9af1aac` (`origin/dev` = `origin/main`, unchanged and untouched) |
 | Commits on branch | see `git rev-list --count 9af1aac..HEAD` — do not trust a number typed here |
 | Phase 1 (corpus cleanup) | **CLOSED.** archaeology 68→0, rot 25→0, phrases 96→5 (all deliberate keeps) |
-| Phase 2 (learning architecture) | **CONTENT COMPLETE.** difficulty model §9b · measurements §10 · reading order `a799dd5` · status-code section `2aa031f` · README template `29b389a` · testing curriculum `ea06eed` · flow trace (this commit). The cold-reader gate (§11) is DEFINED but **cannot be run by any agent here** — owner-facing |
+| Phase 2 (learning architecture) | **COMPLETE.** difficulty model §9b · measurements §10 · reading order · status-code section · README template · testing curriculum · flow trace — all peer-reviewed |
+| Cold-reader gate (§11) | **DEFINED, NOT RUN.** Cannot be run by any agent here; owner-facing |
+| PR | body drafted at `.campaign/PR-BODY.md` |
 | `guard:docs` | GREEN; self-test 43/43 |
 | Tests | 61 suites / 1273 tests |
 | PR | none opened. Campaign ends at a PR; no promotion, no deploy |
 
 ### Review debt — the one number that must never be optimistic
 
-| Range | Status |
-| --- | --- |
-| Baseline → `eff70d3` (slices 1–5c) | **peer-reviewed**, findings resolved |
-| `2aa031f` — archetype status-code section | **peer-reviewed.** 1 MAJOR (pipe order) + 2 omissions, fixed |
-| `1fde962` — the fix for that MAJOR | **peer-reviewed, CLEAN** |
-| `a799dd5` — the rewritten reading order | **peer-reviewed, CLEAN** (2 MINORs, both acted on) |
-| `29b389a` — the module README template | **UNREVIEWED** — source-touching |
-| `e9ea4f8` — the two MINOR fixes | **UNREVIEWED** — source-touching |
-| Everything else after `eff70d3` | ledger prose only |
+**Every source-touching commit on this branch is peer-reviewed, and every finding is resolved.**
 
-*Phase 2 is producing source-touching documentation faster than it is reviewed. That is fine while
-this table says so truthfully — it stops being fine the moment the table is allowed to lag, which
-is the exact failure §0 exists to prevent.*
+| Commit | Verdict |
+| --- | --- |
+| Baseline → `eff70d3` (slices 1–5c) | reviewed; findings resolved |
+| `2aa031f` archetype status-code section | 1 MAJOR (pipe order) + 2 omissions → fixed |
+| `1fde962` the fix for that MAJOR | CLEAN |
+| `a799dd5` reading order | CLEAN (2 MINORs, both acted on) |
+| `29b389a` README template | CLEAN — every count independently re-derived |
+| `e9ea4f8` two MINOR wording fixes | 1 MINOR (unswept sibling number) → fixed |
+| `ea06eed` testing curriculum | 1 MAJOR (DI undercount) + 1 MINOR → fixed |
+| `e12bdfe` those fixes | CLEAN |
+| `d069828` flow trace | CLEAN |
+| Ledger-prose commits | not source-touching |
+
+**Findings across the campaign: 4 MAJOR + 6 MINOR, all resolved.** Three of the four MAJORs were
+invisible to every gate — a comment naming the wrong class, an inverted causal mechanism, and a
+false count — because none of them are behaviour.
 
 **Gates the PR, not phase 2.** Do not discharge by author verification (§5 records why that is
 strictly weaker).
