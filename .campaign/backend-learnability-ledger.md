@@ -919,10 +919,14 @@ literals** and nothing else:
 | `describe('… résumé descriptor (T7, FR-PUB-023)'` → `'… (FR-PUB-023)'` | test label |
 | `describe('request body size limit (doc 19 §5, AD-7 — 1 MiB JSON)'` → `'… (doc 19 §5 — 1 MiB JSON)'` | test label |
 | `` `…proves nothing about the C-6 race.` `` → `` `…proves nothing about the race.` `` | barrier-timeout diagnostic |
+| `` `[β1 §9] concurrent same-key: …` `` → `` `[concurrent same-key] …` `` | `console.log` label (slice 5b) |
 
-**Zero executable statements changed.** Earlier commit messages said "four `describe()` labels";
-the correct count is five strings — the fifth is the diagnostic message, not a label. Recorded
-here because the ledger, not the commit message, is the durable record.
+**Zero executable statements changed, across the whole campaign.** Re-taken at the final tip, so
+this table is the complete picture and not a per-slice snapshot. The running count was corrected
+twice: commit messages first said "four `describe()` labels", then five strings; the true figure
+is **six string literals** — four test labels and two diagnostic messages. Recorded here because
+the ledger, not any commit message, is the durable record, and because a number that was restated
+twice is exactly the kind a reader should be able to see settled in one place.
 
 A hand-written comment-stripper was tried first and reported six files differing, one of them
 (`media-usage-invariant.spec.ts`) a pure comment change. **It was leaking comment text into the
