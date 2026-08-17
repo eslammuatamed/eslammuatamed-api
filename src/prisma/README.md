@@ -40,9 +40,6 @@ Service → PrismaService → PrismaPg → node-postgres (pg) → PostgreSQL
 > `SASL`. كان `Prisma 6` يُخفي هذا لأنّه يحلّ المضيف داخل محرّكه ويختار `IPv4`. التفاصيل في
 > [الوثيقة 23 §3](../../../eslammuatamed-docs/docs/23-deployment.md) و[الوثيقة 19 §7b](../../../eslammuatamed-docs/docs/19-security.md).
 
-**`Prisma 7` حيّ في الإنتاج** منذ الإصدار `20260814T203732Z-19ebbb4` على `@prisma/client`
-`7.9.1`، بعد محاولة أولى فشلت لهذا السبب بالذات ثمّ تُراجِع عنها.
-
 ## القرار المحوري: الاتصال الكسول (lazy)
 
 ```ts

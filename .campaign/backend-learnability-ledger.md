@@ -221,6 +221,52 @@ live *owner-decision* pointers in operational config, not as completed-campaign 
 CI config is arguably not a "code-adjacent learning document". Deliberately left open rather
 than swept in; the guard-widening slice must answer it before flagging those files.
 
+### D-12 — Classifying the module index by deployment state silently lost a module
+
+`src/modules/README.md`, the module archetype document, split its index into two
+state-classified headings: "shipped and deployed to production" and "implemented on `dev`,
+awaiting a production release". Seventeen modules were listed across the two.
+
+`src/modules/` contains **eighteen**. `mail` appeared in neither list — and `src/modules/mail/README.md`
+opens by pointing *back* at the archetype document as the canonical shape. The link was
+one-directional: the module knew about the index, the index did not know about the module.
+
+Verified with a passing control (`grep -c media` on the same file returns 4; `grep mail` returns 0).
+
+**The mechanism matters more than the omission.** A module is not born with a deployment status,
+so a contributor adding one has no correct bucket to file it under — and the cheapest resolution
+is to file it under neither. **Organizing an index by a fact that is not a property of the thing
+being indexed makes the index unmaintainable by construction.** The repair is not "add `mail`";
+it is to order the index by something intrinsic — it is now alphabetical, matching `src/modules/`,
+so a reader can diff the list against `ls` in one glance.
+
+### D-13 — The guide told a learner that four implemented modules did not exist
+
+`PROJECT_GUIDE.md` §3 was a `Shipped` / `In Progress` / `Planned` / `Deferred` taxonomy, opening
+with "do not treat anything outside `Shipped` as existing in this baseline". It listed under
+**`Planned` (scheduled, not yet written)**:
+
+- `redirects` + `contact` + preview tokens
+- `seo` at page level ("the `page_seo` table exists, no module")
+
+and repeated it lower down: "`page_seo`, `slug_redirects`, `contact_messages` are still tables
+without modules".
+
+All four modules exist, with controllers, services, DTOs, entities, specs and their own
+`README.md`, and all four are imported and registered in `src/app.module.ts`. Verified with a
+passing negative control (`CacheModule`/`TotpModule`, genuinely absent, correctly return nothing).
+
+**This is the campaign's clearest single justification.** D-4 recorded `PROJECT_GUIDE.md` as
+self-contradictory; this is worse than contradiction. A learner is the document's stated
+audience, has no independent way to know better, and is instructed *in the document's own words*
+not to treat these as existing. The guide did not merely go stale — it actively directed its
+reader away from a quarter of the domain modules.
+
+**Why the guard never caught it.** The rot matcher flagged three lines in that section for the
+phrase-level markers it knows. It cannot evaluate whether a completion claim is *true*; that is
+the second of the three manual review classes named in §4.D. Rot count reaching zero would not
+have moved this by itself.
+
 ### D-10 — The release freeze was lifted for WEB ONLY; governance still records the API as frozen
 
 The gating question for every edit touching freeze language. Answered from the authoritative ref
@@ -315,8 +361,15 @@ Two further false positives were found and fixed against the real corpus: `31536
 Arabic cases are first-class in the suite: `\b` is undefined over Arabic codepoints, so the
 matcher uses explicit `[^A-Za-z0-9_-]` lookarounds instead.
 
-**Current reading: guard mode is RED on purpose** — 68 archaeology + 25 rot. That is the debt
-the campaign retires; driving `npm run guard:docs` to green is a mechanical exit-gate criterion.
+**Reading at phase-0 close:** 68 archaeology + 25 rot — the debt the campaign retires.
+**Reading after slice 2:** **62 archaeology + 0 rot.** The rot class is fully retired; convention
+4.D now holds across the whole scanned corpus. Archaeology remains the open half of the gate.
+
+Restating §4.D's warning with the numbers attached: **rot reaching 0 is not the same as the
+corpus being true.** The guard's rot patterns are a fixed list, and slice 2 found two state
+claims they do not match — a merge-status parenthetical in a `###` heading
+(`PROJECT_GUIDE.md` §6.5) and a whole `Shipped`/`Planned` taxonomy whose *heading words* are the
+state. Both were removed by manual review, neither was ever flagged. See D-13.
 
 ---
 
@@ -424,7 +477,13 @@ Phase 0 is closed: every gate that blocked design is now answered.
       Five sites, not the four recorded; the fifth came from a repo-wide sweep and opened D-11.
       Guard archaeology 68 → 64 (the fifth was never in the 68 — it is invisible to the guard).
 
-- [ ] **Slice 1b — the remaining `D16-13` citations.** Slice 1 removed the citation at
+- [x] **Slice 1b — DONE.** The remaining `D16-13` citations are retired; **zero remain in the
+      repository** outside this ledger and the guard's own source (verified with a passing
+      control). OD-A is NOT resolved by this — the governing gap is untouched and still the
+      owner's. Only the propagation is stopped, which is exactly what §8 obliges.
+
+      *Original note, kept for the record:*
+      **Slice 1b — the remaining `D16-13` citations.** Slice 1 removed the citation at
       `PROJECT_GUIDE.md:42` because it sat in the same sentence as a dead pointer. Three more
       remain and carry the same OD-A defect, so the corpus is currently inconsistent:
 
@@ -441,9 +500,18 @@ Phase 0 is closed: every gate that blocked design is now answered.
       `PROJECT_GUIDE.md:382` also carries state reporting — land it with slice 2 to avoid two
       passes over one line.
 
-- [ ] **Slice 2.** Strip state reporting from `src/modules/README.md` and `PROJECT_GUIDE.md` per
-      convention 4.D — unblocked by D-10, and both are load-bearing entry points for the learning
-      architecture, so they must be true before that architecture is designed on top of them.
+- [x] **Slice 2 — DONE, and widened.** State reporting is gone from `src/modules/README.md` and
+      `PROJECT_GUIDE.md`, and — since the guard would otherwise have stayed red on four stragglers
+      — from `src/modules/contact/README.md`, `src/prisma/README.md` and `scripts/deploy/README.md`
+      as well. **Rot markers 25 → 0 across the entire scanned corpus.** Produced D-12 and D-13.
+
+      Two state claims were removed that the guard never flagged, both found by manual review:
+      the merge-status parenthetical in the `### 6.5` heading, and the `Shipped`/`Planned`
+      taxonomy itself, whose heading words *are* the state. Engineering content was preserved
+      throughout — the CI parallelization A/B kept its method lesson ("define the metric before
+      comparing; a number without its definition is not comparable") and lost only the run ids
+      and SHAs; the release-prune narrative kept its diagnosis (ownership/writability, not
+      `KEEP_RELEASES`) and lost the release folder, the date and the `OD-2` authorization.
 
 - [ ] **Slice 3.** Repair bucket C (D-9) on the media/articles/projects cluster — the 58 SpecKit
       task ids that name components by task number. Highest learnability value found.
@@ -518,6 +586,26 @@ standing claim from slice 1 onward is narrower and is re-proved per slice:
 | dead-path sweep, repo-wide incl. non-`.ts`/`.md` | **0** remaining outside this ledger |
 
 No application behaviour, test assertion or API contract changed.
+
+**Slice 1b + 2 changed documentation and comments only.**
+
+| Check | Result |
+| --- | --- |
+| files touched | 7 — `PROJECT_GUIDE.md`, `src/modules/README.md`, `src/modules/contact/README.md`, `src/prisma/README.md`, `scripts/deploy/README.md`, `prisma/README.md`, `prisma/schema.prisma` |
+| `git diff` non-comment, non-prose lines | none |
+| `npx prisma validate` | exit 0 (`schema.prisma` comment edited) |
+| `npm run guard:docs` rot | **25 → 0** — the class is fully retired |
+| `npm run guard:docs` archaeology | 64 → **62** (two `OD-2` sites removed with their narratives) |
+| `npm run guard:docs:selftest` | 43/43 |
+| `D16-13` citations repo-wide | **0** outside this ledger and the guard source (control: guard source still matches, 2) |
+| relative links, all 5 touched docs | 0 broken, 0 introduced vs baseline `9af1aac`; negative control passes |
+
+*Instrument note.* The first link check reported 32 broken links. All were cross-repo
+`../eslammuatamed-docs/…` paths, which resolve from the primary checkout but not from a
+worktree — the checker was rooted in the wrong place, not the documents. Re-run with cross-repo
+paths rebased onto the real sibling layout and diffed against the baseline commit, the honest
+reading is 0 broken now, 0 broken at baseline, **0 introduced**. A raw count with no baseline
+would have read as 32 new defects.
 
 | SHA | Commit |
 | --- | --- |

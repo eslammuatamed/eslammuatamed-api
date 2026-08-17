@@ -210,7 +210,7 @@ model ArticleTranslation {
   // init migration. Prisma cannot express a stored generated column, so it is declared as an
   // Unsupported tsvector with the generation expression mirrored as a `dbgenerated` default.
   // This representation is deliberately imprecise but empirically drift-free on the current
-  // 7.9.1 (D16-13): without it, `migrate dev` emits DROP INDEX + DROP COLUMN on every run.
+  // 7.9.1: without it, `migrate dev` emits DROP INDEX + DROP COLUMN on every run.
   // The column and index are protected by the migration guard — see prisma/README.md.
   searchVector Unsupported("tsvector")? @default(dbgenerated("to_tsvector(\nCASE\n    WHEN (locale = 'ar'::text) THEN 'simple'::regconfig\n    ELSE 'english'::regconfig\nEND, ((COALESCE(title, ''::text) || ' '::text) || COALESCE(excerpt, ''::text)))")) @map("search_vector")
 

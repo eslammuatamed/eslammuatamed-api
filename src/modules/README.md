@@ -2,19 +2,22 @@
 
 هذا الملف يصف **النمط المشترك** لكل وحدات المجال، حتى لا تكرّره ملفات `README.md` لكل وحدة. اقرأه أولًا، ثم اقرأ الوحدة المعنيّة لما يخصّها فقط.
 
-## مُسلَّمة ومنشورة للإنتاج (Shipped / Production — على `main`)
+## الوحدات
 
-`health` · `locales` · `auth` · `users` · `access-control` · `settings` · `taxonomy` · `articles` · `projects` · `experiences` · `skills` · `testimonials` · `media`.
+مرتَّبة أبجديًّا، كما تظهر في `src/modules/`. ولكلٍّ منها ملفّ `README.md` خاصّ عدا `health`
+(انظر الملاحظة في آخر هذا الملف):
 
-> `media` (Feature 003) **مُسلَّمة ومنشورة للإنتاج فعليًّا** (PR #7، مدموجة على `main`) — ضمن قائمة الإنتاج أعلاه.
+`access-control` · `articles` · `auth` · `contact` · `experiences` · `health` · `locales` ·
+`mail` · `media` · `preview` · `projects` · `redirects` · `seo` (`FR-DSH-051`، `D10-24`) ·
+`settings` · `skills` · `taxonomy` · `testimonials` · `users`.
 
-## منفَّذة على `dev` — بانتظار إصدار الإنتاج (Implemented on `dev` — pending production release)
-
-`redirects` · `contact` · `preview` (Feature 004) · `seo` (`FR-DSH-051`، `D10-24`) — ولكلٍّ ملفّ `README.md`.
-
-> **مُسلَّمة إلى `dev` بعد الدمج، لا إلى الإنتاج.** نشر الإنتاج (وترقية `dev→main`) **مؤجَّل** حتى بدء مرحلة الموقع/الصفحة الرئيسية — تجميد الإصدار ([الوثيقة 17](../../../eslammuatamed-docs/docs/17-git-workflow.md) `D17-5`، [الوثيقة 23](../../../eslammuatamed-docs/docs/23-deployment.md) `D23-18`). لا تُوصَف كـ«منشورة للإنتاج» قبل ترقية `main`.
-
-> **لا توجد وحدات `Planned` غير مبنيّة الآن.** كانت `seo` الوحيدة — جدول `page_seo` موجودًا في المخطّط دون وحدة تكشفه عبر HTTP — وقد بُنيت (`FR-DSH-051`، `D10-24`) فانتقلت إلى القائمة أعلاه. (عن `media` انظر ملاحظة الإنتاج أعلاه.)
+> **لماذا لا تجد هنا «منشورة» و«بانتظار الإصدار»؟** كانت هذه القائمة مقسَّمة سابقًا حسب حالة
+> النشر. والحالة تتغيّر بينما النصّ لا يتغيّر معها، فيتحوّل الملف بصمت إلى مصدر خاطئ يثق به
+> القارئ. الأسوأ أنّ التقسيم نفسه أضاع وحدة: `mail` لم تكن مذكورة في أيٍّ من القسمين لأنّها لم
+> تنتمِ بوضوح إلى أحدهما، فاختفت من الفهرس رغم وجود `README.md` لها يُحيل إلى هذا الملف.
+>
+> حالة الإصدار والنشر يملكها مستودع الوثائق الحاكمة وسجلّ الإصدارات، لا ملفّ ملاصق للكود.
+> اسأل المصدر عند الحاجة؛ ولا تُضِف الحالة هنا مهما بدت مفيدة لحظة الكتابة.
 
 ## الشكل الداخلي القانوني
 
@@ -75,7 +78,7 @@ POST/PATCH/DELETE /admin/<resource>
 
 ## الوسائط بالمرجع فقط (على هذا الأساس)
 
-الكيانات تشير إلى وسائط بمُعرّف خام: `Article.coverImageId`, `*.ogImageId`, gallery `mediaAssetId`, `Testimonial.avatarId`, `SiteSettings.resumeAssetId`. وحدة `media` (Feature 003، **مُسلَّمة على `main`** — PR #7) تُدير الرفع والمعالجة والتخزين وحلّ الـ descriptors: القراءات العامّة تُبقي الـ `*Id` الخام وتُضيف بجانبها descriptor مُحلّلًا (URL على أصل الوسائط + أبعاد + `blurhash` + نصّ بديل). التفاصيل في [`media/README.md`](media/README.md).
+الكيانات تشير إلى وسائط بمُعرّف خام: `Article.coverImageId`, `*.ogImageId`, gallery `mediaAssetId`, `Testimonial.avatarId`, `SiteSettings.resumeAssetId`. وحدة `media` تُدير الرفع والمعالجة والتخزين وحلّ الـ descriptors: القراءات العامّة تُبقي الـ `*Id` الخام وتُضيف بجانبها descriptor مُحلّلًا (URL على أصل الوسائط + أبعاد + `blurhash` + نصّ بديل). التفاصيل في [`media/README.md`](media/README.md).
 
 ## ملاحظة عن `health`
 
