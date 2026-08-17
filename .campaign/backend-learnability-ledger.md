@@ -486,7 +486,7 @@ Arabic cases are first-class in the suite: `\b` is undefined over Arabic codepoi
 matcher uses explicit `[^A-Za-z0-9_-]` lookarounds instead.
 
 **Reading at phase-0 close:** 68 archaeology + 25 rot — the debt the campaign retires.
-**Reading after slice 5:** **0 archaeology + 0 rot + 5 phrases, all deliberate keeps.** `guard:docs` is GREEN, corroborated by a
+**FINAL PHASE 1 READING:** **0 archaeology + 0 rot + 5 phrases, all deliberate keeps.** `guard:docs` is GREEN, corroborated by a
 guard-independent sweep. Campaign phrases (hyphenless, outside the pass/fail gate) stand at 30,
 down from 96 — the remaining open work. The rot class is fully retired; convention
 4.D now holds across the whole scanned corpus. Archaeology remains the open half of the gate.
@@ -796,7 +796,17 @@ Phase 0 is closed: every gate that blocked design is now answered.
       One of those three was also a false claim: `prisma/schema.prisma` read
       "schema-complete for feature 002+; **no M1 module**" while `src/modules/projects/` exists.
 
-- [ ] **Slice 6 — widen the guard's file selection (D-11) and fix the boundary (D-15).** An instrument change, deliberately
+- [x] **Slice 5b — DONE.** The `11B-β*` and `M1` chronology families, found via D-16. 13 β
+      occurrences across 5 test files, plus two `M1` milestone claims — one of which
+      (`prisma/schema.prisma`) was **false** in the same way D-13 was: it said skills, experiences
+      and testimonials had "no M1 module" while all three are registered in `app.module.ts`. The
+      `users.service.ts` claim was **true** and was kept, rewritten present-tense — retiring
+      chronology is not a licence to delete the fact attached to it.
+
+- [ ] **Slice 6 (phase 2 or later) — widen the guard's file selection (D-11), fix the boundary
+      (D-15), and add non-Latin alternatives to its patterns (D-16).** Not required for the phase-1
+      exit gate: the corpus is clean by direct sweep and by reading. This is instrument debt, and
+      it should be paid before the guard is ever trusted as a standalone gate again. An instrument change, deliberately
       kept out of every content slice: a self-test regression must not be able to hide inside a
       documentation diff. Must also settle whether `OD-1`/`OD-3` in CI config are archaeology.
 
@@ -932,6 +942,19 @@ would have read as 32 new defects.
 | `fa18e7d` | docs(campaign): record D-9 and resolve the Codex-Arabic review question |
 | `6e374dc` | docs(campaign): resolve the freeze verdict (D-10) — Web-only lift, API still recorded frozen |
 | `32bf4cc` | docs(campaign): strengthen D-10 with independently verified peer findings |
+| `40218b4` | docs(campaign): close phase 0 and make the ledger a complete checkpoint |
+| `0e27801` | docs(learnability): retire the dead prisma-7-migration citations (slice 1) |
+| `13a8af3` | docs(learnability): remove state reporting from code-adjacent docs (slices 1b + 2) |
+| `8b80e58` | docs(campaign): record D-14 — the task ids are ambiguous, not merely unresolvable |
+| `242fe7d` | docs(learnability): name the component instead of the task number (slice 3) |
+| `444aaf3` | docs(learnability): retire the F9-* and P9-* archaeology families (slice 4a) |
+| `b139d9b` | docs(learnability): retire the last archaeology families — guard is green (slice 4) |
+| `f7bd434` | docs(learnability): retire the hyphenless phrase families (slice 5) |
+| `8601563` | docs(campaign): checkpoint — corpus cleanup complete, phase 2 not started |
+| `4c57f38` | fix(learnability): name the service that actually owns the resume-slot rule |
+| `558d392` | docs(learnability): the route count is enforced, not merely recorded |
+| `7f7a505` | docs(learnability): retire the 11B-beta and M1 chronology families (slice 5b) |
+| `23da6e0` | docs(learnability): close the response-envelope obligation and record D-16 |
 
 **Pushed to `origin/campaign/backend-learnability` as a durability checkpoint only.** No PR was
 opened. `dev` and `main` were not touched. Nothing was deployed.
