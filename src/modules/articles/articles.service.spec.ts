@@ -347,7 +347,7 @@ describe('ArticlesService', () => {
     });
   });
 
-  describe('media descriptors (T7)', () => {
+  describe('media descriptors', () => {
     const withMedia = (
       coverAlts: { locale: string; alt: string }[],
       ogAlts: { locale: string; alt: string }[],
@@ -669,7 +669,7 @@ describe('ArticlesService', () => {
   });
 
   // D04-6 gating only. The 3-op DB behavior (chain-collapse, rename-back, atomicity across rows) is
-  // covered by the buildRedirectOps unit test (T4) and the e2e suite (T9); here we assert solely the
+  // covered by the buildRedirectOps unit test and the redirects e2e suite; here we assert solely the
   // publish-time predicate and that the returned ops land in the same $transaction as the rename.
   /**
    * `publishAt` write semantics on PATCH (D10-23).

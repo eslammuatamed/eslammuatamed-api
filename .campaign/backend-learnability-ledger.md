@@ -400,7 +400,7 @@ Arabic cases are first-class in the suite: `\b` is undefined over Arabic codepoi
 matcher uses explicit `[^A-Za-z0-9_-]` lookarounds instead.
 
 **Reading at phase-0 close:** 68 archaeology + 25 rot — the debt the campaign retires.
-**Reading after slice 2:** **62 archaeology + 0 rot.** The rot class is fully retired; convention
+**Reading after slice 3:** **62 archaeology + 0 rot + 30 campaign phrases** (from 96). The rot class is fully retired; convention
 4.D now holds across the whole scanned corpus. Archaeology remains the open half of the gate.
 
 Restating §4.D's warning with the numbers attached: **rot reaching 0 is not the same as the
@@ -551,10 +551,27 @@ Phase 0 is closed: every gate that blocked design is now answered.
       and SHAs; the release-prune narrative kept its diagnosis (ownership/writability, not
       `KEEP_RELEASES`) and lost the release folder, the date and the `OD-2` authorization.
 
-- [ ] **Slice 3.** Repair bucket C (D-9) on the media/articles/projects cluster — the 58 SpecKit
-      task ids that name components by task number. Highest learnability value found.
+- [x] **Slice 3 — DONE.** Bucket C repaired across 25 files. Every SpecKit task id used as a
+      *citation* now names the real component: `MediaProcessingService`, `MediaService`,
+      `MediaDescriptorResolver`, `UploadUserIpThrottlerGuard`, `RedirectService.buildRedirectOps`,
+      `getPreviewById`. **SpecKit task ids 58 → 4, and the 4 are deliberate keeps** — the
+      transaction labels in the race barrier (D-14). Campaign phrases overall 96 → 30.
 
-- [ ] **Slice 4 — widen the guard's file selection (D-11).** An instrument change, deliberately
+      Sentences that named a task now name a thing, so they resolve without opening `.specify/`:
+      "the orchestration layer's job (`T6`)" → "`MediaService`'s job"; "the `T5` processor sniffs
+      magic bytes" → "`MediaProcessingService` sniffs magic bytes". Where the id added nothing but
+      provenance it was dropped outright rather than replaced.
+
+      Full unit suite green afterwards: **61 suites, 1273 tests**. Four `describe()` labels
+      changed — test *names*, no assertion touched.
+
+- [ ] **Slice 4 — retire the remaining archaeology (62 hyphenated + 30 phrases).** The
+      families left are `C-*`, `B-*`, `F9-*`, `AD-*`, `P9-8`/`P9-9`, plus `Feature 00N`,
+      `Phase 12A` and `F004`. `F9-*` must go in ONE pass across its 5 sites (deferred from
+      slice 1). Bucket A (strip the prefix, keep the prose) covers most; bucket B — a claim that
+      is now false — needs a rewrite, not a strip.
+
+- [ ] **Slice 5 — widen the guard's file selection (D-11).** An instrument change, deliberately
       kept out of every content slice: a self-test regression must not be able to hide inside a
       documentation diff. Must also settle whether `OD-1`/`OD-3` in CI config are archaeology.
 

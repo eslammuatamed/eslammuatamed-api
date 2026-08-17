@@ -4,7 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { LocalesService } from '../locales/locales.service';
 
 // Stored SlugRedirect.entityType values (OQ default, pinned). Each website section maps to one of
-// these; the buildRedirectOps callers (articles/projects, T7) pass the matching literal.
+// these; the buildRedirectOps callers (articles/projects) pass the matching literal.
 export type RedirectEntityType = 'article' | 'project';
 
 // Website section → entityType (D10-7 grammar). These are the front-end's paths (/blog, /projects),
@@ -55,7 +55,7 @@ export class RedirectService {
     return { toPath: `/${section}/${record.toSlug}` };
   }
 
-  // D04-6: the 3-step recipe articles/projects push into their own $transaction (T7), so the
+  // D04-6: the 3-step recipe articles/projects push into their own $transaction, so the
   // redirect and the slug rename commit atomically. Returns the ops in transaction order; the
   // caller executes them — this method never runs them itself.
   buildRedirectOps(args: {

@@ -204,7 +204,7 @@ describe('MediaDescriptorResolver', () => {
     });
   });
 
-  describe('image descriptor invariants (T7 correction)', () => {
+  describe('image descriptor invariants', () => {
     it('selects the widest WebP when both WebP and AVIF variants exist (no invariant error)', () => {
       const d = resolver.resolveImage(imageInput(), 'en');
       expect(d.url).toBe('https://media.test/k/1920-webp.webp');

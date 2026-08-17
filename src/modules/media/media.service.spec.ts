@@ -294,7 +294,7 @@ describe('MediaService', () => {
     });
   });
 
-  // T6 correction: identity validation (magic-byte + extension + declared-MIME consistency) must run
+  // Identity validation (magic-byte + extension + declared-MIME consistency) must run
   // on EVERY upload BEFORE the dedup lookup, so a duplicate carrying a forged filename/MIME is
   // rejected (422) rather than deduplicated. A real MediaProcessingService validates real bytes;
   // none of these cases reach Sharp (they either fail validation or hit dedup), so no real image

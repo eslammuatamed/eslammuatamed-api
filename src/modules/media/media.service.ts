@@ -46,7 +46,7 @@ import type {
 } from './storage/storage-adapter.interface';
 
 // The bytes + client hints a validated multipart upload hands the service. Neither hint is
-// trusted for type — the T5 processor sniffs magic bytes — but the declared MIME routes IMAGE vs
+// trusted for type — `MediaProcessingService` sniffs magic bytes — but the declared MIME routes IMAGE vs
 // PDF (a mis-declared file is then rejected by the processor, never mis-persisted).
 export interface MediaUploadInput {
   readonly buffer: Buffer;
@@ -92,7 +92,7 @@ const FORMAT_TO_PRISMA: Record<ImageVariantFormat, MediaVariantFormat> = {
 // The reusable central media library (D02-7): upload orchestration, SHA-256 dedup, no-orphan
 // compensation, usages, and safe deletion. Objects are written before the DB row and compensated
 // on any failure (D07-6). Processing runs inside the 2-wide concurrency cap (Q3); the raw upload is
-// never persisted — everything comes from the T5 processor's sanitized outputs.
+// never persisted — everything comes from `MediaProcessingService`'s sanitized outputs.
 @Injectable()
 export class MediaService {
   constructor(

@@ -7,7 +7,7 @@ import { PreviewTokenService } from './preview-token.service';
 
 // AppConfigModule is @Global, so PreviewTokenService injects AppConfigService for the HMAC secret
 // without importing it here (matches every sibling module). ArticlesModule/ProjectsModule export
-// their services (T6 prereq) so the mint controller can assert existence and the consume controller
+// their services so the mint controller can assert existence and the consume controller
 // can call getPreviewById — no cycle: preview → articles/projects, never back.
 @Module({
   imports: [ArticlesModule, ProjectsModule],

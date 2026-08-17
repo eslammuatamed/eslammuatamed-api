@@ -7,7 +7,7 @@ import { SettingsService } from './settings.service';
 
 // LocalesModule is imported for its exported LocalesService (locale validation) — cross-module
 // access via exported services only (doc 07 §1). MediaModule exports the descriptor resolver for
-// the public résumé descriptor (T7). PrismaService comes from the global module.
+// the public résumé descriptor via `MediaDescriptorResolver`. PrismaService comes from the global module.
 @Module({
   imports: [LocalesModule, MediaModule],
   controllers: [SettingsController, SettingsAdminController],

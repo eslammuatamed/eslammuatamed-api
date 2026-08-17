@@ -17,7 +17,7 @@
 ## خريطة الاتصال
 
 - **يعتمد على:** `PrismaService`، `LocalesService`.
-- **يُصدِّر:** `RedirectService` — `ArticlesModule`/`ProjectsModule` تستدعي `buildRedirectOps` داخل `update()` (`T7`). لا دورة: `redirects` لا يستورد أيًّا منهما.
+- **يُصدِّر:** `RedirectService` — `ArticlesModule`/`ProjectsModule` تستدعي `buildRedirectOps` داخل `update()`. لا دورة: `redirects` لا يستورد أيًّا منهما.
 
 ## ما يميّز هذه الوحدة عن النموذج
 

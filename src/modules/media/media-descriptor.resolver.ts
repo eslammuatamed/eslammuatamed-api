@@ -51,7 +51,7 @@ export class MediaDescriptorResolver {
   // Image descriptor: primary `url` is the widest PUBLIC WebP rendition — NEVER an AVIF or the master
   // (doc 07 §6, doc 10 §6). `alt` is the requested locale's alt, or null when that translation is
   // absent (no fallback, "" kept). Width/height/WebP are hard invariants for an IMAGE asset (doc 09
-  // CHECK + T5): a violation is an internal data bug → a controlled 500, never a faked value or an
+  // CHECK + `MediaProcessingService`): a violation is an internal data bug → a controlled 500, never a faked value or an
   // AVIF URL.
   //
   // D10-14: `url`, `width` and `height` describe ONE file — the rendition `url` points at. They are
@@ -122,7 +122,7 @@ export class MediaDescriptorResolver {
   }
 
   // The widest WebP rendition — no fallback to AVIF or the master. Every IMAGE asset has ≥ 1 WebP
-  // rendition (T5); its absence is an internal invariant violation, not a client error. Returns the
+  // rendition; its absence is an internal invariant violation, not a client error. Returns the
   // whole variant, not just its key: D10-14 needs its width/height for the top-level descriptor, and
   // sourcing all three from one object is what makes them self-consistent by construction.
   private widestWebp(

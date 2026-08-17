@@ -1,6 +1,7 @@
 // In-process image/PDF processing concurrency cap (doc 19 §6, Q3): at most this many uploads
 // process concurrently per API instance; a further in-flight upload is rejected with 429 +
-// Retry-After and never queued. Distinct from the 10/min per-user+IP upload rate throttle (T8).
+// Retry-After and never queued. Distinct from the 10/min per-user+IP upload rate throttle
+// (`UploadUserIpThrottlerGuard`).
 export const MAX_CONCURRENT_PROCESSING = 2;
 
 // Retry-After hint (seconds) for a 429 from the concurrency cap. A slot frees the moment an

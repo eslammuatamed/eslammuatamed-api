@@ -34,7 +34,7 @@
 
 - **يعتمد على:** `PrismaService` + `MailModule` (لا `LocalesService` — الرسائل مستقلّة عن اللغة).
 - **`ContactThrottlerGuard`** مُسجَّل كـ provider ليُشغَّل `onModuleInit` (بناء نافذتَي المعدّل) ويُحلّ من
-  DI عند `@UseGuards` — نفس أسلوب `UploadUserIpThrottlerGuard` في `MediaModule` (`T2`).
+  DI عند `@UseGuards` — نفس أسلوب `UploadUserIpThrottlerGuard` في `MediaModule`.
 - **`ContactPurgeScheduler`** مُسجَّل كـ provider ليكتشف `ScheduleModule` (المُسجَّل في `AppModule`) مُعالِج
   `@Cron` الخاصّ به — نفس أسلوب `ArticlesScheduler` في `ArticlesModule` (`D07-3`).
 

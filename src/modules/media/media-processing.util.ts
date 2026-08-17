@@ -1,4 +1,4 @@
-// Pure, side-effect-free helpers for the media processing pipeline (T5). Kept separate from the
+// Pure, side-effect-free helpers for the media processing pipeline. Kept separate from the
 // service so the subtle quality-ladder logic and the filename/PDF validation are unit-testable
 // without Sharp or the ESM `file-type` loader (they run under the plain Jest tier).
 

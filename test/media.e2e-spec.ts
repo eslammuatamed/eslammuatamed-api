@@ -34,7 +34,7 @@ import {
 import { loadApiSpec } from './utils/contract';
 
 // End-to-end media pipeline against the real AppModule + a fresh migrated/seeded Postgres (doc 18
-// §2, feature 003 T10). Storage is the local adapter (STORAGE_DRIVER=local) — no R2 network call.
+// §2). Storage is the local adapter (STORAGE_DRIVER=local) — no R2 network call.
 // Contract assertions use the exported openapi.json as the oracle (jest-openapi).
 
 // A run-unique seed so re-runs never collide on contentHash (dedup would turn a 201 into a 200).
@@ -586,7 +586,7 @@ describe('Media pipeline (e2e)', () => {
     const publicList = await request(server)
       .get('/api/v1/testimonials?locale=en')
       .expect(200);
-    // The oracle now accepts BOTH a descriptor object and null for the nullable $ref (the T9→T10 fix).
+    // The oracle accepts BOTH a descriptor object and null for the nullable $ref.
     expect(publicList).toSatisfyApiSpec();
     const avatars = envelopeData<{ avatar: unknown }[]>(publicList).map(
       (t) => t.avatar,

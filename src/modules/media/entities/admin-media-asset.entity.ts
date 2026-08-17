@@ -5,7 +5,7 @@ import {
 } from '../../../generated/prisma/client';
 
 // One delivered rendition as the admin sees it. Carries `overBudget` (D20-6) — the public
-// descriptor (T7) omits it. `url` is absolute on the media origin.
+// descriptor (`MediaDescriptorResolver`) omits it. `url` is absolute on the media origin.
 export class AdminMediaVariantEntity {
   @ApiProperty({ enum: MediaVariantFormat, example: MediaVariantFormat.WEBP })
   readonly format!: MediaVariantFormat;

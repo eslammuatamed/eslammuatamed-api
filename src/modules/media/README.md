@@ -4,7 +4,7 @@
 
 ## المسؤولية
 
-رفع الصور وملف السيرة الذاتية `PDF`، مع إزالة التكرار بـ `SHA-256`، ومعالجة الصور إلى `master` وبدائل (`variants`) بصيغ `WebP`/`AVIF`، وتخزينها خلف `StorageAdapter` واحد، وخدمتها مباشرةً من أصل الوسائط. **الحالة: مُنجَزة ومنشورة** (`T1`–`T11` مكتملة ومُتحقَّق منها في الإنتاج).
+رفع الصور وملف السيرة الذاتية `PDF`، مع إزالة التكرار بـ `SHA-256`، ومعالجة الصور إلى `master` وبدائل (`variants`) بصيغ `WebP`/`AVIF`، وتخزينها خلف `StorageAdapter` واحد، وخدمتها مباشرةً من أصل الوسائط.
 
 ## خريطة الملفّات
 
@@ -91,7 +91,7 @@ sniff (file-type) → نوع مكتشَف من البايتات (مرجعي) →
 - **الجداول:** `media_assets` (`MediaAsset`: `kind`, `originalFilename`, `sizeBytes`, `contentHash` فريد، `width?`/`height?`/`blurhash?`)، `media_asset_variants` (`format`, `width`, `height`, `sizeBytes`, `overBudget`؛ `@@unique([mediaAssetId, format, width])`)، `media_asset_alts` (`locale`, `text`). اتّساق `kind↔الحقول` (صورة ⇒ `width/height/blurhash` + `image/webp`؛ `PDF` ⇒ الكل `null` + `application/pdf`) قيد `CHECK` في `DB`.
 - **الميزانيات:** عرض البدائل `640/1280/1920` (`RENDITION_WIDTHS`) بميزانية بايت لكل عرض×صيغة، وسُلّم جودة (`webp` من `78` إلى `55`، `avif` من `55` إلى `40`، خطوة `8`)؛ يُرفع `overBudget` إن بقي عند الأرضية فوق الميزانية.
 - **الواصفات العامّة (`descriptors`):** تُضاف على القراءات العامّة **بجانب** حقول `*Id` المحفوظة، أضيق من كيان الإدارة (بلا `overBudget`، بلا مفاتيح تخزين، بلا `contentHash`، بلا رابط `master`). كل `url` مطلق على أصل الوسائط (لا أصل الـ `API`). `PublicMediaImageDescriptor.url` = أوسع بديل `WebP`؛ و`blurhash`/`alt` قابلان لـ `null` (`null` = لا ترجمة/لا رجوع، `""` = زخرفيّ). `PublicMediaPdfDescriptor` يحمل `filename` + `sizeBytes`.
-- **عقد `OpenAPI` القابل لـ `null`:** الحقول القابلة لـ `null` من نوع `$ref` تُصدَّر كـ `{ nullable: true, allOf: [$ref] }` (دون `type: object`)، وهو التمثيل الوحيد الذي يقبله `jest-openapi`/`AJV` الصارم للقيمة `null` (تصحيح `T10`).
+- **عقد `OpenAPI` القابل لـ `null`:** الحقول القابلة لـ `null` من نوع `$ref` تُصدَّر كـ `{ nullable: true, allOf: [$ref] }` (دون `type: object`)، وهو التمثيل الوحيد الذي يقبله `jest-openapi`/`AJV` الصارم للقيمة `null`.
 - **التخزين:** `LocalStorageAdapter` للتطوير/الاختبار (`STORAGE_DRIVER=local`، `STORAGE_LOCAL_DIR`، يُخدَم عند `PUBLIC_MEDIA_URL`)؛ و`R2StorageAdapter` المتوافق مع `S3` للإنتاج على `Cloudflare R2` (`STORAGE_DRIVER=s3`، `S3_ENDPOINT`/`S3_BUCKET`/`S3_ACCESS_KEY_ID`/`S3_SECRET_ACCESS_KEY`/`S3_REGION`). المقبس `STORAGE_ADAPTER` (`D07-4`)؛ لا كود أعمال يمسّ `SDK` تخزين. كل كائن يُكتَب بـ `Content-Type` صحيح؛ الصور بـ `Cache-Control: public, max-age=31536000, immutable`، والـ `PDF` يضيف `Content-Disposition: attachment`.
 
 ## الترحيل وقاعدة الإنتاج
