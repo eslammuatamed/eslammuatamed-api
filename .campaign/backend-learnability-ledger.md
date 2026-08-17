@@ -6,21 +6,47 @@
 > the owner's, never silently resolved; read §6 for where the campaign actually stands. Run
 > `npm run guard:docs:selftest` before trusting any reading from the guard.
 >
-> **Corpus cleanup (slices 1–5) is COMPLETE and the guard is GREEN.** The next work is phase 2,
-> the learning architecture — a design job, not a cleanup job. Before it closes, two things are
-> owed and are easy to forget because every gate is green: the **consolidated peer pass** (§5 —
-> slices 1–5 shipped unreviewed, and no test can tell you whether a comment is true), and the
-> **response-envelope sweep** across module READMEs (§5).
+> ---
 >
-> **The peer review is not optional and not a formality.** It caught a MAJOR defect — four
-> comments naming the wrong class — that typecheck, 1273 tests, a green guard and an
-> unchanged compiler-emitted-JS diff all passed over, because a comment naming the wrong class is
-> still a comment. Never treat green gates as evidence that prose is true.
+> ## PHASE 1 IS CLOSED. PHASE 2 STARTS HERE.
 >
-> **Standing instrument rule, earned the hard way (D-15 and slice 5):** never trust one
-> instrument's clean reading. The guard has been blind three times; a hand-written sweep was
-> blind once, in the opposite direction. **Agreement between two independently-built instruments
-> is the evidence.** And a self-test proves the matcher, never the corpus.
+> **Phase 1 (corpus cleanup) is complete and its exit gate is satisfied.** Archaeology 68 → 0,
+> rot 25 → 0, campaign phrases 96 → 5 (all five deliberate keeps, each with a recorded reason).
+> `guard:docs` is GREEN. Both phase-1 obligations — the peer passes and the response-envelope
+> sweep — are CLOSED, not carried forward. Nothing from phase 1 is owed except the conventions in
+> §4 and the instrument rules below.
+>
+> **Verify before doing anything** (zero-trust, per the campaign's own rule):
+> ```
+> git -C <worktree> rev-parse origin/campaign/backend-learnability   # campaign tip
+> git -C <worktree> rev-parse origin/dev origin/main                 # both MUST be 9af1aac…
+> npm run guard:docs:selftest && npm run guard:docs                  # 43/43, then GREEN
+> ```
+> The §9 commit table is generated from `git log`, so it is the authority on what landed.
+>
+> **Phase 2 is the learning architecture** — prerequisite graph, difficulty model, module
+> template, testing curriculum, flow traceability, cold-reader exit gate. It is a DESIGN job.
+> It was deliberately not begun in the session that finished phase 1, so that it starts from a
+> clean corpus and a fresh context with this file as its only input.
+>
+> **The campaign ends at a PR.** No `dev → main` promotion and no production deploy are
+> authorized, under either reading of the freeze (D-10, §8).
+>
+> ### Four rules phase 2 inherits, each paid for
+>
+> 1. **Green gates are not evidence that prose is true.** The peer review caught four comments
+>    naming the wrong class; typecheck, 1273 tests, a green guard and an unchanged
+>    compiler-emitted-JS diff all passed over it, because a comment naming the wrong class is
+>    still a comment. Any phase-2 artifact making claims about the code needs a reader, not a run.
+> 2. **Substituting a specific identifier for a vague one must be verified PER SITE, never per
+>    family.** That is exactly how the wrong-class defect was introduced (§5).
+> 3. **No single instrument's clean reading is evidence.** The guard has been blind four ways
+>    (D-9 pattern family, D-11 file selection, D-15 token boundary, D-16 alphabet). A
+>    hand-written sweep was blind twice, once in the opposite direction to the guard and once in
+>    the same direction. A self-test proves the matcher, never the corpus.
+> 4. **A sweep only finds the alphabet its author thought to write (D-16).** Three blind spots
+>    were caught by a better sweep; the fourth could not be, and was found by following a citation
+>    into a file and reading it. **An exit gate cannot be a sweep result alone.**
 >
 > **What this file is.** The durable control plane for this campaign. A fresh session must be
 > able to resume from this file alone, without reconstructing anything from chat history.
