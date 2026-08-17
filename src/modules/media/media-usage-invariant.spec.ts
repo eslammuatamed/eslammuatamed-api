@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { USAGE_INCLUDE } from './media.service';
 
 /**
- * C-6's public contract is that deleting a referenced `MediaAsset` answers **409 with `usages`** —
+ * The public contract is that deleting a referenced `MediaAsset` answers **409 with `usages`** —
  * a body naming what still points at the asset. Two independent things have to agree for that to
  * be true, and nothing bound them together before Phase 12A:
  *
@@ -183,7 +183,7 @@ describe('MediaAsset delete-blocking relations are all reported as usages', () =
     const reported = Object.keys(USAGE_INCLUDE).sort();
 
     // Asserted as an exact set equality in BOTH directions deliberately. A missing entry is the
-    // C-6 defect (409 with an incomplete `usages`); an extra entry is a reporting claim the
+    // reporting defect (409 with an incomplete `usages`); an extra entry is a claim the
     // database no longer backs, which is how a stale include survives a schema change.
     expect(blocking).toEqual(reported);
   });

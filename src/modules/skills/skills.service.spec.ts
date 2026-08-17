@@ -134,7 +134,7 @@ describe('SkillsService', () => {
   // and tells the caller nothing about how to fix the request.
   // Phase 12A: the inverse of what this test used to assert. A duplicate slug must NOT be
   // translated here — it belongs to `AllExceptionsFilter`, like every other module's unique
-  // violation (B-2). Asserting "rejects with the raw Prisma error" is what makes this
+  // violation. Asserting "rejects with the raw Prisma error" is what makes this
   // discriminating: re-adding any local P2002 arm turns the rejection into an `HttpException`
   // and fails both assertions. The public 422 this produces is proven against real PostgreSQL in
   // `test/prisma-error-mapping.e2e-spec.ts` §B3.

@@ -795,7 +795,7 @@ describe('ProjectsService', () => {
   });
 
   describe('create', () => {
-    // C-5. The create is ONE nested Prisma write, which is already atomic, so it must not be
+    // The create is ONE nested Prisma write, which is already atomic, so it must not be
     // wrapped in `$transaction`. Asserting both halves — the direct call happened AND no
     // transaction was opened — is what makes this discriminating; the second assertion alone
     // would pass on a service that never wrote at all.
@@ -808,7 +808,7 @@ describe('ProjectsService', () => {
       expect(prisma.$transaction).not.toHaveBeenCalled();
     });
 
-    // C-5 relation semantics: the nested writes must survive unwrapping unchanged. `createDto`
+    // Relation semantics: the nested writes must survive unwrapping unchanged. `createDto`
     // carries no technologies and no gallery, so a populated DTO is used here — against the bare
     // fixture both relations are `undefined` by design and the assertion would prove nothing.
     it('keeps translations, technologies and gallery as nested writes in that one call', async () => {
@@ -842,7 +842,7 @@ describe('ProjectsService', () => {
     });
 
     // The empty-relation shape is deliberate (`undefined`, not `{ create: [] }`) and unchanged by
-    // C-5 — pinned so unwrapping the transaction cannot quietly start writing empty relations.
+    // Pinned so unwrapping the transaction cannot quietly start writing empty relations.
     it('omits the optional relations entirely when none are supplied', async () => {
       prisma.project.create.mockResolvedValue(projectPayload(true));
 
@@ -853,7 +853,7 @@ describe('ProjectsService', () => {
       expect(data?.gallery).toBeUndefined();
     });
 
-    // B-2. The service must NOT translate Prisma errors any more: `AllExceptionsFilter` is the
+    // The service must NOT translate Prisma errors: `AllExceptionsFilter` is the
     // single translation point (doc 15 §3). A local catch here produced a bare 422 with no
     // `errors[]`, so the same failure returned a different contract than every sibling module.
     //

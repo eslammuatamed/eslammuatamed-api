@@ -67,7 +67,7 @@ export class SkillsService {
       });
       return toAdminEntity(row);
     } catch (error) {
-      // No P2002 arm (Phase 12A, extending B-2). A duplicate slug is left to
+      // No P2002 arm. A duplicate slug is left to
       // `AllExceptionsFilter`, which owns unique violations for every module and answers 422
       // "Validation failed" with `errors[]`. The arm removed here answered 409 with a
       // skills-only message — a status this operation does not declare in the OpenAPI contract

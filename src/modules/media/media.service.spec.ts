@@ -534,7 +534,7 @@ describe('MediaService', () => {
       );
     });
 
-    // B-3 regression. The reported `budget` must be the tier the ENCODER measured against — the
+    // Regression guard. The reported `budget` must be the tier the ENCODER measured against — the
     // canonical `budgetTierFor` rule (smallest tier ≥ width, D20-20). A local re-implementation
     // used to round every non-tier width DOWN to 640, so the operator was shown a budget the
     // encoder never applied. These widths are exactly the ones that discriminate the two rules:
@@ -773,7 +773,7 @@ describe('MediaService', () => {
       expect(prisma.mediaAsset.delete).not.toHaveBeenCalled();
     });
 
-    // The C-6 ordering invariant, asserted as an ORDER and not merely as two calls: the previous
+    // The delete-ordering invariant, asserted as an ORDER and not merely as two calls: the previous
     // implementation also called both of these, just the other way round, so a test that only
     // checked "was each called" passed against the defect. `invocationCallOrder` is what
     // discriminates. (D07-7)
@@ -800,7 +800,7 @@ describe('MediaService', () => {
       ]);
     });
 
-    // THE C-6 RACE (§11 at the service seam; the e2e proves it against a real FK). The pre-check
+    // THE REFERENCED-ASSET RACE (§11 at the service seam; the e2e proves it against a real FK). The pre-check
     // sees no usage, a reference appears, and the authoritative delete is rejected. Storage must
     // never be touched — that is the whole point of the reordering.
     it('leaves storage untouched and 409s when the FK rejects the delete after a clean pre-check', async () => {

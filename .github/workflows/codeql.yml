@@ -1,9 +1,8 @@
 # Static security analysis (CodeQL). ADVISORY, deliberately.
 #
 # Posture (campaign 009, Workstream B). This workflow REPORTS; it does not gate. It is not a
-# required status check, and promoting it to one is an owner decision (OD-3), not a side effect
-# of adding it — the precedent is OD-10-4, where making a job required would have deadlocked
-# every pull request. Adding an advisory scanner is reversible; changing merge policy is not.
+# required status check, and promoting it to one is an owner decision, not a side effect of
+# adding it — there is precedent for a required job deadlocking every pull request. Adding an advisory scanner is reversible; changing merge policy is not.
 #
 # It also does not replace or weaken anything: `npm audit --audit-level=high` stays blocking in
 # ci.yml, secret scanning and push protection stay on at the repository level, and the four

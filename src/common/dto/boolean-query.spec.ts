@@ -6,7 +6,7 @@ import { MessageListQueryDto } from '../../modules/contact/dto/message-list.quer
 import { AdminProjectListQueryDto } from '../../modules/projects/dto/project-query.dto';
 import { validate as validateEnv } from '../../config/env.validation';
 
-// C-3. `toOptionalBoolean` had three declarations with two behaviours. Two of them (this one and
+// `toOptionalBoolean` once had three declarations with two behaviours. Two of them (this one and
 // `MessageListQueryDto`'s private copy) were byte-identical and are now one; the third, in
 // `config/env.validation.ts`, is deliberately MORE tolerant. These tests pin both halves of that
 // outcome — the sharing AND the deliberate difference — so a future "cleanup" that merges the
@@ -50,7 +50,7 @@ describe('toOptionalBoolean (query-string semantics)', () => {
 // Both query DTOs must go through the SHARED helper. Asserting on validated DTO instances (not on
 // the function) is what makes this discriminating: it would still pass if someone re-inlined a
 // correct private copy, but it fails the moment either DTO's accepted token set drifts from the
-// other's — which is the actual C-3 risk.
+// other's — which is the actual risk.
 const BOOLEAN_QUERY_DTOS: readonly [
   string,
   ClassConstructor<object>,
@@ -107,7 +107,7 @@ describe.each(BOOLEAN_QUERY_DTOS)(
   },
 );
 
-// The deliberate asymmetry (C-3). If someone "unifies" the two helpers, exactly one of these two
+// The deliberate asymmetry. If someone "unifies" the two helpers, exactly one of these two
 // blocks breaks — which is the signal, not a nuisance.
 describe('config boolean parsing stays deliberately more tolerant', () => {
   // A COMPLETE, otherwise-valid environment (mirrors `env.validation.spec.ts`). This matters: with

@@ -22,9 +22,10 @@ import { loadApiSpec } from './utils/contract';
 // violation would then fall through to the sanitized 500 arm. Nothing in lint, typecheck or build
 // catches that: it is a pure runtime identity question, so only a real database can answer it.
 //
-// Phase 10 B-2 will delete the Project-local P2002 translation and rely on this global filter, so
-// the P2002 evidence below is deliberately taken from ARTICLES — a path that has no service-local
-// translation today and therefore already exercises the target architecture.
+// No module translates P2002 for itself any more — the global filter owns it everywhere. The
+// P2002 evidence below is taken from ARTICLES, and section B2 then runs the SAME path through
+// PROJECTS, which used to translate locally: two modules reaching one byte-identical response is
+// the actual claim, and one module alone could not carry it.
 
 // A syntactically valid uuid(7) that the seed cannot have issued.
 const ABSENT_ID = '00000000-0000-7000-8000-000000000000';
@@ -286,7 +287,7 @@ describe('Prisma 7 runtime errors through AllExceptionsFilter (e2e)', () => {
     });
   });
 
-  // ── B2. The SAME path through PROJECTS, which used to translate P2002 itself (B-2) ──────────
+  // ── B2. The SAME path through PROJECTS, which used to translate P2002 itself ────────────────
   //
   // Until Phase 10A, `ProjectsService` caught P2002 and threw a bare
   // `UnprocessableEntityException('A project translation slug or relation value already exists.')`.
@@ -385,7 +386,7 @@ describe('Prisma 7 runtime errors through AllExceptionsFilter (e2e)', () => {
     });
 
     // The architecture assertion, not just the shape one: projects and articles must now be
-    // byte-identical on everything except `instance`. This is what B-2 actually bought, and it
+    // byte-identical on everything except `instance`. This is what centralizing actually bought, and it
     // fails the moment either module reacquires a local translation.
     it('returns a body identical to the article collision apart from `instance`', async () => {
       const articleSlug = `e2e-parity-article-${unique}`;
@@ -442,7 +443,7 @@ describe('Prisma 7 runtime errors through AllExceptionsFilter (e2e)', () => {
   //
   // Phase 12A. Until this phase `SkillsService.create` caught P2002 and threw
   // `ConflictException('Skill slug "…" is already taken.')` — a **409**. That was not merely an
-  // inconsistency with B-2: `POST /api/v1/admin/skills` declares `201/401/403/422/429` and no
+  // contract inconsistency: `POST /api/v1/admin/skills` declares `201/401/403/422/429` and no
   // 409 at all, so the runtime answered a status its own published contract did not admit, on a
   // trivially reachable path. Every peer admin create (categories, tags, articles, roles, users,
   // experiences, testimonials, projects) declares 422 and returns it. The local arm is gone; the

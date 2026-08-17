@@ -432,7 +432,9 @@ Arabic cases are first-class in the suite: `\b` is undefined over Arabic codepoi
 matcher uses explicit `[^A-Za-z0-9_-]` lookarounds instead.
 
 **Reading at phase-0 close:** 68 archaeology + 25 rot — the debt the campaign retires.
-**Reading after slice 3:** **62 archaeology + 0 rot + 30 campaign phrases** (from 96). The rot class is fully retired; convention
+**Reading after slice 4:** **0 archaeology + 0 rot.** `guard:docs` is GREEN, corroborated by a
+guard-independent sweep. Campaign phrases (hyphenless, outside the pass/fail gate) stand at 30,
+down from 96 — the remaining open work. The rot class is fully retired; convention
 4.D now holds across the whole scanned corpus. Archaeology remains the open half of the gate.
 
 Restating §4.D's warning with the numbers attached: **rot reaching 0 is not the same as the
@@ -597,11 +599,36 @@ Phase 0 is closed: every gate that blocked design is now answered.
       Full unit suite green afterwards: **61 suites, 1273 tests**. Four `describe()` labels
       changed — test *names*, no assertion touched.
 
-- [ ] **Slice 4 — retire the remaining archaeology (62 hyphenated + 30 phrases).** The
-      families left are `C-*`, `B-*`, `F9-*`, `AD-*`, `P9-8`/`P9-9`, plus `Feature 00N`,
-      `Phase 12A` and `F004`. `F9-*` must go in ONE pass across its 5 sites (deferred from
-      slice 1). Bucket A (strip the prefix, keep the prose) covers most; bucket B — a claim that
-      is now false — needs a rewrite, not a strip.
+- [x] **Slice 4 — DONE. Every hyphenated archaeology family is retired.** `F9-*`, `P9-*`,
+      `AD-*`, `C-*`, `B-*`, `OD-*`. **`npm run guard:docs` is GREEN**, and — per D-15's rule —
+      a guard-independent sweep over every tracked file outside `.specify/` returns **zero**,
+      with a passing positive control.
+
+      Most were bucket A: strip the id, leave the prose. Four were not.
+
+      - **Bucket B, the one D-3 predicted.** `test/prisma-error-mapping.e2e-spec.ts:25` promised
+        in future tense that a later phase "**will** delete the Project-local `P2002` translation".
+        It was deleted; `projects.service.ts` documents its absence. The comment justified taking
+        the evidence from ARTICLES because PROJECTS "still translates locally" — which had become
+        false, making the test's own rationale wrong. Rewritten to the true and stronger claim:
+        two modules reaching one byte-identical response is what the section proves, and one
+        module alone could not carry it.
+      - **Two chronology blocks** in the filter specs, rewritten to state the trap rather than
+        recount falling into it (see slice 4a).
+      - **`OD-1`/`OD-3` in CI config**, the class D-11 deliberately left open. Settled with
+        evidence rather than by assumption: both resolve in **0** files on both authoritative docs
+        refs, control passing (`D10-6` → 8 files). So they are unresolvable in the same sense as
+        every other family, and a reader of `dependabot.yml` could not discover what the decision
+        said. The reasoning prose stands on its own and was kept; only the dead ids went.
+        `dependabot.yml`, `codeql.yml` and `deploy.yml` all still parse, jobs intact.
+
+      **Honest caveat on the green.** Three of those CI-config sites were *also* invisible to the
+      guard (D-11), so `guard:docs` would have reported green while they were still there. The
+      green is trustworthy because the independent sweep agrees with it, **not** because the guard
+      says so. That is D-15's rule doing real work rather than decorating the ledger.
+
+      Gates: typecheck 0, `prisma validate` 0, guard GREEN, self-test 43/43, **61 suites / 1273
+      tests**.
 
 - [ ] **Slice 5 — widen the guard's file selection (D-11).** An instrument change, deliberately
       kept out of every content slice: a self-test regression must not be able to hide inside a

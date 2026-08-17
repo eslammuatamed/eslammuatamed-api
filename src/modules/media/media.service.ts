@@ -549,7 +549,7 @@ export class MediaService {
           width: variant.width,
           format: variant.format,
           bytes: variant.sizeBytes,
-          // The tier is resolved by the canonical `budgetTierFor` (B-3) — the SAME rule the
+          // The tier is resolved by the canonical `budgetTierFor` — the SAME rule the
           // encoder measured against. A local re-implementation here previously rounded a
           // non-tier width DOWN to 640, so an over-budget 1086px rendition was measured against
           // the 1280 row but reported the 640 one: the operator saw a budget the encoder never used.

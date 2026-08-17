@@ -258,7 +258,7 @@ export class EnvironmentVariables {
 // than being coerced. That matters because the permissive JS reading of a stray value is `true` —
 // `SMTP_ENABLED=no` must abort boot, not silently enable mail.
 //
-// Deliberately NOT the shared `common/dto/boolean-query` helper (C-3). This one trims and
+// Deliberately NOT the shared `common/dto/boolean-query` helper. This one trims and
 // lowercases first, because an operator types these by hand into a file or a secret store where
 // trailing whitespace is invisible; the query-string helper must stay strict so the API accepts
 // exactly what `openapi.json` publishes. Same shape, different tolerance, on purpose.

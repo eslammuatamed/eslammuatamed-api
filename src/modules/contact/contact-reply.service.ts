@@ -317,7 +317,7 @@ function asRepliable(message: ContactMessage): RepliableContactMessage | null {
 }
 
 // The unique-constraint predicate, kept local and narrow. Deliberately NOT a general
-// `isPrismaCode` helper: B-2 removed one of those, and the repository's accepted shape is a
+// `isPrismaCode` helper: one of those was removed, and the repository's accepted shape is a
 // single-purpose predicate per call site (cf. `isUniqueViolationOnContentHash` in media.service.ts).
 //
 // The code alone is matched, never `meta.target`: Prisma 7 degraded that field's contents once
