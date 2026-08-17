@@ -176,9 +176,9 @@ describe('exported contract — a nullable scalar must never erase to `type: obj
  *
  * ── WHY THIS EXISTS ─────────────────────────────────────────────────────────────────────────────
  *
- * Sibling defect to the erasure above, found by the same kind of cross-axis comparison. Twenty-six
- * write-DTO fields exported as a plain `{"type":"string"}` while the entity that reads them back
- * exported `{"type":"string","nullable":true}`. The runtime accepted `null` and cleared the column —
+ * Sibling defect to the erasure above, found by the same kind of cross-axis comparison. Twenty-seven
+ * write-DTO fields across ten DTOs exported as a plain scalar while the entity that reads them back
+ * exported the same type with `nullable: true`. The runtime accepted `null` and cleared the column —
  * `@IsOptional()` skips `null` as well as `undefined`, so the value passed the whitelist untouched
  * and reached Prisma, where `null` writes NULL and `undefined` is a no-op.
  *
@@ -197,7 +197,7 @@ describe('exported contract — a nullable scalar must never erase to `type: obj
  * Pairing is BY FIELD NAME rather than by traced read/write pairs. That is deliberately blunt: it
  * over-reports rather than under-reports, and an over-report is answered by one allowlist line
  * carrying its justification, whereas an under-report ships the defect. It is also how the original
- * sweep found all twenty-six.
+ * sweep found all twenty-seven.
  */
 describe('exported contract — write DTOs must permit the nulls the read side reports', () => {
   /**
