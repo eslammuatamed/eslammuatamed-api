@@ -95,7 +95,23 @@ section is historical narrative, fixed at the commit that wrote it, and may be s
 | Phase 1 (corpus cleanup) | **CLOSED.** archaeology 68→0, rot 25→0, phrases 96→5 (all deliberate keeps) |
 | Phase 2 (learning architecture) | **COMPLETE.** difficulty model §9b · measurements §10 · reading order · status-code section · README template · testing curriculum · flow trace — all peer-reviewed |
 | Cold-reader gate (§11) | **DEFINED, NOT RUN.** Cannot be run by any agent here; owner-facing |
-| PR | **OPEN: #86**, base `dev` (never `main`), head `campaign/backend-learnability` |
+| PR | **OPEN: #86**, base `dev` (never `main`), head `campaign/backend-learnability` — **all 6 checks pass, `MERGEABLE / CLEAN`** |
+
+**CI evidence at the PR head** (gated on `mergeStateStatus: CLEAN`, not on a check count):
+
+| Check | Result |
+| --- | --- |
+| Lint · Typecheck · Unit · Contract | pass (1m27s) |
+| **E2E (Postgres)** | **pass (2m11s)** |
+| CodeQL · Analyze (actions) · Analyze (javascript-typescript) | pass |
+| Branch-policy guard (advisory) | pass |
+
+**The E2E result is the one that adds information.** Every other check re-confirms something already
+run locally. The e2e suite needs a live PostgreSQL, which this worktree has no credentials for — so
+until CI ran it, **34 e2e suites had never been executed against any of this campaign's changes.**
+The campaign touched comments inside those very files (race barriers, transaction-semantics,
+prisma-error-mapping), and a comment edit cannot break a test — but "cannot" was an argument, not a
+measurement, and it is now a measurement.
 
 **Why base `dev` and not `main`.** `main` is the repository's default branch, so `gh pr create`
 would have targeted it by default. `dev → main` is the boundary that auto-deploys Production
