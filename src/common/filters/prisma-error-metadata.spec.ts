@@ -10,8 +10,9 @@ import { uniqueConstraintFields } from './prisma-error-metadata';
 // `test/prisma-error-mapping.e2e-spec.ts`; this file covers the translation logic's branches and
 // the schema invariant it rests on.
 //
-// The Prisma 7 fixtures below are copied from a LIVE probe against PostgreSQL (recorded in
-// prisma-7-migration-2026-08.md §17d), not invented.
+// The Prisma 7 fixtures below reproduce a shape observed against a real PostgreSQL, not an
+// invented one. `test/prisma-error-mapping.e2e-spec.ts` pins that same shape against a live
+// database, so if Prisma moves it again that test fails and names the new location.
 
 const known = (meta: unknown): Prisma.PrismaClientKnownRequestError =>
   new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {

@@ -9,8 +9,9 @@ import { PrismaClient } from '../generated/prisma/client';
 // prove readiness. The datasource URL comes from AppConfigService, not raw process.env.
 //
 // Prisma 7 no longer talks to PostgreSQL itself: `PrismaPg` owns a `pg` connection pool
-// and Prisma sends queries through it. That is why the pool settings live here — see
-// docs/research/prisma-7-migration-2026-08.md, decision P9-3.
+// and Prisma sends queries through it. That is why the pool settings live here, and why each
+// option below records what the v6 engine did and whether we kept it — two are held at the v6
+// values on purpose, and `max` deliberately is not.
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleDestroy {
   constructor(config: AppConfigService) {

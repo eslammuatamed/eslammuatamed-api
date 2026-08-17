@@ -94,14 +94,21 @@ it is decided once rather than re-argued across 29 files.
 
 ### D-6 — Confirmed dangling reference: `docs/research/prisma-7-migration-2026-08.md`
 
-**RESOLVED — the file does not exist anywhere in the program.** Four citations point at it:
+**RESOLVED — the file does not exist anywhere in the program.** **Five** citations point at it.
+The count was recorded as four in phase 0; a repo-wide sweep at the start of slice 1 found a
+fifth, in a file the guard structurally cannot read (see D-11).
 
-| Citation | Claims |
-| --- | --- |
-| `PROJECT_GUIDE.md:42` | "the evidence is in … (decisions `P9-1`…`P9-9`)" |
-| `src/prisma/prisma.service.ts:13` | "…, decision `P9-3`" |
-| `src/prisma/README.md:84` | "details and reason in … (decision `P9-3`)" |
-| `src/common/filters/prisma-error-metadata.spec.ts:14` | "… §17d" |
+| Citation | Claims | Guard sees it? |
+| --- | --- | --- |
+| `PROJECT_GUIDE.md:42` | "the evidence is in … (decisions `P9-1`…`P9-9`)" | yes |
+| `src/prisma/prisma.service.ts:13` | "…, decision `P9-3`" | yes |
+| `src/prisma/README.md:84` | "details and reason in … (decision `P9-3`)" | yes |
+| `src/common/filters/prisma-error-metadata.spec.ts:14` | "… §17d" | path only, no token |
+| **`prisma/schema.prisma:10`** | "… , decision `P9-1`" | **no — D-11 blind spot** |
+
+The phase-0 count came from the guard's audit output, which is exactly why it was short: the
+guard reads `.ts` under `src/` and `test/` plus a document allowlist, and `.prisma` is neither.
+**A finding sourced from an instrument inherits that instrument's blind spots.**
 
 The API repo has no `docs/` directory at all. The nearest real artifact is
 `eslammuatamed-docs/docs/research/prisma-7-upgrade-discovery.md` — a **different filename**, and
@@ -176,6 +183,43 @@ These are used *referentially*: `media-processing.types.ts:4` reads "so **T6** p
 a mapping", where `T6` stands in for a component with a real name. Deleting the token leaves the
 sentence subject-less. The repair is to name the actual component — which makes this bucket the
 highest-value learnability work found so far, not merely the largest.
+
+### D-11 — The guard cannot see 7 comment-bearing files, and one held a slice-1 target
+
+Found by the repo-wide sweep that opened slice 1, not by the guard. `docFiles()` matches a
+document allowlist; `sourceFiles()` walks **only** `src/` and `test/` and keeps **only** `.ts`.
+Everything else in the repository is unreadable to it. Measured with a passing positive control
+(the same expression finds `C-5`/`B-2` in `src/modules/projects/projects.service.ts`):
+
+| File | Archaeology occurrences | Note |
+| --- | ---: | --- |
+| `prisma/schema.prisma` | 1 (`P9-1`) | **a slice-1 target the guard never reported** |
+| `tsconfig.ops.json` | 3 (`F9-13`, `F9-14`) | |
+| `.github/dependabot.yml` | 3 (`OD-1`) | |
+| `.github/workflows/deploy.yml` | 2 (`F9-13`, `F9-14`) | |
+| `prisma.config.ts` | 1 (`F9-13`) | `.ts`, but outside `src/`+`test/` |
+| `prisma/sync/allowlist.spec.ts` | 1 (`C-1`) | `.ts`, but outside `src/`+`test/` |
+| `.github/workflows/codeql.yml` | 1 (`OD-3`) | |
+| **total** | **12** | invisible to `guard:docs` in both modes |
+
+`scripts/check-doc-provenance.mjs` also matches 13 times; those are the guard naming its own
+token families and are a legitimate self-reference, excluded above.
+
+**Same shape as D-9, reached by a different route.** D-9 was the guard's *pattern* missing a
+family; D-11 is the guard's *file selection* missing whole files. Both were found from outside
+the instrument — D-9 by peer review, D-11 by a repo-wide sweep. Neither the guard nor its
+self-test could have surfaced either: a self-test proves the matcher, never the corpus.
+
+**Consequence for the exit gate.** `npm run guard:docs` going green is now demonstrably weaker
+than believed: green means "clean in `.ts` under `src`/`test`, plus the document allowlist",
+not "clean in the repository". Convention 4.D's blind-spot note (§4.D) must be extended, and
+widening the guard's file selection is queued as its own slice — an instrument change, kept out
+of a content slice so a self-test regression cannot hide inside a documentation diff.
+
+**Not yet decided:** whether `OD-1`/`OD-3` in CI config are archaeology at all. They read as
+live *owner-decision* pointers in operational config, not as completed-campaign findings, and
+CI config is arguably not a "code-adjacent learning document". Deliberately left open rather
+than swept in; the guard-widening slice must answer it before flagging those files.
 
 ### D-10 — The release freeze was lifted for WEB ONLY; governance still records the API as frozen
 
@@ -366,21 +410,59 @@ Completed:
 - [x] **Freeze verdict resolved (D-10)** — Web-only lift; API recorded as still frozen, on an
       obsolete fact. Does not block: convention 4.D removes the language either way.
 
-Not started: learning architecture, prerequisite graph, difficulty model, module template,
-testing curriculum, flow traceability, comment cleanup execution, cold-reader exit gate.
+**Phase 1 — execution. IN PROGRESS.** Slice 1 landed (D-6 retired; D-11 opened as a
+by-product). See §7 for the live slice queue.
 
-## 7. Next actionable slice
+Not started: learning architecture, prerequisite graph, difficulty model, module template,
+testing curriculum, flow traceability, cold-reader exit gate.
+
+## 7. Slice queue
 
 Phase 0 is closed: every gate that blocked design is now answered.
 
-1. **Slice 1 (independent, start here).** Retire the four dead
-   `prisma-7-migration-2026-08.md` citations (D-6). Self-contained, no dependencies.
-2. **Slice 2.** Strip state reporting from `src/modules/README.md` and `PROJECT_GUIDE.md` per
-   convention 4.D — unblocked by D-10, and both are load-bearing entry points for the learning
-   architecture, so they must be true before that architecture is designed on top of them.
-3. **Slice 3.** Repair bucket C (D-9) on the media/articles/projects cluster — the 58 SpecKit
-   task ids that name components by task number. Highest learnability value found.
-4. **Then** design the learning architecture, prerequisite graph and difficulty model.
+- [x] **Slice 1 — DONE.** Retire the dead `prisma-7-migration-2026-08.md` citations (D-6).
+      Five sites, not the four recorded; the fifth came from a repo-wide sweep and opened D-11.
+      Guard archaeology 68 → 64 (the fifth was never in the 68 — it is invisible to the guard).
+
+- [ ] **Slice 1b — the remaining `D16-13` citations.** Slice 1 removed the citation at
+      `PROJECT_GUIDE.md:42` because it sat in the same sentence as a dead pointer. Three more
+      remain and carry the same OD-A defect, so the corpus is currently inconsistent:
+
+      | Site | How it cites `D16-13` |
+      | --- | --- |
+      | `PROJECT_GUIDE.md:382` | "`D16-6` (with `D16-10`) is **superseded** by `D16-13`" — an explicit authority claim |
+      | `prisma/README.md:81` | "`7.9.1`, `D16-13`" — version attribution |
+      | `prisma/schema.prisma:214` | "7.9.1 (D16-13): without it, `migrate dev` emits …" — version attribution |
+
+      §8's obligation is binding and unconditional: **do not repeat `D16-13` as an authoritative
+      citation.** Confirmed against the docs checkout during slice 1 — doc 16's highest recorded
+      decision is `D16-11`, and doc 16 states "Prisma remains pinned to `6.19.3` under `D16-10`".
+      So no substitute citation exists; remove without replacement, as in slice 1.
+      `PROJECT_GUIDE.md:382` also carries state reporting — land it with slice 2 to avoid two
+      passes over one line.
+
+- [ ] **Slice 2.** Strip state reporting from `src/modules/README.md` and `PROJECT_GUIDE.md` per
+      convention 4.D — unblocked by D-10, and both are load-bearing entry points for the learning
+      architecture, so they must be true before that architecture is designed on top of them.
+
+- [ ] **Slice 3.** Repair bucket C (D-9) on the media/articles/projects cluster — the 58 SpecKit
+      task ids that name components by task number. Highest learnability value found.
+
+- [ ] **Slice 4 — widen the guard's file selection (D-11).** An instrument change, deliberately
+      kept out of every content slice: a self-test regression must not be able to hide inside a
+      documentation diff. Must also settle whether `OD-1`/`OD-3` in CI config are archaeology.
+
+- [ ] **Deferred, tracked here so it is not implicit:** the `F9-*` family (5 sites —
+      `all-exceptions.filter.ts:108`, `all-exceptions.filter.spec.ts:84`,
+      `prisma-error-metadata.ts:3`, `prisma-error-metadata.spec.ts:6`,
+      `test/prisma-error-mapping.e2e-spec.ts:148`). Slice 1 rewrote the comment block directly
+      below `prisma-error-metadata.spec.ts:6` and deliberately did **not** strip the `F9-9` on it:
+      the family is coherent and must be retired in one consistent pass, not partially.
+      Also deferred: D-3 bucket B, the stale future-tense claim at
+      `test/prisma-error-mapping.e2e-spec.ts:25` ("Phase 10 B-2 **will** delete …" — already
+      done). Invisible to the guard by design (§4.D), so green will never retire it.
+
+- [ ] **Then** design the learning architecture, prerequisite graph and difficulty model.
 
 ## 8. Owner-decision blockers
 
@@ -412,11 +494,30 @@ authoritative, and do not assert any production/freeze state in a code-adjacent 
 
 Branch `campaign/backend-learnability`, all from baseline `9af1aac`.
 
-**Phase 0 changed no application code.** Verified: `git diff --stat 9af1aac..HEAD` is 3 files,
-940 insertions, **0 deletions**, and `git diff --name-only` matches nothing under `src/`, `test/`
-or `prisma/`. The three files are this ledger, the new `scripts/check-doc-provenance.mjs`, and 3
-added npm-script lines in `package.json` wiring it up. No application behaviour, test or API
-contract change.
+**Phase 0 changed no application code.** Verified at `40218b4`: `git diff --stat 9af1aac..40218b4`
+is 3 files, 940 insertions, **0 deletions**, and `git diff --name-only` matched nothing under
+`src/`, `test/` or `prisma/`. The three files are this ledger, the new
+`scripts/check-doc-provenance.mjs`, and 3 added npm-script lines in `package.json` wiring it up.
+
+**That claim is scoped to phase 0 and must not be restated for the branch.** Slice 1 is the first
+commit to touch `src/` and `prisma/`, so the branch-wide form of the sentence is now false. The
+standing claim from slice 1 onward is narrower and is re-proved per slice:
+
+**Slice 1 changed comments only.** Evidence taken on the slice-1 diff:
+
+| Check | Result |
+| --- | --- |
+| `git diff` non-comment, non-prose lines | none — every changed line is a `//` comment or Markdown prose |
+| files touched | 5 (`PROJECT_GUIDE.md`, `prisma/schema.prisma`, `src/prisma/README.md`, `src/prisma/prisma.service.ts`, `src/common/filters/prisma-error-metadata.spec.ts`) |
+| diffstat | 8 insertions, 8 deletions |
+| `npx prisma validate` | exit 0 — "The schema at prisma/schema.prisma is valid" (`schema.prisma` was edited) |
+| `npm run typecheck` | exit 0 |
+| `npx jest src/common/filters/prisma-error-metadata.spec.ts` | exit 0 — 18/18 (the edited spec) |
+| `npm run guard:docs:selftest` | 43/43 — instrument unchanged and still discriminating |
+| `npm run guard:docs` archaeology | 68 → **64**, exactly the 4 guard-visible tokens removed |
+| dead-path sweep, repo-wide incl. non-`.ts`/`.md` | **0** remaining outside this ledger |
+
+No application behaviour, test assertion or API contract changed.
 
 | SHA | Commit |
 | --- | --- |

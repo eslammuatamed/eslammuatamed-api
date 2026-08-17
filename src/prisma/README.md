@@ -81,7 +81,7 @@ service ← PrismaService ← PrismaClient (مولَّد) ← PrismaPg ← pg po
 
 - **`PrismaClient` المولَّد** يترجم استعلاماتك إلى `SQL`. مكانه `src/generated/prisma`، وهو **كود مولَّد** — مُتجاهَل في `git` ويُعاد توليده بـ `npm run db:generate`. لا تعدّله.
 - **`PrismaPg`** هو المُحوِّل (driver adapter): يملك مجمّع اتصالات `pg` ويُنفّذ الـ `SQL` فعليًّا. **هو** مَن يفتح الاتصال الآن.
-- لذلك صار إعداد المجمّع مسؤوليتنا. اخترنا `connectionTimeoutMillis: 5000` و`idleTimeoutMillis: 300000` للحفاظ على سلوك `v6`؛ أمّا `max` فتُرك على قيمة `pg` الافتراضية (`10`). التفاصيل والسبب في `docs/research/prisma-7-migration-2026-08.md` (القرار `P9-3`).
+- لذلك صار إعداد المجمّع مسؤوليتنا. اخترنا `connectionTimeoutMillis: 5000` و`idleTimeoutMillis: 300000` للحفاظ على سلوك `v6`؛ أمّا `max` فتُرك على قيمة `pg` الافتراضية (`10`). والسبب وراء كل قيمة مكتوب عند تعريفها في [`prisma.service.ts`](prisma.service.ts).
 
 ## `prisma.config.ts` مش إعدادات التطبيق
 
