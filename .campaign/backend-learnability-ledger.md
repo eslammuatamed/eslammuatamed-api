@@ -292,8 +292,20 @@ governance in the sense of §4.B: a reader *can* follow them, just not into `doc
 constraint — governance references outnumber archaeology 12 to 1, and a naive purge would destroy
 the repository's traceability into its own governing decisions. This is exactly that failure,
 reached not by naivety but by a *disciplined* method with one wrong parameter: the pathspec.
-Every other check in this campaign that used `-- 'docs/*.md'` shares the flaw; it was harmless
-elsewhere only because those families genuinely resolve nowhere.
+Every other check in this campaign that used `-- 'docs/*.md'` shares the flaw.
+
+**That "harmless elsewhere" claim was then verified rather than asserted**, because asserting it
+is exactly the move D-17 exists to condemn. Re-run at **full repository scope**, both authoritative
+refs, binaries excluded, control passing (`D10-6` → 8 files):
+
+| Family | Files at full scope, both refs |
+| --- | ---: |
+| `D16-13` (OD-A) | 0 |
+| `OD-1`, `OD-3` (slice 4) | 0 |
+| `P9-3`, `C-5`, `F9-9`, `AD-7`, `B-2` (representatives of every retired family) | 0 |
+
+So every retirement this campaign made stands at the correct scope. **Only the `R*` verdict was
+scope-dependent, and it was caught before an edit was made.**
 
 **Rule: a "does not resolve" verdict must state the search scope, and the scope must be the whole
 governing repository — never one directory.** A negative result is only as wide as where you
