@@ -1,5 +1,11 @@
 # Campaign ledger — Backend Learnability, Documentation, and Code Comprehension
 
+> **HOW TO RESUME.** Read this file first, before any chat context or memory. Then, in order:
+> verify the baseline in §1 against live git; read the accepted conventions in §4 — they are
+> binding and were argued once so they are not re-argued per file; read §8 and treat OD-A/OD-B as
+> the owner's, never silently resolved; then start at §7 slice 1. Run
+> `npm run guard:docs:selftest` before trusting any reading from the guard.
+>
 > **What this file is.** The durable control plane for this campaign. A fresh session must be
 > able to resume from this file alone, without reconstructing anything from chat history.
 > It is historical evidence, not learning documentation — it is allowed to carry SHAs, PR
@@ -341,7 +347,8 @@ flag directly produced D-9.
 
 ## 6. Status
 
-**Phase 0 — investigation. IN PROGRESS.**
+**Phase 0 — investigation. CLOSED.** Every gate that blocked design work is answered; no
+investigation item remains open. Phase 1 (execution) begins at §7 slice 1.
 
 Completed:
 - [x] Baseline verified; `dev` already synchronized; campaign branch cut from it
@@ -393,12 +400,34 @@ Owner-visible, not currently blocking: the campaign can proceed by declining to 
 citation. It becomes blocking only if the owner wants the governing docs corrected, which is stop
 condition 3 and outside this campaign's scope.
 
-The Arabic-language question was resolved from repository evidence rather than escalated (D-1).
-If the freeze lookup returns "still active", that becomes a candidate blocker under stop
-condition 3 and will be recorded here before any related edit.
+The Arabic-language question was resolved from repository evidence rather than escalated (D-1);
+it is not an owner decision and is not pending.
+
+**Neither OD-A nor OD-B blocks code-adjacent learnability work, and neither may be silently
+resolved.** They are recorded governing-document decisions belonging to the owner. The campaign's
+only obligation is to avoid propagating either error: do not repeat the `D16-13` citation as
+authoritative, and do not assert any production/freeze state in a code-adjacent document.
 
 ## 9. Commits
 
-| SHA | Slice |
+Branch `campaign/backend-learnability`, all from baseline `9af1aac`.
+
+**Phase 0 changed no application code.** Verified: `git diff --stat 9af1aac..HEAD` is 3 files,
+940 insertions, **0 deletions**, and `git diff --name-only` matches nothing under `src/`, `test/`
+or `prisma/`. The three files are this ledger, the new `scripts/check-doc-provenance.mjs`, and 3
+added npm-script lines in `package.json` wiring it up. No application behaviour, test or API
+contract change.
+
+| SHA | Commit |
 | --- | --- |
-| `8ae1aba` | `chore(docs): add a provenance guard for code-adjacent documentation` |
+| `8ae1aba` | chore(docs): add a provenance guard for code-adjacent documentation |
+| `1ad5f3a` | docs(campaign): open the backend-learnability ledger |
+| `7bde4d7` | docs(campaign): record the reference-integrity findings (D-6, D-7, D-8) |
+| `64b50e5` | docs(campaign): state the guard's blind spots, and narrow the convention to match |
+| `6b4af9a` | chore(docs): catch the hyphenless campaign-identifier families |
+| `fa18e7d` | docs(campaign): record D-9 and resolve the Codex-Arabic review question |
+| `6e374dc` | docs(campaign): resolve the freeze verdict (D-10) — Web-only lift, API still recorded frozen |
+| `32bf4cc` | docs(campaign): strengthen D-10 with independently verified peer findings |
+
+**Pushed to `origin/campaign/backend-learnability` as a durability checkpoint only.** No PR was
+opened. `dev` and `main` were not touched. Nothing was deployed.
