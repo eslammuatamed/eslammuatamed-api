@@ -1095,8 +1095,54 @@ agents went idle without delivering. `code`/`spec` are non-blank, non-comment `.
 | `locales` | 76 | 68 | 1 | – | 1 | 1 | — |
 | `users` | 24 | 0 | 0 | – | 0 | 0 | — |
 
-Totals: **10,923 code / 8,429 spec.** Graph is **acyclic**. Roots (no module deps): `mail`,
-`health`, `users`. `locales` is the most-depended-on (8 modules); `media` next (5).
+Totals: **10,923 code / 8,429 spec.** Graph is **acyclic** — corroborated structurally: zero
+`forwardRef` anywhere in `*.module.ts`, and a Nest cycle is unresolvable without one.
+
+**Both delegated agents delivered after this table was derived, and their numbers were reconciled
+rather than merged.** `graph-derive`'s size table is **identical to mine, line for line** — two
+independent derivations agreeing is the strongest evidence in this section. Two corrections came
+out of the reconciliation:
+
+- **`locales` fan-in is 10, not 8. My number was wrong** and is corrected here. Re-verified by
+  hand: `articles`, `experiences`, `media`, `projects`, `redirects`, `seo`, `settings`, `skills`,
+  `taxonomy`, `testimonials`.
+- **`media` fan-in is 5.** A naive `grep MediaModule` returns 6 — the sixth is `contact`, and the
+  match is **a comment I wrote in slice 3** ("the same wiring `MediaModule` uses for
+  `UploadUserIpThrottlerGuard`"), not an import. `contact.module.ts` imports `MailModule` only.
+  *A name-grep counts prose; only the `imports:` array counts as an edge.*
+
+**Instrument caveat that materially limits the `e2e` column.** `graph-derive` flagged it and it is
+correct: the column matches e2e suites by filename substring, and **17 of the 34 e2e suites match
+no module name at all** — including the heaviest ones (`transaction-semantics`,
+`prisma-error-mapping`, `refresh-token-rotation`, `reply-http-delivery`, `reply-http-security`,
+`fts-search`, `fts-invariants`, `content-sync`, `hardening`, `list-envelopes`, `about-content`,
+`profile-contract`, `cors`). **The column badly understates `auth`, `contact`, `articles` and
+`media`, and must not be read as a coverage measure.** It answers only "is there a suite named
+after this module".
+
+### Concept load (from `graph-derive`, verified against the code where it mattered)
+
+| Module | The distinctive thing a learner must hold |
+| --- | --- |
+| `media` | processing pipeline + concurrency limiter + FK-blocked deletes |
+| `contact` | idempotency keys + post-commit mail + retention cron |
+| `auth` | argon2id hashing + refresh rotation & reuse detection |
+| `access-control` | DB-resolved permission grants + global guard ordering |
+| `preview` | HMAC mint/verify + TTL + timing-safe compare |
+| `articles` | scheduled-publish cron + raw-SQL full-text search |
+| `redirects` | slug-rename ops injected into the CALLER's transaction |
+| `projects` | one transaction spanning rename + redirect + media |
+| `mail` | transport factory + bounded retry + provider idempotency header |
+| `taxonomy` | `P2003` FK-blocked delete on an in-use category |
+| `settings` / `seo` | singleton / per-key upsert + locale resolution |
+| `locales` | the enabled-locale validation seam everyone uses |
+| `health` | raw DB liveness probe; nothing else |
+| `experiences`, `testimonials`, `skills`, `users` | none beyond the archetype |
+
+**The ridge is `media` · `contact` · `auth` · `access-control` · `preview`, and it is NOT the LOC
+ranking.** `projects`, `settings` and `articles` are large but substantially archetype repetition;
+`preview` and `auth` are small and carry the densest new concepts per line. This is prediction 1
+confirmed a second time, by an independent agent that never saw the prediction.
 
 ### Two coverage gaps the table exposes, both verified
 
