@@ -86,12 +86,66 @@ Per the charter's own Documentation Truth Rule the fix is not to update the stat
 **remove state reporting from code-adjacent docs entirely**. Adopted as a convention (§4.D) so
 it is decided once rather than re-argued across 29 files.
 
-### D-6 — Possible broken path reference (OPEN, unverified)
+### D-6 — Confirmed dangling reference: `docs/research/prisma-7-migration-2026-08.md`
 
-`src/prisma/prisma.service.ts:13` and `PROJECT_GUIDE.md:42` cite
-`docs/research/prisma-7-migration-2026-08.md`. **This repository has no `docs/` directory.**
-Either the path is relative to the governing-docs repo and written misleadingly, or it is a
-dangling reference. Must be resolved before any document repeats the citation.
+**RESOLVED — the file does not exist anywhere in the program.** Four citations point at it:
+
+| Citation | Claims |
+| --- | --- |
+| `PROJECT_GUIDE.md:42` | "the evidence is in … (decisions `P9-1`…`P9-9`)" |
+| `src/prisma/prisma.service.ts:13` | "…, decision `P9-3`" |
+| `src/prisma/README.md:84` | "details and reason in … (decision `P9-3`)" |
+| `src/common/filters/prisma-error-metadata.spec.ts:14` | "… §17d" |
+
+The API repo has no `docs/` directory at all. The nearest real artifact is
+`eslammuatamed-docs/docs/research/prisma-7-upgrade-discovery.md` — a **different filename**, and
+it contains **zero** `P9-*` tokens. So both the path and the decision IDs it cites are dead.
+
+This is the clearest possible illustration of why `P9-*` is correctly classified as archaeology:
+a reader cannot resolve it, by any route.
+
+### D-7 — `D16-13` is cited as governing but does not exist in authoritative governance
+
+`PROJECT_GUIDE.md:42` names `D16-13` as *the* governing decision that supersedes `D16-6`/`D16-10`
+and authorizes the Prisma 7 upgrade.
+
+Measured against the governing-docs repo, **with passing positive controls on every ref**
+(`D10-6` → 8 files, `FR-DSH-051` → 5–10 files):
+
+| Ref | `D16-13` resolves? |
+| --- | --- |
+| `origin/main` | **no** (0 files) |
+| `origin/docs/api-frontend-v1-completion` (4 ahead of main, 0 behind — current-most) | **no** (0 files) |
+| `refs/heads/docs/backend-audit-remediation` (unmerged, local-only) | yes — 5 files |
+| highest `D16-*` recorded on the current-most branch | `D16-11` |
+
+So a code-adjacent document cites a decision that exists **only on an unmerged local branch**.
+Against authoritative governance, the recorded decision is still `D16-6` (which *defers* Prisma 7)
+while production demonstrably runs Prisma 7.9.1.
+
+**This is a governing-documentation gap, not a code-adjacent one.** Correcting it is stop
+condition 3 (governing architecture decision) and is NOT this campaign's to fix. The campaign's
+obligation is narrower and firm: **do not repeat `D16-13` as an authoritative citation** in any
+learning document until it lands on the authoritative ref. Recorded as an owner-visible item (§8).
+
+### D-8 — Archaeology IDs are unresolvable *against authoritative governance*
+
+Stated precisely, because a first measurement of this was wrong and had to be corrected.
+
+All sampled archaeology tokens (`C-5`, `C-6`, `B-2`, `B-3`, `F9-9`, `F9-13`, `P9-3`, `P9-9`,
+`AD-7`, `OD-2`) resolve in **0** files on both `origin/main` and the current-most docs branch,
+with controls passing on the same command. They *do* resolve — 8 to 28 ref-file hits each —
+but only in historical-evidence artifacts on other, unmerged docs branches.
+
+The correct claim is therefore **"unresolvable from the authoritative documentation a reader
+would consult"**, not "unresolvable anywhere". That distinction is the justification for retiring
+them from current-state docs, and it must not be overstated in the final report.
+
+> **Instrument note.** The first run of this check returned 0 for all 17 tokens *and* 0 for the
+> control, because zsh does not word-split an unquoted `$var` (unlike an unquoted `$(...)`), so
+> `git grep` received the entire ref list as one malformed argument and every error was swallowed
+> by `2>/dev/null`. The control is the only reason this was caught. Every resolution count in this
+> ledger was re-taken with a passing positive control in the same command.
 
 ---
 
@@ -183,6 +237,9 @@ Completed:
 - [x] Provenance guard built, positive-controlled, committed (`8ae1aba`)
 - [x] Rot surface located to `file:line`
 
+- [x] D-6 resolved (dangling reference confirmed); D-7 and D-8 established with controls
+- [x] Module dependency graph + size/test signal extracted (input to the difficulty model)
+
 In flight (delegated):
 - [ ] **Governance lookup** — are `D17-5` / `D23-18` (the release freeze) still ACTIVE, or
       retired? Gates every edit that touches freeze language. Production having shipped is not
@@ -196,18 +253,24 @@ testing curriculum, flow traceability, comment cleanup execution, cold-reader ex
 
 ## 7. Next actionable slice
 
-1. Resolve the `D17-5`/`D23-18` verdict and record it in §2 as D-7.
-2. Resolve D-6 (the `docs/research/…` path).
-3. Record the Codex-Arabic verdict in §5.
-4. Then, and not before, design the learning architecture and prerequisite graph — the freeze
+1. Resolve the `D17-5`/`D23-18` freeze verdict; record as D-9.
+2. Record the Codex-Arabic verdict in §5 and fix the review-lane split accordingly.
+3. Then, and not before, design the learning architecture and prerequisite graph — the freeze
    verdict changes what `src/modules/README.md` and `PROJECT_GUIDE.md` are allowed to say, and
    both are load-bearing entry points for that architecture.
+4. Retire the four dead `prisma-7-migration-2026-08.md` citations (D-6) — self-contained, no
+   dependency on the freeze verdict, so it can run in parallel.
 
 ## 8. Owner-decision blockers
 
-None currently. The Arabic-language question was resolved from repository evidence rather than
-escalated (§2 D-1). If the freeze lookup returns "still active", that becomes a candidate
-blocker under stop condition 3 and is recorded here before any related edit.
+**OD-A — `D16-13` is cited as governing but is absent from authoritative governance (D-7).**
+Owner-visible, not currently blocking: the campaign can proceed by declining to repeat the
+citation. It becomes blocking only if the owner wants the governing docs corrected, which is stop
+condition 3 and outside this campaign's scope.
+
+The Arabic-language question was resolved from repository evidence rather than escalated (D-1).
+If the freeze lookup returns "still active", that becomes a candidate blocker under stop
+condition 3 and will be recorded here before any related edit.
 
 ## 9. Commits
 
