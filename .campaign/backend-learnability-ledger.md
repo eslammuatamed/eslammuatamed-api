@@ -95,7 +95,13 @@ section is historical narrative, fixed at the commit that wrote it, and may be s
 | Phase 1 (corpus cleanup) | **CLOSED.** archaeology 68→0, rot 25→0, phrases 96→5 (all deliberate keeps) |
 | Phase 2 (learning architecture) | **COMPLETE.** difficulty model §9b · measurements §10 · reading order · status-code section · README template · testing curriculum · flow trace — all peer-reviewed |
 | Cold-reader gate (§11) | **DEFINED, NOT RUN.** Cannot be run by any agent here; owner-facing |
-| PR | body drafted at `.campaign/PR-BODY.md` |
+| PR | **OPEN: #86**, base `dev` (never `main`), head `campaign/backend-learnability` |
+
+**Why base `dev` and not `main`.** `main` is the repository's default branch, so `gh pr create`
+would have targeted it by default. `dev → main` is the boundary that auto-deploys Production
+(D-10, §8), and no promotion or deploy is authorized by this campaign. Targeting `main` would have
+staged exactly the action the charter forbids — **the default was the wrong answer, and defaults
+are not authorization.**
 | `guard:docs` | GREEN; self-test 43/43 |
 | Tests | 61 suites / 1273 tests |
 | PR | none opened. Campaign ends at a PR; no promotion, no deploy |
