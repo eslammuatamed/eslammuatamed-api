@@ -93,7 +93,7 @@ section is historical narrative, fixed at the commit that wrote it, and may be s
 | Baseline | `9af1aac` (`origin/dev` = `origin/main`, unchanged and untouched) |
 | Commits on branch | see `git rev-list --count 9af1aac..HEAD` — do not trust a number typed here |
 | Phase 1 (corpus cleanup) | **CLOSED.** archaeology 68→0, rot 25→0, phrases 96→5 (all deliberate keeps) |
-| Phase 2 (learning architecture) | **IN PROGRESS.** See §7b for dispatches, §9b for the model, §10 for measurements |
+| Phase 2 (learning architecture) | **IN PROGRESS.** Delivered: difficulty model §9b · measurements §10 · reading order `a799dd5` · status-code section `2aa031f` · README template `29b389a`. Open: testing curriculum, flow traceability, cold-reader exit gate |
 | `guard:docs` | GREEN; self-test 43/43 |
 | Tests | 61 suites / 1273 tests |
 | PR | none opened. Campaign ends at a PR; no promotion, no deploy |
@@ -103,8 +103,16 @@ section is historical narrative, fixed at the commit that wrote it, and may be s
 | Range | Status |
 | --- | --- |
 | Baseline → `eff70d3` (slices 1–5c) | **peer-reviewed**, findings resolved |
-| `2aa031f` — the archetype status-code section | **peer-reviewed.** 1 MAJOR (pipe order) + 2 verified omissions, all fixed |
-| All other commits after `eff70d3` | ledger prose only |
+| `2aa031f` — archetype status-code section | **peer-reviewed.** 1 MAJOR (pipe order) + 2 omissions, fixed |
+| `1fde962` — the fix for that MAJOR | **peer-reviewed, CLEAN** |
+| `a799dd5` — the rewritten reading order | **peer-reviewed, CLEAN** (2 MINORs, both acted on) |
+| `29b389a` — the module README template | **UNREVIEWED** — source-touching |
+| `e9ea4f8` — the two MINOR fixes | **UNREVIEWED** — source-touching |
+| Everything else after `eff70d3` | ledger prose only |
+
+*Phase 2 is producing source-touching documentation faster than it is reviewed. That is fine while
+this table says so truthfully — it stops being fine the moment the table is allowed to lag, which
+is the exact failure §0 exists to prevent.*
 
 **Gates the PR, not phase 2.** Do not discharge by author verification (§5 records why that is
 strictly weaker).
@@ -1011,8 +1019,9 @@ and only their compact results land here.
 | Dispatched | Purpose | Status |
 | --- | --- | --- |
 | `codex-5c` — peer review of slice 5c (`eff70d3`) | verify the two false-claim rewrites and the α replacements; enumerate any remaining marker shape | **RETURNED — CLEAN, all 3 questions** |
-| `graph-derive` — module dependency graph, size/test/surface signal, concept load | re-derive the phase-0 input that was never recorded (§6) | **OUTSTANDING** |
-| `readme-survey` — de-facto section template across the 17 module READMEs, divergence, depth, opening contract | input to the module template | **OUTSTANDING** |
+| `graph-derive` — dependency graph, size/test/surface signal, concept load | re-derive the lost phase-0 input | **RETURNED**; reconciled in §10, corrected two of my numbers |
+| `readme-survey` — de-facto section template across the 17 module READMEs | input to the module template | **RETURNED**; template landed at `29b389a` |
+| `codex-5c` — testing-curriculum survey | input to the testing curriculum | **OUTSTANDING** |
 
 Results land in **§10** (below) as compact tables. If a dispatched agent never returns, that is
 recorded here as review debt in the same terms §5 uses — never silently upgraded into
