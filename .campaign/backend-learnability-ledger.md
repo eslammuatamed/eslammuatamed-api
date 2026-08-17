@@ -3,8 +3,19 @@
 > **HOW TO RESUME.** Read this file first, before any chat context or memory. Then, in order:
 > verify the baseline in §1 against live git; read the accepted conventions in §4 — they are
 > binding and were argued once so they are not re-argued per file; read §8 and treat OD-A/OD-B as
-> the owner's, never silently resolved; then start at §7 slice 1. Run
+> the owner's, never silently resolved; read §6 for where the campaign actually stands. Run
 > `npm run guard:docs:selftest` before trusting any reading from the guard.
+>
+> **Corpus cleanup (slices 1–5) is COMPLETE and the guard is GREEN.** The next work is phase 2,
+> the learning architecture — a design job, not a cleanup job. Before it closes, two things are
+> owed and are easy to forget because every gate is green: the **consolidated peer pass** (§5 —
+> slices 1–5 shipped unreviewed, and no test can tell you whether a comment is true), and the
+> **response-envelope sweep** across module READMEs (§5).
+>
+> **Standing instrument rule, earned the hard way (D-15 and slice 5):** never trust one
+> instrument's clean reading. The guard has been blind three times; a hand-written sweep was
+> blind once, in the opposite direction. **Agreement between two independently-built instruments
+> is the evidence.** And a self-test proves the matcher, never the corpus.
 >
 > **What this file is.** The durable control plane for this campaign. A fresh session must be
 > able to resume from this file alone, without reconstructing anything from chat history.
@@ -564,11 +575,34 @@ Completed:
 - [x] **Freeze verdict resolved (D-10)** — Web-only lift; API recorded as still frozen, on an
       obsolete fact. Does not block: convention 4.D removes the language either way.
 
-**Phase 1 — execution. IN PROGRESS.** Slice 1 landed (D-6 retired; D-11 opened as a
-by-product). See §7 for the live slice queue.
+**Phase 1 — corpus cleanup. COMPLETE.** Slices 1, 1b, 2, 3, 4 and 5 all landed. The corpus is
+now clean by both instruments:
+
+| Measure | Phase-0 close | Now |
+| --- | ---: | ---: |
+| Campaign archaeology (`guard:docs`) | 68 | **0** |
+| Fast-rotting state claims | 25 | **0** |
+| Hyphenless campaign phrases | 96 | **5** (all deliberate keeps) |
+| `guard:docs` verdict | RED | **GREEN** |
+
+Cleanup produced five findings that were not visible at phase 0: **D-11** (guard file-selection
+blind spot), **D-12** (state-classified index lost the `mail` module), **D-13** (the guide told a
+learner four implemented modules did not exist), **D-14** (task ids ambiguous across seven
+numbering spaces), **D-15** (a hyphen prefix hides a token from the guard).
+
+**Phase 2 — learning architecture. NOT STARTED, and deliberately not started in this session.**
+It is a design job that should begin from a clean corpus and a fresh context, with this ledger as
+its only input. Starting it at the tail of six implementation slices is how design work inherits
+tired judgement.
 
 Not started: learning architecture, prerequisite graph, difficulty model, module template,
 testing curriculum, flow traceability, cold-reader exit gate.
+
+**Two obligations carried into phase 2, neither optional:**
+1. **The consolidated peer pass (§5).** Slices 1–5 shipped unreviewed. Nothing else can answer
+   whether the new prose is *true*.
+2. **The response-envelope check (§5).** Every module README still needs checking for the
+   `{ data: … }` wrapper omission the Codex probe found in `redirects`. Never swept.
 
 ## 7. Slice queue
 
