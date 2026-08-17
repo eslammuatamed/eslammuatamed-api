@@ -53,6 +53,21 @@
 > 4. **A sweep only finds the alphabet its author thought to write (D-16).** Three blind spots
 >    were caught by a better sweep; the fourth could not be, and was found by following a citation
 >    into a file and reading it. **An exit gate cannot be a sweep result alone.**
+> 5. **Retiring a family is not evidence about the family beside it (slice 5c).** The β family was
+>    retired without checking for siblings; α was sitting in the same files, and the peer found 27
+>    more occurrences across four shapes. **When you find a marker family, enumerate the space it
+>    belongs to before declaring it retired** — if `β`, look for `α` and `γ`; if `9C-8`, look for
+>    `9C-*` and `9D-*`; if `Stage 2C`, ask whose stages those are.
+> 6. **A "does not resolve" verdict must state its scope, and the scope is the whole governing
+>    repository (D-17).** `R1`–`R15` returned 0 files under a `docs/*.md` pathspec with a passing
+>    control, and are in fact live governance defined in `content/owner-profile.md`. **A positive
+>    control proves the command runs, not that the scope is right.** Nearly deleted a live
+>    governance family — the exact catastrophe D-2 exists to prevent.
+>
+> **And the one that outranks all six:** the peer review found what six slices of instruments and
+> author verification did not, twice — a MAJOR wrong-class defect, then a 27-occurrence family
+> containing two outright false claims. **Do not let the peer lane lapse in phase 2**, and do not
+> read a green gate as agreement with it.
 >
 > **What this file is.** The durable control plane for this campaign. A fresh session must be
 > able to resume from this file alone, without reconstructing anything from chat history.
