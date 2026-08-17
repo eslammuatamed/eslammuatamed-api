@@ -727,13 +727,21 @@ model SiteSettings {
   contactPhone      String? @map("contact_phone")
   whatsappPhone     String? @map("whatsapp_phone")
 
-  // Global head/tag fields (FR-DSH-052) — verification, analytics, constrained custom metas.
+  // Global head/tag fields (FR-DSH-052) — verification, tracking, constrained custom metas.
   googleSiteVerification String? @map("google_site_verification")
   bingSiteVerification   String? @map("bing_site_verification")
-  analyticsProvider      String? @map("analytics_provider") // 'ga4' | 'gtm'
-  analyticsMeasurementId String? @map("analytics_measurement_id")
-  analyticsEnabled       Boolean @default(false) @map("analytics_enabled")
-  customMetas            Json    @default("[]") @map("custom_metas") // [{ name, content }] — never scripts
+  // Tracking is GTM-ONLY (D02-14, owner direction 2026-08-17). There is deliberately no provider
+  // column: Google Tag Manager is the single integration point, and the individual vendors it may
+  // carry (GA4, Meta Pixel, LinkedIn Insight, conversion tags) are configured INSIDE the GTM
+  // container, not here. A provider enum would invite a second per-vendor column for each one added
+  // — exactly the shape this decision rejects — and every such column would be a head-tag surface
+  // the API has to validate and the budget has to pay for (D20-5).
+  //
+  // Two fields, one meaning each: `analyticsEnabled` is the kill switch (default OFF, D20-5) and
+  // `gtmContainerId` is what to load. A disabled container is never published (see the service).
+  analyticsEnabled Boolean @default(false) @map("analytics_enabled")
+  gtmContainerId   String? @map("gtm_container_id")
+  customMetas      Json    @default("[]") @map("custom_metas") // [{ name, content }] — never scripts
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

@@ -170,3 +170,101 @@ describe('exported contract — a nullable scalar must never erase to `type: obj
     }
   });
 });
+
+/**
+ * Second contract invariant (D10-25): READ and WRITE must agree on nullability.
+ *
+ * ── WHY THIS EXISTS ─────────────────────────────────────────────────────────────────────────────
+ *
+ * Sibling defect to the erasure above, found by the same kind of cross-axis comparison. Twenty-six
+ * write-DTO fields exported as a plain `{"type":"string"}` while the entity that reads them back
+ * exported `{"type":"string","nullable":true}`. The runtime accepted `null` and cleared the column —
+ * `@IsOptional()` skips `null` as well as `undefined`, so the value passed the whitelist untouched
+ * and reached Prisma, where `null` writes NULL and `undefined` is a no-op.
+ *
+ * So the contract described a system in which a cleared field could be OBSERVED but never CAUSED.
+ * `openapi-typescript` rendered the write side `field?: string`, and the Web is forbidden from
+ * handwriting a correction — meaning no strict-TS caller could withdraw a Google verification token,
+ * empty a meta description, or remove an OG image, though the API would have honoured all three.
+ *
+ * Every validator matched the house idiom here too, which is exactly why this has to be structural.
+ *
+ * ── THE INVARIANT ───────────────────────────────────────────────────────────────────────────────
+ *
+ * If a field name is nullable anywhere on the read side, the same field name on a write DTO must
+ * declare `nullable: true` — unless it is listed as a deliberate exception with a reason.
+ *
+ * Pairing is BY FIELD NAME rather than by traced read/write pairs. That is deliberately blunt: it
+ * over-reports rather than under-reports, and an over-report is answered by one allowlist line
+ * carrying its justification, whereas an under-report ships the defect. It is also how the original
+ * sweep found all twenty-six.
+ */
+describe('exported contract — write DTOs must permit the nulls the read side reports', () => {
+  /**
+   * Fields that are legitimately non-nullable on write. Each is asserted to be a REAL asymmetry
+   * below, so an entry that stops being necessary fails the suite instead of quietly permitting a
+   * future regression — same staleness discipline as DELIBERATE_BARE_OBJECTS above.
+   */
+  const DELIBERATE_NON_NULLABLE = new Map<string, string>([
+    [
+      'LoginDto.email',
+      'Authentication requires an address; `null` is rejected by @IsEmail() (no @IsOptional()). ' +
+        'The name collides with the nullable User.email on the read side, nothing more.',
+    ],
+    [
+      'CreateUserDto.email',
+      'A user is created WITH an address; `null` is rejected by @IsEmail(). Same name collision.',
+    ],
+  ]);
+
+  const schemas = (
+    CONTRACT as {
+      components: {
+        schemas: Record<
+          string,
+          { properties?: Record<string, { nullable?: boolean }> }
+        >;
+      };
+    }
+  ).components.schemas;
+
+  /** Field names any non-DTO (read) schema reports as nullable. */
+  const nullableOnRead = new Set<string>();
+  for (const [name, schema] of Object.entries(schemas)) {
+    if (name.endsWith('Dto')) continue;
+    for (const [field, property] of Object.entries(schema.properties ?? {}))
+      if (property.nullable) nullableOnRead.add(field);
+  }
+
+  const asymmetric: string[] = [];
+  for (const [name, schema] of Object.entries(schemas)) {
+    if (!name.endsWith('Dto')) continue;
+    for (const [field, property] of Object.entries(schema.properties ?? {}))
+      if (nullableOnRead.has(field) && !property.nullable)
+        asymmetric.push(`${name}.${field}`);
+  }
+
+  it('finds read-nullable fields and write DTOs to compare at all', () => {
+    // Guards the guard: a restructured document would make the assertion below vacuously true.
+    expect(nullableOnRead.size).toBeGreaterThan(10);
+    expect(
+      Object.keys(schemas).filter((name) => name.endsWith('Dto')).length,
+    ).toBeGreaterThan(10);
+    expect(nullableOnRead.has('metaTitle')).toBe(true);
+  });
+
+  it('declares no read/write nullability asymmetry outside the documented exceptions', () => {
+    expect(
+      asymmetric.filter((path) => !DELIBERATE_NON_NULLABLE.has(path)),
+    ).toEqual([]);
+  });
+
+  it('carries no STALE exception — every allowlisted field is still a real asymmetry', () => {
+    // An exception that has been fixed must be deleted, not left behind to mask the next regression.
+    expect(
+      [...DELIBERATE_NON_NULLABLE.keys()].filter(
+        (path) => !asymmetric.includes(path),
+      ),
+    ).toEqual([]);
+  });
+});

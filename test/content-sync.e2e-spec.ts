@@ -367,7 +367,7 @@ describe('stale content converges', () => {
       data: {
         googleSiteVerification: 'operator-token',
         analyticsEnabled: true,
-        analyticsProvider: 'ga4',
+        gtmContainerId: 'GTM-ABCD123',
       },
     });
 
@@ -376,7 +376,7 @@ describe('stale content converges', () => {
     const after = await prisma.siteSettings.findFirstOrThrow();
     expect(after.googleSiteVerification).toBe('operator-token');
     expect(after.analyticsEnabled).toBe(true);
-    expect(after.analyticsProvider).toBe('ga4');
+    expect(after.gtmContainerId).toBe('GTM-ABCD123');
   });
 
   it('removes a stale governed Project and keeps its MediaAsset', async () => {

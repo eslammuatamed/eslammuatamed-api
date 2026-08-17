@@ -35,15 +35,11 @@ export class CustomMetaEntity {
   readonly content!: string;
 }
 
-// Public analytics tag descriptor — present only when analytics is enabled (FR-DSH-052,
-// D20-5): a disabled tag is never advertised to the client.
-export class PublicAnalyticsEntity {
-  @ApiProperty({ example: 'ga4', enum: ['ga4', 'gtm'] })
-  readonly provider!: string;
-
-  @ApiProperty({ example: 'G-XXXXXXXXXX' })
-  readonly measurementId!: string;
-}
+// GTM-only tracking (D02-14) replaced the former `{ provider, measurementId }` descriptor. With one
+// integration point there is nothing to discriminate, so the container id is published as a single
+// nullable scalar rather than a nested object: `null` means "load no container", which is what a
+// client needs to know and the whole of it. The D20-5 guarantee is unchanged — see the service, which
+// publishes the id only when the kill switch is on.
 
 // Resolved single-locale settings for public rendering (D10-6): translatable fields flattened
 // to the requested locale, plus global chrome and the FR-DSH-052 head/tag fields. Nullable
@@ -105,22 +101,20 @@ export class PublicSiteSettingsEntity {
   })
   readonly bingSiteVerification!: string | null;
 
-  // Documented as an inline nullable object rather than a nullable $ref: OpenAPI 3.0 validators
-  // (ajv) don't honor `nullable` alongside `allOf: [$ref]`, so a null value would spuriously
-  // fail contract assertions. Inlining keeps `analytics: null` valid while still validating the
-  // present shape.
+  // The container to load, or null (D02-14, D20-5). A single scalar replaces the former nested
+  // `analytics` object — with GTM as the only integration point there is no provider to discriminate,
+  // and a one-field contract cannot drift out of step with itself the way a two-field object could.
+  // Null covers BOTH reasons a client should load nothing (tracking disabled, or no container
+  // configured) because the client's behaviour is identical in both, and collapsing them here means a
+  // disabled container id is never transmitted at all rather than sent alongside a flag to ignore it.
   @ApiProperty({
-    type: 'object',
+    type: String,
     nullable: true,
+    example: 'GTM-ABCD123',
     description:
-      'Present only when analytics is enabled; null otherwise (FR-DSH-052, D20-5).',
-    properties: {
-      provider: { type: 'string', enum: ['ga4', 'gtm'], example: 'ga4' },
-      measurementId: { type: 'string', example: 'G-XXXXXXXXXX' },
-    },
-    required: ['provider', 'measurementId'],
+      'Google Tag Manager container id to load; null when tracking is disabled or unconfigured (FR-DSH-052, D20-5). Individual vendors live inside the container.',
   })
-  readonly analytics!: PublicAnalyticsEntity | null;
+  readonly gtmContainerId!: string | null;
 
   @ApiProperty({ type: [CustomMetaEntity] })
   readonly customMetas!: CustomMetaEntity[];
@@ -328,14 +322,15 @@ export class AdminSiteSettingsEntity {
   @ApiProperty({ type: String, nullable: true })
   readonly bingSiteVerification!: string | null;
 
-  @ApiProperty({ type: String, nullable: true, enum: ['ga4', 'gtm'] })
-  readonly analyticsProvider!: string | null;
-
-  @ApiProperty({ type: String, nullable: true })
-  readonly analyticsMeasurementId!: string | null;
-
   @ApiProperty({ example: false })
   readonly analyticsEnabled!: boolean;
+
+  // Admin reads the STORED container id regardless of the kill switch — the editor has to show what
+  // is configured in order to let the owner turn it on. The public read is the surface that withholds
+  // it, which is the correct split: the value is not a secret, it just must not be ACTED on while
+  // tracking is off (D20-5).
+  @ApiProperty({ type: String, nullable: true, example: 'GTM-ABCD123' })
+  readonly gtmContainerId!: string | null;
 
   @ApiProperty({ type: [CustomMetaEntity] })
   readonly customMetas!: CustomMetaEntity[];

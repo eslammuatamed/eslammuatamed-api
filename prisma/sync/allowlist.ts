@@ -124,9 +124,8 @@ export const OPERATOR_OWNED_SETTINGS_SCALARS = [
   'portraitAssetId',
   'googleSiteVerification',
   'bingSiteVerification',
-  'analyticsProvider',
-  'analyticsMeasurementId',
   'analyticsEnabled',
+  'gtmContainerId',
   'customMetas',
 ] as const;
 

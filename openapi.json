@@ -317,10 +317,7 @@
                         "careerStartMonth": 11,
                         "googleSiteVerification": "google-abc123",
                         "bingSiteVerification": "bing-def456",
-                        "analytics": {
-                          "provider": "ga4",
-                          "measurementId": "G-XXXXXXXXXX"
-                        },
+                        "gtmContainerId": null,
                         "customMetas": [
                           {
                             "name": "theme-color",
@@ -396,10 +393,7 @@
                         "careerStartMonth": 11,
                         "googleSiteVerification": "google-abc123",
                         "bingSiteVerification": "bing-def456",
-                        "analytics": {
-                          "provider": "ga4",
-                          "measurementId": "G-XXXXXXXXXX"
-                        },
+                        "gtmContainerId": null,
                         "customMetas": [
                           {
                             "name": "theme-color",
@@ -7447,28 +7441,11 @@
             "example": "bing-def456",
             "description": "Bing Webmaster token."
           },
-          "analytics": {
-            "type": "object",
+          "gtmContainerId": {
+            "type": "string",
             "nullable": true,
-            "description": "Present only when analytics is enabled; null otherwise (FR-DSH-052, D20-5).",
-            "properties": {
-              "provider": {
-                "type": "string",
-                "enum": [
-                  "ga4",
-                  "gtm"
-                ],
-                "example": "ga4"
-              },
-              "measurementId": {
-                "type": "string",
-                "example": "G-XXXXXXXXXX"
-              }
-            },
-            "required": [
-              "provider",
-              "measurementId"
-            ]
+            "example": "GTM-ABCD123",
+            "description": "Google Tag Manager container id to load; null when tracking is disabled or unconfigured (FR-DSH-052, D20-5). Individual vendors live inside the container."
           },
           "customMetas": {
             "type": "array",
@@ -7561,6 +7538,7 @@
           "careerStartMonth",
           "googleSiteVerification",
           "bingSiteVerification",
+          "gtmContainerId",
           "customMetas",
           "resumeAsset",
           "portraitAssetId",
@@ -7702,21 +7680,14 @@
             "type": "string",
             "nullable": true
           },
-          "analyticsProvider": {
-            "type": "string",
-            "nullable": true,
-            "enum": [
-              "ga4",
-              "gtm"
-            ]
-          },
-          "analyticsMeasurementId": {
-            "type": "string",
-            "nullable": true
-          },
           "analyticsEnabled": {
             "type": "boolean",
             "example": false
+          },
+          "gtmContainerId": {
+            "type": "string",
+            "nullable": true,
+            "example": "GTM-ABCD123"
           },
           "customMetas": {
             "type": "array",
@@ -7746,9 +7717,8 @@
           "careerStartMonth",
           "googleSiteVerification",
           "bingSiteVerification",
-          "analyticsProvider",
-          "analyticsMeasurementId",
           "analyticsEnabled",
+          "gtmContainerId",
           "customMetas",
           "translations"
         ]
@@ -7793,35 +7763,49 @@
           },
           "siteName": {
             "type": "string",
-            "example": "Eslam Muatamed"
+            "nullable": true,
+            "example": "Eslam Muatamed",
+            "description": "null clears it."
           },
           "tagline": {
             "type": "string",
-            "example": "Software engineer & architect"
+            "nullable": true,
+            "example": "Software engineer & architect",
+            "description": "null clears it."
           },
           "availabilityStatus": {
             "type": "string",
-            "example": "Open to select consulting engagements"
+            "nullable": true,
+            "example": "Open to select consulting engagements",
+            "description": "null clears it."
           },
           "defaultMetaTitle": {
             "type": "string",
-            "example": "Eslam Muatamed"
+            "nullable": true,
+            "example": "Eslam Muatamed",
+            "description": "null clears it."
           },
           "defaultMetaDescription": {
             "type": "string",
-            "example": "Portfolio, case studies, and writing."
+            "nullable": true,
+            "example": "Portfolio, case studies, and writing.",
+            "description": "null clears it."
           },
           "aboutBio": {
             "type": "string",
-            "description": "Markdown source."
+            "nullable": true,
+            "description": "Markdown source. null clears it."
           },
           "engineeringPhilosophy": {
             "type": "string",
-            "description": "Markdown source."
+            "nullable": true,
+            "description": "Markdown source. null clears it."
           },
           "currentFocus": {
             "type": "string",
-            "example": "Building bilingual product platforms."
+            "nullable": true,
+            "example": "Building bilingual product platforms.",
+            "description": "null clears it."
           },
           "portraitAlt": {
             "type": "string",
@@ -7892,27 +7876,26 @@
           },
           "googleSiteVerification": {
             "type": "string",
-            "example": "google-abc123"
+            "nullable": true,
+            "example": "google-abc123",
+            "description": "Google Search Console token; null withdraws it."
           },
           "bingSiteVerification": {
             "type": "string",
-            "example": "bing-def456"
-          },
-          "analyticsProvider": {
-            "type": "string",
-            "enum": [
-              "ga4",
-              "gtm"
-            ]
-          },
-          "analyticsMeasurementId": {
-            "type": "string",
-            "example": "G-XXXXXXXXXX"
+            "nullable": true,
+            "example": "bing-def456",
+            "description": "Bing Webmaster token; null withdraws it."
           },
           "analyticsEnabled": {
             "type": "boolean",
             "example": false,
-            "description": "Analytics is off by default (D20-5)."
+            "description": "Tracking kill switch; off by default (D20-5). Enabling it requires a gtmContainerId — the service rejects the pair otherwise (422)."
+          },
+          "gtmContainerId": {
+            "type": "string",
+            "nullable": true,
+            "example": "GTM-ABCD123",
+            "description": "Google Tag Manager container id; null withdraws it. GA4, Meta Pixel, LinkedIn Insight and any other vendor are configured INSIDE the container, never here."
           },
           "customMetas": {
             "type": "array",
@@ -8275,7 +8258,9 @@
           },
           "description": {
             "type": "string",
-            "example": "Systems, architecture, and craft."
+            "nullable": true,
+            "example": "Systems, architecture, and craft.",
+            "description": "null clears it."
           }
         },
         "required": [
@@ -8814,18 +8799,26 @@
             "description": "Opaque Markdown (D01-5)."
           },
           "metaTitle": {
-            "type": "string"
+            "type": "string",
+            "nullable": true,
+            "description": "null clears it."
           },
           "metaDescription": {
-            "type": "string"
+            "type": "string",
+            "nullable": true,
+            "description": "null clears it."
           },
           "ogImageId": {
             "type": "string",
-            "format": "uuid"
+            "format": "uuid",
+            "nullable": true,
+            "description": "OG image MediaAsset id; null clears it."
           },
           "canonicalUrl": {
             "type": "string",
-            "format": "uri"
+            "format": "uri",
+            "nullable": true,
+            "description": "Canonical override; null clears it."
           }
         },
         "required": [
@@ -8857,12 +8850,14 @@
           "publishAt": {
             "type": "string",
             "format": "date-time",
-            "description": "Required and future when SCHEDULED."
+            "nullable": true,
+            "description": "Required and future when SCHEDULED; null means unscheduled."
           },
           "coverImageId": {
             "type": "string",
             "format": "uuid",
-            "description": "Cover MediaAsset id."
+            "nullable": true,
+            "description": "Cover MediaAsset id; null for none."
           },
           "tagIds": {
             "description": "Tag ids (optional).",
@@ -8903,11 +8898,15 @@
           },
           "publishAt": {
             "type": "string",
-            "format": "date-time"
+            "format": "date-time",
+            "nullable": true,
+            "description": "null unschedules (clears it); omitted keeps the stored instant. Required and future when SCHEDULED."
           },
           "coverImageId": {
             "type": "string",
-            "format": "uuid"
+            "format": "uuid",
+            "nullable": true,
+            "description": "Cover MediaAsset id; null clears it."
           },
           "tagIds": {
             "type": "array",
@@ -9018,7 +9017,9 @@
           },
           "description": {
             "type": "string",
-            "example": "Manages content; no settings or user access."
+            "nullable": true,
+            "example": "Manages content; no settings or user access.",
+            "description": "null for no description."
           },
           "permissions": {
             "example": [
@@ -9046,7 +9047,9 @@
             "example": "Senior Editor"
           },
           "description": {
-            "type": "string"
+            "type": "string",
+            "nullable": true,
+            "description": "null clears it."
           },
           "permissions": {
             "example": [
@@ -10524,21 +10527,29 @@
           },
           "metaTitle": {
             "type": "string",
-            "example": "Content platform API case study"
+            "nullable": true,
+            "example": "Content platform API case study",
+            "description": "null clears it."
           },
           "metaDescription": {
             "type": "string",
-            "example": "How the multilingual platform was built."
+            "nullable": true,
+            "example": "How the multilingual platform was built.",
+            "description": "null clears it."
           },
           "ogImageId": {
             "type": "string",
             "format": "uuid",
-            "example": "0194f9a2-ef2a-7a31-8cb7-369c87f7933a"
+            "nullable": true,
+            "example": "0194f9a2-ef2a-7a31-8cb7-369c87f7933a",
+            "description": "OG image MediaAsset id; null clears it."
           },
           "canonicalUrl": {
             "type": "string",
             "format": "uri",
-            "example": "https://eslammuatamed.com/projects/content-platform-api"
+            "nullable": true,
+            "example": "https://eslammuatamed.com/projects/content-platform-api",
+            "description": "Canonical override; null clears it."
           }
         },
         "required": [
@@ -10753,14 +10764,16 @@
           },
           "email": {
             "type": "string",
+            "nullable": true,
             "example": "alex@example.com",
             "maxLength": 320,
-            "description": "Optional. Trimmed before validation. At least one of `email` or `phone` is required; a supplied but malformed value is rejected rather than ignored (D10-16)."
+            "description": "Optional. Trimmed before validation. At least one of `email` or `phone` is required; a supplied but malformed value is rejected rather than ignored (D10-16). `null` states \"not supplied\" explicitly — `isSupplied()` already treats it as empty, so a phone-only visitor may send it (D10-25)."
           },
           "phone": {
             "type": "string",
+            "nullable": true,
             "example": "+201002785408",
-            "description": "Optional. E.164 international format — the API stores an international number, never a display-formatted one; human spacing is normalized away before validation. At least one of `email` or `phone` is required (D10-16)."
+            "description": "Optional. E.164 international format — the API stores an international number, never a display-formatted one; human spacing is normalized away before validation. At least one of `email` or `phone` is required (D10-16). `null` states \"not supplied\" explicitly, which is what the Web's `normalizePhone()` returns for an empty entry (D10-25)."
           },
           "subject": {
             "type": "string",

@@ -18,7 +18,7 @@ import { ApiResponseExamples } from '@nestjs/swagger';
  *   - the governed localized identity and the governed scalars are the CANONICAL DATASET's values
  *     (`prisma/content/canonical/site-settings.ts`), which is also what `db:seed` and
  *     `content:sync:apply` write to the deployed database;
- *   - the operator-owned fields (verification tokens, analytics, custom metas, media descriptors)
+ *   - the operator-owned fields (verification tokens, tracking, custom metas, media descriptors)
  *     have no canonical source — the live singleton holds none of them — so they reproduce the
  *     contract's OWN existing schema-level examples verbatim.
  *
@@ -69,10 +69,7 @@ export const PUBLIC_SITE_SETTINGS_RESPONSE_EXAMPLES: Record<
         careerStartMonth: 11,
         googleSiteVerification: 'google-abc123',
         bingSiteVerification: 'bing-def456',
-        analytics: {
-          provider: 'ga4',
-          measurementId: 'G-XXXXXXXXXX',
-        },
+        gtmContainerId: null,
         customMetas: [
           {
             name: 'theme-color',
@@ -149,10 +146,7 @@ export const PUBLIC_SITE_SETTINGS_RESPONSE_EXAMPLES: Record<
         careerStartMonth: 11,
         googleSiteVerification: 'google-abc123',
         bingSiteVerification: 'bing-def456',
-        analytics: {
-          provider: 'ga4',
-          measurementId: 'G-XXXXXXXXXX',
-        },
+        gtmContainerId: null,
         customMetas: [
           {
             name: 'theme-color',
