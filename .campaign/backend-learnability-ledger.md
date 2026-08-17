@@ -93,7 +93,7 @@ section is historical narrative, fixed at the commit that wrote it, and may be s
 | Baseline | `9af1aac` (`origin/dev` = `origin/main`, unchanged and untouched) |
 | Commits on branch | see `git rev-list --count 9af1aac..HEAD` — do not trust a number typed here |
 | Phase 1 (corpus cleanup) | **CLOSED.** archaeology 68→0, rot 25→0, phrases 96→5 (all deliberate keeps) |
-| Phase 2 (learning architecture) | **IN PROGRESS.** Delivered: difficulty model §9b · measurements §10 · reading order `a799dd5` · status-code section `2aa031f` · README template `29b389a`. Open: testing curriculum, flow traceability, cold-reader exit gate |
+| Phase 2 (learning architecture) | **CONTENT COMPLETE.** difficulty model §9b · measurements §10 · reading order `a799dd5` · status-code section `2aa031f` · README template `29b389a` · testing curriculum `ea06eed` · flow trace (this commit). The cold-reader gate (§11) is DEFINED but **cannot be run by any agent here** — owner-facing |
 | `guard:docs` | GREEN; self-test 43/43 |
 | Tests | 61 suites / 1273 tests |
 | PR | none opened. Campaign ends at a PR; no promotion, no deploy |
@@ -1021,7 +1021,8 @@ and only their compact results land here.
 | `codex-5c` — peer review of slice 5c (`eff70d3`) | verify the two false-claim rewrites and the α replacements; enumerate any remaining marker shape | **RETURNED — CLEAN, all 3 questions** |
 | `graph-derive` — dependency graph, size/test/surface signal, concept load | re-derive the lost phase-0 input | **RETURNED**; reconciled in §10, corrected two of my numbers |
 | `readme-survey` — de-facto section template across the 17 module READMEs | input to the module template | **RETURNED**; template landed at `29b389a` |
-| `codex-5c` — testing-curriculum survey | input to the testing curriculum | **OUTSTANDING** |
+| `codex-5c` — testing-curriculum survey | input to the testing curriculum | **RETURNED**; curriculum landed `ea06eed` |
+| `codex-5c` — end-to-end request trace | input to flow traceability | **RETURNED**; trace landed in the archetype |
 
 Results land in **§10** (below) as compact tables. If a dispatched agent never returns, that is
 recorded here as review debt in the same terms §5 uses — never silently upgraded into
@@ -1448,6 +1449,32 @@ does not diverge from the table's promise.**
 wrong guess." Two agents holding opposite unverified reads, both declining to publish, and the one
 who was wrong resolving it against itself — that is the peer model working exactly as §5 describes,
 and it is the reason this entry now says RESOLVED instead of carrying a permanent disagreement.*
+
+## 10e. Flow traceability — the asymmetry that makes the trace worth having
+
+The peer traced `GET /api/v1/articles?locale=ar` hop by hop, and the instruction that produced
+something useful was the third column: **"what would it look like if this hop did NOT exist."** A
+trace that only lists layers teaches nothing a stack trace would not; tying each hop to an
+observable consequence of its absence is what makes an invisible layer visible.
+
+Only the hops that can fail **silently** were carried into the document. `CORS`, the route prefix
+and response serialization fail loudly — 404, blocked request, hung socket — and need no teaching.
+
+**The single best find, verified before use:** `PUBLIC_INCLUDE` filters `category` and `tags` with
+`where: { locale }` — and does **not** filter `translations`. So Prisma returns every language's
+translation and the flattening step is what selects `ar`. A reader who assumes symmetry (a very
+natural assumption, since the include *does* filter the other two relations) reads that selection
+as redundant when it is load-bearing. Getting it wrong yields **a title in the wrong language, with
+no error** — the axis-D failure mode this campaign keeps circling back to.
+
+Two more verified before writing: `skip`/`take` are **getters on the DTO class**, so without the
+pipe's `transform: true` they are `undefined` and Prisma returns the entire published table
+unpaginated and without error; and the list/count pair runs in one `$transaction`, without which
+`meta.total` can disagree with the page it describes.
+
+**The contrast is what makes it a rule rather than a special case:** on the admin write path the
+*same two guards in the same order* do real work instead of standing aside. Guards are always
+present; `@Public()` and `@RequirePermission` decide whether they act.
 
 ## 11. The cold-reader exit gate
 
