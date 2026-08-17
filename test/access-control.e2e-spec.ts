@@ -115,13 +115,37 @@ describe('Access control (e2e)', () => {
   // listing, they are no longer grantable. Before the removal this request returned 201 and
   // handed back a role that silently conferred nothing.
   it('refuses to grant a capability that authorizes no route (422)', async () => {
-    for (const removed of ['articles.publish', 'seo.update', 'users.delete']) {
+    // `seo.update` used to be in this list and is deliberately no longer: the static-page SEO routes
+    // shipped (FR-DSH-051, D10-24), so it now authorizes something real and MUST be grantable. It
+    // moves to the positive case below rather than just being dropped, so the pair records that the
+    // key did not disappear — its status changed. `seo.create`/`seo.delete` take its place here,
+    // since the closed page set means no route will ever enforce them.
+    for (const removed of [
+      'articles.publish',
+      'seo.create',
+      'seo.delete',
+      'users.delete',
+    ]) {
       await request(httpServer(app))
         .post('/api/v1/admin/roles')
         .set(owner())
         .send({ name: `Removed ${removed} ${unique}`, permissions: [removed] })
         .expect(422);
     }
+  });
+
+  // The other half of D19-11 at the operator boundary: a key whose route exists must be grantable,
+  // or the guard on that route is unreachable by any custom role.
+  it('grants the static-page SEO capabilities now that routes enforce them (201)', async () => {
+    const res = await request(httpServer(app))
+      .post('/api/v1/admin/roles')
+      .set(owner())
+      .send({
+        name: `SEO editor ${unique}`,
+        permissions: ['seo.read', 'seo.update'],
+      })
+      .expect(201);
+    expect(res).toSatisfyApiSpec();
   });
 
   // The wildcard is unchanged by D19-11: it is a grant that matches every capability, not a

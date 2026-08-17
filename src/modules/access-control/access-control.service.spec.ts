@@ -44,8 +44,21 @@ describe('AccessControlService', () => {
     expect(catalog.permissions).not.toContain('articles.publish');
     expect(catalog.permissions).not.toContain('messages.delete');
     expect(catalog.permissions).not.toContain('users.delete');
-    expect(catalog.permissions).not.toContain('seo.read');
     expect(catalog.permissions).not.toContain('redirects.create');
+    // `seo.read` was listed here until the static-page SEO routes shipped (FR-DSH-051, D10-24) —
+    // correctly, because until then it authorized nothing. It moves to the positive assertion below
+    // rather than simply being deleted, so the pair records that the reason changed.
+    expect(catalog.permissions).not.toContain('seo.create');
+    expect(catalog.permissions).not.toContain('seo.delete');
+  });
+
+  // The other half of D19-11: a capability whose route DOES exist must be offered, or the operator
+  // cannot grant it and the guard on that route is unreachable by any custom role.
+  it('offers the static-page SEO capabilities now that routes enforce them', () => {
+    const catalog = service.getPermissionCatalog();
+
+    expect(catalog.permissions).toContain('seo.read');
+    expect(catalog.permissions).toContain('seo.update');
   });
 
   it('creates a role with de-duplicated grants', async () => {

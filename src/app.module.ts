@@ -27,6 +27,7 @@ import { MediaModule } from './modules/media/media.module';
 import { RedirectsModule } from './modules/redirects/redirects.module';
 import { ContactModule } from './modules/contact/contact.module';
 import { PreviewModule } from './modules/preview/preview.module';
+import { SeoModule } from './modules/seo/seo.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { PreviewModule } from './modules/preview/preview.module';
     LocalesModule,
     AuthModule,
     SettingsModule,
+    SeoModule,
     TaxonomyModule,
     ArticlesModule,
     AccessControlModule,

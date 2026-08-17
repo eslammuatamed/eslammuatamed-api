@@ -1252,6 +1252,372 @@
         ]
       }
     },
+    "/api/v1/seo/pages/{pageKey}": {
+      "get": {
+        "description": "An OVERRIDE layer, not a content record (FR-DSH-051, D10-24). A known page key with nothing authored for the requested locale returns 200 with every field null, which tells the caller to use the site defaults instead (doc 22 §3, F-D4) — 404 is reserved for a page key outside the known set, so \"nothing authored\" and \"no such page\" stay distinguishable. No cross-locale fallback (D10-6).",
+        "operationId": "SeoController_getPage_v1",
+        "parameters": [
+          {
+            "name": "pageKey",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "enum": [
+                "home",
+                "about",
+                "experience",
+                "projects",
+                "blog",
+                "resume",
+                "contact"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "locale",
+            "required": false,
+            "in": "query",
+            "description": "Two-letter locale code, validated against enabled locales.",
+            "schema": {
+              "default": "en",
+              "example": "ar",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PublicPageSeoEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown or disabled locale.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown static page key.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Malformed query parameters.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Static-page SEO overrides resolved to the requested locale.",
+        "tags": [
+          "seo"
+        ]
+      }
+    },
+    "/api/v1/admin/seo/pages": {
+      "get": {
+        "description": "One entry per known page key (D09-24), each carrying every enabled locale — an unauthored locale arrives all-null so the editor can render its tab.",
+        "operationId": "SeoAdminController_list_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AdminPageSeoEntity"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "List every static page with its full per-locale SEO map.",
+        "tags": [
+          "seo"
+        ]
+      }
+    },
+    "/api/v1/admin/seo/pages/{pageKey}": {
+      "get": {
+        "operationId": "SeoAdminController_get_v1",
+        "parameters": [
+          {
+            "name": "pageKey",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "example": "about",
+              "type": "string",
+              "enum": [
+                "home",
+                "about",
+                "experience",
+                "projects",
+                "blog",
+                "resume",
+                "contact"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminPageSeoEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unknown static page key (the set is closed — D09-24).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Read one static page’s SEO map, all locales.",
+        "tags": [
+          "seo"
+        ]
+      },
+      "patch": {
+        "description": "Locales present in the body are upserted; locales absent from it are untouched. Within a field, an omitted key preserves the stored value and an explicit null clears it (D10-23). All locales apply in one transaction.",
+        "operationId": "SeoAdminController_update_v1",
+        "parameters": [
+          {
+            "name": "pageKey",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "example": "about",
+              "type": "string",
+              "enum": [
+                "home",
+                "about",
+                "experience",
+                "projects",
+                "blog",
+                "resume",
+                "contact"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePageSeoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminPageSeoEntity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown or disabled locale in a translation entry.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unknown static page key, malformed field, or an ogImageId that is missing or not an IMAGE.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admin rate limit exceeded (300 / min).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Upsert one static page’s SEO values per locale.",
+        "tags": [
+          "seo"
+        ]
+      }
+    },
     "/api/v1/categories": {
       "get": {
         "operationId": "CategoriesController_list_v1",
@@ -8156,6 +8522,179 @@
         "required": [
           "type",
           "id"
+        ]
+      },
+      "PublicPageSeoEntity": {
+        "type": "object",
+        "properties": {
+          "pageKey": {
+            "type": "string",
+            "enum": [
+              "home",
+              "about",
+              "experience",
+              "projects",
+              "blog",
+              "resume",
+              "contact"
+            ],
+            "example": "about"
+          },
+          "locale": {
+            "type": "string",
+            "example": "ar",
+            "description": "The requested locale."
+          },
+          "metaTitle": {
+            "type": "string",
+            "nullable": true,
+            "example": "About — Eslam Muatamed"
+          },
+          "metaDescription": {
+            "type": "string",
+            "nullable": true,
+            "example": "Engineering background, philosophy, and current focus."
+          },
+          "ogImageId": {
+            "type": "string",
+            "nullable": true,
+            "format": "uuid"
+          },
+          "ogImage": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PublicMediaImageDescriptor"
+              }
+            ],
+            "description": "Resolved OG image descriptor; null when this page/locale sets none. Its `alt` is the asset-level localized default for the requested locale."
+          },
+          "canonicalUrl": {
+            "type": "string",
+            "nullable": true,
+            "format": "uri"
+          }
+        },
+        "required": [
+          "pageKey",
+          "locale",
+          "metaTitle",
+          "metaDescription",
+          "ogImageId",
+          "ogImage",
+          "canonicalUrl"
+        ]
+      },
+      "PageSeoTranslationEntity": {
+        "type": "object",
+        "properties": {
+          "metaTitle": {
+            "type": "string",
+            "nullable": true
+          },
+          "metaDescription": {
+            "type": "string",
+            "nullable": true
+          },
+          "ogImageId": {
+            "type": "string",
+            "nullable": true,
+            "format": "uuid"
+          },
+          "canonicalUrl": {
+            "type": "string",
+            "nullable": true,
+            "format": "uri"
+          }
+        },
+        "required": [
+          "metaTitle",
+          "metaDescription",
+          "ogImageId",
+          "canonicalUrl"
+        ]
+      },
+      "AdminPageSeoEntity": {
+        "type": "object",
+        "properties": {
+          "pageKey": {
+            "type": "string",
+            "enum": [
+              "home",
+              "about",
+              "experience",
+              "projects",
+              "blog",
+              "resume",
+              "contact"
+            ],
+            "example": "about"
+          },
+          "translations": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/PageSeoTranslationEntity"
+            },
+            "description": "Translation map keyed by locale code, e.g. { \"en\": {…}, \"ar\": {…} }. Every enabled locale is present; an unauthored locale is all-null."
+          }
+        },
+        "required": [
+          "pageKey",
+          "translations"
+        ]
+      },
+      "PageSeoTranslationDto": {
+        "type": "object",
+        "properties": {
+          "locale": {
+            "type": "string",
+            "example": "ar",
+            "description": "Two-letter locale; must be enabled."
+          },
+          "metaTitle": {
+            "type": "string",
+            "nullable": true,
+            "example": "About — Eslam Muatamed",
+            "description": "null clears it."
+          },
+          "metaDescription": {
+            "type": "string",
+            "nullable": true,
+            "example": "Engineering background, philosophy, and current focus.",
+            "description": "null clears it."
+          },
+          "ogImageId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "example": "0194f9a2-ef2a-7a31-8cb7-369c87f7933a",
+            "description": "OG image MediaAsset id (must be an IMAGE); null clears it. The asset is RESTRICT-referenced while set."
+          },
+          "canonicalUrl": {
+            "type": "string",
+            "format": "uri",
+            "nullable": true,
+            "example": "https://eslammuatamed.com/about",
+            "description": "Canonical override; null clears it."
+          }
+        },
+        "required": [
+          "locale"
+        ]
+      },
+      "UpdatePageSeoDto": {
+        "type": "object",
+        "properties": {
+          "translations": {
+            "description": "Per-locale upserts; at least one entry.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PageSeoTranslationDto"
+            }
+          }
+        },
+        "required": [
+          "translations"
         ]
       },
       "PublicCategoryEntity": {
