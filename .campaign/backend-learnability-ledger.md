@@ -24,6 +24,12 @@
 > ```
 > The §9 commit table is generated from `git log`, so it is the authority on what landed.
 >
+> **One thing is owed before the PR, not before phase 2 starts:** a single peer pass over
+> `7f7a505..HEAD`. The three delivered passes covered slices 1–5 and the wrong-class fix; the
+> fourth was requested and never returned, so everything from `7f7a505` on carries author
+> verification only (§5 records exactly what was verified and how). This does not block design
+> work — it blocks opening the PR.
+>
 > **Phase 2 is the learning architecture** — prerequisite graph, difficulty model, module
 > template, testing curriculum, flow traceability, cold-reader exit gate. It is a DESIGN job.
 > It was deliberately not begun in the session that finished phase 1, so that it starts from a
