@@ -797,7 +797,11 @@ Completed:
 - [x] Rot surface located to `file:line`
 
 - [x] D-6 resolved (dangling reference confirmed); D-7 and D-8 established with controls
-- [x] Module dependency graph + size/test signal extracted (input to the difficulty model)
+- [~] Module dependency graph + size/test signal — **extracted in phase 0 but NOT RECORDED HERE,
+      so the output was lost with the session that produced it.** A ledger entry that marks work
+      done while its result lives only in chat is the same defect class the campaign retires, and
+      this is the third time the ledger has committed it (stale status, incomplete commit table,
+      now an undurable result). Being re-derived in phase 2, into §10 of this file.
 
 - [x] Codex Arabic cold-reader probe returned; §5 question resolved, D-9 opened
 
