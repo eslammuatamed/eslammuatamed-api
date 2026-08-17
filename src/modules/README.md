@@ -76,6 +76,44 @@ POST/PATCH/DELETE /admin/<resource>
 - كل DTO/كيان مُزيَّن بالكامل لـ `class-validator` و`@nestjs/swagger`.
 - Markdown يُخزَّن ويُرجَع كسلسلة **غير مُفسَّرة (opaque)** — التعقيم عند العرض مسؤولية الـ frontend (`D01-5`).
 
+## لماذا هذا الرمز بالذات؟ — الطبقة التي ترفض أوّلًا هي التي تقرّر
+
+أكثر ما يربك القادم من الواجهة الأمامية: «أرسلتُ طلبًا خاطئًا فحصلت على `422` هنا و`400` هناك،
+والـ `controller` لا يذكر أيًّا منهما.» والسبب أنّ الرمز **لا يقرّره الـ `controller` أصلًا**، بل
+تقرّره أوّل طبقة ترفض الطلب في السلسلة. والسلسلة كلّها مُسجَّلة عالميًّا مرّة واحدة، فلا تظهر في
+الملف الذي تقرأه:
+
+```
+express: helmet · cookieParser · json/urlencoded (حدّ 1 MiB) · CORS
+  → البادئة /api + إصدار URI v1
+  → ThrottlerGuard → JwtAuthGuard → PermissionsGuard
+  → ValidationPipe العام (+ ParseUUIDPipe على مُعامل المسار)
+  → controller → service → PrismaService → PrismaPg → pg → PostgreSQL
+  → ResponseEnvelopeInterceptor يغلّف كل 2xx
+  → AllExceptionsFilter يترجم كل خطأ إلى RFC 7807
+```
+
+| ما الذي أرسلتَه | مَن يرفضه | الرمز |
+| --- | --- | --- |
+| جسم أكبر من `1 MiB` | `express.json` — **قبل أن يرى `Nest` الطلب** | `413` |
+| مُعامل مسار `:id` ليس `UUID` | `ParseUUIDPipe` — قبل الـ `ValidationPipe` العام | `400` |
+| حقل غير معروف أو نوع خاطئ في الجسم | `ValidationPipe` العام (`whitelist` + `forbidNonWhitelisted`) | `422` |
+| بلا توكن، أو توكن تالف/منتهٍ | `JwtAuthGuard` (بلا تسريب أيّ الحالتين) | `401` |
+| توكن صالح بلا الصلاحية المطلوبة | `PermissionsGuard` | `403` |
+| تجاوز حدّ المعدّل | `ThrottlerGuard` | `429` + `Retry-After` |
+| لغة غير مُفعّلة | الـ `service` (`assertEnabled`) | `400` |
+| `slug` مكرَّر (`P2002`) | `AllExceptionsFilter` — لا `catch` محلّي في أيّ وحدة | `422` |
+| حذف صفّ ما زال مُشارًا إليه (`P2003`) | `AllExceptionsFilter` | `409` |
+| تعديل/حذف صفّ غير موجود (`P2025`) | `AllExceptionsFilter` | `404` |
+
+**الفكرة الجوهرية:** `400` و`422` ليسا اختيارًا أسلوبيًّا بينهما. `400` يعني «رُفض قبل أن يُقرأ
+الجسم أصلًا» (شكل المسار)، و`422` يعني «قُرئ الجسم وفُهم وفشل التحقّق». فإذا رأيت رمزًا لا تتوقّعه،
+اسأل **أيّ طبقة وصل إليها الطلب**، لا ما الذي كتبه الـ `controller`.
+
+**ولهذا لا تجد `try/catch` حول `Prisma` في الـ services:** الترجمة مركزيّة في
+`AllExceptionsFilter`. وحدة تلتقط `P2002` بنفسها لا «تُحسِّن» شيئًا — بل تُنتج ردًّا مختلفًا عن
+بقيّة الوحدات لنفس الخطأ، وهذا هو العيب لا الإصلاح.
+
 ## الوسائط بالمرجع فقط (على هذا الأساس)
 
 الكيانات تشير إلى وسائط بمُعرّف خام: `Article.coverImageId`, `*.ogImageId`, gallery `mediaAssetId`, `Testimonial.avatarId`, `SiteSettings.resumeAssetId`. وحدة `media` تُدير الرفع والمعالجة والتخزين وحلّ الـ descriptors: القراءات العامّة تُبقي الـ `*Id` الخام وتُضيف بجانبها descriptor مُحلّلًا (URL على أصل الوسائط + أبعاد + `blurhash` + نصّ بديل). التفاصيل في [`media/README.md`](media/README.md).
