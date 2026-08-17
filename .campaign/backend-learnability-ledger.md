@@ -198,7 +198,17 @@ docs, already English at baseline.
 
 **D. No state reporting in code-adjacent docs.** No deployment status, release-freeze status,
 feature completion status, SHAs, or PR numbers. Where a reader needs that, link the owner of the
-fact. Enforced mechanically by `npm run guard:docs`.
+fact.
+
+*Scope of enforcement, stated precisely.* `npm run guard:docs` enforces this in **documents
+only**. It does **not** check source comments for rot, does not verify that a governance token
+actually resolves, and does not judge whether a kept comment is a good comment. Those three are
+manual review classes — see the "WHAT THIS GUARD DOES NOT COVER" block in the script.
+
+This matters concretely: D-3 Bucket B (`test/prisma-error-mapping.e2e-spec.ts`, a stale
+future-tense claim about work already completed) lives in a source comment and is **invisible to
+the guard**. Driving `guard:docs` to green will not retire it. Green is a necessary exit
+criterion, never a sufficient one.
 
 **E. `.specify/` is exempt.** SpecKit specs are historical-evidence artifacts by design and keep
 their campaign identifiers. The guard does not scan them.

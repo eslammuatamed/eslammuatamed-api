@@ -51,6 +51,30 @@
 //
 // There is deliberately no comment or environment bypass. A token that genuinely belongs in the
 // code adds itself to EXEMPT or GOVERNANCE here — a visible, reviewable change.
+//
+// ── WHAT THIS GUARD DOES NOT COVER ────────────────────────────────────────────────────────────
+//
+// Stating the gap explicitly, because a guard whose limits are undocumented gets read as proving
+// more than it does — which is the same failure this campaign exists to fix.
+//
+//   1. ROT IS CHECKED IN DOCUMENTS ONLY, NEVER IN SOURCE COMMENTS. The rot rules are prose-shaped
+//      ("Production deployed", "مؤجَّل حتى", bare SHAs) and would fire differently against code,
+//      where hex literals and issue-shaped strings are ordinary. Extending them to `src/**` needs
+//      its own control suite; until that exists this is a MANUAL review class.
+//
+//      The live example, deliberately left un-caught rather than silently assumed covered:
+//      `test/prisma-error-mapping.e2e-spec.ts` carries a comment saying a Project-local P2002
+//      translation "will" be deleted. It already was — `projects/projects.service.ts` documents
+//      its absence. A stale future-tense claim about completed work is a correctness defect, and
+//      no rule here detects it.
+//
+//   2. It does not verify that a GOVERNANCE token actually resolves. `D16-13` is cited in
+//      PROJECT_GUIDE.md and exists on no authoritative ref of the governing-docs repo. Resolution
+//      checking needs the sibling repo and its authoritative ref, which this guard has no access
+//      to and must not assume is checked out.
+//
+//   3. It does not judge whether a kept comment is a GOOD comment. Prefix-stripping is mechanical;
+//      deciding that the remaining prose states a real invariant is not.
 
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
