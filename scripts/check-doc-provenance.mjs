@@ -93,6 +93,26 @@ const GOVERNANCE = [
   /^DSH-\d+$/, // dashboard requirement
 ];
 
+// Campaign identifiers that carry NO hyphen, so the hyphenated TOKEN_RE below cannot see them.
+// This family was missed entirely by the first version of this guard and was found by peer
+// review, not by the instrument — which is why it is called out separately rather than folded
+// silently into ARCHAEOLOGY.
+//
+// It is the larger surface of the two, and the more damaging to learnability, because these are
+// used REFERENTIALLY rather than as a citation prefix. `media-processing.types.ts` says "so T6
+// persists it without a mapping" — `T6` stands in for a component that has a real name. A reader
+// without the SpecKit tasks file for that feature cannot resolve it, and deleting the token would
+// leave the sentence without a subject.
+//
+// So these need a different repair from a `C-5:` prefix: rewrite the sentence to name the actual
+// component. That distinction is recorded as repair bucket C in the campaign ledger.
+const CAMPAIGN_PHRASES = [
+  { name: 'SpecKit task id', re: /(?<![A-Za-z0-9_-])T\d{1,2}(?![A-Za-z0-9_-])/g },
+  { name: 'compact feature id', re: /(?<![A-Za-z0-9_-])F\d{3}(?![A-Za-z0-9_-])/g },
+  { name: 'spelled feature id', re: /\b[Ff]eature\s+\d{3}\b/g },
+  { name: 'campaign phase', re: /\bPhase\s+\d+[A-Z]?\b/g },
+];
+
 // Completed-campaign finding numbers. Unresolvable to a future reader.
 const ARCHAEOLOGY = [
   /^[BC]-\d+$/, // backend-audit findings, e.g. C-5, C-6, B-2, B-3
@@ -238,6 +258,39 @@ function scanTokens(files) {
   return hits;
 }
 
+// For a `.ts` file, return only the COMMENT portion of a line; markdown is prose throughout.
+//
+// This is not fussiness. `T\d{1,2}` is a short, generic shape, and in TypeScript source it
+// collides with real identifiers — `generic<T1>()` being the obvious one. Campaign archaeology
+// lives in comments, never in identifiers, so restricting the scan to comment text removes the
+// entire false-positive class instead of trying to enumerate it. The self-test pins this: the
+// `const T1 = generic<T1>()` case must NOT match.
+function commentTextOf(line, file) {
+  if (!file.endsWith('.ts')) return line;
+  const trimmed = line.trim();
+  if (trimmed.startsWith('//')) return trimmed.slice(2);
+  if (trimmed.startsWith('*') || trimmed.startsWith('/*')) return trimmed;
+  const idx = line.indexOf('//');
+  return idx === -1 ? '' : line.slice(idx + 2);
+}
+
+function scanCampaignPhrases(files) {
+  const hits = [];
+  for (const file of files) {
+    const lines = readFileSync(join(ROOT, file), 'utf8').split('\n');
+    lines.forEach((line, i) => {
+      const text = commentTextOf(line, file);
+      if (!text) return;
+      for (const fam of CAMPAIGN_PHRASES) {
+        for (const m of text.matchAll(fam.re)) {
+          hits.push({ file, line: i + 1, token: m[0], family: fam.name, text: line.trim() });
+        }
+      }
+    });
+  }
+  return hits;
+}
+
 function scanRot(files) {
   const hits = [];
   for (const file of files) {
@@ -303,6 +356,45 @@ const ROT_SELF_TEST = [
   { input: 'a `$transaction` wraps the slug rename and its redirect', expect: null },
 ];
 
+// Controls for the hyphenless campaign families. The negative cases matter more than the
+// positive ones here: `T\d` is a short, generic-looking shape and a careless rule would sweep up
+// ordinary prose and real identifiers.
+const PHRASE_SELF_TEST = [
+  { input: 'so T6 persists it without a mapping', expect: 'SpecKit task id' },
+  { input: 'the buildRedirectOps callers (articles/projects, T7)', expect: 'SpecKit task id' },
+  { input: 'لا CRUD يدويّ للتحويلات في F004', expect: 'compact feature id' },
+  { input: 'Feature 003 (`media`) مدموجة', expect: 'spelled feature id' },
+  { input: 'Phase 12A will delete the local translation', expect: 'campaign phase' },
+  // Must NOT match: real identifiers and ordinary text that merely contain the shape.
+  { input: 'const T1 = generic<T1>()', file: 'x.ts', expect: null }, // TS generic param
+  { input: '  // so T6 persists it (comment in a .ts file)', file: 'x.ts', expect: 'SpecKit task id' },
+  { input: 'the WEBP1 variant', expect: null },
+  { input: 'a T-shaped column', expect: null },
+  { input: 'HTTP2 transport', expect: null },
+  { input: 'featured 003 items', expect: null },
+];
+
+function phraseSelfTest() {
+  let failed = 0;
+  for (const testCase of PHRASE_SELF_TEST) {
+    // Exercised through commentTextOf with a .ts filename, so the control tests the code path
+    // that actually runs — not a regex in isolation that skips the comment extraction.
+    const text = commentTextOf(testCase.input, testCase.file ?? 'x.md');
+    const got = CAMPAIGN_PHRASES.filter((f) => [...text.matchAll(f.re)].length > 0).map(
+      (f) => f.name,
+    );
+    const ok = testCase.expect === null ? got.length === 0 : got.includes(testCase.expect);
+    if (!ok) {
+      failed += 1;
+      console.error(
+        `✖ phrase self-test: ${JSON.stringify(testCase.input)}\n` +
+          `    expected ${testCase.expect ?? 'no match'}  got [${got.join(', ') || 'none'}]`,
+      );
+    }
+  }
+  return failed;
+}
+
 function rotSelfTest() {
   let failed = 0;
   for (const testCase of ROT_SELF_TEST) {
@@ -320,7 +412,7 @@ function rotSelfTest() {
 }
 
 function selfTest() {
-  let failed = rotSelfTest();
+  let failed = rotSelfTest() + phraseSelfTest();
   for (const testCase of SELF_TEST) {
     const got = [...testCase.input.matchAll(TOKEN_RE)]
       .map((m) => classify(m[1]))
@@ -335,7 +427,7 @@ function selfTest() {
       );
     }
   }
-  const total = SELF_TEST.length + ROT_SELF_TEST.length;
+  const total = SELF_TEST.length + ROT_SELF_TEST.length + PHRASE_SELF_TEST.length;
   if (failed > 0) {
     console.error(`\n✖ provenance guard self-test: ${failed}/${total} case(s) failed.`);
     process.exit(1);
@@ -380,6 +472,16 @@ function audit() {
     console.log(`   ${hit.file}:${hit.line}  [${hit.token}]  ${hit.text.slice(0, 100)}`);
   }
   if (arch.length === 0) console.log('   (none)');
+
+  const phrases = scanCampaignPhrases([...docs, ...src]);
+  const byFam = new Map();
+  for (const h of phrases) byFam.set(h.family, (byFam.get(h.family) ?? 0) + 1);
+  console.log(`\n## CAMPAIGN PHRASES (hyphenless, invisible to the token matcher) — ${phrases.length} occurrence(s)`);
+  for (const [fam, n] of [...byFam.entries()].sort((a, b) => b[1] - a[1])) {
+    console.log(`   ${String(n).padStart(4)}  ${fam}`);
+  }
+  const phraseFiles = new Set(phrases.map((h) => h.file));
+  console.log(`   across ${phraseFiles.size} file(s)`);
 
   const rot = scanRot(docs);
   console.log(`\n## ROT markers in code-adjacent docs — ${rot.length} occurrence(s)`);
