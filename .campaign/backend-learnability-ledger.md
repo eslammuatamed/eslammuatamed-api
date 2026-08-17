@@ -203,6 +203,36 @@ from carrying freeze or deployment language at all. Removing those citations is 
 governance). The verdict only constrains what a document may *additionally* claim, and the answer
 is: nothing about production state, from either direction.
 
+**Independent peer confirmation, plus three findings I did not have.** A second agent reached the
+same verdict from the decision rows, and added evidence I verified myself before accepting:
+
+- **Even more direct than the decision rows.** `docs/17-git-workflow.md:117` —
+  "**تجميد `dev → main` في الـ API ما يزال فعّالًا.**" (*"the API's `dev → main` freeze remains in
+  effect"*), and `docs/23-deployment.md:142` — same sentence plus "`main` عند `40a0c91` ولم يُمسّ،
+  ولم تُجرَ أي ترقية ولا نشر إنتاج" (*"…untouched; no promotion and no production deployment took
+  place"*).
+- **The two authoritative refs are byte-identical** in `docs/17-git-workflow.md` (verified by
+  `diff`), so there is no ref-divergence escape hatch. Confirmed.
+- **Governance contradicts ITSELF on the authoritative refs.** `docs/24-roadmap.md:94`, present
+  and identical on *both* `origin/main` and `docs/api-frontend-v1-completion`, records
+  "| الإنتاج (API `main`) | `572b0e3` — إصدار `20260806T093803Z-572b0e3` |" — an API **production
+  release**. So the same authoritative ref that states no API production deployment took place
+  also records one. Verified independently.
+- **No supersession exists on any ref.** A sweep for lift language across all branches returns
+  only the 2026-07-27 Web-lift entries — a real negative result, not a search gap. The unmerged
+  branches affirm the opposite: "D17-4 and D17-5 and their Arabic notes are **untouched**".
+
+**"Freeze active" is therefore the governing TEXT, not the factual state, and the text is not
+self-consistent.**
+
+**Operational consequence that outlives this campaign.** `D17-5`/`D23-18` specify their own lift
+mechanism — sequential *explicit owner authorization*, per action. Where that mechanism was
+exercised it was recorded as narrowly scoped ("approval scoped to this deployment only"). So on
+either reading of the freeze, **no future `dev → main` promotion or production deploy is
+pre-authorized; each one requires fresh explicit owner authorization.** This campaign will
+therefore stop at a PR and must not promote or deploy — stop condition 10, now evidenced rather
+than assumed.
+
 Recorded as owner-visible **OD-B** (§8). Reconciling the governing decisions is stop condition 3.
 
 ---
@@ -347,11 +377,16 @@ Phase 0 is closed: every gate that blocked design is now answered.
 
 ## 8. Owner-decision blockers
 
-**OD-B — governing docs record the API as release-frozen at a SHA 53 commits stale (D-10).**
-`D17-5` and `D23-18` both state the freeze lift was Web-only and that API `main` "has not been
-touched" at `40a0c91`. API `main` is `9af1aac`, 11 merges later, with production live. Not
-blocking this campaign (4.D removes the language either way), but the governing record is
-materially wrong about production state. Reconciling it is stop condition 3.
+**OD-B — the governing record of API release state is wrong AND internally contradictory (D-10).**
+`D17-5`/`D23-18` state the freeze lift was Web-only and that API `main` "has not been touched" at
+`40a0c91`; `main` is `9af1aac`, 53 commits and 11 merges later, production live. Worse, the same
+authoritative refs record an API production release at `docs/24-roadmap.md:94`, contradicting
+their own "no production deployment took place". Not blocking this campaign (4.D removes the
+language either way), but two governing documents disagree with each other and both disagree with
+production. Reconciling them is stop condition 3.
+
+*Carried forward:* each `dev → main` promotion and each production deploy needs fresh, explicitly
+scoped owner authorization. This campaign ends at a PR.
 
 **OD-A — `D16-13` is cited as governing but is absent from authoritative governance (D-7).**
 Owner-visible, not currently blocking: the campaign can proceed by declining to repeat the
