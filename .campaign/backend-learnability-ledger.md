@@ -1071,8 +1071,66 @@ contradiction is recorded there and the model is changed — not the prediction.
 
 ## 10. Phase 2 measurements
 
-*(Empty until the dispatched investigations return. Data lands here rather than in a session
-transcript, because §6 already recorded one "extracted" result that was lost exactly that way.)*
+Derived directly (deterministic script, not delegated judgement) after both dispatched Explore
+agents went idle without delivering. `code`/`spec` are non-blank, non-comment `.ts` lines.
+
+| module | code | spec | spec files | e2e | ctrl | routes | module deps |
+| --- | ---: | ---: | ---: | :-: | ---: | ---: | --- |
+| `media` | 1853 | 2185 | 11 | Y | 1 | 6 | Storage, Locales |
+| `projects` | 1315 | 809 | 1 | Y | 2 | 7 | Locales, Media, Redirects |
+| `settings` | 1142 | 702 | 2 | Y | 2 | 3 | Locales, Media |
+| `articles` | 1141 | 797 | 1 | Y | 2 | 8 | Locales, Media, Redirects |
+| `contact` | 1133 | 2015 | 11 | Y | 2 | 6 | Mail |
+| `taxonomy` | 678 | 66 | 1 | **–** | 4 | 10 | Locales |
+| `access-control` | 656 | 351 | 3 | Y | 2 | 9 | Auth |
+| `experiences` | 529 | 218 | 1 | Y | 2 | 6 | Locales |
+| `seo` | 448 | **0** | **0** | Y | 2 | 4 | Locales, Media |
+| `auth` | 430 | 131 | 1 | Y | 1 | 3 | Users, Jwt |
+| `skills` | 407 | 208 | 2 | Y | 2 | 6 | Locales |
+| `testimonials` | 395 | 140 | 1 | Y | 2 | 6 | Locales, Media |
+| `preview` | 283 | 351 | 3 | Y | 2 | 4 | Articles, Projects |
+| `mail` | 183 | 219 | 1 | – | 0 | 0 | — |
+| `redirects` | 147 | 169 | 1 | Y | 1 | 1 | Locales |
+| `health` | 83 | 0 | 0 | Y | 1 | 2 | — |
+| `locales` | 76 | 68 | 1 | – | 1 | 1 | — |
+| `users` | 24 | 0 | 0 | – | 0 | 0 | — |
+
+Totals: **10,923 code / 8,429 spec.** Graph is **acyclic**. Roots (no module deps): `mail`,
+`health`, `users`. `locales` is the most-depended-on (8 modules); `media` next (5).
+
+### Two coverage gaps the table exposes, both verified
+
+- **`seo` has 448 lines of code and ZERO unit spec files.** It does have
+  `test/page-seo.e2e-spec.ts`, so it is not untested — but it is the only non-trivial module whose
+  entire safety net is end-to-end. Every branch is proven through HTTP or not at all.
+- **`taxonomy` is the thinnest coverage relative to surface in the repo**: 678 code lines, **4
+  controllers and 10 routes** — the largest route surface of any module — against 66 spec lines in
+  a single file (`categories.service.spec.ts`, so the *tags* service has no unit spec), and **no
+  dedicated e2e**; its routes appear only incidentally inside other suites.
+
+These are inputs to the testing curriculum, not defects to fix in this campaign.
+
+### The pre-registered predictions, scored
+
+**Prediction 1 — "size will correlate poorly with difficulty" — CONFIRMED, and strongly.**
+`taxonomy` is the 6th largest module and conceptually the plainest CRUD in the repo. `preview`
+(283 lines) and `redirects` (147 lines) are near the bottom by size and carry the subtler ideas —
+token minting with expiry windows, and a 3-operation redirect recipe the *caller* must push into
+its own `$transaction` so a rename commits atomically. Ranking modules by `wc -l` would put a
+learner on `taxonomy` before `redirects`, which is precisely backwards. **The model survives its
+own falsification test and is kept.**
+
+**Prediction 2 — "axis C will be near-uniform and useless for ordering" — CONFIRMED, and its
+structural consequence has already been acted on.** Every module inherits the same global guard
+chain, pipe, envelope and exception filter, so implicitness barely discriminates between modules.
+Its value was never a ranking: it is the argument that the archetype must be a hard prerequisite
+for every module README. That is now discharged — `src/modules/README.md` carries the
+layer-decides-the-status-code section (`2aa031f`), which is the axis-C content stated once, in the
+one place every module README already points at.
+
+*Recording that both predictions held is weaker evidence than a surprise would have been. Noted
+so a later reader does not mistake confirmation for proof — the model was cheap to falsify and
+was not falsified, which is all that can be claimed.*
 
 ## 8. Owner-decision blockers
 
