@@ -171,6 +171,40 @@ a mapping", where `T6` stands in for a component with a real name. Deleting the 
 sentence subject-less. The repair is to name the actual component — which makes this bucket the
 highest-value learnability work found so far, not merely the largest.
 
+### D-10 — The release freeze was lifted for WEB ONLY; governance still records the API as frozen
+
+The gating question for every edit touching freeze language. Answered from the authoritative ref
+`origin/docs/api-frontend-v1-completion` (4 ahead of docs `origin/main`, 0 behind).
+
+Both decisions were updated on `2026-07-27` — as an explicit **lifecycle update, not a new
+decision** ("تحديث دورة حياة لهذا القرار، لا قرار جديد").
+
+- `docs/17-git-workflow.md:172` (D17-5) — "**الرفع يخصّ الويب وحده**: `main` في الـ API ما يزال
+  عند `40a0c91` ولم يُمسّ." → *"the lift applies to Web alone: `main` in the API is still at
+  `40a0c91` and has not been touched."*
+- `docs/23-deployment.md:378` (D23-18) — "**الرفع للويب وحده** — `main` في الـ API ما يزال عند
+  `40a0c91` ولم يُمسّ."
+
+**So, as literally recorded, the API freeze is STILL ACTIVE.** But the fact it rests on is
+obsolete. Measured against the API repo:
+
+| Governance records | Reality |
+| --- | --- |
+| API `main` frozen and untouched at `40a0c91` | API `main` is `9af1aac` |
+| no `dev → main` promotion | **53 commits / 11 merges** past `40a0c91`, `40a0c91` is an ancestor |
+| no production deploy | production release `20260817T183604Z-9af1aac` is live |
+
+Governance has not been updated to record the API unlock that demonstrably happened. Same shape
+as D-7: the governing layer lags reality.
+
+**This does NOT block the campaign**, because convention 4.D already forbids code-adjacent docs
+from carrying freeze or deployment language at all. Removing those citations is correct under
+*both* readings — it neither asserts "frozen" (contradicting reality) nor "lifted" (contradicting
+governance). The verdict only constrains what a document may *additionally* claim, and the answer
+is: nothing about production state, from either direction.
+
+Recorded as owner-visible **OD-B** (§8). Reconciling the governing decisions is stop condition 3.
+
 ---
 
 ## 3. Instruments built
@@ -292,27 +326,32 @@ Completed:
 
 - [x] Codex Arabic cold-reader probe returned; §5 question resolved, D-9 opened
 
-In flight (delegated):
-- [ ] **Governance lookup** — are `D17-5` / `D23-18` (the release freeze) still ACTIVE, or
-      retired? Gates every edit that touches freeze language. Production having shipped is not
-      the same fact as the decision being retired; if the freeze is still normative, deleting the
-      citation would make code-adjacent docs contradict governing docs — which is stop condition 3,
-      not a documentation fix.
+- [x] **Freeze verdict resolved (D-10)** — Web-only lift; API recorded as still frozen, on an
+      obsolete fact. Does not block: convention 4.D removes the language either way.
 
 Not started: learning architecture, prerequisite graph, difficulty model, module template,
 testing curriculum, flow traceability, comment cleanup execution, cold-reader exit gate.
 
 ## 7. Next actionable slice
 
-1. Resolve the `D17-5`/`D23-18` freeze verdict; record as D-9.
-2. Record the Codex-Arabic verdict in §5 and fix the review-lane split accordingly.
-3. Then, and not before, design the learning architecture and prerequisite graph — the freeze
-   verdict changes what `src/modules/README.md` and `PROJECT_GUIDE.md` are allowed to say, and
-   both are load-bearing entry points for that architecture.
-4. Retire the four dead `prisma-7-migration-2026-08.md` citations (D-6) — self-contained, no
-   dependency on the freeze verdict, so it can run in parallel.
+Phase 0 is closed: every gate that blocked design is now answered.
+
+1. **Slice 1 (independent, start here).** Retire the four dead
+   `prisma-7-migration-2026-08.md` citations (D-6). Self-contained, no dependencies.
+2. **Slice 2.** Strip state reporting from `src/modules/README.md` and `PROJECT_GUIDE.md` per
+   convention 4.D — unblocked by D-10, and both are load-bearing entry points for the learning
+   architecture, so they must be true before that architecture is designed on top of them.
+3. **Slice 3.** Repair bucket C (D-9) on the media/articles/projects cluster — the 58 SpecKit
+   task ids that name components by task number. Highest learnability value found.
+4. **Then** design the learning architecture, prerequisite graph and difficulty model.
 
 ## 8. Owner-decision blockers
+
+**OD-B — governing docs record the API as release-frozen at a SHA 53 commits stale (D-10).**
+`D17-5` and `D23-18` both state the freeze lift was Web-only and that API `main` "has not been
+touched" at `40a0c91`. API `main` is `9af1aac`, 11 merges later, with production live. Not
+blocking this campaign (4.D removes the language either way), but the governing record is
+materially wrong about production state. Reconciling it is stop condition 3.
 
 **OD-A — `D16-13` is cited as governing but is absent from authoritative governance (D-7).**
 Owner-visible, not currently blocking: the campaign can proceed by declining to repeat the
