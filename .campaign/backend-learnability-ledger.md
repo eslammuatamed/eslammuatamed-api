@@ -978,7 +978,7 @@ and only their compact results land here.
 
 | Dispatched | Purpose | Status |
 | --- | --- | --- |
-| `codex-5c` — peer review of slice 5c (`eff70d3`) | verify the two false-claim rewrites and the α replacements; enumerate any remaining marker shape | **OUTSTANDING** |
+| `codex-5c` — peer review of slice 5c (`eff70d3`) | verify the two false-claim rewrites and the α replacements; enumerate any remaining marker shape | **RETURNED — CLEAN, all 3 questions** |
 | `graph-derive` — module dependency graph, size/test/surface signal, concept load | re-derive the phase-0 input that was never recorded (§6) | **OUTSTANDING** |
 | `readme-survey` — de-facto section template across the 17 module READMEs, divergence, depth, opening contract | input to the module template | **OUTSTANDING** |
 
@@ -986,9 +986,34 @@ Results land in **§10** (below) as compact tables. If a dispatched agent never 
 recorded here as review debt in the same terms §5 uses — never silently upgraded into
 "verified".
 
-**Review debt carried, and NOT to be silently discharged:** everything from `7f7a505` onward
-carries author verification only unless a peer pass says otherwise. Slice 5c's pass is
-outstanding. This gates the **PR**, not phase 2 (owner direction).
+### Review debt — restated precisely, because it has materially shrunk
+
+Slice 5c's pass returned **CLEAN on all three questions**, and it verified rather than re-read:
+it traced `contact-reply.service.ts:220` → `contact-mail.service.ts` → `mail.service.ts:104-109`
+to confirm the client key never reaches the provider header, and confirmed the *other* half of
+that rewritten claim by reading `pino-logger.config.ts:46-64` — `req.headers` is logged wholesale
+and the idempotency header is **not** in `redact.paths`, so "travels into log lines" is literally
+true. It ran a positive control on its own sweep regexes (planted `11B`, `M1`, `Stage 2C`; all
+three fired), so its clean Q3 is a real negative, not a broken instrument.
+
+**Current debt — exact:**
+
+| Commits | Review status |
+| --- | --- |
+| Slices 1, 1b, 2, 3, 4, 4a, 5 + the wrong-class fix | peer-reviewed |
+| `7f7a505` (slice 5b) | peer-reviewed — Q1/Q2 clean; its Q3 produced slice 5c |
+| `eff70d3` (slice 5c) | peer-reviewed — CLEAN |
+| Ledger-prose commits after `eff70d3` (`bc30b05` → `a0fd971`) | **unreviewed** — this file's own prose only, no source touched |
+
+**So the debt is now confined to this ledger's prose.** No source or documentation change on the
+branch is unreviewed. Stated this precisely rather than carrying forward the older, larger claim,
+because overstating debt is as much a truthfulness failure as understating it — and understating
+it is the one that ships. Still a **PR** gate, not a phase-2 blocker (owner direction).
+
+**Observation logged, not acted on (out of campaign scope, pre-existing):** the pino request
+serializer logs all request headers and does not redact the client `Idempotency-Key`. That is a
+code/ops question for the owner, not a documentation defect, and this campaign does not change
+behaviour. Recorded here so it is not lost.
 
 ## 10. Phase 2 measurements
 
