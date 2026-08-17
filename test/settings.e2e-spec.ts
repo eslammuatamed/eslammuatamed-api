@@ -13,7 +13,7 @@ interface PublicSettings {
   siteName: string | null;
   availabilityStatus: string | null;
   availableLocales: string[];
-  analytics: { provider: string; measurementId: string } | null;
+  gtmContainerId: string | null;
   careerStartYear: number | null;
   careerStartMonth: number | null;
 }
@@ -21,6 +21,7 @@ interface PublicSettings {
 interface AdminSettings {
   googleSiteVerification: string | null;
   analyticsEnabled: boolean;
+  gtmContainerId: string | null;
   careerStartYear: number | null;
   careerStartMonth: number | null;
 }
@@ -118,8 +119,7 @@ describe('Settings (e2e)', () => {
       .set('Authorization', `Bearer ${ownerToken}`)
       .send({
         googleSiteVerification: 'google-e2e-token',
-        analyticsProvider: 'ga4',
-        analyticsMeasurementId: 'G-E2E',
+        gtmContainerId: 'GTM-E2E1234',
         analyticsEnabled: true,
         customMetas: [{ name: 'theme-color', content: '#0b0b0f' }],
       })
@@ -129,16 +129,131 @@ describe('Settings (e2e)', () => {
     const admin = envelopeData<AdminSettings>(patched);
     expect(admin.googleSiteVerification).toBe('google-e2e-token');
     expect(admin.analyticsEnabled).toBe(true);
+    expect(admin.gtmContainerId).toBe('GTM-E2E1234');
 
-    // The enabled analytics tag now surfaces on the public read.
+    // The enabled container now surfaces on the public read (D02-14).
     const publicRead = await request(httpServer(app))
       .get('/api/v1/settings/site?locale=en')
       .expect(200);
     expect(publicRead).toSatisfyApiSpec();
-    expect(envelopeData<PublicSettings>(publicRead).analytics).toEqual({
-      provider: 'ga4',
-      measurementId: 'G-E2E',
-    });
+    expect(envelopeData<PublicSettings>(publicRead).gtmContainerId).toBe(
+      'GTM-E2E1234',
+    );
+  });
+
+  // ── GTM-only tracking contract (D02-14) ───────────────────────────────────────────────────────
+
+  it('withholds the container from the public read once tracking is disabled', async () => {
+    // Establishes its OWN precondition rather than inheriting the previous test's state, so the case
+    // can be isolated with `-t`. Enabling first is also the control: the public read is proven to
+    // carry the id, so the null below is the switch taking effect rather than an unconfigured row.
+    await request(httpServer(app))
+      .patch('/api/v1/admin/settings')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ gtmContainerId: 'GTM-E2E1234', analyticsEnabled: true })
+      .expect(200);
+    const enabledRead = await request(httpServer(app))
+      .get('/api/v1/settings/site?locale=en')
+      .expect(200);
+    expect(envelopeData<PublicSettings>(enabledRead).gtmContainerId).toBe(
+      'GTM-E2E1234',
+    );
+
+    await request(httpServer(app))
+      .patch('/api/v1/admin/settings')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ analyticsEnabled: false })
+      .expect(200);
+
+    const publicRead = await request(httpServer(app))
+      .get('/api/v1/settings/site?locale=en')
+      .expect(200);
+    expect(publicRead).toSatisfyApiSpec();
+    expect(envelopeData<PublicSettings>(publicRead).gtmContainerId).toBeNull();
+
+    // …while the admin surface still shows what is configured, so it can be switched back on.
+    const admin = await request(httpServer(app))
+      .get('/api/v1/admin/settings')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(200);
+    expect(envelopeData<AdminSettings>(admin).gtmContainerId).toBe(
+      'GTM-E2E1234',
+    );
+  });
+
+  it('rejects a malformed GTM container id (422)', async () => {
+    const res = await request(httpServer(app))
+      .patch('/api/v1/admin/settings')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ gtmContainerId: 'G-XXXXXXXXXX' })
+      .expect(422);
+    expect(res).toSatisfyApiSpec();
+  });
+
+  it('rejects enabling tracking without a container id (422)', async () => {
+    // Clear first, then enable — the incoherent pair the public contract cannot express.
+    await request(httpServer(app))
+      .patch('/api/v1/admin/settings')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ analyticsEnabled: false, gtmContainerId: null })
+      .expect(200);
+
+    const res = await request(httpServer(app))
+      .patch('/api/v1/admin/settings')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ analyticsEnabled: true })
+      .expect(422);
+    expect(res).toSatisfyApiSpec();
+  });
+
+  it('clears the container id with an explicit null (D10-23)', async () => {
+    await request(httpServer(app))
+      .patch('/api/v1/admin/settings')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ gtmContainerId: 'GTM-CLEAR99' })
+      .expect(200);
+    // CONTROL: prove it was actually set, or the null below could pass against an already-empty
+    // column and assert nothing at all.
+    const set = await request(httpServer(app))
+      .get('/api/v1/admin/settings')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(200);
+    expect(envelopeData<AdminSettings>(set).gtmContainerId).toBe('GTM-CLEAR99');
+
+    const cleared = await request(httpServer(app))
+      .patch('/api/v1/admin/settings')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ gtmContainerId: null })
+      .expect(200);
+    expect(cleared).toSatisfyApiSpec();
+    expect(envelopeData<AdminSettings>(cleared).gtmContainerId).toBeNull();
+  });
+
+  it('clears a verification token with an explicit null (D10-23)', async () => {
+    // Same shape for the other withdrawable head/tag field, and self-contained for the same reason:
+    // it SETS the token first so the null assertion cannot pass against an already-empty column.
+    await request(httpServer(app))
+      .patch('/api/v1/admin/settings')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ googleSiteVerification: 'google-e2e-token' })
+      .expect(200);
+    const before = await request(httpServer(app))
+      .get('/api/v1/admin/settings')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(200);
+    expect(envelopeData<AdminSettings>(before).googleSiteVerification).toBe(
+      'google-e2e-token',
+    );
+
+    const cleared = await request(httpServer(app))
+      .patch('/api/v1/admin/settings')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ googleSiteVerification: null })
+      .expect(200);
+    expect(cleared).toSatisfyApiSpec();
+    expect(
+      envelopeData<AdminSettings>(cleared).googleSiteVerification,
+    ).toBeNull();
   });
 
   it('rejects a custom meta with an injection-shaped name (422)', async () => {

@@ -120,10 +120,12 @@ export class CreateContactMessageDto {
   // No `minLength`: the binding constraint is the email format itself, so exporting a redundant 1
   // would document a rule that is not the one doing the rejecting (D10-15).
   @ApiPropertyOptional({
+    type: String,
+    nullable: true,
     example: 'alex@example.com',
     maxLength: 320,
     description:
-      'Optional. Trimmed before validation. At least one of `email` or `phone` is required; a supplied but malformed value is rejected rather than ignored (D10-16).',
+      'Optional. Trimmed before validation. At least one of `email` or `phone` is required; a supplied but malformed value is rejected rather than ignored (D10-16). `null` states "not supplied" explicitly — `isSupplied()` already treats it as empty, so a phone-only visitor may send it (D10-23).',
   })
   @TrimOptionalIfString()
   @ValidateIf(
@@ -132,7 +134,7 @@ export class CreateContactMessageDto {
   )
   @IsEmail()
   @MaxLength(320)
-  readonly email?: string;
+  readonly email?: string | null;
 
   // The other half of the pair, transported and stored in E.164 only (D10-16). Validated only when
   // the visitor actually supplied something — the "neither method" case is reported on `email`
@@ -141,14 +143,16 @@ export class CreateContactMessageDto {
   // `@IsPhoneNumber()` with no region argument requires a full international number and comes from
   // the already-installed `class-validator`, so no dependency is added (D10-16, D13-6).
   @ApiPropertyOptional({
+    type: String,
+    nullable: true,
     example: '+201002785408',
     description:
-      'Optional. E.164 international format — the API stores an international number, never a display-formatted one; human spacing is normalized away before validation. At least one of `email` or `phone` is required (D10-16).',
+      'Optional. E.164 international format — the API stores an international number, never a display-formatted one; human spacing is normalized away before validation. At least one of `email` or `phone` is required (D10-16). `null` states "not supplied" explicitly, which is what the Web\'s `normalizePhone()` returns for an empty entry (D10-23).',
   })
   @NormalizePhoneIfString()
   @ValidateIf((_, value: unknown) => isSupplied(value))
   @IsPhoneNumber()
-  readonly phone?: string;
+  readonly phone?: string | null;
 
   @ApiProperty({
     example: 'Project inquiry',

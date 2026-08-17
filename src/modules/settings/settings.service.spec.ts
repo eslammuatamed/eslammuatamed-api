@@ -130,9 +130,8 @@ function settingsRow(overrides: Partial<SettingsRow> = {}): SettingsRow {
     careerStartMonth: null,
     googleSiteVerification: 'google-token',
     bingSiteVerification: null,
-    analyticsProvider: 'ga4',
-    analyticsMeasurementId: 'G-XXX',
     analyticsEnabled: false,
+    gtmContainerId: 'GTM-ABCD123',
     customMetas: [{ name: 'theme-color', content: '#000' }],
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -159,7 +158,7 @@ describe('SettingsService', () => {
   });
 
   describe('getPublicSettings', () => {
-    it('resolves the requested locale and omits analytics when disabled', async () => {
+    it('resolves the requested locale and withholds the container when disabled', async () => {
       prisma.siteSettings.findFirst.mockResolvedValue(settingsRow());
 
       const result = await service.getPublicSettings('ar');
@@ -168,7 +167,9 @@ describe('SettingsService', () => {
       expect(result.siteName).toBe('Site ar');
       expect(result.tagline).toBe('Tagline ar');
       expect(result.availabilityStatus).toBe('Avail ar');
-      expect(result.analytics).toBeNull();
+      // D20-5/D02-14: the row HOLDS a container id; "disabled" is observable as its absence from
+      // the public read, not as a flag the client is trusted to honour.
+      expect(result.gtmContainerId).toBeNull();
       expect(result.profileLinks).toEqual([
         { label: 'GitHub', url: 'https://github.com/x', icon: 'gh' },
       ]);
@@ -177,17 +178,24 @@ describe('SettingsService', () => {
       expect(result.careerStartMonth).toBeNull();
     });
 
-    it('advertises analytics only when enabled with an id', async () => {
+    it('publishes the GTM container only when tracking is enabled', async () => {
       prisma.siteSettings.findFirst.mockResolvedValue(
         settingsRow({ analyticsEnabled: true }),
       );
 
       const result = await service.getPublicSettings('en');
 
-      expect(result.analytics).toEqual({
-        provider: 'ga4',
-        measurementId: 'G-XXX',
-      });
+      expect(result.gtmContainerId).toBe('GTM-ABCD123');
+    });
+
+    it('withholds the container when enabled but unconfigured', async () => {
+      // Defence in depth against a row that predates the D02-14 migration's invariant repair: the
+      // public read must never publish a null container as though it were a real one.
+      prisma.siteSettings.findFirst.mockResolvedValue(
+        settingsRow({ analyticsEnabled: true, gtmContainerId: null }),
+      );
+
+      expect((await service.getPublicSettings('en')).gtmContainerId).toBeNull();
     });
 
     it('returns nulls for a missing translation without cross-locale fallback', async () => {

@@ -7,7 +7,6 @@ import {
   IsEmail,
   IsPhoneNumber,
   IsInt,
-  IsIn,
   IsOptional,
   IsString,
   IsUrl,
@@ -70,58 +69,117 @@ export class SettingsTranslationDto {
   })
   readonly locale!: string;
 
-  @ApiPropertyOptional({ example: 'Eslam Muatamed' })
+  // D10-23: every nullable column on this row accepts an explicit `null` to CLEAR it, and the
+  // contract says so. Omitting a key leaves the stored value untouched (Prisma treats `undefined`
+  // as a no-op); sending `null` writes NULL. Those two meanings are distinct and both are needed —
+  // there is no other way to withdraw a tagline or a default meta description once set.
+  // `type: String` + `nullable: true` are REQUIRED, not decorative: a `string | null` union erases
+  // to `Object` in the emitted design type, and without the pair the field exports as a
+  // non-nullable string that `openapi-typescript` renders `field?: string` — which no strict-TS
+  // caller can assign `null` to. `portraitAlt` below already carried this treatment; these eight
+  // did not, so the runtime accepted a clear the contract forbade.
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    example: 'Eslam Muatamed',
+    description: 'null clears it.',
+  })
   @IsOptional()
+  @ValidateIf((dto: SettingsTranslationDto) => dto.siteName !== null)
   @IsString()
   @MaxLength(120)
-  readonly siteName?: string;
+  readonly siteName?: string | null;
 
-  @ApiPropertyOptional({ example: 'Software engineer & architect' })
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    example: 'Software engineer & architect',
+    description: 'null clears it.',
+  })
   @IsOptional()
+  @ValidateIf((dto: SettingsTranslationDto) => dto.tagline !== null)
   @IsString()
   @MaxLength(200)
-  readonly tagline?: string;
+  readonly tagline?: string | null;
 
   // Per-locale from feature 007 (was a base scalar): localized like tagline so /ar renders Arabic.
-  @ApiPropertyOptional({ example: 'Open to select consulting engagements' })
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    example: 'Open to select consulting engagements',
+    description: 'null clears it.',
+  })
   @IsOptional()
+  @ValidateIf((dto: SettingsTranslationDto) => dto.availabilityStatus !== null)
   @IsString()
   @MaxLength(200)
-  readonly availabilityStatus?: string;
+  readonly availabilityStatus?: string | null;
 
   // Meta length is editor guidance (character counters), not hard validation (doc 22 §3):
   // search engines truncate, they don't reject. The cap here only bounds abuse.
-  @ApiPropertyOptional({ example: 'Eslam Muatamed' })
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    example: 'Eslam Muatamed',
+    description: 'null clears it.',
+  })
   @IsOptional()
+  @ValidateIf((dto: SettingsTranslationDto) => dto.defaultMetaTitle !== null)
   @IsString()
   @MaxLength(300)
-  readonly defaultMetaTitle?: string;
+  readonly defaultMetaTitle?: string | null;
 
-  @ApiPropertyOptional({ example: 'Portfolio, case studies, and writing.' })
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    example: 'Portfolio, case studies, and writing.',
+    description: 'null clears it.',
+  })
   @IsOptional()
+  @ValidateIf(
+    (dto: SettingsTranslationDto) => dto.defaultMetaDescription !== null,
+  )
   @IsString()
   @MaxLength(500)
-  readonly defaultMetaDescription?: string;
+  readonly defaultMetaDescription?: string | null;
 
   // About content (FR-PUB-020, D09-18). Markdown is an opaque string at this layer; the cap
   // matches the project-body Markdown bound rather than a prose-length guess.
-  @ApiPropertyOptional({ description: 'Markdown source.' })
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    description: 'Markdown source. null clears it.',
+  })
   @IsOptional()
+  @ValidateIf((dto: SettingsTranslationDto) => dto.aboutBio !== null)
   @IsString()
   @MaxLength(MARKDOWN_MAX)
-  readonly aboutBio?: string;
+  readonly aboutBio?: string | null;
 
-  @ApiPropertyOptional({ description: 'Markdown source.' })
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    description: 'Markdown source. null clears it.',
+  })
   @IsOptional()
+  @ValidateIf(
+    (dto: SettingsTranslationDto) => dto.engineeringPhilosophy !== null,
+  )
   @IsString()
   @MaxLength(MARKDOWN_MAX)
-  readonly engineeringPhilosophy?: string;
+  readonly engineeringPhilosophy?: string | null;
 
-  @ApiPropertyOptional({ example: 'Building bilingual product platforms.' })
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    example: 'Building bilingual product platforms.',
+    description: 'null clears it.',
+  })
   @IsOptional()
+  @ValidateIf((dto: SettingsTranslationDto) => dto.currentFocus !== null)
   @IsString()
   @MaxLength(300)
-  readonly currentFocus?: string;
+  readonly currentFocus?: string | null;
 
   // PER-USAGE alt for the About portrait (D09-22). It belongs to the USAGE, not to the asset:
   // `MediaAssetAlt` is library-level default metadata, and a reusable asset can need a different
@@ -277,36 +335,63 @@ export class UpdateSettingsDto {
   @Max(12)
   readonly careerStartMonth?: number | null;
 
-  @ApiPropertyOptional({ example: 'google-abc123' })
+  // D10-23 again: a verification token must be WITHDRAWABLE. Retiring a Search Console or Bing
+  // property means the meta tag has to stop rendering, and `null` is the only way to say that —
+  // omitting the key preserves the stored token. Without `nullable: true` the Web could read a
+  // cleared token but never clear one, so the tag would outlive the property it verified.
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    example: 'google-abc123',
+    description: 'Google Search Console token; null withdraws it.',
+  })
   @IsOptional()
+  @ValidateIf((dto: UpdateSettingsDto) => dto.googleSiteVerification !== null)
   @IsString()
   @MaxLength(200)
-  readonly googleSiteVerification?: string;
+  readonly googleSiteVerification?: string | null;
 
-  @ApiPropertyOptional({ example: 'bing-def456' })
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    example: 'bing-def456',
+    description: 'Bing Webmaster token; null withdraws it.',
+  })
   @IsOptional()
+  @ValidateIf((dto: UpdateSettingsDto) => dto.bingSiteVerification !== null)
   @IsString()
   @MaxLength(200)
-  readonly bingSiteVerification?: string;
-
-  @ApiPropertyOptional({ enum: ['ga4', 'gtm'] })
-  @IsOptional()
-  @IsIn(['ga4', 'gtm'])
-  readonly analyticsProvider?: string;
-
-  @ApiPropertyOptional({ example: 'G-XXXXXXXXXX' })
-  @IsOptional()
-  @IsString()
-  @MaxLength(60)
-  readonly analyticsMeasurementId?: string;
+  readonly bingSiteVerification?: string | null;
 
   @ApiPropertyOptional({
     example: false,
-    description: 'Analytics is off by default (D20-5).',
+    description:
+      'Tracking kill switch; off by default (D20-5). Enabling it requires a gtmContainerId — the service rejects the pair otherwise (422).',
   })
   @IsOptional()
   @IsBoolean()
   readonly analyticsEnabled?: boolean;
+
+  // GTM-only (D02-14). The container id is validated by SHAPE here — a value that is not a container
+  // id could not load a container, and letting one through would put an unusable string into a head
+  // tag on every public page. Google's own format is `GTM-` plus an uppercase-alphanumeric suffix;
+  // the length is bounded rather than fixed at 7 because Google has issued longer suffixes and a
+  // hard 7 would reject a legitimate container. `null` withdraws it, which is how tracking is torn
+  // down without a redeploy — the same withdrawal semantics as the verification tokens above.
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    example: 'GTM-ABCD123',
+    description:
+      'Google Tag Manager container id; null withdraws it. GA4, Meta Pixel, LinkedIn Insight and any other vendor are configured INSIDE the container, never here.',
+  })
+  @IsOptional()
+  @ValidateIf((dto: UpdateSettingsDto) => dto.gtmContainerId !== null)
+  @Matches(/^GTM-[A-Z0-9]{4,12}$/, {
+    message:
+      'gtmContainerId must be a GTM container id, e.g. GTM-ABCD123 (uppercase letters and digits).',
+  })
+  readonly gtmContainerId?: string | null;
 
   @ApiPropertyOptional({ type: [CustomMetaDto] })
   @IsOptional()

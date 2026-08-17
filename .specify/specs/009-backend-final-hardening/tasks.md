@@ -59,7 +59,7 @@ Authoritative status lives in the ledger; this file is the task decomposition.
 | A-4 | Decide removal | **EVIDENCE-DEFERRED** — ledger §3c; three new failure modes on a file with no pre-Production validation path, and verification gates the approval prompt |
 | A-5 | Identify any intra-job waste with no correctness argument | DONE — none; the three `npm ci` are on three runners and all are required |
 | A-6 | Implement what survives | DONE — `ea5a7113`, `e2e: needs: [preflight]`; actionlint negative-controlled |
-| A-7 | Re-measure | **BLOCKED BY CONSTRUCTION** — `deploy.yml` runs only on `push: main`; the after-figure (≈131 s to prompt) is **projected** and must be re-measured at the next release |
+| A-7 | Re-measure | **DONE — MEASURED 2026-08-15.** The blocker discharged itself at the release. Observed A/B, one metric definition (`run_started_at` → the deployment's first `waiting`): **207 s serial** (`31837891096`) → **142 s parallel** (`31851564671`) = **65 s, 31.4 %**, with **84 s** of proven `verify`/`e2e` overlap. The **≈131 s projection is superseded**; owner approval latency (1 701 s) is excluded and reported separately |
 | A-8 | Confirm nothing weakened | DONE — ledger §3g; `deploy` still `needs: [preflight, verify, e2e]` |
 
 ## Phase 3 — Workstream B: CodeQL / static security  ·  **DONE**
@@ -101,8 +101,11 @@ Authoritative status lives in the ledger; this file is the task decomposition.
 ### Phase 5 finding — API probe/path verification contract
 
 Phase 4 surfaced a false-green class: a probe without the `/api/v1` prefix can reach the **Nuxt
-app on port 3000** and return **200 HTML**, so a status code alone is not evidence the intended
-API endpoint was reached.
+app on port 3000**, so a status code alone is not evidence the intended API endpoint was reached.
+**Refined by measurement in Phase 5d (F5d-1):** port 3000 returns **`200 text/html`** on a *page*
+route such as `/`, but **`404 application/json`** on an unknown `/api/*` path — so the risk is
+**path-dependent**, and `application/json` alone does not prove the API answered either. Assert
+the expected body *shape*.
 
 **Triaged against the shipped implementation, and the deployed automation is NOT affected.**
 `scripts/deploy/remote-cutover.sh:26` pins `API_BASE="http://127.0.0.1:3001/api/v1"`, all four
@@ -110,20 +113,59 @@ probes compose off it, and `curl --fail` makes a wrong path **fail closed** (por
 prefix → 404). **No release-critical behaviour was changed**, and none needed to be. This was
 documentation / manual-verification drift only, reconciled here per the campaign brief.
 
-## Phase 5b — PR #80 integration (evidence, not merge authorization)
+## Phase 5b — PR #80 integration (evidence, not merge authorization)  ·  **DONE**
 
 | ID | Task | Status |
 |---|---|---|
 | E-8 | Read back current `dev` and PR #80 before any integration | DONE — `dev` `a13af3cd`, PR #80 head `48afc488`, base `dev`, OPEN/draft, `MERGEABLE`/`CLEAN`. Branch base was `5182cac`, so `a13af3cd` was **not** an ancestor |
 | E-9 | Determine the governed integration method | DONE — **merge `origin/dev` into the campaign branch**, never rebase: doc 17 §9 forbids rebase-heavy rewriting of shared branches, PR #80 is published, and a rebase would rewrite `ea5a7113` / `e5b5642c` / `69143f1b`, the SHAs the ledger cites as evidence throughout §3–§5 |
-| E-10 | Obtain fresh authoritative CI for the real integration candidate | see ledger §7 |
-| E-11 | Confirm every required gate preserved and re-verify CodeQL on the final candidate | see ledger §7 |
+| E-10 | Obtain fresh authoritative CI for the real integration candidate | DONE — ledger §7; final candidate `f3f15b33`, 6/6 green |
+| E-11 | Confirm every required gate preserved and re-verify CodeQL on the final candidate | DONE — ledger §7; CodeQL re-run on the merge ref, 0 results |
 
-## Phase 6 — Campaign close
+## Phase 5c — governed integration and Production promotion  ·  **DONE** (ledger §8)
 
 | ID | Task | Status |
 |---|---|---|
-| F-1 | Verify every Definition-of-Done item in `spec.md` §6 | TODO |
-| F-2 | Final report: **COMPLETED · DEFERRED · OWNER-GATED · OUTSIDE CAMPAIGN · NEXT PROJECT PHASE** | TODO |
-| F-3 | Confirm all worktrees clean except owner-controlled local Docs state | TODO |
-| F-4 | Do **not** begin Web work | TODO |
+| G-1 | Blocking pre-checks before any merge | DONE — parked deployment `5889417680` confirmed `failure`/cleared; ruleset `20759549` allows **`merge` only** (squash/rebase GitHub-forbidden on `main`); `deploy.yml` has no `dev` trigger |
+| G-2 | Merge PR #80 → `dev` | DONE — squash, `dev` `1909ba8d`; **squash-tree proof** `f3f15b33^{tree}` == `1909ba8d^{tree}` == `72f02b33` (ancestry is the wrong instrument after a squash) |
+| G-3 | Promote `dev` → `main` (PR #81) as a **true two-parent merge** | DONE — `main` **`73843e31`**, 2 parents, `main^{tree}` == `dev^{tree}` |
+| G-4 | Stop at the Production approval gate | DONE — run `31851564671` parked `waiting`, mutation job **0 steps**, server unmutated |
+| OD-3 | CodeQL required-check promotion | **RESOLVED 2026-08-15 — stays ADVISORY.** Shipped and observed on `main`; promotion to required left as a later evidence-based decision |
+
+## Phase 5d — Production deployment, executed and measured  ·  **DONE** (ledger §9)
+
+| ID | Task | Status |
+|---|---|---|
+| H-1 | Immediate pre-approval readback — 14 values, body-asserted probes | DONE — all unchanged; predictions recorded **before** the approval call |
+| H-2 | Approve **only** deployment `5915156965` | DONE — `2026-08-15T00:18:27Z`; response referenced that deployment and no other; fallback never approved separately |
+| H-3 | Observe the mutation job from its **step array** | DONE — 18 steps, **0 failed, 0 skipped**; exact-SHA re-checked twice (`proceed=true`); rollback branch **not entered** |
+| H-4 | Post-cutover gate — four DB-backed probes, loopback **and** public edge | DONE — all `200 application/json`, asserted on body: readiness `database: up`, `settings/site` 4032 B `data.siteName`, `projects` **9 rows** |
+| H-5 | Migration result — record the actual state, invent nothing | DONE — *"11 migrations found … **No pending migrations to apply.**"*; none rolled back |
+| H-6 | Real pruning verification | DONE — `pruned 20260806T200056Z-b551270` (the **predicted** directory), count back to **5**, `PRUNE_INCOMPLETE` **absent**. Evidence class upgraded **VERIFIED BY CONSTRUCTION → MEASURED** |
+| H-7 | Independent Production verification | DONE — `20260815T001836Z-73843e3`, `MainPID` 492176 → **497287**, `NRestarts=0`, Prisma **7.9.1**, `DATABASE_URL` `127.0.0.1`, journal clean (scanner negative-controlled) |
+| H-8 | Fallback idempotency | DONE — `31851568480` → `already-current`; 3 jobs skipped, **no** second mutation / restart / approval; deployments total unchanged at 4 |
+| H-9 | Timing — measured, not projected | DONE — **207 s → 142 s = 65 s (31.4 %)**; owner wait 1 701 s excluded and labelled; the owner's 203 s reconciled as a **second metric definition**, not adopted silently |
+| H-10 | D17-4 `dev` synchronization | DONE — ancestry proven, **fast-forward only** (`1909ba8..73843e3`), no force/reset/recreate/synthetic commit; **`main` == `dev` == `73843e31`**; push:dev CI `31853612607` green; **no deployment triggered** |
+| F5d-1 | Finding — the ":3000 answers 200 HTML to *any* path" phrasing | **FIXED** — measured: `/` → `200 text/html`, unknown `/api/*` → `404 application/json`. Risk survives, blanket phrasing does not. Corrected in ledger §9j, doc 23, the runbook and the Arabic guide |
+
+## Phase 6 — Campaign close  ·  **DONE**
+
+| ID | Task | Status |
+|---|---|---|
+| F-1 | Verify every Definition-of-Done item in `spec.md` §6 | **DONE** — 10/10 verified; see ledger §11 |
+| F-2 | Final report: **COMPLETED · DEFERRED · OWNER-GATED · OUTSIDE CAMPAIGN · NEXT PROJECT PHASE** | **DONE** — ledger §11 |
+| F-3 | Confirm all worktrees clean except owner-controlled local Docs state | **DONE** — ledger §11 |
+| F-4 | Do **not** begin Web work | **HELD** — no Web repository, branch or file was touched at any point in this campaign |
+| F5c-1 | Stale `ci.yml` comment claiming rulesets are "unavailable on this plan" | **FIXED** — comment-only; the edit was proven non-behavioural by parsed-YAML structural equality against `origin/dev` **with a negative control** (an injected `timeout-minutes` change was detected) |
+| F-5 | Reconcile the **≈131 s projection** everywhere it survived | **DONE** — `PROJECT_GUIDE.md`, this file, docs 23/24, the manual runbook, the Arabic CI/CD study guide and `BACKEND_STUDY_MAP.md`. Historical projection, measured result and arithmetic counterfactual are kept **distinct**, not merged |
+
+### Phase 6 limitation, recorded rather than worked around
+
+API-repository markdown and SpecKit prose can only reach **`main`** through a `dev → main`
+promotion, and **a push to `main` triggers `deploy.yml`**. Publishing this documentation there
+would therefore manufacture an unnecessary Production release. It was **not** done. These changes
+land on **`dev`** through the normal governed path — `dev` pushes cannot deploy (`deploy.yml` is
+`push: [main]` + `workflow_dispatch` only, verified by construction and by observation twice) —
+and `main` will pick them up whenever the **next** substantive release is promoted for its own
+reasons. Until then, `main`'s copy of this file and of the `ci.yml` comment is one promotion
+behind, which is ordinary D17-4 integration state, not drift.

@@ -349,10 +349,18 @@ export class ArticlesService {
     }
 
     const nextStatus = dto.status ?? existing.status;
+    // Three distinct inputs, three distinct meanings (D10-23). The previous form tested
+    // `!== undefined` and then converted unconditionally, so an explicit `null` reached
+    // `new Date(null)` — the Unix EPOCH — instead of clearing the column. That produced a 1970
+    // publish instant on a live article, which sorts last forever under `publishAt desc`, and it
+    // made `resolvePublishAt`'s `candidate ?? new Date()` unreachable because the epoch is truthy.
+    // `null` is now separated BEFORE any Date construction; the create path already did this.
     const candidate =
-      dto.publishAt !== undefined
-        ? new Date(dto.publishAt)
-        : existing.publishAt;
+      dto.publishAt === undefined
+        ? existing.publishAt
+        : dto.publishAt === null
+          ? null
+          : new Date(dto.publishAt);
     const publishAt = resolvePublishAt(nextStatus, candidate);
 
     const operations: Prisma.PrismaPromise<unknown>[] = [
@@ -576,16 +584,21 @@ function resolvePublishAt(
   return candidate;
 }
 
+// The four SEO fields are `string | null | undefined` and the distinction is the whole point
+// (D10-23): Prisma reads `undefined` as "leave this column alone" and `null` as "write NULL", so
+// widening them to `null` is what makes an omitted key and an explicit clear different operations
+// on the same upsert. This signature previously said `string | undefined` while the pipe already
+// let `null` through, so the type asserted an invariant the runtime did not hold.
 function translationWriteFields(translation: ArticleTranslationDto): {
   title: string;
   slug: string;
   excerpt: string;
   body: string;
   readingTimeMin: number;
-  metaTitle: string | undefined;
-  metaDescription: string | undefined;
-  ogImageId: string | undefined;
-  canonicalUrl: string | undefined;
+  metaTitle: string | null | undefined;
+  metaDescription: string | null | undefined;
+  ogImageId: string | null | undefined;
+  canonicalUrl: string | null | undefined;
 } {
   return {
     title: translation.title,

@@ -6,6 +6,7 @@ import {
   IsString,
   MaxLength,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
 import { GRANTABLE_PERMISSIONS } from '../permissions';
 
@@ -16,13 +17,19 @@ export class CreateRoleDto {
   @MaxLength(60)
   readonly name!: string;
 
+  // D10-23: nullable column, so `null` is accepted and stores NULL. On create that coincides with
+  // omitting the key; the contract states it so a strict-TS caller can pass either.
   @ApiPropertyOptional({
+    type: String,
+    nullable: true,
     example: 'Manages content; no settings or user access.',
+    description: 'null for no description.',
   })
   @IsOptional()
+  @ValidateIf((dto: CreateRoleDto) => dto.description !== null)
   @IsString()
   @MaxLength(200)
-  readonly description?: string;
+  readonly description?: string | null;
 
   // Each grant must be a catalog key or the reserved "*" (D19-8); an unknown key is a 422 at
   // the pipe, so the guarded surface can never reference a permission that does not exist.
@@ -46,11 +53,17 @@ export class UpdateRoleDto {
   @MaxLength(60)
   readonly name?: string;
 
-  @ApiPropertyOptional()
+  // D10-23: `null` clears the description; an omitted key preserves it.
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    description: 'null clears it.',
+  })
   @IsOptional()
+  @ValidateIf((dto: UpdateRoleDto) => dto.description !== null)
   @IsString()
   @MaxLength(200)
-  readonly description?: string;
+  readonly description?: string | null;
 
   @ApiPropertyOptional({
     type: [String],
