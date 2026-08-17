@@ -321,7 +321,7 @@ function asRepliable(message: ContactMessage): RepliableContactMessage | null {
 // single-purpose predicate per call site (cf. `isUniqueViolationOnContentHash` in media.service.ts).
 //
 // The code alone is matched, never `meta.target`: Prisma 7 degraded that field's contents once
-// already (F9-9), and this insert has exactly one unique index, so the code is unambiguous.
+// already, and this insert has exactly one unique index, so the code is unambiguous.
 function isUniqueViolation(error: unknown): boolean {
   return (
     error instanceof Prisma.PrismaClientKnownRequestError &&

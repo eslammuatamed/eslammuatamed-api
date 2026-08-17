@@ -343,7 +343,7 @@ jobs:
       # `dist-ops` IS packaged: it holds the COMPILED governed operator entrypoints — the
       # production seed (doc 09 §6) and the content-synchronization CLI (doc 09 §6.2, doc 23 §4).
       # Both used to run through `ts-node` against `prisma/*.ts` files that import `../src/…`;
-      # from a pruned release that is `ts-node` ENOENT and a missing `src/` (F9-13 / F9-14).
+      # from a pruned release that is `ts-node` ENOENT and a missing `src/`.
       # `npm run build` emits it, so it is the same code the gates tested.
       - name: Package release tarball
         run: tar -czf "eslammuatamed-api-${RELEASE}.tar.gz" dist dist-ops node_modules prisma prisma.config.ts package.json package-lock.json

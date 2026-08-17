@@ -1,6 +1,6 @@
 import { Prisma } from '../../generated/prisma/client';
 
-// The ONE place that knows how Prisma reports a unique-constraint violation (F9-9).
+// The ONE place that knows how Prisma reports a unique-constraint violation.
 //
 // Prisma has moved this information between major versions, and the two shapes disagree about
 // vocabulary as well as location:

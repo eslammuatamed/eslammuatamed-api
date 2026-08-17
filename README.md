@@ -30,7 +30,7 @@ npm run start:dev             # http://localhost:3001  (Swagger UI على /docs)
 
 > **لماذا `build:ops` أولًا؟** `db:seed` و`content:sync:*` تعمل الآن من `JavaScript` **مُصرَّف** في
 > `dist-ops/` بدل `ts-node`، لأنّ إصدار الإنتاج المُقلَّم (`npm prune --omit=dev`) لا يحوي `ts-node`
-> ولا مجلّد `src/` (‏`F9-13`/`F9-14`). لم نربط البناء داخل السكربتات نفسها لأنّ `tsc` غير موجود في
+> ولا مجلّد `src/`. لم نربط البناء داخل السكربتات نفسها لأنّ `tsc` غير موجود في
 > الإنتاج، فربطُه كان سيكسر الأمر حيث يهمّ فعلًا. `npm run build` الكامل يبنيه أيضًا.
 
 > ملاحظة إعداد: الدور بلا كلمة مرور قد يُفشِل أول `migrate deploy`/`db:seed` لأن `pg_hba.conf` الافتراضي يطلب `scram-sha-256` على `127.0.0.1`؛ أضِف سطر `trust` مُقيَّدًا على loopback (انظر تعليق `.env.example` و`runbooks/setup.md` في `../eslammuatamed-docs`).

@@ -643,7 +643,7 @@ function isUniqueViolationOnContentHash(error: unknown): boolean {
 // `P2003`, and an already-deleted row arrives as `P2025` — which must NOT be caught here, or a
 // concurrent double delete would answer 409 with no usages instead of the governed 404. The code is
 // the whole test: `meta` carries the constraint name, but v7 has already moved that shape once
-// (F9-9, P2002's `meta.target`), and matching on it would buy nothing a delete on this model needs.
+// (P2002's `meta.target`), and matching on it would buy nothing a delete on this model needs.
 function isForeignKeyViolation(error: unknown): boolean {
   return (
     error instanceof Prisma.PrismaClientKnownRequestError &&

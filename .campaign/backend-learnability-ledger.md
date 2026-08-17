@@ -221,6 +221,38 @@ live *owner-decision* pointers in operational config, not as completed-campaign 
 CI config is arguably not a "code-adjacent learning document". Deliberately left open rather
 than swept in; the guard-widening slice must answer it before flagging those files.
 
+### D-15 — A hyphen before a token hides it from the guard, and the guard reports clean
+
+Found while retiring `F9-*`. After every known site was fixed, `npm run guard:docs` reported
+**0** remaining in the family. A guard-independent `grep -rn "F9-\|P9-"` found two more:
+
+| Site | Why the guard missed it |
+| --- | --- |
+| `src/common/filters/prisma-error-metadata.spec.ts:111` — "the pre-F9-9 fallback" | **new — see below** |
+| `prisma.config.ts:36` — "(F9-13)" | D-11 file-selection blind spot (`.ts` outside `src/`+`test/`) |
+
+The first is a distinct, second boundary defect:
+
+```
+const TOKEN_RE = /(?<![A-Za-z0-9_-])(…)(?![A-Za-z0-9_-])/g
+```
+
+The `-` inside the negative lookbehind is deliberate and correct for `ABC-123-XYZ`, where a match
+would start mid-identifier. But it cannot tell that case apart from **a hyphen used as an ordinary
+English compound prefix**, and `pre-F9-9` is exactly that: a real citation of a real archaeology
+id, invisible to the instrument.
+
+**The self-test could not have caught this, and its coverage is why.** It carries
+`foo_C-5_bar → []` — the underscore case, added after that bug was found once. There is no
+hyphen-prefix case, because a self-test only ever asserts the defects its author already thought
+of. Three separate blind spots have now been found in this guard (D-9 pattern family, D-11 file
+selection, D-15 boundary), and **all three were found from outside it** — by peer review, by a
+repo-wide sweep, and by a guard-independent grep run after the guard said clean.
+
+**Operating rule for the rest of the campaign, and for the exit gate:** a family is retired when a
+guard-independent `grep` says so, never when `guard:docs` says so. The guard is the regression
+gate; it is not the measurement.
+
 ### D-14 — The SpecKit task ids are not unresolvable, they are AMBIGUOUS — seven numbering spaces
 
 D-9 classified `T1`…`T11` as "referential" archaeology and sized the repair as *name the real

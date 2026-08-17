@@ -145,7 +145,7 @@ describe('Prisma 7 runtime errors through AllExceptionsFilter (e2e)', () => {
       expect(known.code).toBe('P2002');
       expect(known.constructor.name).toBe('PrismaClientKnownRequestError');
 
-      // F9-9 — the shape the fix is built on, pinned so a future Prisma change is loud.
+      // The shape the fix is built on, pinned so a future Prisma change is loud.
       //
       // Prisma 6 (Rust engine) put the conflicting fields in `meta.target`. Prisma 7 + PrismaPg
       // does NOT populate `meta.target` at all: the information lives at
@@ -154,7 +154,7 @@ describe('Prisma 7 runtime errors through AllExceptionsFilter (e2e)', () => {
       //
       // `uniqueConstraintFields` reads exactly this and normalizes it. If a future version moves
       // or renames it again, this assertion fails and names the new location — rather than the
-      // API silently losing its field paths, which is precisely how F9-9 shipped.
+      // API silently losing its field paths, which is precisely how the original defect shipped.
       expect(known.meta?.target).toBeUndefined();
       const adapterError = (
         known.meta as {
@@ -235,7 +235,7 @@ describe('Prisma 7 runtime errors through AllExceptionsFilter (e2e)', () => {
       // The P2002 arm is the only one that attaches `errors`; its presence proves the response
       // came from `fromPrisma`, not from the DTO ValidationPipe or the generic 500 arm.
       expect(Array.isArray(conflict.body.errors)).toBe(true);
-      // The F9-9 regression test, asserted by VALUE.
+      // The regression test, asserted by VALUE.
       //
       // `article_translations` maps `locale` and `slug` with no @map, so this pair alone could
       // pass without any normalization at all. The mapped snake_case case is covered by the
@@ -248,7 +248,7 @@ describe('Prisma 7 runtime errors through AllExceptionsFilter (e2e)', () => {
     });
 
     it('reports a MAPPED column under its API name, never its database name', async () => {
-      // The load-bearing F9-9 regression test.
+      // The load-bearing regression test.
       //
       // `locale` and `slug` above carry no `@map`, so that case would pass even with normalization
       // deleted. This one cannot: `article_translations` maps `articleId` to the column
