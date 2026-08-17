@@ -147,6 +147,30 @@ them from current-state docs, and it must not be overstated in the final report.
 > by `2>/dev/null`. The control is the only reason this was caught. Every resolution count in this
 > ledger was re-taken with a passing positive control in the same command.
 
+### D-9 — A second archaeology family, hyphenless, larger than the first (found by peer review)
+
+Codex's cold-reader probe flagged `F004` in `src/modules/redirects/README.md` as feature-history
+framing. Verified, and it generalised: the guard's `TOKEN_RE` requires a hyphen, so an entire
+family was invisible to it.
+
+| Family | Occurrences |
+| --- | ---: |
+| SpecKit task id (`T1`…`T11`) | 58 |
+| spelled feature id (`Feature 003`) | 23 |
+| campaign phase (`Phase 12A`) | 10 |
+| compact feature id (`F004`) | 5 |
+| **total** | **96 across 39 files** |
+
+Larger than the 68 hyphenated occurrences. **The instrument was reporting under half the debt**,
+and it was peer review — not the instrument, and not its self-test — that exposed it. That is the
+peer model doing exactly the job the charter assigns it.
+
+**Repair bucket C — referential, not prefix.** `C-5:` is a citation prefix and strips cleanly.
+These are used *referentially*: `media-processing.types.ts:4` reads "so **T6** persists it without
+a mapping", where `T6` stands in for a component with a real name. Deleting the token leaves the
+sentence subject-less. The repair is to name the actual component — which makes this bucket the
+highest-value learnability work found so far, not merely the largest.
+
 ---
 
 ## 3. Instruments built
@@ -225,13 +249,29 @@ Both agents review each other continuously, not only at the final PR. A decision
 evidence, not on which agent proposed it. Disagreements are recorded here in the
 Claim / Evidence / Alternative / Trade-off / Resolution form.
 
-**Open design question (probe in flight):** whether Codex can reliably assess *Arabic technical
-prose* learnability. A probe on one Arabic module README is running specifically to settle this.
-If it cannot, lanes split deliberately — Codex on structure, prerequisites, code-claim
-verification and test pedagogy; Claude on Arabic prose learnability — recorded here as a resolved
-design decision rather than discovered mid-campaign.
+**RESOLVED — no lane split needed.** The probe (`src/modules/redirects/README.md`) settled it:
+Codex assesses Arabic technical prose reliably. The evidence is not its self-assessment but its
+output — it caught a genuine *semantic* defect that a fluency-only read would miss, by comparing
+the Arabic phrasing against the English source comment it was compressing
+(`README.md:27` vs `redirect.service.ts:81-85`: "slug مُحرَّر" reads as "the slug being edited
+now", when the actual cause is a *different entity* reusing a slug freed by the rename).
 
-**Recorded disagreements:** none yet.
+So both agents review both structure and Arabic prose. Lanes divide by artifact, not by language.
+
+**Probe also validated the review format.** On one 48-line README it produced 2 MAJOR truth
+defects, 1 MAJOR rot finding, 3 prerequisite gaps and 3 omissions, every claim carrying file:line
+on both sides. Two are worth carrying forward as *general* checks, because neither is specific to
+`redirects`:
+
+- **Response-envelope omission.** The README documents the response as `{ toPath }`, but every 2xx
+  is wrapped by the global `ResponseEnvelopeInterceptor` into `{ data: { toPath } }`. The entity
+  file's own comment says so; the README does not carry it over. A reader following only the
+  document gets the body shape wrong. **Check every module README for this.**
+- **Compression that drops the causal "why".** The doc kept *what* the code does and lost *why*,
+  which is precisely the content a learning document exists to carry.
+
+**Recorded disagreements:** none yet. Codex's findings were verified and accepted, and its `F004`
+flag directly produced D-9.
 
 ---
 
@@ -250,13 +290,14 @@ Completed:
 - [x] D-6 resolved (dangling reference confirmed); D-7 and D-8 established with controls
 - [x] Module dependency graph + size/test signal extracted (input to the difficulty model)
 
+- [x] Codex Arabic cold-reader probe returned; §5 question resolved, D-9 opened
+
 In flight (delegated):
 - [ ] **Governance lookup** — are `D17-5` / `D23-18` (the release freeze) still ACTIVE, or
       retired? Gates every edit that touches freeze language. Production having shipped is not
       the same fact as the decision being retired; if the freeze is still normative, deleting the
       citation would make code-adjacent docs contradict governing docs — which is stop condition 3,
       not a documentation fix.
-- [ ] **Codex Arabic cold-reader probe** on `src/modules/redirects/README.md` — settles §5.
 
 Not started: learning architecture, prerequisite graph, difficulty model, module template,
 testing curriculum, flow traceability, comment cleanup execution, cold-reader exit gate.
