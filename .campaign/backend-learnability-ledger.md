@@ -1268,6 +1268,40 @@ one place every module README already points at.
 so a later reader does not mistake confirmation for proof — the model was cheap to falsify and
 was not falsified, which is all that can be claimed.*
 
+## 10d. The curriculum's strongest claim was its wrongest — and the rule I had just written
+
+I flagged "exactly ONE file uses `Test.createTestingModule`, so Nest DI is untested at the unit
+layer" to the reviewer as the document's strongest claim and asked for it to be attacked. It fell,
+and it fell to one `grep`: **three** files boot the real DI container, via **two** mechanisms —
+`Test.createTestingModule` in one, `NestFactory.create` in two `src/common/throttling/` specs.
+
+**The conclusion got stronger while the sentence got falsified.** All three boot a *hand-built*
+test module, never the production `imports:` graph — so real module wiring is not merely
+"essentially" untested at the unit layer, it is untested *entirely*. But "exactly ONE" was a false
+count a skeptical reader could refute in seconds, in a document whose whole subject is tests that
+look convincing and prove nothing. It also silently absorbed those three files into the "pure unit
+(no Nest, no DB)" row, contradicting that row's own definition. Both fixed; the three now have
+their own row.
+
+*The uncomfortable part: I asked for this claim to be challenged because I suspected it, and I was
+right to suspect it — but I shipped it first and asked second.*
+
+**And the second MINOR is the rule I wrote three commits earlier, unapplied one line away.**
+§5c added: *when a defect is fixed in one file, sweep for its wording repo-wide.* `e9ea4f8` fixed
+"76 lines" to state its metric — and left "١٤٧ سطر" for `redirects` in the **same numbered list,
+one step below**, with the identical reproducibility gap and the identical fix available. A rule
+written for identifiers, extended to claims, and still not applied to *numbers* in the same
+paragraph.
+
+**Rule sharpened, since twice is a pattern:** a fix is not done when the file is clean; it is done
+when the **same shape** is clean — same wording, same metric, same claim — across the whole repo,
+checked by a command, not by memory of what one was editing.
+
+*Also corrected quietly: my line-counting script added one phantom line per file to RAW counts
+(splitting on `\n` yields a trailing empty element). `wc -l` is authoritative — `redirects` is 195
+raw, not 200. Code counts are unaffected, because the counter skips blank lines, so §10's table
+stands.*
+
 ## 5c. The pipe-order defect had TWO more instances, and I edited past one of them
 
 A single-file fix is not a repo-wide fix. §5b recorded the pipe-order MAJOR as fixed in
