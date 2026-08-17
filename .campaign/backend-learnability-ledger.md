@@ -641,8 +641,29 @@ open findings on all three questions — verifying by *running* things, not re-r
 match current behaviour. It also independently endorsed both deliberate keeps (the `T1`/`T2`
 transaction labels, and leaving the applied migration untouched for the checksum reason).
 
-**A fourth pass was requested** on `7f7a505` (the β-family retirement), because verifying one of
-that pass's own citations produced new work — see D-16. Its result is recorded in §9's gate table.
+**The fourth pass, on `7f7a505` (the β-family retirement), did NOT return.** Requested because
+verifying one of the third pass's own citations produced new work (D-16); the agent went idle
+twice without a verdict and a final call went unanswered. Recorded plainly rather than left to
+look reviewed.
+
+**Its subject was verified per-site by the author instead**, applying the rule §5 added after the
+wrong-class MAJOR — the same substitution class, so it was not left on assertion:
+
+| Claim introduced in `7f7a505` | Verified against | Result |
+| --- | --- | --- |
+| "THE SEAM IS `reply-http-delivery`'S" | `reply-http-delivery.e2e-spec.ts:23,288` — "Exactly ONE thing is replaced: `MAIL_TRANSPORT`" | correct |
+| "the delivery suite's `createOperator` grants `messages.read` AND…" | same file `:240,248` — `['messages.read','messages.reply']` | correct |
+| "that suite runs with the SMTP group OFF" | `utils/e2e-mail-env.ts` is imported **only** by `reply-http-security.e2e-spec.ts:4` | correct |
+| "the delivery suite's recovery test uses a freshly-created row" | `reply-http-delivery.e2e-spec.ts:576,741–772` | correct |
+| `e2e-mail-env.ts` → "`reply-http-security` asserts the configured sender and owner destination" | `reply-http-security.e2e-spec.ts:19,41–44` — `OWNER_EMAIL`, `ownerNotificationTo`, "configured sender" | correct |
+| "the `reply-http-*` suites own the full HTTP matrix" | `ls test/` — glob matches exactly `reply-http-delivery` + `reply-http-security`, correctly excluding `reply-delivery` | correct |
+| `users.service.ts` "no public HTTP surface at all — registers no controller" | `users.module.ts` — `providers`/`exports` only, **no `controllers` array** | correct |
+
+**This is a weaker result than a peer pass and is labelled as such.** Author verification catches
+"does this name the right file", which is what the MAJOR was; it is structurally poor at catching
+"is this the right thing to say at all", which is what a second reader adds. The three delivered
+passes covered slices 1–5 and the fix; **`7f7a505` and everything after it carries author
+verification only.** Phase 2 should open one peer pass over `7f7a505..HEAD` before the PR.
 
 ### Response-envelope obligation — CLOSED
 
