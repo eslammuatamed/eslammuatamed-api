@@ -11,7 +11,7 @@ import {
 } from './utils/e2e-app';
 
 // Proves the BATCH `$transaction([...])` form is still atomic against real PostgreSQL under
-// Prisma 7.9.1 + PrismaPg (9C-7).
+// Prisma 7.9.1 + PrismaPg.
 //
 // The interactive form — `$transaction(async tx => ...)` — is proven elsewhere and deliberately
 // not duplicated here:

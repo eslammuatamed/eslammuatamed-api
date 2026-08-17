@@ -38,7 +38,7 @@ export function deriveProviderIdempotencyKey(replyId: string): string {
 //
 // A PENDING row means no terminal outcome was recorded — which honestly covers both "the send was
 // never made" and the hard case, "the provider accepted it and the status write did not land". The
-// row cannot tell those apart (11A deliberately has no claim marker), so the only safe re-attempt
+// row cannot tell those apart — there is deliberately no claim marker — so the only safe re-attempt
 // is one the PROVIDER would recognise as a duplicate and refuse to send twice.
 //
 // The deadline is measured from `createdAt`, which is conservative in the safe direction and

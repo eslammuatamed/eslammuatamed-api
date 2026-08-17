@@ -13,7 +13,7 @@ import { loadApiSpec } from './utils/contract';
 
 // Proves the Prisma 7 + PrismaPg runtime still produces error objects that `AllExceptionsFilter`
 // recognizes, using REAL PostgreSQL failures rather than a mocked
-// `Prisma.PrismaClientKnownRequestError` (9C-8).
+// `Prisma.PrismaClientKnownRequestError`.
 //
 // WHY this is worth a dedicated spec: the filter dispatches on `exception instanceof
 // Prisma.PrismaClientKnownRequestError`, where `Prisma` is imported from the GENERATED client. A
@@ -608,7 +608,7 @@ describe('Prisma 7 runtime errors through AllExceptionsFilter (e2e)', () => {
     // Recorded rather than asserted-away: the filter HAS a P2025 arm (verified against a real
     // P2025 in section A and unit-tested in all-exceptions.filter.spec.ts), but every admin
     // mutation loads the row first and throws NotFoundException, so no HTTP path reaches it.
-    // This bounds the 9C-8 claim honestly instead of inventing an endpoint to reach the arm.
+    // This bounds the claim honestly instead of inventing an endpoint to reach the arm.
     it('answers an absent article with a 404 from the service, not the Prisma arm', async () => {
       const missing = await request(httpServer(app))
         .delete(`/api/v1/admin/articles/${ABSENT_ID}`)

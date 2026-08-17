@@ -647,10 +647,45 @@ open findings on all three questions — verifying by *running* things, not re-r
 match current behaviour. It also independently endorsed both deliberate keeps (the `T1`/`T2`
 transaction labels, and leaving the applied migration untouched for the checksum reason).
 
-**The fourth pass, on `7f7a505` (the β-family retirement), did NOT return.** Requested because
-verifying one of the third pass's own citations produced new work (D-16); the agent went idle
-twice without a verdict and a final call went unanswered. Recorded plainly rather than left to
-look reviewed.
+**The fourth pass DID return — late, after this ledger had recorded it as not returning — and it
+was the most valuable pass of the campaign.** The "did not return" entry was written in good faith
+and was wrong; corrected here rather than deleted, as with the earlier §5 correction.
+
+Its Q1 and Q2 were CLEAN and matched my seven per-site verifications exactly, line for line. **Its
+Q3 was not clean, and it blocked the exit gate I had just declared satisfied.** It found a
+chronology family of ~27 occurrences across 18 files that every instrument had missed:
+
+| Shape | Why every instrument missed it | Sites |
+| --- | --- | ---: |
+| Greek **α** (`11B-α`, `α's …`, `9C-α`) | Latin-only patterns — the *sibling* of the β family I had just retired | 11 |
+| bare `11A` / `11B` (no suffix) | no hyphen, no id shape at all — just a phase number in prose | 6 |
+| `9C-7`…`9C-11`, `9D-7`, `9D-8` | **digit-first**; `TOKEN_RE` requires 1–4 *leading uppercase* letters | 7 |
+| `Stage 2C` | an orphaned citation to *another campaign's* stage numbering | 2 |
+| bare `M1` in `access-control/dto/user.dto.ts` | my own `M1` sweep found two and missed this one | 1 |
+
+**Two of these were not dead citations but FALSE claims**, which is why this pass mattered more
+than its size suggests:
+
+1. **`idempotency-key.pipe.ts` asserted something the code deliberately does not do.** "in 11B
+   this value becomes a provider idempotency header" — it never does. `deriveProviderIdempotencyKey()`
+   derives the provider key from **the persisted row id and nothing else**, and
+   `provider-idempotency.ts` names the client's header explicitly as a value it refuses to use
+   ("an opaque value it may reuse across messages"); `mail-message.ts:23` says the same. Three
+   files agreed and the pipe contradicted all three. The CR/LF rejection is still correct — it was
+   the stated *reason* that was false — so the rule was kept and the reason rewritten.
+2. **`users.service.ts` — my own slice-5b repair was misleading by omission.** I wrote "No public
+   HTTP surface at all", technically true of that module. But operator-account CRUD **is** exposed
+   over HTTP by `AccessControlModule`'s `users.admin.controller.ts` (`/admin/users`), writing
+   `prisma.user` directly. A learner would have concluded operator accounts have no admin API. Now
+   states both halves.
+
+**The lesson this pass forces, and it supersedes D-16's optimism.** D-16 concluded that the fix
+for alphabet-blindness was "read files, don't only sweep". That was right and insufficient: I then
+retired the β family **without checking whether it had siblings**, and α was sitting in the same
+files. Retiring a family is not evidence about the family next to it. **Rule: when a marker family
+is found, enumerate the space it belongs to before declaring it retired** — if `β` exists, look for
+`α` and `γ`; if `9C-8` exists, look for `9C-*` and `9D-*`; if `Stage 2C` exists, ask whose stages
+those are.
 
 **Its subject was verified per-site by the author instead**, applying the rule §5 added after the
 wrong-class MAJOR — the same substitution class, so it was not left on assertion:
@@ -665,11 +700,10 @@ wrong-class MAJOR — the same substitution class, so it was not left on asserti
 | "the `reply-http-*` suites own the full HTTP matrix" | `ls test/` — glob matches exactly `reply-http-delivery` + `reply-http-security`, correctly excluding `reply-delivery` | correct |
 | `users.service.ts` "no public HTTP surface at all — registers no controller" | `users.module.ts` — `providers`/`exports` only, **no `controllers` array** | correct |
 
-**This is a weaker result than a peer pass and is labelled as such.** Author verification catches
-"does this name the right file", which is what the MAJOR was; it is structurally poor at catching
-"is this the right thing to say at all", which is what a second reader adds. The three delivered
-passes covered slices 1–5 and the fix; **`7f7a505` and everything after it carries author
-verification only.** Phase 2 should open one peer pass over `7f7a505..HEAD` before the PR.
+**Author verification is weaker than a peer pass, and this campaign now has the experiment to
+prove it.** My seven per-site checks on `7f7a505` were all correct — and the peer, reviewing the
+same commit, agreed with all seven *and then found 27 things I had not thought to look for*.
+Author verification answers the questions the author already has. It does not generate new ones.
 
 ### Response-envelope obligation — CLOSED
 

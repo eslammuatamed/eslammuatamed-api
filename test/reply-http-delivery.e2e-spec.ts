@@ -139,7 +139,8 @@ class FakeSmtpTransport {
   }
 
   // Shaped as the sliver of Nodemailer's Transporter that MailService actually uses. Cast at the
-  // override site rather than implementing the full interface — the same approach the α suite takes
+  // override site rather than implementing the full interface — the same approach
+  // `reply-delivery.e2e-spec.ts` takes
   // for its own fake, and the cast is checked by the fact that a wrong shape fails at runtime here.
   sendMail(options: {
     to?: unknown;
@@ -507,9 +508,9 @@ describe('Reply delivery over HTTP (e2e)', () => {
 
         // `.then()` is what DISPATCHES a supertest request — a `Test` object builds lazily and
         // issues no HTTP until subscribed to. Without it these are unsent request objects, the
-        // barrier below never sees two blocked backends, and the race never happens. (11A learned
-        // this the hard way: a lazy request object used as a barrier signal passes green and
-        // proves nothing.)
+        // barrier below never sees two blocked backends, and the race never happens. This was
+        // learned the hard way: a lazy request object used as a barrier signal passes green and
+        // proves nothing.
         const pendingA = postReply(
           messageId,
           key,

@@ -10,7 +10,7 @@ import { AppConfigModule } from '../src/config/config.module';
 import { PrismaModule } from '../src/prisma/prisma.module';
 import { createPrismaClient } from '../src/prisma/standalone-client';
 
-// Reply delivery against a REAL PostgreSQL, at the service/database seam (11B-α §26).
+// Reply delivery against a REAL PostgreSQL, at the service/database seam.
 //
 // Deliberately not through HTTP. What needs a real database here is the persistence half of the
 // state machine — that one logical key yields exactly one row no matter how many callers race for

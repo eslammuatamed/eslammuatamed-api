@@ -29,7 +29,8 @@ export class CreateUserDto {
   readonly isActive?: boolean;
 }
 
-// PATCH: role assignment and activation (doc 10 §5). Password changes are out of scope for M1.
+// PATCH: role assignment and activation (doc 10 §5). Password changes are out of scope for this
+// DTO — no password-change or reset endpoint exists.
 export class UpdateUserDto {
   @ApiPropertyOptional({ format: 'uuid' })
   @IsOptional()

@@ -54,7 +54,8 @@ describe('IdempotencyKeyPipe', () => {
     expect(pipe.transform(value)).toBe(value);
   });
 
-  // CR/LF is the load-bearing rejection: in 11B this value becomes a provider header, and a newline
+  // CR/LF is the load-bearing rejection: this value is client-controlled and reaches log lines
+  // and the database, and a newline
   // in a header is the classic injection vector (doc 19 §6). Excluded at the boundary rather than
   // scrubbed at the point of use, so no future call site can forget to scrub it.
   it.each([
@@ -81,7 +82,7 @@ describe('IdempotencyKeyPipe', () => {
     ]);
   });
 
-  // The rejected value is client-chosen and travels into logs and, in 11B, a provider header.
+  // The rejected value is client-chosen and travels into logs.
   // Reflecting it would put unvalidated input on a response for no diagnostic gain.
   it('never echoes the rejected value back to the client', () => {
     const hostile = 'x\r\nBcc:attacker@example.com';

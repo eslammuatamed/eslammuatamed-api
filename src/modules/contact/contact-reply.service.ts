@@ -164,7 +164,7 @@ export class ContactReplyService {
   }
 
   // What a same-key request does about an attempt that already exists. The answer depends entirely
-  // on the status it finds, and the three answers are genuinely different (11B-α §6):
+  // on the status it finds, and the three answers are genuinely different:
   //
   //   SENT    return it. The logical attempt already succeeded; there is nothing to do.
   //   FAILED  return it, send NOTHING. A replay must not silently re-send — the client repeated a

@@ -28,7 +28,7 @@ import {
 // the Nodemailer transport, the last object before the network — plus `MAIL_RETRY_BACKOFF_MS` to
 // collapse the retry schedule to a single attempt. Everything above the token is production code:
 // the guards, the pipes, the controller, `ContactReplyService`, `ContactMailService`, `MailService`,
-// the RFC 7807 filter and the envelope interceptor. Faking `ContactMailService` (α's domain seam)
+// the RFC 7807 filter and the envelope interceptor. Faking `ContactMailService` (the domain seam)
 // would bypass message construction, the recipient invariant and the provider header, which are
 // precisely what §16 exists to prove.
 //
@@ -479,7 +479,7 @@ describe('Reply security, history and reliability over HTTP (e2e)', () => {
 
     // The other side of the boundary, at the HTTP layer, and it is NOT ceremony.
     //
-    // α's `provider-idempotency.spec.ts` already pins the predicate to the millisecond on both
+    // `src/modules/contact/provider-idempotency.spec.ts` already pins the predicate to the millisecond on both
     // sides plus the backwards clock, and the stale test above proves the service honours a `false`
     // result end to end. What neither proves is that the service compares against the REAL window:
     // The delivery suite's recovery test uses a freshly-created row (elapsed ≈ 0), so it would still pass if the
