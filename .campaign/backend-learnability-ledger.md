@@ -1259,6 +1259,41 @@ one place every module README already points at.
 so a later reader does not mistake confirmation for proof — the model was cheap to falsify and
 was not falsified, which is all that can be claimed.*
 
+## 10b. The module README template — measured, not designed
+
+`readme-survey` extracted every heading from the 17 module READMEs and normalised them by meaning.
+The finding that shaped the deliverable: **a template already existed and was already being
+followed** — six sections appear in 15–17 of 17 files. Nothing needed inventing; it needed naming,
+so a new module stops rediscovering it by guesswork.
+
+| Section | of 17 |
+| --- | :-: |
+| Responsibility · File map · Tests-and-what-they-prove | 17 |
+| Wiring map · Official-docs + compatibility | 16 |
+| Contracts & invariants | 15 |
+| *"How this module differs"* **or** *a flow walkthrough* | 10 + 5 |
+| Common mistakes | 7 |
+| Accepted limits / deferred | 6 |
+
+**The one genuine structural choice** is the seventh row: "differs from the archetype" and "flow
+walkthrough" are alternatives filling one slot, and **15 of 17 carry exactly one**. Codified as a
+choice with a rule for picking (a *rule* → write "differs"; a *sequence* → write the flow), rather
+than as two optional sections, because the data says modules already treat them as exclusive.
+
+**The line-3 archetype pointer is 17/17** — the single most consistent thing in the corpus. That
+consistency is what makes the envelope, guard-chain and status-code explanations affordable to
+write once here instead of 17 times, so the template states it as unbreakable.
+
+**Deliberately NOT made a rule: length.** 37 to 136 lines, and the survey's depth verdicts
+(3 reference, 11 mixed, 3 explanatory) do not track length. A line target would be a metric that
+looks like a standard and measures nothing.
+
+**Structural outlier recorded, not fixed:** `mail` is missing three near-universal sections
+(wiring map, contracts, official-docs) and adds three of its own. It is the only module that is
+structurally a different document. Whether that is a defect or a legitimate difference (it is the
+only module with **no HTTP surface at all**) is a phase-2 judgement call, deferred rather than
+swept into a template change.
+
 ## 5b. The pipe-order MAJOR — a right answer reached by a wrong mechanism
 
 The peer review of `2aa031f` found the one defect class a teaching document can least afford: the
