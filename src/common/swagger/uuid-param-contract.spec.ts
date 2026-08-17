@@ -16,9 +16,10 @@ import { TagsAdminController } from '../../modules/taxonomy/tags.admin.controlle
 import { TestimonialsAdminController } from '../../modules/testimonials/testimonials.admin.controller';
 
 /**
- * `ParseUUIDPipe` runs before the global `ValidationPipe` and answers a malformed
- * `:id` with **400** — a status no request body or query explains, and one that a client can hit
- * on every one of these routes. Before this phase exactly two of the 35 said so in OpenAPI.
+ * A malformed `:id` answers **400** — a status no request body or query explains, and one a
+ * client can hit on every one of these routes. The global `ValidationPipe` actually runs first
+ * (Nest orders global pipes ahead of param-bound ones) but no-ops on a primitive route parameter,
+ * so `ParseUUIDPipe` is what decides. See `src/modules/README.md` for the full layer order.
  *
  * Owner policy: a route that can deterministically return 400 because its declared path parameter
  * is parsed by the standard `ParseUUIDPipe` SHOULD document that 400 — and a route that cannot

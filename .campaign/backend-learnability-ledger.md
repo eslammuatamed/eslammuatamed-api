@@ -1268,6 +1268,33 @@ one place every module README already points at.
 so a later reader does not mistake confirmation for proof — the model was cheap to falsify and
 was not falsified, which is all that can be claimed.*
 
+## 5c. The pipe-order defect had TWO more instances, and I edited past one of them
+
+A single-file fix is not a repo-wide fix. §5b recorded the pipe-order MAJOR as fixed in
+`src/modules/README.md`. It was — and the same false claim was sitting in two source files:
+
+| Site | How it read |
+| --- | --- |
+| `src/common/swagger/api-problem-response.ts:70` | "`ParseUUIDPipe` runs **BEFORE** the global `ValidationPipe`" |
+| `src/common/swagger/uuid-param-contract.spec.ts:19` | "`ParseUUIDPipe` runs before the global `ValidationPipe`" |
+
+**I had already edited the first of those files, in slice 5, and read straight past this.** That
+edit rewrote the line *immediately below* ("measured in Phase 11B-β2" → "measured against the real
+pipe order"), so I was reading for chronology markers and the false mechanism one line up was
+invisible to me. **An edit pass sees the defect class it is hunting and is blind to every other
+one in the same paragraph.**
+
+Worse, the phrase I substituted — "measured against the real pipe order" — *reinforced* the wrong
+claim by asserting it had been measured. It had not.
+
+Both are corrected to the verified mechanism, and the repo-wide sweep for the claim now returns
+zero. Found by the peer while doing an unrelated measurement task, which is the third time this
+campaign's most useful findings arrived as a by-product of someone reading for a different reason.
+
+**Rule added:** when a defect is fixed in one file, sweep for its *wording* repo-wide before
+recording it as fixed — the campaign already had this rule for *identifiers* (D-11, D-15, D-16)
+and had never applied it to *claims*.
+
 ## 10b. The module README template — measured, not designed
 
 `readme-survey` extracted every heading from the 17 module READMEs and normalised them by meaning.
