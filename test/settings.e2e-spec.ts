@@ -206,7 +206,7 @@ describe('Settings (e2e)', () => {
     expect(res).toSatisfyApiSpec();
   });
 
-  it('clears the container id with an explicit null (D10-25)', async () => {
+  it('clears the container id with an explicit null (D10-23)', async () => {
     await request(httpServer(app))
       .patch('/api/v1/admin/settings')
       .set('Authorization', `Bearer ${ownerToken}`)
@@ -229,7 +229,7 @@ describe('Settings (e2e)', () => {
     expect(envelopeData<AdminSettings>(cleared).gtmContainerId).toBeNull();
   });
 
-  it('clears a verification token with an explicit null (D10-25)', async () => {
+  it('clears a verification token with an explicit null (D10-23)', async () => {
     // Same shape for the other withdrawable head/tag field, and self-contained for the same reason:
     // it SETS the token first so the null assertion cannot pass against an already-empty column.
     await request(httpServer(app))

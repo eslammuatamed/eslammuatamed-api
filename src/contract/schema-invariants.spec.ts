@@ -172,7 +172,7 @@ describe('exported contract — a nullable scalar must never erase to `type: obj
 });
 
 /**
- * Second contract invariant (D10-25): READ and WRITE must agree on nullability.
+ * Second contract invariant (D10-23): READ and WRITE must agree on nullability.
  *
  * ── WHY THIS EXISTS ─────────────────────────────────────────────────────────────────────────────
  *

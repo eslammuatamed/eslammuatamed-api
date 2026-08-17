@@ -61,7 +61,7 @@ export class ArticleTranslationDto {
   @MaxLength(BODY_MAX)
   readonly body!: string;
 
-  // D10-25: the four SEO fields are nullable columns, and the SEO panel (FR-DSH-050) must be able
+  // D10-23: the four SEO fields are nullable columns, and the SEO panel (FR-DSH-050) must be able
   // to EMPTY one it previously filled. `null` clears; an omitted key leaves the stored value alone
   // (`translationWriteFields` passes `undefined` straight to Prisma, which treats it as a no-op).
   // Both meanings are load-bearing, so both are in the contract.
@@ -182,7 +182,7 @@ export class UpdateArticleDto {
   @IsEnum(ContentStatus)
   readonly status?: ContentStatus;
 
-  // D10-25. Three meanings, and the service now honours all three: omit to keep the stored instant,
+  // D10-23. Three meanings, and the service now honours all three: omit to keep the stored instant,
   // send `null` to UNSCHEDULE (clears the column, except on a direct PUBLISH which stamps now to
   // keep list ordering stable), send a date to set it. `nullable: true` is only correct here BECAUSE
   // the service was fixed — before that, `null` produced the Unix epoch, and declaring it nullable

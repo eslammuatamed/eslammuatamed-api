@@ -131,7 +131,7 @@ export class ProjectTranslationDto {
   @MaxLength(MARKDOWN_MAX)
   readonly lessonsLearned!: string;
 
-  // D10-25, same four SEO fields and the same reason as the article translation DTO: nullable
+  // D10-23, same four SEO fields and the same reason as the article translation DTO: nullable
   // columns whose SEO panel must be able to empty them. `null` clears, omission preserves.
   @ApiPropertyOptional({
     type: String,

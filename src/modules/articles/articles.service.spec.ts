@@ -672,7 +672,7 @@ describe('ArticlesService', () => {
   // covered by the buildRedirectOps unit test (T4) and the e2e suite (T9); here we assert solely the
   // publish-time predicate and that the returned ops land in the same $transaction as the rename.
   /**
-   * `publishAt` write semantics on PATCH (D10-25).
+   * `publishAt` write semantics on PATCH (D10-23).
    *
    * The update path read its candidate as `dto.publishAt !== undefined ? new Date(dto.publishAt) : …`.
    * `null !== undefined` is TRUE, so an explicit `null` took the conversion branch and
@@ -686,7 +686,7 @@ describe('ArticlesService', () => {
    * would still hold if `publishAt` were silently stamped 1970 in some OTHER branch, so the value is
    * asserted to be anything-but-epoch across the whole matrix rather than only where it is expected.
    */
-  describe('update publishAt semantics (D10-25)', () => {
+  describe('update publishAt semantics (D10-23)', () => {
     const enTx = {
       locale: 'en',
       title: 'T',

@@ -17,7 +17,7 @@ export class CreateRoleDto {
   @MaxLength(60)
   readonly name!: string;
 
-  // D10-25: nullable column, so `null` is accepted and stores NULL. On create that coincides with
+  // D10-23: nullable column, so `null` is accepted and stores NULL. On create that coincides with
   // omitting the key; the contract states it so a strict-TS caller can pass either.
   @ApiPropertyOptional({
     type: String,
@@ -53,7 +53,7 @@ export class UpdateRoleDto {
   @MaxLength(60)
   readonly name?: string;
 
-  // D10-25: `null` clears the description; an omitted key preserves it.
+  // D10-23: `null` clears the description; an omitted key preserves it.
   @ApiPropertyOptional({
     type: String,
     nullable: true,

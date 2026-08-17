@@ -69,7 +69,7 @@ export class SettingsTranslationDto {
   })
   readonly locale!: string;
 
-  // D10-25: every nullable column on this row accepts an explicit `null` to CLEAR it, and the
+  // D10-23: every nullable column on this row accepts an explicit `null` to CLEAR it, and the
   // contract says so. Omitting a key leaves the stored value untouched (Prisma treats `undefined`
   // as a no-op); sending `null` writes NULL. Those two meanings are distinct and both are needed —
   // there is no other way to withdraw a tagline or a default meta description once set.
@@ -335,7 +335,7 @@ export class UpdateSettingsDto {
   @Max(12)
   readonly careerStartMonth?: number | null;
 
-  // D10-25 again: a verification token must be WITHDRAWABLE. Retiring a Search Console or Bing
+  // D10-23 again: a verification token must be WITHDRAWABLE. Retiring a Search Console or Bing
   // property means the meta tag has to stop rendering, and `null` is the only way to say that —
   // omitting the key preserves the stored token. Without `nullable: true` the Web could read a
   // cleared token but never clear one, so the tag would outlive the property it verified.

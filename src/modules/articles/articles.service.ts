@@ -349,7 +349,7 @@ export class ArticlesService {
     }
 
     const nextStatus = dto.status ?? existing.status;
-    // Three distinct inputs, three distinct meanings (D10-25). The previous form tested
+    // Three distinct inputs, three distinct meanings (D10-23). The previous form tested
     // `!== undefined` and then converted unconditionally, so an explicit `null` reached
     // `new Date(null)` — the Unix EPOCH — instead of clearing the column. That produced a 1970
     // publish instant on a live article, which sorts last forever under `publishAt desc`, and it
@@ -585,7 +585,7 @@ function resolvePublishAt(
 }
 
 // The four SEO fields are `string | null | undefined` and the distinction is the whole point
-// (D10-25): Prisma reads `undefined` as "leave this column alone" and `null` as "write NULL", so
+// (D10-23): Prisma reads `undefined` as "leave this column alone" and `null` as "write NULL", so
 // widening them to `null` is what makes an omitted key and an explicit clear different operations
 // on the same upsert. This signature previously said `string | undefined` while the pipe already
 // let `null` through, so the type asserted an invariant the runtime did not hold.

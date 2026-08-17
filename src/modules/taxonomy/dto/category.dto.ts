@@ -38,7 +38,7 @@ export class CategoryTranslationDto {
   @MaxLength(120)
   readonly slug!: string;
 
-  // D10-25: nullable column, so `null` clears the description for this locale and an omitted key
+  // D10-23: nullable column, so `null` clears the description for this locale and an omitted key
   // leaves it as stored. The upsert passes the value straight to Prisma, where the two differ.
   @ApiPropertyOptional({
     type: String,

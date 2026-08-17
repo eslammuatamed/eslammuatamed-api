@@ -125,7 +125,7 @@ export class CreateContactMessageDto {
     example: 'alex@example.com',
     maxLength: 320,
     description:
-      'Optional. Trimmed before validation. At least one of `email` or `phone` is required; a supplied but malformed value is rejected rather than ignored (D10-16). `null` states "not supplied" explicitly — `isSupplied()` already treats it as empty, so a phone-only visitor may send it (D10-25).',
+      'Optional. Trimmed before validation. At least one of `email` or `phone` is required; a supplied but malformed value is rejected rather than ignored (D10-16). `null` states "not supplied" explicitly — `isSupplied()` already treats it as empty, so a phone-only visitor may send it (D10-23).',
   })
   @TrimOptionalIfString()
   @ValidateIf(
@@ -147,7 +147,7 @@ export class CreateContactMessageDto {
     nullable: true,
     example: '+201002785408',
     description:
-      'Optional. E.164 international format — the API stores an international number, never a display-formatted one; human spacing is normalized away before validation. At least one of `email` or `phone` is required (D10-16). `null` states "not supplied" explicitly, which is what the Web\'s `normalizePhone()` returns for an empty entry (D10-25).',
+      'Optional. E.164 international format — the API stores an international number, never a display-formatted one; human spacing is normalized away before validation. At least one of `email` or `phone` is required (D10-16). `null` states "not supplied" explicitly, which is what the Web\'s `normalizePhone()` returns for an empty entry (D10-23).',
   })
   @NormalizePhoneIfString()
   @ValidateIf((_, value: unknown) => isSupplied(value))
