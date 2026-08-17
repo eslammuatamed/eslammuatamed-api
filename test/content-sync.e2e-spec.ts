@@ -367,7 +367,7 @@ describe('stale content converges', () => {
       data: {
         googleSiteVerification: 'operator-token',
         analyticsEnabled: true,
-        analyticsProvider: 'ga4',
+        gtmContainerId: 'GTM-ABCD123',
       },
     });
 
@@ -376,7 +376,53 @@ describe('stale content converges', () => {
     const after = await prisma.siteSettings.findFirstOrThrow();
     expect(after.googleSiteVerification).toBe('operator-token');
     expect(after.analyticsEnabled).toBe(true);
-    expect(after.analyticsProvider).toBe('ga4');
+    expect(after.gtmContainerId).toBe('GTM-ABCD123');
+  });
+
+  it('never deletes an operator-authored PageSeo row (D09-24, D10-24)', async () => {
+    // Until the SEO module shipped, nothing could create a `page_seo` row, so "the sync leaves it
+    // alone" was vacuously true. Now that the Dashboard authors these rows it is real behaviour worth
+    // pinning: the canonical dataset has no concept of static-page metadata, so a sync that reconciled
+    // it would delete the owner's SEO copy on every run.
+    //
+    // WHAT THIS PROVES, PRECISELY. It is a behavioural regression guard, not a proof of the
+    // `PROTECTED_MODELS` entry. Two negative-control mutations were run and NEITHER broke it: removing
+    // `PageSeo` from `PROTECTED_MODELS`, and moving it into `GOVERNED_MODELS`. The reason is that
+    // `build-plan` iterates the CANONICAL DATASET and skips anything non-governed (`isGoverned`,
+    // build-plan.ts) — a governed model with no canonical source is never iterated at all, so no plan
+    // step is ever emitted for `page_seo` regardless of either list. The allowlist entry's actual job is
+    // to put the row count into the plan's protected-count report, which makes an unexpected change
+    // VISIBLE; its membership is asserted separately in `prisma/sync/allowlist.spec.ts`.
+    //
+    // So this case would fail if someone gave `PageSeo` a canonical-dataset source — which is exactly
+    // the change that would start destroying operator SEO copy, and the one worth catching.
+    await syncOnce();
+
+    const created = await prisma.pageSeo.create({
+      data: {
+        pageKey: 'about',
+        locale: 'en',
+        metaTitle: 'Operator-authored title',
+        metaDescription: 'Operator-authored description.',
+      },
+    });
+    // CONTROL: the row is really there before the sync, so a surviving row below is the protection
+    // working rather than an assertion against something that was never written.
+    expect(
+      await prisma.pageSeo.findUnique({ where: { id: created.id } }),
+    ).not.toBeNull();
+
+    await syncOnce();
+
+    const after = await prisma.pageSeo.findUnique({
+      where: { id: created.id },
+    });
+    expect(after).not.toBeNull();
+    expect(after?.metaTitle).toBe('Operator-authored title');
+    expect(after?.metaDescription).toBe('Operator-authored description.');
+
+    // Leave the database as this suite found it — later cases assert on governed-model counts.
+    await prisma.pageSeo.delete({ where: { id: created.id } });
   });
 
   it('removes a stale governed Project and keeps its MediaAsset', async () => {

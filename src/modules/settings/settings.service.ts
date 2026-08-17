@@ -61,16 +61,12 @@ export class SettingsService {
       careerStartMonth: settings.careerStartMonth,
       googleSiteVerification: settings.googleSiteVerification,
       bingSiteVerification: settings.bingSiteVerification,
-      // A disabled analytics tag is never advertised to the client (FR-DSH-052, D20-5).
-      analytics:
-        settings.analyticsEnabled &&
-        settings.analyticsProvider &&
-        settings.analyticsMeasurementId
-          ? {
-              provider: settings.analyticsProvider,
-              measurementId: settings.analyticsMeasurementId,
-            }
-          : null,
+      // A disabled container is never advertised to the client (FR-DSH-052, D20-5, D02-14). The
+      // stored id stays readable on the admin surface; withholding it here is what makes "off"
+      // observable as an absence rather than as a flag the client has to be trusted to honour.
+      gtmContainerId: settings.analyticsEnabled
+        ? settings.gtmContainerId
+        : null,
       customMetas: toCustomMetas(settings.customMetas),
       // Public résumé descriptor (FR-PUB-023): the download URL/filename/size only — never the bare
       // asset id. The FK is PDF-guarded on write (T6); the kind check here is defence in depth.
@@ -173,6 +169,25 @@ export class SettingsService {
         : settings.careerStartMonth;
     validateCareerStart(careerStartYear, careerStartMonth);
 
+    // Tracking coherence (D02-14). Resolved against the MERGED state, not the request, because a
+    // PATCH may supply either half: enabling on its own is valid when a container is already stored,
+    // and clearing the container on its own must not leave the switch on. Rejecting the incoherent
+    // pair here is what lets the public contract collapse "disabled" and "unconfigured" into one
+    // `null` — the state that would distinguish them cannot be stored in the first place.
+    const analyticsEnabled =
+      dto.analyticsEnabled !== undefined
+        ? dto.analyticsEnabled
+        : settings.analyticsEnabled;
+    const gtmContainerId =
+      dto.gtmContainerId !== undefined
+        ? dto.gtmContainerId
+        : settings.gtmContainerId;
+    if (analyticsEnabled && !gtmContainerId) {
+      throw new UnprocessableEntityException(
+        'analyticsEnabled requires a gtmContainerId; set the container id or disable tracking.',
+      );
+    }
+
     const operations: Prisma.PrismaPromise<unknown>[] = [
       this.prisma.siteSettings.update({
         where: { id: settings.id },
@@ -272,9 +287,8 @@ export class SettingsService {
       careerStartMonth: settings.careerStartMonth,
       googleSiteVerification: settings.googleSiteVerification,
       bingSiteVerification: settings.bingSiteVerification,
-      analyticsProvider: settings.analyticsProvider,
-      analyticsMeasurementId: settings.analyticsMeasurementId,
       analyticsEnabled: settings.analyticsEnabled,
+      gtmContainerId: settings.gtmContainerId,
       customMetas: toCustomMetas(settings.customMetas),
       translations,
     };
@@ -291,9 +305,8 @@ function buildSettingsUpdate(
     careerStartMonth: dto.careerStartMonth,
     googleSiteVerification: dto.googleSiteVerification,
     bingSiteVerification: dto.bingSiteVerification,
-    analyticsProvider: dto.analyticsProvider,
-    analyticsMeasurementId: dto.analyticsMeasurementId,
     analyticsEnabled: dto.analyticsEnabled,
+    gtmContainerId: dto.gtmContainerId,
   };
   if (dto.profileLinks) {
     data.profileLinks = dto.profileLinks.map((link) =>

@@ -68,6 +68,12 @@ export const PROTECTED_MODELS = [
   'MediaAssetVariant',
   'Testimonial',
   'TestimonialTranslation',
+  // Static-page SEO (FR-DSH-051). The REASON changed when the SEO module shipped (D10-24) and the
+  // classification did not, which is worth stating explicitly: this used to be unreachable — nothing
+  // could write a `page_seo` row at all — and it is now operator-authored through the Dashboard. So
+  // it is protected on the same grounds as `portraitAlt` is operator-owned: the canonical dataset has
+  // no concept of static-page metadata, so a synchronization that governed it would write null over
+  // the owner's SEO copy on every run.
   'PageSeo',
   'SlugRedirect',
   'Locale',
@@ -124,9 +130,8 @@ export const OPERATOR_OWNED_SETTINGS_SCALARS = [
   'portraitAssetId',
   'googleSiteVerification',
   'bingSiteVerification',
-  'analyticsProvider',
-  'analyticsMeasurementId',
   'analyticsEnabled',
+  'gtmContainerId',
   'customMetas',
 ] as const;
 

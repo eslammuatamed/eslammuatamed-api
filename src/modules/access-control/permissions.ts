@@ -53,6 +53,15 @@ export const PERMISSIONS = [
   'messages.reply',
   'settings.read',
   'settings.update',
+  // Static-page SEO (FR-DSH-051, D09-24). Named `seo.*` after the module and the Dashboard route
+  // (doc 07 §2, doc 04 §1), and scoped to the `page_seo` rows only: FR-DSH-052's global head/tag
+  // fields live on the settings singleton and stay under `settings.*`, because the authorization
+  // boundary follows the data rather than the screen the operator sees them on.
+  //
+  // Only read and update exist, matching the routes exactly — the page set is code-defined, so there
+  // is nothing to create or delete (D19-11c: no key ahead of the enforcement that gives it meaning).
+  'seo.read',
+  'seo.update',
   'roles.read',
   'roles.create',
   'roles.update',
