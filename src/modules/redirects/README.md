@@ -12,7 +12,7 @@
 |---|---|
 | `redirects.controller.ts` | `GET /api/v1/redirects/resolve?locale&path` عام (`@Public`) — `Cache-Control: no-store` |
 | `redirect.service.ts` | `resolve()` + `buildRedirectOps()` (مُصدَّرة للمقالات/المشاريع) |
-| `dto/*` · `entities/*` | استعلام `?locale&path` + ردّ `{ toPath }` |
+| `dto/*` · `entities/*` | استعلام `?locale&path` + حمولة `{ toPath }` (الجسم على السلك هو هذه الحمولة داخل الغلاف المشترك — انظر [`src/modules/README.md`](../README.md)) |
 
 ## خريطة الاتصال
 

@@ -237,6 +237,44 @@ live *owner-decision* pointers in operational config, not as completed-campaign 
 CI config is arguably not a "code-adjacent learning document". Deliberately left open rather
 than swept in; the guard-widening slice must answer it before flagging those files.
 
+### D-16 — A whole family in a non-Latin alphabet, invisible to all three instruments
+
+The last family found, and the one that best explains why "the guard is green" was never the
+exit criterion. `11B-β1`, `11B-β2`, `β-1`, `β1`, `β2`, `β-3` — **13 occurrences across 5 test
+files**, campaign-phase chronology exactly like `Phase 12A`.
+
+**Every instrument built in this campaign was blind to it, for three independent reasons:**
+
+| Instrument | Why it missed the family |
+| --- | --- |
+| `guard:docs` `TOKEN_RE` | `[A-Z]{1,4}\d{0,2}-\d+` is Latin-only; `β` is not in `A-Z` |
+| `guard:docs` `CAMPAIGN_PHRASES` | patterns spell `Feature`/`Phase`/`T<n>` in Latin; no Greek alternative |
+| my guard-independent sweeps | I wrote `[A-Za-z]`-based expressions for the same reason |
+| D-15's hyphen defect | `11B-β1` is hyphen-preceded too, so even a Greek-aware `TOKEN_RE` would have skipped it |
+
+**How it was actually found: by pulling on a citation, not by any sweep.** The peer review said
+the "measured against the real pipe order" claim in `api-problem-response.ts` was backed by a real
+test and named `test/reply-http-security.e2e-spec.ts:738`. Verifying *that* claim meant opening
+*that* file — whose own comment carried `β-3` twice. Nothing was searching for it; it was read.
+
+**The lesson, and it outranks the cleanup.** Three of this campaign's four blind spots (D-9, D-11,
+D-15) were found by a *better sweep*. This one could not be, because **a sweep can only find the
+alphabet its author thought to write.** The instruments agree with each other precisely where they
+share an assumption, so "two independent instruments agree" is weaker evidence than slice 5
+concluded — they were not independent in the way that mattered. What found this was a human-shaped
+act: following a reference into a file and reading it.
+
+**Rule added:** the exit gate cannot be a sweep result alone. It requires at least one pass where
+a reader *opens files and reads them* for content the sweeps were never told to look for.
+
+**One repair was the D-13 defect for the second time.** `prisma/schema.prisma` read
+"Skills, experiences, testimonials (schema-complete; **no M1 module**)" while all three modules
+exist and are registered in `app.module.ts`. That is the same schema file claiming a second time
+that shipped modules do not exist. `src/modules/users/users.service.ts`'s "no public surface in
+M1" was, by contrast, **true** — verified: `UsersModule` declares `providers` and `exports` and
+**no `controllers` array at all** — so it was kept, rewritten present-tense rather than deleted.
+Retiring chronology is not a licence to delete the fact attached to it.
+
 ### D-15 — A hyphen before a token hides it from the guard, and the guard reports clean
 
 Found while retiring `F9-*`. After every known site was fixed, `npm run guard:docs` reported
@@ -569,10 +607,32 @@ whether it was *true*.
 **Standing rule added:** any campaign edit that substitutes a specific identifier for a vague one
 must be verified against the implementation **per site**, never per family.
 
-**Residual exit-gate item.** The two passes covered slices 1–5's source and `PROJECT_GUIDE.md`.
-They did **not** cover: the ledger's own prose, `src/modules/README.md`'s rewritten index beyond
-the module list, or the slice-5 phrase edits, which landed after the cumulative diff was captured.
-One further peer pass over `f7bd434..HEAD` closes it.
+**Residual pass: CLEAN.** The third pass covered slice 5 and the finding-1 fix, and returned no
+open findings on all three questions — verifying by *running* things, not re-reading prose: it ran
+`uuid-param-contract.spec.ts` (3/3, `toHaveLength(35)` still correct against live reflection), ran
+`npm audit` and `npm audit --omit=dev` (both 0) to check a `ci.yml` claim, and grepped
+`projects.service.ts`/`skills.service.ts` to confirm the past-tense "once caught P2002" claims
+match current behaviour. It also independently endorsed both deliberate keeps (the `T1`/`T2`
+transaction labels, and leaving the applied migration untouched for the checksum reason).
+
+**A fourth pass was requested** on `7f7a505` (the β-family retirement), because verifying one of
+that pass's own citations produced new work — see D-16. Its result is recorded in §9's gate table.
+
+### Response-envelope obligation — CLOSED
+
+The Codex probe's general check ("every module README documents the payload but the global
+`ResponseEnvelopeInterceptor` wraps every 2xx into `{ data: … }`") was swept, by reading rather
+than grepping. **The architecture was already right and needed no rule restated:**
+`src/modules/README.md` — the archetype every module README's first line points at — states the
+envelope twice (the read-flow diagram, and "every response passes through a uniform envelope
+`{ data }` / `{ data, meta }`"). Per convention 4.A that is the correct single owner, and a module
+README repeating it would be the duplication that produced D-12.
+
+Two sites were genuinely ambiguous and were disambiguated rather than duplicated:
+`redirects/README.md:15` and `preview/README.md:16` each labelled a file-map cell "ردّ `{ … }`"
+(*response* `{ … }`), where the cell actually describes the DTO/entity **payload**. Both now say
+"حمولة" (*payload*) and point at the archetype for the wire shape. No other module README asserts
+a bare wire body.
 
 
 
@@ -622,12 +682,9 @@ tired judgement.
 Not started: learning architecture, prerequisite graph, difficulty model, module template,
 testing curriculum, flow traceability, cold-reader exit gate.
 
-**Two obligations carried into phase 2, neither optional:**
-1. **One more peer pass over `f7bd434..HEAD` (§5).** The two Codex passes covered slices 1–5's
-   source and `PROJECT_GUIDE.md` and produced one MAJOR finding, now fixed. They did not see the
-   slice-5 phrase edits or this ledger's prose.
-2. **The response-envelope check (§5).** Every module README still needs checking for the
-   `{ data: … }` wrapper omission the Codex probe found in `redirects`. Never swept.
+**Both phase-1 obligations are now CLOSED (§5):** the peer passes ran and their findings are
+resolved, and the response-envelope sweep is done. Nothing from phase 1 is carried into phase 2
+except the conventions in §4 and the instrument rules in D-15/D-16.
 
 ## 7. Slice queue
 

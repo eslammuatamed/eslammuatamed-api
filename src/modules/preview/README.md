@@ -13,7 +13,7 @@
 | `preview-token.service.ts` | `mint()`/`verify()` — HMAC عديم الحالة، `verify` لا يرمي أبدًا (`D19-7`) |
 | `preview.admin.controller.ts` | سكّ الرمز (`@RequirePermission('articles.update')` / `('projects.update')`) — 200 + `no-store` |
 | `preview.controller.ts` | استهلاك عام (`@Public`) — تحقّق الرمز ثمّ `getPreviewById` + `no-store` |
-| `dto/preview-consume.query.dto.ts` · `entities/preview-token.entity.ts` | استعلام `?token&locale` + ردّ `{ token, url, expiresAt }` |
+| `dto/preview-consume.query.dto.ts` · `entities/preview-token.entity.ts` | استعلام `?token&locale` + حمولة `{ token, url, expiresAt }` (داخل الغلاف المشترك) |
 
 ## خريطة الاتصال
 
