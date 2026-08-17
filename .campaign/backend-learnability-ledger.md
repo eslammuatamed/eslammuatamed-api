@@ -221,6 +221,44 @@ live *owner-decision* pointers in operational config, not as completed-campaign 
 CI config is arguably not a "code-adjacent learning document". Deliberately left open rather
 than swept in; the guard-widening slice must answer it before flagging those files.
 
+### D-14 — The SpecKit task ids are not unresolvable, they are AMBIGUOUS — seven numbering spaces
+
+D-9 classified `T1`…`T11` as "referential" archaeology and sized the repair as *name the real
+component*. Sizing it up for slice 3 found the actual defect is worse than D-9 recorded, and it
+changes the argument for fixing them.
+
+`.specify/specs/` holds **seven** feature specs, and **each restarts its task numbering at `T1`.**
+A bare `T7` in a source comment does not name one thing; it names one of seven, and nothing in
+the comment says which spec is in scope:
+
+| Token | Feature 003 (media) | Feature 004 (redirects/contact/preview) | Feature 008 (profile) |
+| --- | --- | --- | --- |
+| `T5` | Processing service | Contact module | Experiences technology |
+| `T6` | Media module orchestration | Preview module + `getPreviewById` | Permanent FTS guard |
+| `T7` | Public media descriptors | Auto-on-rename in articles/projects | Deterministic seeds |
+
+**The collision is not theoretical — it occurs twice inside one file, four lines apart.**
+`src/modules/articles/articles.module.ts`:
+
+- line 11 — "exports the descriptor resolver for public reads (`T7`)" → **feature 003's** `T7`
+- line 12 — "`update()` can push `buildRedirectOps` into its rename transaction (`D04-6`, `T7`)"
+  → **feature 004's** `T7`
+
+Two different `T7`s, same file, adjacent lines, no disambiguator. `articles.service.spec.ts` does
+the same across `T4`/`T9` (feature 004) and `T7` (feature 003).
+
+**Consequence for the repair.** "Add a pointer to the spec" is not an available fix — there is no
+single spec to point at, and a reader who guessed would land on a real but wrong task. Naming the
+component is not the *nicer* repair, it is the only correct one. It also makes the sentences
+resolvable by a reader who never opens `.specify/` at all, which is the point.
+
+> **False-positive class — do not sweep these.** `test/media.e2e-spec.ts:426`–`453` uses `T1` and
+> `T2` as **transaction labels** in the uncommitted-FK race barrier ("`T2`: create the reference
+> and hold it uncommitted"; "`T1`: the delete"). That is ordinary concurrency vocabulary, defined
+> in its own comments, and it is correct as written. A mechanical `T<n>` purge would have
+> destroyed the clearest explanation of the hardest test in the suite. Any agent given this slice
+> must be told to discriminate by *use*, not by shape — which is why it was not delegated blind.
+
 ### D-12 — Classifying the module index by deployment state silently lost a module
 
 `src/modules/README.md`, the module archetype document, split its index into two
