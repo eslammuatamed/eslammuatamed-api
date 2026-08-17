@@ -16,19 +16,19 @@
 > sweep — are CLOSED, not carried forward. Nothing from phase 1 is owed except the conventions in
 > §4 and the instrument rules below.
 >
-> **Verify before doing anything** (zero-trust, per the campaign's own rule):
+> **Read §0 first, then verify it** (zero-trust, per the campaign's own rule):
 > ```
 > git -C <worktree> rev-parse origin/campaign/backend-learnability   # campaign tip
 > git -C <worktree> rev-parse origin/dev origin/main                 # both MUST be 9af1aac…
 > npm run guard:docs:selftest && npm run guard:docs                  # 43/43, then GREEN
 > ```
-> The §9 commit table is generated from `git log`, so it is the authority on what landed.
+> §0 carries the commit count and the tip. The §9 table is a point-in-time list and goes stale by
+> construction — `git log 9af1aac..HEAD` is the only authority on what landed.
 >
-> **One thing is owed before the PR, not before phase 2 starts:** a single peer pass over
-> `7f7a505..HEAD`. The three delivered passes covered slices 1–5 and the wrong-class fix; the
-> fourth was requested and never returned, so everything from `7f7a505` on carries author
-> verification only (§5 records exactly what was verified and how). This does not block design
-> work — it blocks opening the PR.
+> **⚠ THIS BLOCK STATES NO STATUS, DELIBERATELY.** Four times now, a status claim written here or
+> in §6 was true when written and false a few commits later. Status lives in **§0 — CURRENT STATE**
+> and nowhere else. If you find a count, a phase, a "final", an "authority" or a review verdict
+> anywhere outside §0, treat it as historical narrative fixed at its commit, not as current fact.
 >
 > **Phase 2 is the learning architecture** — prerequisite graph, difficulty model, module
 > template, testing curriculum, flow traceability, cold-reader exit gate. It is a DESIGN job.
@@ -75,6 +75,39 @@
 > numbers and campaign chronology, which the documents it governs are not.
 
 ---
+
+## 0. CURRENT STATE — the ONLY place status lives
+
+**Rule that creates this section.** A peer audit found six MAJOR contradictions in this file, and
+every one was a claim that was true when written and never revisited when superseded — the fourth
+time this ledger committed the defect the campaign exists to remove. The cause was structural, not
+careless: status was written in five places (resume block, §3, §6, §7b, §9), so every change had
+to be made five times or the file lied. **It is now written in one place. Everything outside this
+section is historical narrative, fixed at the commit that wrote it, and may be stale by design.**
+
+*This section is updated at every checkpoint, before the commit that makes it true — never after.*
+
+| Fact | Value |
+| --- | --- |
+| Branch | `campaign/backend-learnability` |
+| Baseline | `9af1aac` (`origin/dev` = `origin/main`, unchanged and untouched) |
+| Commits on branch | see `git rev-list --count 9af1aac..HEAD` — do not trust a number typed here |
+| Phase 1 (corpus cleanup) | **CLOSED.** archaeology 68→0, rot 25→0, phrases 96→5 (all deliberate keeps) |
+| Phase 2 (learning architecture) | **IN PROGRESS.** See §7b for dispatches, §9b for the model, §10 for measurements |
+| `guard:docs` | GREEN; self-test 43/43 |
+| Tests | 61 suites / 1273 tests |
+| PR | none opened. Campaign ends at a PR; no promotion, no deploy |
+
+### Review debt — the one number that must never be optimistic
+
+| Range | Status |
+| --- | --- |
+| Baseline → `eff70d3` (slices 1–5c) | **peer-reviewed**, findings resolved |
+| `2aa031f` — the archetype status-code section | **UNREVIEWED.** A real documentation change, not ledger prose |
+| All other commits after `eff70d3` | ledger prose only |
+
+**Gates the PR, not phase 2.** Do not discharge by author verification (§5 records why that is
+strictly weaker).
 
 ## 1. Authoritative baseline
 
@@ -576,7 +609,7 @@ Arabic cases are first-class in the suite: `\b` is undefined over Arabic codepoi
 matcher uses explicit `[^A-Za-z0-9_-]` lookarounds instead.
 
 **Reading at phase-0 close:** 68 archaeology + 25 rot — the debt the campaign retires.
-**FINAL PHASE 1 READING:** **0 archaeology + 0 rot + 5 phrases, all deliberate keeps.** `guard:docs` is GREEN, corroborated by a
+**Reading, as of slice 5 (superseded by §0 — do not quote this line as current):** `guard:docs` is GREEN, corroborated by a
 guard-independent sweep. Campaign phrases (hyphenless, outside the pass/fail gate) stand at 30,
 down from 96 — the remaining open work. The rot class is fully retired; convention
 4.D now holds across the whole scanned corpus. Archaeology remains the open half of the gate.
@@ -823,10 +856,9 @@ blind spot), **D-12** (state-classified index lost the `mail` module), **D-13** 
 learner four implemented modules did not exist), **D-14** (task ids ambiguous across seven
 numbering spaces), **D-15** (a hyphen prefix hides a token from the guard).
 
-**Phase 2 — learning architecture. NOT STARTED, and deliberately not started in this session.**
-It is a design job that should begin from a clean corpus and a fresh context, with this ledger as
-its only input. Starting it at the tail of six implementation slices is how design work inherits
-tired judgement.
+**Phase 2 — learning architecture.** *Status moved to §0.* It was deliberately not begun in the
+session that closed phase 1, so that it started from a clean corpus rather than inheriting tired
+judgement at the tail of six implementation slices. That sequencing held.
 
 Not started: learning architecture, prerequisite graph, difficulty model, module template,
 testing curriculum, flow traceability, cold-reader exit gate.
@@ -986,29 +1018,19 @@ Results land in **§10** (below) as compact tables. If a dispatched agent never 
 recorded here as review debt in the same terms §5 uses — never silently upgraded into
 "verified".
 
-### Review debt — restated precisely, because it has materially shrunk
+### Review debt — see §0
 
-Slice 5c's pass returned **CLEAN on all three questions**, and it verified rather than re-read:
-it traced `contact-reply.service.ts:220` → `contact-mail.service.ts` → `mail.service.ts:104-109`
-to confirm the client key never reaches the provider header, and confirmed the *other* half of
-that rewritten claim by reading `pino-logger.config.ts:46-64` — `req.headers` is logged wholesale
-and the idempotency header is **not** in `redact.paths`, so "travels into log lines" is literally
-true. It ran a positive control on its own sweep regexes (planted `11B`, `M1`, `Stage 2C`; all
-three fired), so its clean Q3 is a real negative, not a broken instrument.
+*Moved.* This section restated the debt and immediately began drifting: it named a range ending at
+`a0fd971` while later commits kept landing, and it missed that `2aa031f` is a **source-touching**
+documentation change rather than ledger prose. Restating status in a second place is what produced
+the six-contradiction audit; the numbers now live in §0 only.
 
-**Current debt — exact:**
-
-| Commits | Review status |
-| --- | --- |
-| Slices 1, 1b, 2, 3, 4, 4a, 5 + the wrong-class fix | peer-reviewed |
-| `7f7a505` (slice 5b) | peer-reviewed — Q1/Q2 clean; its Q3 produced slice 5c |
-| `eff70d3` (slice 5c) | peer-reviewed — CLEAN |
-| Ledger-prose commits after `eff70d3` (`bc30b05` → `a0fd971`) | **unreviewed** — this file's own prose only, no source touched |
-
-**So the debt is now confined to this ledger's prose.** No source or documentation change on the
-branch is unreviewed. Stated this precisely rather than carrying forward the older, larger claim,
-because overstating debt is as much a truthfulness failure as understating it — and understating
-it is the one that ships. Still a **PR** gate, not a phase-2 blocker (owner direction).
+What belongs here is the *evidence*, which does not go stale: slice 5c's pass verified rather than
+re-read — it traced `contact-reply.service.ts:220` → `contact-mail.service.ts` →
+`mail.service.ts:104-109` to confirm the client key never reaches the provider header, and read
+`pino-logger.config.ts:46-64` to confirm the other half (`req.headers` logged wholesale, the
+idempotency header absent from `redact.paths`). It ran a positive control on its own sweep regexes
+before reporting a clean sweep, so that negative is real.
 
 **Observation logged, not acted on (out of campaign scope, pre-existing):** the pino request
 serializer logs all request headers and does not redact the client `Idempotency-Key`. That is a
@@ -1066,8 +1088,34 @@ failures are silent (D=3), and those call for opposite responses: the first need
 order**, the second needs **worked examples and tests that discriminate**. The output of this model
 is therefore a **profile per module**, and the prerequisite graph is built from axis A alone.
 
-*Scoring happens in §10 once the measurements land. If the data contradicts either prediction, the
-contradiction is recorded there and the model is changed — not the prediction.*
+### "Hardest to START with" — pinned, and pinned LATE
+
+Peer review found the falsifiability gap: prediction 1 turns on "hardest to start with", the model
+refuses to sum its axes, and no rule said which axis that phrase meant. As written, a later reader
+could pick whichever axis made the prediction land — which defeats the entire point of committing
+it early.
+
+**Pinned: "hardest to start with" = axis A (prerequisite depth) alone**, consistent with §9b's own
+"the prerequisite graph is built from axis A alone". Under that definition, longest dependency
+chain from a root:
+
+`contact` → `mail` (root) = **depth 1**. `redirects` → `locales` (root) = **depth 1**.
+`preview` → `articles`/`projects` → `media`/`redirects` → `locales` = **depth 3**, the deepest.
+
+**The honest part: this was pinned AFTER the measurements landed and after prediction 1 was scored
+CONFIRMED in §10.** The scoring in §10 leaned on concept load (axis B), not axis A. So the
+pre-registration did not do the work it was written to do — the term it hinged on was undefined at
+the moment it mattered, and I resolved it post hoc, which is the exact failure mode pre-registration
+exists to prevent.
+
+**Re-scored under the pinned definition, which is the only scoring that counts:** `contact` is
+depth 1, so it is NOT hardest to start with — **prediction 1 holds on axis A too**, and it happens
+not to matter that the definition arrived late. *It could easily have mattered.* Recorded at full
+strength rather than quietly repaired, because "the prediction survived anyway" is exactly the
+sentence that would let this recur.
+
+*If the data contradicts a prediction, the contradiction is recorded and the model changes — not
+the prediction.*
 
 ## 10. Phase 2 measurements
 
@@ -1239,8 +1287,8 @@ Arabic character — which a changed line of code could satisfy by accident. Re-
 instrument that cannot be fooled that way: compile the baseline and the branch with
 `tsc --removeComments` and diff the **emitted JavaScript**.
 
-Across all **45** touched TypeScript files, the emitted JS differs in exactly **five string
-literals** and nothing else:
+Across every touched TypeScript file, the emitted JS differs in exactly **six string literals**
+and nothing else:
 
 | Emitted difference | Kind |
 | --- | --- |
@@ -1251,12 +1299,17 @@ literals** and nothing else:
 | `` `…proves nothing about the C-6 race.` `` → `` `…proves nothing about the race.` `` | barrier-timeout diagnostic |
 | `` `[β1 §9] concurrent same-key: …` `` → `` `[concurrent same-key] …` `` | `console.log` label (slice 5b) |
 
-**Zero executable statements changed, across the whole campaign.** Re-taken at the final tip, so
-this table is the complete picture and not a per-slice snapshot. The running count was corrected
-twice: commit messages first said "four `describe()` labels", then five strings; the true figure
-is **six string literals** — four test labels and two diagnostic messages. Recorded here because
-the ledger, not any commit message, is the durable record, and because a number that was restated
-twice is exactly the kind a reader should be able to see settled in one place.
+**Zero executable statements changed.** The figure was restated three times over this campaign
+(four `describe()` labels → five strings → six), which is exactly why it is settled here rather
+than reconstructed from a commit trail.
+
+**This measurement carries a date, not a claim of finality.** An earlier version of this paragraph
+said it was "re-taken at the final tip" and covered "45 touched TypeScript files". Both were wrong:
+the tip moved 10 commits past the re-take, and the file count was never 45 at any tip (68 `.ts`
+files are touched at the current one). *A measurement that calls itself final is a status claim
+wearing a measurement's clothes* — see §0. The conclusion was re-verified at the current tip and
+still holds at six strings; the count of files it ranges over is deliberately not restated, because
+that number moves and this one does not.
 
 A hand-written comment-stripper was tried first and reported six files differing, one of them
 (`media-usage-invariant.spec.ts`) a pure comment change. **It was leaking comment text into the
@@ -1315,6 +1368,22 @@ would have read as 32 new defects.
 | `558d392` | docs(learnability): the route count is enforced, not merely recorded |
 | `7f7a505` | docs(learnability): retire the 11B-beta and M1 chronology families (slice 5b) |
 | `23da6e0` | docs(learnability): close the response-envelope obligation and record D-16 |
+| `78579b1` | docs(campaign): make the ledger's own commit table true again |
+| `443aa00` | docs(campaign): hand Phase 1 over — resume block rewritten for Phase 2 |
+| `ad4955d` | docs(campaign): settle the emitted-JS figure at the final tip |
+| `9e6e7ab` | docs(campaign): record that the fourth peer pass never returned |
+| `4d6109f` | docs(campaign): note the one thing owed before the PR |
+| `eff70d3` | docs(learnability): retire the alpha, digit-first and Stage families (slice 5c) |
+| `bc30b05` | docs(campaign): record D-17 — the R* family is live governance, nearly retired |
+| `ccceb7f` | docs(campaign): verify D-17's "harmless elsewhere" claim instead of asserting it |
+| `78710bd` | docs(campaign): carry the two newest rules into the Phase 2 handoff |
+| `4398d6d` | docs(campaign): the phase-0 dependency graph was never recorded here |
+| `a0fd971` | docs(campaign): open Phase 2 with a durable in-flight register |
+| `2ac8c48` | docs(campaign): slice 5c peer pass returned CLEAN — restate the debt exactly |
+| `368d892` | docs(campaign): pre-register the difficulty model before the data lands |
+| `2aa031f` | docs(learnability): explain which layer decides the status code (phase 2) |
+| `a6d27f8` | docs(campaign): record the Phase 2 measurements and score the predictions |
+| `a464ed2` | docs(campaign): reconcile the delegated datasets, correcting two of my numbers |
 
 **Pushed to `origin/campaign/backend-learnability` as a durability checkpoint only.** No PR was
 opened. `dev` and `main` were not touched. Nothing was deployed.
