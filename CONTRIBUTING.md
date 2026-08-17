@@ -1,13 +1,16 @@
 # Contributing — branching & deployment (API)
 
 ## Branches
+
 - **`main`** — production, and the GitHub default branch. Every commit on `main` is deployed automatically (see below). Protected **by project policy**, not by GitHub (see the Free-plan note).
 - **`dev`** — development / integration. Feature work lands here first, then promotes to `main`.
 
 ## Release freeze (active — until the Website/Homepage phase)
+
 `main` is **frozen at the current production baseline** by owner directive (2026-07-20) — canonical rule **doc 17 §4 / D17-5**, deployment hold **doc 23 §3 / D23-18**. `feature → PR → dev` merges continue as normal, but **no `dev → main` promotion and no production deployment** happen until the owner opens the Website/Homepage phase and explicitly authorizes it (deploy workflows are unchanged). The full rule lives in doc 17 / doc 23 and is **not restated here**.
 
 ## Normal flow
+
 ```
 feature/<slug>   (branch from dev)
   → PR to dev → CI green → merge to dev
@@ -15,10 +18,12 @@ feature/<slug>   (branch from dev)
   → PR dev → main → owner merge
   → CI re-verifies the exact main SHA → automatic production deployment
 ```
+
 - Source branches for `dev` PRs: `feature/*`, `fix/*`, `chore/*` (bots: `dependabot/*`, `renovate/*`).
 - **Opening or updating a PR never deploys** and never sees production secrets.
 
 ## Hotfix flow
+
 ```
 hotfix/<slug>   (branch from main)
   → PR to main → CI → owner merge → automatic production deployment
@@ -26,6 +31,7 @@ hotfix/<slug>   (branch from main)
 ```
 
 ## Merge strategy & branch synchronization
+
 - **Feature / fix / chore → `dev`:** **squash merge** (preferred) — keeps `dev` one complete commit per PR.
 - **Promotion `dev` → `main`:** **merge commit** — never squash or rebase a `dev → main` promotion. A squash gives `main` a fresh commit with no shared ancestry to `dev`, leaving the branches content-identical but historically divergent.
 - **After a successful `main` deployment** (and, for a `server-verification-required` promotion, after the predefined server checks pass): **fast-forward `dev` to the new `main` merge commit**, so `dev` and `main` share history at their tips.
@@ -34,12 +40,15 @@ hotfix/<slug>   (branch from main)
 - **A zero-file content diff is not sufficient** — `dev` and `main` must also share ancestry (`git merge-base --is-ancestor origin/main origin/dev` is true after a sync). This synchronization rule applies **independently per repository**; coordinated API/Web releases still go **API first, then Web**.
 
 ## Documentation & Handoff Gate (required before delivery)
+
 Every feature's **final task** is the mandatory **Documentation & Handoff Gate** — canonical rule **doc 16 §5.1 / D16-8** ([`16-development-conventions.md`](../eslammuatamed-docs/docs/16-development-conventions.md)). Until it passes, the feature must **not** be pushed, PR'd, merged to `dev`, promoted to `main`, or deployed — "not requested" is never a reason to skip it. The Arabic module docs and SpecKit closeout are always required; other doc changes may be justified. The full rule lives in doc 16 and is **not restated here**.
 
 ## Development/demo seed data (required for data-backed flows)
+
 Every feature that adds or changes a data-backed flow ships **deterministic development/demo seed data** before it is complete — canonical rule **doc 16 §5.2 / D16-9**, mechanics in **doc 09 §6 / D09-15**. The production seed is `prisma/seed.ts` (`npm run db:seed`); the **development-only overlay** is `prisma/seed.dev.ts` (`npm run db:seed:dev`), which runs on top of it and is **never wired to the Prisma `seed` key** — so `prisma db seed` / migrations never trigger it and it never runs in production. It must be idempotent (existence-guarded creates / upserts on stable slugs — no `deleteMany`, no reset), bilingual (`en` + `ar`), and grounded in the owner profile with no invented metrics. Clean-environment checks run against a **throwaway test database with an external temporary environment**; **never** read, overwrite, delete, print, or regenerate the real local `.env`. The full rule lives in doc 16 and is **not restated here**.
 
 ## Promotion cases — when `dev` → `main` is allowed
+
 Code may be promoted from `dev` to `main` in **exactly two cases**:
 
 **Case 1 — completed and verified work (the normal case).** The agreed scope is complete; all applicable unit/integration/E2E/contract/typecheck/lint/build checks pass; `dev` integration is green; documentation and configuration are accurate; no known blocker remains; the owner makes the final promotion decision.
@@ -49,6 +58,7 @@ Code may be promoted from `dev` to `main` in **exactly two cases**:
 **Production is not a general testing environment.** Do not promote incomplete work because local testing is inconvenient. Stop and require a staging environment instead when server testing could damage or expose real data, require a destructive migration/reset/drop, interrupt production materially, expose incomplete or insecure functionality, send real external messages/transactions, alter existing R2 objects or user content unsafely, make rollback uncertain, or require experimenting with secrets/authentication.
 
 ## Automatic deployment (from green `main`)
+
 - **Triggers (three, converging on one exact-SHA path):**
   - `push` to `main` — the **happy path** (a merged promotion or authorized push).
   - **Merged-PR fallback** — `deploy-fallback.yml` fires on `pull_request: closed` into `main` (merged only), validates the exact merge SHA against the current `main` tip, and dispatches `deploy.yml` with `target_sha`. It exists because the `push` event is **empirically dropped by GitHub at times** (proven in the trigger audit); the merged-PR event is delivered independently, so both events missing is far less likely than one. The dispatcher holds **no production secrets** and never runs PR-branch code.
@@ -62,13 +72,17 @@ Code may be promoted from `dev` to `main` in **exactly two cases**:
 - One deployment at a time (`concurrency: deploy-api-production`, never cancelled).
 
 ## Rollback
+
 Each release is a self-contained `releases/<ts>` behind the `current` symlink. If the post-cutover `/api/v1/health` gate fails, the deploy **automatically rolls back** (repoints `current` to the previous release + `systemctl restart`). The schema is untouched (fix-forward). Manual form is in `.github/workflows/deploy.yml`.
 
 ## Coordinated API + Web releases
+
 The repos deploy **independently**. For a cross-repo contract change: **deploy API `main` first**, verify its health + backward compatibility, **then** promote Web `main` (which regenerates its types from the committed `openapi.json`). Do not merge coordinated API + Web promotions simultaneously.
 
 ## ⚠️ Free-plan reality — branch policy is procedural, not GitHub-enforced
+
 This is a **private repo on GitHub Free**: **branch protection, rulesets, and environment required-reviewers are unavailable**. Therefore:
+
 - **Direct pushes to `main` are prohibited by policy, but GitHub will not block them** — always go through a PR.
 - The CI **branch-policy guard is advisory**: it reports an unexpected promotion path but cannot block a merge.
 - **Red PRs must not be merged** (procedural discipline).
@@ -76,6 +90,34 @@ This is a **private repo on GitHub Free**: **branch protection, rulesets, and en
 - Do **not** use `[skip ci]` on a commit that reaches `main` — GitHub would skip the deploy workflow; recover with a `workflow_dispatch` run on `main`.
 
 ## Local environment files — never touched by tests
+
 - `<repo-root>/.env` is the developer's real local environment: untracked (`.gitignore`), boot-validated, and possibly holding locally entered credentials. **No test, script, CI step, or contract-export check may overwrite, replace, or delete it.**
-- A check that needs a clean/template environment must use an **external temporary env file or directory** (e.g. a temp copy outside the working tree pointed at via the tool's env-path option) **or a trap-based backup/restore guard** that restores the original on success, failure, *and* interruption — a plain `cp .env.example .env … rm -f .env` sequence is forbidden in the real checkout.
+- A check that needs a clean/template environment must use an **external temporary env file or directory** (e.g. a temp copy outside the working tree pointed at via the tool's env-path option) **or a trap-based backup/restore guard** that restores the original on success, failure, _and_ interruption — a plain `cp .env.example .env … rm -f .env` sequence is forbidden in the real checkout.
 - Incident record (2026-07-19): an OpenAPI-idempotence check ran exactly that sequence in the primary checkout and destroyed the developer's `.env` (locally entered R2 values lost). This rule exists so that never recurs.
+
+## Dependency overrides — all TEMPORARY, each needs an exit condition
+
+`package.json` cannot carry comments, so every `overrides` entry is justified here. An override is a
+workaround for someone else's dependency graph, never a permanent design choice: each one below states
+the condition that retires it. **Scope every entry to its parent package** (`"parent": { "child": "…" }`) —
+a bare `"child": "…"` entry rewrites the version for _every_ consumer in the tree, now and in future.
+
+| Override                                  | Reason                                                                                                                                                                                                                           | Retire when                                                                                                                                                                                                                                                                      |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `openapi-validator` → `axios`             | pre-existing                                                                                                                                                                                                                     | upstream ships a non-vulnerable `axios` range                                                                                                                                                                                                                                    |
+| `@nestjs/swagger` → `js-yaml`             | pre-existing                                                                                                                                                                                                                     | upstream ships a non-vulnerable `js-yaml` range                                                                                                                                                                                                                                  |
+| `@prisma/config` → `deepmerge-ts: ^8.0.1` | **CVE-2026-40345 / GHSA-ggr8-5vv4-36mx** (high, CWE-674). `@prisma/config@7.9.1` **exact-pins** `deepmerge-ts@7.1.5`, so no package manager can dedupe to the patched 8.0.0+ and `npm audit --audit-level=high` blocks every PR. | **Prisma publishes a `@prisma/config` that depends on `deepmerge-ts >= 8.0.0`** — tracked upstream at [prisma/prisma#30052](https://github.com/prisma/prisma/issues/30052). Then delete this entry, `npm install`, and confirm `npm ls deepmerge-ts` shows the upstream version. |
+
+### On the `deepmerge-ts` override specifically (added 2026-08-17)
+
+Not a security emergency: the advisory is **availability-only** (CVSS v4 8.2 is `VA:H` with `VC:N/VI:N`) and
+requires a **self-referential object graph**, which `JSON.parse` cannot produce — so no HTTP request can reach
+it. The single call site is `loadConfigTsOrJs` in `@prisma/config`, which merges this repo's own
+`prisma.config.ts` at CLI/deploy time. The override was taken to unblock CI **without weakening the audit
+gate**, which stays `npm audit --audit-level=high` and blocking.
+
+Compatibility was measured, not assumed: c12 invokes the merger **once with 5 positional inputs of which
+only 1 is defined** (`extend`/`rcFile`/`giget`/`packageJson`/`dotenv` are all `false` and no `defaults` are
+passed), no `Map`/`Set` appears in the input, and `deepmerge-ts` 7.1.5 and 8.0.1 produce **byte-identical
+output** on that real input — so 8.x's breaking changes (recursive `Map` merging, `deepmergeInto`
+leak-mutation, two type renames) are structurally unreachable here.
