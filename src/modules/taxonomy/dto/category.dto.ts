@@ -8,6 +8,7 @@ import {
   Matches,
   MaxLength,
   MinLength,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 
@@ -37,11 +38,19 @@ export class CategoryTranslationDto {
   @MaxLength(120)
   readonly slug!: string;
 
-  @ApiPropertyOptional({ example: 'Systems, architecture, and craft.' })
+  // D10-25: nullable column, so `null` clears the description for this locale and an omitted key
+  // leaves it as stored. The upsert passes the value straight to Prisma, where the two differ.
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    example: 'Systems, architecture, and craft.',
+    description: 'null clears it.',
+  })
   @IsOptional()
+  @ValidateIf((dto: CategoryTranslationDto) => dto.description !== null)
   @IsString()
   @MaxLength(500)
-  readonly description?: string;
+  readonly description?: string | null;
 }
 
 export class CreateCategoryDto {

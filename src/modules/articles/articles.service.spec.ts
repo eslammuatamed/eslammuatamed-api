@@ -671,6 +671,158 @@ describe('ArticlesService', () => {
   // D04-6 gating only. The 3-op DB behavior (chain-collapse, rename-back, atomicity across rows) is
   // covered by the buildRedirectOps unit test (T4) and the e2e suite (T9); here we assert solely the
   // publish-time predicate and that the returned ops land in the same $transaction as the rename.
+  /**
+   * `publishAt` write semantics on PATCH (D10-25).
+   *
+   * The update path read its candidate as `dto.publishAt !== undefined ? new Date(dto.publishAt) : …`.
+   * `null !== undefined` is TRUE, so an explicit `null` took the conversion branch and
+   * `new Date(null)` is the Unix EPOCH — not a cleared column. A published article silently
+   * acquired a 1970 publish instant and sorted last forever under `orderBy: publishAt desc`.
+   *
+   * The create path never had the defect: it tests `dto.publishAt ? … : null` (truthy), so `null`
+   * already meant "unscheduled". The two paths disagreed inside one file.
+   *
+   * The epoch guard at the end is what stops this suite passing vacuously: every assertion here
+   * would still hold if `publishAt` were silently stamped 1970 in some OTHER branch, so the value is
+   * asserted to be anything-but-epoch across the whole matrix rather than only where it is expected.
+   */
+  describe('update publishAt semantics (D10-25)', () => {
+    const enTx = {
+      locale: 'en',
+      title: 'T',
+      slug: 'slug-en',
+      excerpt: 'e',
+      body: 'b',
+    };
+    const EPOCH = 0;
+
+    /** The `data` object handed to `prisma.article.update` inside the transaction op-set. */
+    const writtenData = (): { publishAt?: Date | null } =>
+      (
+        prisma.article.update.mock.calls[0]![0] as unknown as {
+          data: { publishAt?: Date | null };
+        }
+      ).data;
+
+    it('CONTROL: an omitted publishAt preserves the stored instant', async () => {
+      prisma.article.findUnique.mockResolvedValue(
+        articlePayload(ContentStatus.DRAFT),
+      );
+
+      await service.update('a1', { translations: [enTx] });
+
+      // Proves the harness reads the right field and that the fixture's instant is observable —
+      // without this, "not the epoch" below could pass because nothing was written at all.
+      expect(writtenData().publishAt).toEqual(
+        new Date('2026-01-01T00:00:00.000Z'),
+      );
+    });
+
+    it('clears publishAt when an explicit null is sent (DRAFT)', async () => {
+      prisma.article.findUnique.mockResolvedValue(
+        articlePayload(ContentStatus.DRAFT),
+      );
+
+      await service.update('a1', { publishAt: null, translations: [enTx] });
+
+      expect(writtenData().publishAt).toBeNull();
+    });
+
+    it('CONTROL: a supplied date is stored as exactly that date', async () => {
+      prisma.article.findUnique.mockResolvedValue(
+        articlePayload(ContentStatus.DRAFT),
+      );
+
+      await service.update('a1', {
+        publishAt: '2030-06-01T12:00:00.000Z',
+        translations: [enTx],
+      });
+
+      expect(writtenData().publishAt).toEqual(
+        new Date('2030-06-01T12:00:00.000Z'),
+      );
+    });
+
+    it('stamps PUBLISHED + null with now, never the epoch (invariant preserved)', async () => {
+      prisma.article.findUnique.mockResolvedValue(
+        articlePayload(ContentStatus.PUBLISHED),
+      );
+      const before = Date.now();
+
+      await service.update('a1', {
+        status: ContentStatus.PUBLISHED,
+        publishAt: null,
+        translations: [enTx],
+      });
+
+      // resolvePublishAt's `candidate ?? new Date()` keeps list ordering stable (doc 10 §6). Under
+      // the defect `candidate` was the epoch — truthy — so `??` never fired and 1970 was stored.
+      const written = writtenData().publishAt;
+      expect(written).toBeInstanceOf(Date);
+      expect(written!.getTime()).toBeGreaterThanOrEqual(before);
+    });
+
+    it('still rejects SCHEDULED + null with a 422 (scheduling invariant intact)', async () => {
+      prisma.article.findUnique.mockResolvedValue(
+        articlePayload(ContentStatus.DRAFT),
+      );
+
+      await expect(
+        service.update('a1', {
+          status: ContentStatus.SCHEDULED,
+          publishAt: null,
+          translations: [enTx],
+        }),
+      ).rejects.toBeInstanceOf(UnprocessableEntityException);
+    });
+
+    it('still rejects SCHEDULED with a PAST publishAt (422)', async () => {
+      prisma.article.findUnique.mockResolvedValue(
+        articlePayload(ContentStatus.DRAFT),
+      );
+
+      await expect(
+        service.update('a1', {
+          status: ContentStatus.SCHEDULED,
+          publishAt: '2020-01-01T00:00:00.000Z',
+          translations: [enTx],
+        }),
+      ).rejects.toBeInstanceOf(UnprocessableEntityException);
+    });
+
+    it('GUARD: never writes the Unix epoch, for any status/publishAt combination', async () => {
+      const cases: {
+        status: ContentStatus;
+        publishAt: string | null | undefined;
+      }[] = [
+        { status: ContentStatus.DRAFT, publishAt: null },
+        { status: ContentStatus.DRAFT, publishAt: undefined },
+        { status: ContentStatus.PUBLISHED, publishAt: null },
+        { status: ContentStatus.ARCHIVED, publishAt: null },
+        { status: ContentStatus.ARCHIVED, publishAt: undefined },
+      ];
+
+      for (const { status, publishAt } of cases) {
+        jest.clearAllMocks();
+        redirects.buildRedirectOps.mockReturnValue([]);
+        prisma.article.findUnique.mockResolvedValue(articlePayload(status));
+
+        await service.update('a1', {
+          status,
+          ...(publishAt === undefined ? {} : { publishAt }),
+          translations: [enTx],
+        });
+
+        const written = writtenData().publishAt;
+        if (written !== null && written !== undefined) {
+          expect(
+            `${status}/${String(publishAt)}: ${written.getTime()}`,
+          ).not.toBe(`${status}/${String(publishAt)}: ${EPOCH}`);
+        }
+      }
+    });
+  });
+
   describe('update (D04-6 auto-redirect on published slug rename)', () => {
     // Sentinel op-set standing in for buildRedirectOps' 3 real ops; identity is asserted in the tx.
     const redirectOps = [

@@ -21,6 +21,7 @@ import {
   Min,
   MinLength,
   Validate,
+  ValidateIf,
   ValidateNested,
   ValidatorConstraint,
   ValidatorConstraintInterface,
@@ -130,33 +131,55 @@ export class ProjectTranslationDto {
   @MaxLength(MARKDOWN_MAX)
   readonly lessonsLearned!: string;
 
-  @ApiPropertyOptional({ example: 'Content platform API case study' })
+  // D10-25, same four SEO fields and the same reason as the article translation DTO: nullable
+  // columns whose SEO panel must be able to empty them. `null` clears, omission preserves.
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    example: 'Content platform API case study',
+    description: 'null clears it.',
+  })
   @IsOptional()
+  @ValidateIf((dto: ProjectTranslationDto) => dto.metaTitle !== null)
   @IsString()
   @MaxLength(300)
-  readonly metaTitle?: string;
+  readonly metaTitle?: string | null;
 
-  @ApiPropertyOptional({ example: 'How the multilingual platform was built.' })
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    example: 'How the multilingual platform was built.',
+    description: 'null clears it.',
+  })
   @IsOptional()
+  @ValidateIf((dto: ProjectTranslationDto) => dto.metaDescription !== null)
   @IsString()
   @MaxLength(500)
-  readonly metaDescription?: string;
+  readonly metaDescription?: string | null;
 
   @ApiPropertyOptional({
+    type: String,
     format: 'uuid',
+    nullable: true,
     example: '0194f9a2-ef2a-7a31-8cb7-369c87f7933a',
+    description: 'OG image MediaAsset id; null clears it.',
   })
   @IsOptional()
+  @ValidateIf((dto: ProjectTranslationDto) => dto.ogImageId !== null)
   @IsUUID()
-  readonly ogImageId?: string;
+  readonly ogImageId?: string | null;
 
   @ApiPropertyOptional({
+    type: String,
     format: 'uri',
+    nullable: true,
     example: 'https://eslammuatamed.com/projects/content-platform-api',
+    description: 'Canonical override; null clears it.',
   })
   @IsOptional()
+  @ValidateIf((dto: ProjectTranslationDto) => dto.canonicalUrl !== null)
   @IsUrl({ require_protocol: true })
-  readonly canonicalUrl?: string;
+  readonly canonicalUrl?: string | null;
 }
 
 export class ProjectGalleryCaptionDto {
