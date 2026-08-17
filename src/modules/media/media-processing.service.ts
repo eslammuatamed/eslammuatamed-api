@@ -154,7 +154,8 @@ export class MediaProcessingService {
   }
 
   // PDF path (doc 19 §5, D19-9): the single non-image asset, resume-only. Validated but never
-  // Sharp-processed and never given variants/blurhash. Attaching it to the resume slot is a `MediaService` rule.
+  // Sharp-processed and never given variants/blurhash. Which asset may occupy the resume slot is
+  // `SettingsService`'s rule, not this service's.
   async processPdf(input: ProcessPdfInput): Promise<ProcessedPdf> {
     await this.validatePdfInput(input);
     return {

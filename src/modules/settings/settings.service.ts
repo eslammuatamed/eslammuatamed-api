@@ -69,7 +69,8 @@ export class SettingsService {
         : null,
       customMetas: toCustomMetas(settings.customMetas),
       // Public résumé descriptor (FR-PUB-023): the download URL/filename/size only — never the bare
-      // asset id. The FK is PDF-guarded on write by `MediaService`; the kind check here is defence in depth.
+      // asset id. `updateSettings` below rejects a non-PDF asset on write; the kind check here is
+      // defence in depth.
       resumeAsset:
         settings.resumeAsset && settings.resumeAsset.kind === MediaKind.PDF
           ? this.mediaDescriptors.resolvePdf(settings.resumeAsset)
@@ -121,7 +122,8 @@ export class SettingsService {
       await this.locales.assertEnabled(translation.locale);
     }
 
-    // The resume slot may only reference a PDF asset (a `MediaService` invariant). null
+    // The resume slot may only reference a PDF asset — this service owns that rule, and the
+    // check immediately below is where it is enforced. null
     // clears it (the prior asset is retained). Setting a non-existent or non-PDF asset is a 422.
     if (dto.resumeAssetId !== undefined && dto.resumeAssetId !== null) {
       const asset = await this.prisma.mediaAsset.findUnique({

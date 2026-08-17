@@ -12,6 +12,11 @@
 > slices 1–5 shipped unreviewed, and no test can tell you whether a comment is true), and the
 > **response-envelope sweep** across module READMEs (§5).
 >
+> **The peer review is not optional and not a formality.** It caught a MAJOR defect — four
+> comments naming the wrong class — that typecheck, 1273 tests, a green guard and an
+> unchanged compiler-emitted-JS diff all passed over, because a comment naming the wrong class is
+> still a comment. Never treat green gates as evidence that prose is true.
+>
 > **Standing instrument rule, earned the hard way (D-15 and slice 5):** never trust one
 > instrument's clean reading. The guard has been blind three times; a hand-written sweep was
 > blind once, in the opposite direction. **Agreement between two independently-built instruments
@@ -523,34 +528,53 @@ on both sides. Two are worth carrying forward as *general* checks, because neith
 **Recorded disagreements:** none yet. Codex's findings were verified and accepted, and its `F004`
 flag directly produced D-9.
 
-### ⚠ THE PEER LANE DID NOT RUN FOR SLICES 1–5. This is an open exit-gate item.
+### The peer lane RAN, late, and it caught a MAJOR defect self-review had missed
 
-Stated plainly because the mechanism failing silently is the same defect class this campaign
-exists to remove. **Two Codex reviews were dispatched and neither returned any output** — one
-scoped to the slice-1 diff, one to the cumulative campaign diff; one follow-up ping went
-unanswered. No third was spawned: retrying a lane that has produced nothing twice is not
-evidence-gathering.
+**Correcting this ledger's own previous entry.** An earlier version of this section stated the
+peer lane "did not run for slices 1–5" and listed a consolidated peer pass as outstanding. That
+was true when written and is now false: both Codex reviews returned after a long delay, one on
+slice 1 and one on the cumulative campaign diff. The correction is recorded rather than
+overwritten silently, because "a document that quietly stops being true" is the exact defect this
+campaign exists to remove, and the ledger does not get an exemption.
 
-So **every slice in this session shipped on self-review only.** What substituted for the peer,
-and what it does not cover:
+**Verdicts.**
 
-| Substituted with | Covers | Does NOT cover |
-| --- | --- | --- |
-| Guard-independent sweeps with positive controls | whether a family is really retired | whether the replacement prose is *true* |
-| Compiler-emitted-JS diff (`tsc --removeComments`) | that no executable code changed | anything about comment quality |
-| Full unit suite, typecheck, `prisma validate`, YAML parse | nothing regressed | whether a comment now misdescribes the code |
-| Manual re-read against the code | caught the `max` overstatement in `prisma.service.ts` before commit | its own blind spots — this is the author checking the author |
+| Pass | Result |
+| --- | --- |
+| Slice 1, first look | 1 MAJOR — the `max` overclaim in `prisma.service.ts` |
+| Slice 1, re-review at `0e27801` | **0 open findings** — confirmed the fix; all three questions clean |
+| Cumulative campaign diff | **1 MAJOR — wrong component named, 4 sites**; Q2/Q3/Q4 otherwise clean |
 
-The last row is the gap. Three of the four questions the peer was to answer are unanswered by
-anything else: **does every replacement pointer resolve to what the new sentence promises; does
-any rewritten sentence now assert something the code does not do; did an Arabic edit drop a
-causal *why* or leave a broken sentence.** A green test suite cannot answer any of them — the
-whole campaign changed only comments, so every gate would stay green if every new sentence were
-subtly wrong.
+**The MAJOR finding, verified before accepting it.** Slice 3 mapped feature 003's `T6` uniformly
+to `MediaService`. For four sites that was wrong: the rule that the résumé slot may only reference
+a **PDF** asset is enforced in `SettingsService.updateSettings()`, which does its own
+`mediaAsset.findUnique` + `kind !== PDF` check. `MediaService` has no résumé-slot semantics at
+all — its only link is the reverse `resumeForSettings` relation used for delete protection, a
+different concern. Confirmed independently: the misattributing comment at
+`settings.service.ts:124` sat **four lines above the SettingsService code that performs the
+check**. Fixed at all four sites; the surviving `MediaService` attributions were re-verified
+against the code (it does own hashing, key generation, persistence and upload) with a passing
+control (`MediaProcessingService` has **0** prisma/storage references).
 
-**Exit-gate obligation:** one consolidated peer pass over the cumulative diff, answering those
-questions, before the PR is opened. If the Codex lane still cannot be made to produce, that must
-be recorded in the PR as a known limitation rather than quietly dropped.
+**Why this is the finding that justifies the whole peer model.** It is invisible to every gate
+this campaign runs. Typecheck passes, 1273 tests pass, the guard is green, the compiler-emitted
+JS is unchanged — because a comment naming the wrong class is still a comment. And it is the
+failure mode the campaign *created*: replacing an ambiguous token with a confident, specific,
+wrong class name is worse for a learner than the `T6` it replaced, because `T6` at least
+signalled "look this up" while `MediaService` reads as authoritative. **A mechanical mapping
+applied uniformly across a family is exactly where this defect breeds**, and self-review is
+structurally poor at catching it: I checked whether each substitution was *plausible*, not
+whether it was *true*.
+
+**Standing rule added:** any campaign edit that substitutes a specific identifier for a vague one
+must be verified against the implementation **per site**, never per family.
+
+**Residual exit-gate item.** The two passes covered slices 1–5's source and `PROJECT_GUIDE.md`.
+They did **not** cover: the ledger's own prose, `src/modules/README.md`'s rewritten index beyond
+the module list, or the slice-5 phrase edits, which landed after the cumulative diff was captured.
+One further peer pass over `f7bd434..HEAD` closes it.
+
+
 
 ---
 
@@ -599,8 +623,9 @@ Not started: learning architecture, prerequisite graph, difficulty model, module
 testing curriculum, flow traceability, cold-reader exit gate.
 
 **Two obligations carried into phase 2, neither optional:**
-1. **The consolidated peer pass (§5).** Slices 1–5 shipped unreviewed. Nothing else can answer
-   whether the new prose is *true*.
+1. **One more peer pass over `f7bd434..HEAD` (§5).** The two Codex passes covered slices 1–5's
+   source and `PROJECT_GUIDE.md` and produced one MAJOR finding, now fixed. They did not see the
+   slice-5 phrase edits or this ledger's prose.
 2. **The response-envelope check (§5).** Every module README still needs checking for the
    `{ data: … }` wrapper omission the Codex probe found in `redirects`. Never swept.
 

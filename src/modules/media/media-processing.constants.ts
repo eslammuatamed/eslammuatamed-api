@@ -25,7 +25,8 @@ export const IMAGE_TYPE_RULES: readonly ImageTypeRule[] = [
   },
 ];
 
-// PDF is the single non-image kind and only ever attaches to the resume slot (a `MediaService` concern).
+// PDF is the single non-image kind and only ever attaches to the resume slot — a rule enforced
+// on the settings write path (`SettingsService`), not here.
 export const PDF_MIME_TYPE = 'application/pdf';
 
 // ── Decode & size limits (doc 19 §5, D19-9) ─────────────────────────────────────────────────────
