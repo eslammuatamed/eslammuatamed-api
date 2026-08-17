@@ -1294,6 +1294,42 @@ structurally a different document. Whether that is a defect or a legitimate diff
 only module with **no HTTP surface at all**) is a phase-2 judgement call, deferred rather than
 swept into a template change.
 
+## 10c. Two MINORs that were worth acting on
+
+Both came from the review of the reading order, both were flagged as non-defects, and both were
+fixed anyway — because in a *learning* document the bar is not "is it true" but "can the reader
+follow it".
+
+**An unreproducible number is a defect even when the number is right.** The reading order said
+`locales` is "76 lines". The reviewer could not reproduce 76 by any naive count and correctly
+declined to call it an error, since it matches §10's doubly-derived table. Both are right: **76 is
+non-blank, non-comment code lines; raw `wc -l` gives 90.** A reader who checks the claim the
+obvious way gets a different number and learns to distrust the document. The metric is now stated
+inline with both figures. This is the campaign's own "record the whole formula" rule applied to a
+number small enough to look harmless.
+
+**A concept introduced with no prior grounding.** Step 8 (`redirects`) is the reader's first
+encounter with Prisma's `$transaction` / deferred-operations pattern, and none of the four
+cross-cutting documents read at steps 1–3 mention `$transaction` at all. The reviewer rated it
+MINOR on the grounds that the paragraph is self-contained and `$transaction` is generic ORM
+knowledge rather than a repo-specific hidden mechanism — a fair call. It is now announced at that
+step instead, so the reader meets it as a named new idea rather than as an unexplained token. Cost:
+one clause. That is the right trade for the audience the charter names.
+
+**Worth recording about the review itself:** it also checked whether deferring `auth` and
+`access-control` to step 10 would leave `@RequirePermission` unexplained in steps 7–9, and found it
+does not — because step 3 now teaches the guard chain and its status codes generally. The
+cross-cutting *surface* is front-loaded; only the *deep implementation* is deferred. That was the
+design intent, and having it independently identified rather than asserted is the difference
+between a rationale and a rationalisation.
+
+**And it retired the old order's best claim on evidence rather than taste.** "`articles` — the
+richest module, the reference model" was demoted to step 9. The reviewer tested whether that
+framing had corpus backing by grepping every module README for a cross-reference to
+`articles/README.md`: **none exists**. No module treats it as a pattern source, unlike
+`src/modules/README.md`, which all 17 cite on line 3. The old framing was an editorial call with
+nothing behind it.
+
 ## 5b. The pipe-order MAJOR — a right answer reached by a wrong mechanism
 
 The peer review of `2aa031f` found the one defect class a teaching document can least afford: the
@@ -1327,12 +1363,21 @@ its ten rows were exhaustive), and **file uploads are governed by a separate `10
 limit**, disjoint from the `1 MiB` `express.json` limit the table described — so anyone building
 an upload feature was reading the wrong number entirely.
 
-**One reported omission was NOT added, deliberately.** The reviewer flagged, explicitly as
-reasoned-but-unverified, that an unmatched route might bypass the filter and so not produce
-problem+json. `AllExceptionsFilter` is declared `@Catch()` with no argument and registered as a
-global `APP_FILTER`, which catches everything Nest throws — including the router's own
-`NotFoundException` — so the premise is probably wrong. Probably is not a standard this campaign
-publishes on. **Left out and recorded here, rather than asserted in either direction.**
+**One reported omission was withheld pending evidence — and is now RESOLVED, not merely
+recorded.** The reviewer flagged, explicitly as reasoned-but-unverified, that an unmatched route
+might bypass the filter and lose the problem+json shape. My counter-read was equally unverified,
+so neither was published. The reviewer then settled it from source rather than from either
+opinion: `@nestjs/core/router/routes-resolver.js:65-87` — `registerNotFoundHandler()` throws
+`NotFoundException` and wires it through `routerExceptionsFilter.create(...)` /
+`routerProxy.createProxy(...)`, **the same dispatch path every controller route uses**, and
+`registerExceptionHandler()` does likewise for raw Express errors. With `@Catch()` taking no
+argument, `AllExceptionsFilter` genuinely receives both. **No row is needed, because the behaviour
+does not diverge from the table's promise.**
+
+*The reviewer's own summary of this is the part worth keeping: "your read was right; mine was the
+wrong guess." Two agents holding opposite unverified reads, both declining to publish, and the one
+who was wrong resolving it against itself — that is the peer model working exactly as §5 describes,
+and it is the reason this entry now says RESOLVED instead of carrying a permanent disagreement.*
 
 ## 8. Owner-decision blockers
 
