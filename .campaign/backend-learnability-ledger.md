@@ -269,6 +269,37 @@ live *owner-decision* pointers in operational config, not as completed-campaign 
 CI config is arguably not a "code-adjacent learning document". Deliberately left open rather
 than swept in; the guard-widening slice must answer it before flagging those files.
 
+### D-17 — NEAR MISS: the `R*` family is live governance, and a too-narrow scope almost retired it
+
+Applying D-16's new "enumerate the space" rule turned up `R5`, `R7`, `R10`, `R15` in
+`prisma/content/canonical/site-settings.ts`, `prisma/seed.ts`, `prisma/sync/allowlist.spec.ts` and
+`test/about-content.e2e-spec.ts` — cited exactly like decisions ("**R10 superseded R5 on
+2026-07-29**", "decision **R15** (2026-08-05) closed the question"). Shape, phrasing and
+supersession language all matched the archaeology families this campaign has been retiring.
+
+**First measurement said retire them.** `git grep` for `R5`/`R10`/`R15` across
+`docs/*.md` on both authoritative refs returned **0 files**, with the control passing (`D10-6` → 8).
+By the standard applied to `OD-1`/`OD-3` in slice 4, that is a retire verdict.
+
+**It was wrong, because the scope was wrong.** Re-run without the `-- 'docs/*.md'` pathspec, the
+family resolves in `content/owner-profile.md` — present on **both** authoritative refs — which
+defines **`R1` through `R15`**, `R5` included (9 occurrences). They are live, resolvable
+governance in the sense of §4.B: a reader *can* follow them, just not into `docs/`.
+
+**KEEP the entire `R*` family.** No edit was made.
+
+**Why this is the most dangerous near-miss of the campaign.** D-2 is the ledger's most important
+constraint — governance references outnumber archaeology 12 to 1, and a naive purge would destroy
+the repository's traceability into its own governing decisions. This is exactly that failure,
+reached not by naivety but by a *disciplined* method with one wrong parameter: the pathspec.
+Every other check in this campaign that used `-- 'docs/*.md'` shares the flaw; it was harmless
+elsewhere only because those families genuinely resolve nowhere.
+
+**Rule: a "does not resolve" verdict must state the search scope, and the scope must be the whole
+governing repository — never one directory.** A negative result is only as wide as where you
+looked, and a positive control proves the command runs, not that the scope is right. The control
+passed here and the answer was still wrong.
+
 ### D-16 — A whole family in a non-Latin alphabet, invisible to all three instruments
 
 The last family found, and the one that best explains why "the guard is green" was never the
