@@ -1449,6 +1449,59 @@ wrong guess." Two agents holding opposite unverified reads, both declining to pu
 who was wrong resolving it against itself — that is the peer model working exactly as §5 describes,
 and it is the reason this entry now says RESOLVED instead of carrying a permanent disagreement.*
 
+## 11. The cold-reader exit gate
+
+The campaign's definition of done. Written as **questions with checkable answers**, because every
+other formulation this campaign tried ("the docs are clearer now") is unfalsifiable, and because
+the guard has already proved four times that a green instrument is not evidence of a true corpus.
+
+**Protocol.** A reader who has NOT worked on this repository answers from the **documentation
+alone** — no source, no search, no asking. Each answer is then checked against the code. **The gate
+passes when a cold reader answers 8 of 10 correctly, and the two they miss are not from §A.**
+
+**Why these ten.** Every one has a *plausible wrong answer* — the wrong answer is what a competent
+frontend engineer would reasonably assume from reading the controller. That is the entire measured
+problem (axis C: behaviour that is invisible at the call site by design). A question whose right
+answer is guessable tests nothing.
+
+### §A — the invisible layers (must not be missed)
+
+| # | Question | Wrong answer a reader would reasonably give | Where the docs answer it |
+| :-: | --- | --- | --- |
+| 1 | You POST a body containing an unknown field. What status? | `400` | archetype, status-code table |
+| 2 | `GET /admin/articles/not-a-uuid` — what status, and which component decides? | "`ParseUUIDPipe`, because it runs first" | archetype, pipe-order note |
+| 3 | Where is the `try/catch` that turns a duplicate slug into `422`? | "in the module's service" | archetype — there isn't one; `AllExceptionsFilter` owns it |
+| 4 | A README documents a response as `{ toPath }`. What does the client receive? | `{ toPath }` | archetype, envelope rule |
+| 5 | You upload a 5 MB image. Rejected by the `1 MiB` limit? | "yes" | archetype — `multer` has a separate 10 MiB limit |
+
+### §B — architecture and method
+
+| # | Question | Where the docs answer it |
+| :-: | --- | --- |
+| 6 | Which module should you read before any other, and on what evidence? | `PROJECT_GUIDE` §15 — `locales`, ten modules depend on it |
+| 7 | Why is `contact` NOT an early read, despite depending on only one module? | `PROJECT_GUIDE` §15 — graph depth ≠ readiness |
+| 8 | You add a module. Which README sections are mandatory, and what is the one real choice? | archetype, README template |
+| 9 | Name a test shape in this repo that passes while proving nothing, and its antidote. | `test/README.md`, the five patterns |
+| 10 | Where does release/deployment state live, and why not here? | any code-adjacent doc — convention 4.D |
+
+### What this gate deliberately does NOT measure
+
+Not prose quality, not length, not Arabic fluency, not whether the reader *enjoyed* it. Those were
+all available and all unfalsifiable. **The gate is hostile to the campaign's own work**: a reader
+failing question 2 means the pipe-order fix did not land as teaching, even though it is verifiably
+true and peer-reviewed.
+
+### Status: NOT YET RUN — and it cannot be run by me
+
+The gate requires a reader who has not worked on this repository. **Every agent in this campaign is
+disqualified**, including the peer, which has now read most of this code closely. Author
+verification cannot substitute here for the same reason §5 gives for review: I would be answering
+from what I know, not from what the documents say.
+
+**This is therefore an owner-facing item, not a blocker I can discharge.** Recorded as the campaign's
+final gate, to be run by the owner or by a genuinely cold reader before the PR is treated as
+complete. Everything else in the campaign can be finished without it.
+
 ## 8. Owner-decision blockers
 
 **OD-B — the governing record of API release state is wrong AND internally contradictory (D-10).**
