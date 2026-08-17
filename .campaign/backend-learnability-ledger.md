@@ -1117,6 +1117,39 @@ sentence that would let this recur.
 *If the data contradicts a prediction, the contradiction is recorded and the model changes — not
 the prediction.*
 
+### Axis A computed, and the finding that follows from it
+
+Longest dependency chain from a root, from the real `imports:` arrays:
+
+| depth | modules |
+| :-: | --- |
+| 0 | `health`, `locales`, `mail`, `users` |
+| 1 | `auth`, `contact`, `experiences`, `media`, `redirects`, `skills`, `taxonomy` |
+| 2 | `access-control`, `articles`, `projects`, `seo`, `settings`, `testimonials` |
+| 3 | `preview` |
+
+**The dependency graph is actively bad pedagogy, and this is the number that proves it.**
+`contact` is **depth 1** — it imports `mail` and nothing else — so the graph permits it *second*.
+It is also on the five-module difficulty ridge (idempotency keys, post-commit mail, a retention
+cron). Meanwhile `testimonials` is depth **2** and carries no idea beyond the archetype. **What
+you *can* read and what you are *ready* for are different orderings**, and following the graph
+alone lands a learner on one of the hardest modules in the repo before they have seen a simple one.
+
+### The existing reading order was measurably wrong
+
+`PROJECT_GUIDE.md` §15 already had a suggested reading order. Against the measurements it sends a
+newcomer to **`auth` + `access-control` as step 4** — two of the five ridge modules — before any
+simple module, then to `articles` (depth 2, cron + raw-SQL FTS) as "the richest module, the
+reference model", then lumps everything else into "the rest of the content modules", which puts
+`media` (hardest) and `testimonials` (trivial) in one undifferentiated bucket. It never mentions
+`locales` at all — the 76-line module that **ten modules depend on** and that appears in every
+service a reader will open.
+
+Replaced with an 11-step order that respects prerequisites *then* ascends concept load, and that
+states the trap explicitly at the top rather than leaving a reader to fall into it. This is the
+first Phase 2 change grounded in a measurement that contradicted an existing decision, rather than
+in an opinion about what reads better.
+
 ## 10. Phase 2 measurements
 
 Derived directly (deterministic script, not delegated judgement) after both dispatched Explore
