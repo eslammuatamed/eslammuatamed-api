@@ -1498,14 +1498,14 @@ answer is guessable tests nothing.
 | 1 | You POST a body containing an unknown field. What status? | `400` | archetype, status-code table |
 | 2 | `GET /admin/articles/not-a-uuid` — what status, and which component decides? | "`ParseUUIDPipe`, because it runs first" | archetype, pipe-order note |
 | 3 | Where is the `try/catch` that turns a duplicate slug into `422`? | "in the module's service" | archetype — there isn't one; `AllExceptionsFilter` owns it |
-| 4 | A README documents a response as `{ toPath }`. What does the client receive? | `{ toPath }` | archetype, envelope rule |
+| 4 | `redirects/README.md` says **حمولة** (*payload*) `{ toPath }`, not **ردّ** (*response*). Why that word, and what does the HTTP body actually contain? | "they mean the same thing" / `{ toPath }` | archetype, envelope rule |
 | 5 | You upload a 5 MB image. Rejected by the `1 MiB` limit? | "yes" | archetype — `multer` has a separate 10 MiB limit |
 
 ### §B — architecture and method
 
 | # | Question | Where the docs answer it |
 | :-: | --- | --- |
-| 6 | Which module should you read before any other, and on what evidence? | `PROJECT_GUIDE` §15 — `locales`, ten modules depend on it |
+| 6 | Which module **README** should you read first (after the archetype, which is mandatory), and on what evidence? | `PROJECT_GUIDE` §15 — `locales`, ten modules depend on it |
 | 7 | Why is `contact` NOT an early read, despite depending on only one module? | `PROJECT_GUIDE` §15 — graph depth ≠ readiness |
 | 8 | You add a module. Which README sections are mandatory, and what is the one real choice? | archetype, README template |
 | 9 | Name a test shape in this repo that passes while proving nothing, and its antidote. | `test/README.md`, the five patterns |
@@ -1518,6 +1518,30 @@ all available and all unfalsifiable. **The gate is hostile to the campaign's own
 failing question 2 means the pipe-order fix did not land as teaching, even though it is verifiably
 true and peer-reviewed.
 
+### A gate question can go stale against its own campaign
+
+Peer review found that **question 4 tested a trap this campaign had already closed.** As first
+written it asked what a reader receives when a README documents a response as `{ toPath }` —
+aiming at a README that asserts a bare wire shape. By the time the gate was written, §5's
+envelope pass had already changed both such files to say **حمولة** (*payload*) with the envelope
+disambiguation inline, and the ledger's own §5 entry says in as many words that no module README
+asserts a bare wire body any more. **There was no longer a file in the corpus that would spring
+the trap.**
+
+It is now reworded to test the *rule and the deliberate word choice*, both of which are live:
+why the README says **payload** rather than **response**, and what the body actually contains.
+Question 6 was tightened in the same pass — it said "module" where it meant "module README", and
+the archetype is also read before any module.
+
+**The general lesson, which outlives this gate.** A test written against a snapshot of the thing
+it tests will silently stop testing it. This is the same failure the campaign spent six slices
+removing from the documentation — a claim true when written, never revisited when the world moved
+— reappearing in the instrument built to *detect* that failure. **Fifth occurrence, and the first
+one inside a measuring device rather than a document.**
+
+*Rule: re-validate every gate question against the corpus immediately before running the gate,
+not when writing it.*
+
 ### Status: NOT YET RUN — and it cannot be run by me
 
 The gate requires a reader who has not worked on this repository. **Every agent in this campaign is
@@ -1528,6 +1552,13 @@ from what I know, not from what the documents say.
 **This is therefore an owner-facing item, not a blocker I can discharge.** Recorded as the campaign's
 final gate, to be run by the owner or by a genuinely cold reader before the PR is treated as
 complete. Everything else in the campaign can be finished without it.
+
+**The peer independently agreed it is disqualified, and gave the sharper reason:** several of these
+facts it found *by reading source* — the pipe-order mechanism, the `PUBLIC_INCLUDE` asymmetry, the
+`skip`/`take` getter behaviour — in some cases before any document stated them. It could not
+separate "the docs taught me this" from "I already knew it and would recognise it regardless of
+what the docs said". That is precisely the bias §11 exists to exclude, and it is worth recording
+that the disqualification was accepted by the party being disqualified rather than imposed.
 
 ## 8. Owner-decision blockers
 
