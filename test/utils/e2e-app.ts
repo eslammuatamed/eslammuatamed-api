@@ -18,7 +18,7 @@ import {
 } from '../../src/common/http/validation-problem.exception';
 
 // Replaces ONE provider in the real AppModule graph for a suite that cannot otherwise reach a
-// boundary — today, the SMTP transport (11B-β1 §2). Deliberately a value override on an existing
+// boundary — today, the SMTP transport. Deliberately a value override on an existing
 // DI token: no abstraction is introduced to satisfy a test, and everything above the token is the
 // production object.
 export interface E2eProviderOverride {

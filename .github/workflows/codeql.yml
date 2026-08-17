@@ -1,6 +1,6 @@
 # Static security analysis (CodeQL). ADVISORY, deliberately.
 #
-# Posture (campaign 009, Workstream B). This workflow REPORTS; it does not gate. It is not a
+# Posture. This workflow REPORTS; it does not gate. It is not a
 # required status check, and promoting it to one is an owner decision, not a side effect of
 # adding it — there is precedent for a required job deadlocking every pull request. Adding an advisory scanner is reversible; changing merge policy is not.
 #

@@ -408,7 +408,7 @@ model ExperienceTechnology {
   @@map("experience_technologies")
 }
 
-// ===== Skills, experiences, testimonials (schema-complete; no M1 module) =====
+// ===== Skills, experiences, testimonials =====
 
 model Skill {
   id         String     @id @default(uuid(7))

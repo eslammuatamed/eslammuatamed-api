@@ -4,7 +4,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 type UserWithRole = Prisma.UserGetPayload<{ include: { role: true } }>;
 
-// Operator accounts. No public surface in M1 (doc 07 module map) — this service exists so
+// Operator accounts. No public HTTP surface at all — the module registers no controller
+// (doc 07 module map). This service exists so
 // AuthService can look accounts up without touching the User model itself. Login needs the
 // role relation for the response; refresh only needs identity + active status.
 @Injectable()
