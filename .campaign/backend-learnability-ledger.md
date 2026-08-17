@@ -1015,6 +1015,60 @@ serializer logs all request headers and does not redact the client `Idempotency-
 code/ops question for the owner, not a documentation defect, and this campaign does not change
 behaviour. Recorded here so it is not lost.
 
+## 9b. Difficulty model — PRE-REGISTERED, before the measurements landed
+
+Written and committed **while `graph-derive` was still running**, deliberately. A difficulty model
+invented after seeing the numbers is fitted to them: whatever ordering the data happens to produce
+gets a rationale attached, and the model then explains nothing it did not assume. Committing the
+rubric first makes the measurement able to **surprise** us — and a surprise is the only thing that
+would prove the model is doing work.
+
+### What "difficulty" means here, stated before it is scored
+
+The audience is fixed by the charter: a Vue/Nuxt frontend engineer learning backend. Difficulty is
+therefore **not** size, and not cleanliness. It is *how much a reader must already hold in their
+head before this module's code stops being surprising.*
+
+Four axes, each scored 0–3. Deliberately NOT summed into one number — see below.
+
+| Axis | 0 | 3 |
+| --- | --- | --- |
+| **A. Prerequisite depth** | reads standalone | needs 3+ other modules understood first |
+| **B. Backend-concept load** | CRUD a frontend dev already understands | transactions, races, locking, idempotency, crypto |
+| **C. Implicitness** | behaviour is visible in the file | behaviour comes from a guard/interceptor/pipe declared elsewhere |
+| **D. Failure-mode subtlety** | wrong code → obvious error | wrong code → silently wrong data, green tests |
+
+**Axis C is the one this repo will score badly on and the one that matters most for THIS codebase.**
+A frontend engineer reads a NestJS controller and sees a method; they do not see the global
+`ValidationPipe`, the `ResponseEnvelopeInterceptor` wrapping the return, the `AllExceptionsFilter`
+translating a `P2002` they never wrote a `catch` for, or the `JwtAuthGuard` that already ran. Every
+one of those is invisible at the call site **by design** — that is good architecture and hostile
+first-reading, simultaneously. That tension is the campaign's core learnability problem, and it is
+named here before any data can soften it.
+
+### Two predictions, recorded so they can be wrong
+
+Pre-registration is worthless without a falsifiable claim, so:
+
+1. **Size will correlate poorly with difficulty.** `contact` will be among the largest modules and
+   should NOT be the hardest to *start* with; `redirects` or `preview` will be small and score high
+   on B/D. If difficulty tracks line count, the model adds nothing over `wc -l` and should be
+   discarded rather than defended.
+2. **Axis C will be near-uniformly high and near-useless for ORDERING**, because the archetype
+   applies globally. If so, its value is not in ranking modules but in proving that the archetype
+   document must be a hard prerequisite for every module README — a structural conclusion, not a
+   score.
+
+### Why the axes are not summed
+
+A single 0–12 score would put a module needing three prerequisites (A=3) level with one whose
+failures are silent (D=3), and those call for opposite responses: the first needs a **reading
+order**, the second needs **worked examples and tests that discriminate**. The output of this model
+is therefore a **profile per module**, and the prerequisite graph is built from axis A alone.
+
+*Scoring happens in §10 once the measurements land. If the data contradicts either prediction, the
+contradiction is recorded there and the model is changed — not the prediction.*
+
 ## 10. Phase 2 measurements
 
 *(Empty until the dispatched investigations return. Data lands here rather than in a session
