@@ -103,7 +103,7 @@ section is historical narrative, fixed at the commit that wrote it, and may be s
 | Range | Status |
 | --- | --- |
 | Baseline → `eff70d3` (slices 1–5c) | **peer-reviewed**, findings resolved |
-| `2aa031f` — the archetype status-code section | **UNREVIEWED.** A real documentation change, not ledger prose |
+| `2aa031f` — the archetype status-code section | **peer-reviewed.** 1 MAJOR (pipe order) + 2 verified omissions, all fixed |
 | All other commits after `eff70d3` | ledger prose only |
 
 **Gates the PR, not phase 2.** Do not discharge by author verification (§5 records why that is
@@ -1258,6 +1258,46 @@ one place every module README already points at.
 *Recording that both predictions held is weaker evidence than a surprise would have been. Noted
 so a later reader does not mistake confirmation for proof — the model was cheap to falsify and
 was not falsified, which is all that can be claimed.*
+
+## 5b. The pipe-order MAJOR — a right answer reached by a wrong mechanism
+
+The peer review of `2aa031f` found the one defect class a teaching document can least afford: the
+**status code was correct and the explanation of why was backwards.**
+
+The table said a malformed `:id` yields `400` because `ParseUUIDPipe` runs *before* the global
+`ValidationPipe`. Verified against `@nestjs/core` itself, the opposite is true:
+`router-execution-context.js:151` builds the pipe array as `pipes.concat(paramPipes)` — **global
+pipes first** — and `pipes-consumer.js:14` applies them with `transforms.reduce(...)`, left to
+right. The global `ValidationPipe` therefore runs **first**.
+
+The `400` is still right, but for a reason the document never gave: `ValidationPipe` **no-ops on a
+primitive route parameter**, because there is no DTO metatype to validate against. So the decision
+falls through to `ParseUUIDPipe`. The observed status was a coincidence of the real mechanism, not
+evidence for the stated one — and the table even contradicted the pipeline diagram three lines
+above it, which had the order right.
+
+**Why this is worth a section rather than a one-line fix.** Every gate in this campaign would pass
+a document whose codes are right and whose causal story is inverted: the codes are what tests
+assert. A reader debugging a `400` under the old text would have reasoned incorrectly about what
+the global pipe does and does not see. **A learning document can be wrong in a way that only a
+reader — never a test — can detect**, which is the strongest possible argument for the peer lane
+and against ever discharging it with author verification.
+
+The corrected text now states the real order, names the no-op as the reason, and ends with the
+general rule: *do not infer layer order from a status code; infer it from the source.*
+
+**Two verified omissions added in the same pass**, both of which would have misled a specific
+reader: an unrecognized Prisma code falls to `400` and any other error to `500` (the table implied
+its ten rows were exhaustive), and **file uploads are governed by a separate `10 MiB` `multer`
+limit**, disjoint from the `1 MiB` `express.json` limit the table described — so anyone building
+an upload feature was reading the wrong number entirely.
+
+**One reported omission was NOT added, deliberately.** The reviewer flagged, explicitly as
+reasoned-but-unverified, that an unmatched route might bypass the filter and so not produce
+problem+json. `AllExceptionsFilter` is declared `@Catch()` with no argument and registered as a
+global `APP_FILTER`, which catches everything Nest throws — including the router's own
+`NotFoundException` — so the premise is probably wrong. Probably is not a standard this campaign
+publishes on. **Left out and recorded here, rather than asserted in either direction.**
 
 ## 8. Owner-decision blockers
 
