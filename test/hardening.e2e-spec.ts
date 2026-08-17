@@ -2,14 +2,14 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { createE2eApp, httpServer } from './utils/e2e-app';
 
-// Feature 005 audit-pass regression locks (doc 19). These assert that already-shipped hardening
+// Audit-pass regression locks (doc 19). These assert that hardening
 // controls stay in force, so a future change cannot silently weaken them:
 //   - the doc 19 §5 request-body size limit (1 MiB JSON), and
 //   - the doc 19 §6 auth-login throttle tier (5 / 15 min → 429 + Retry-After).
 // The RFC 7807 5xx sanitization, log redaction, trusted-proxy client IP, health probes, and the
 // contact/media 429 tiers are already covered by their own specs (all-exceptions.filter.spec,
 // pino-logger.config.spec, {contact,upload}-throttler.guard.spec, health.e2e) and are referenced,
-// not duplicated, in the Feature 005 closeout.
+// not duplicated.
 //
 // Each e2e suite builds its own app (fresh in-memory throttle bucket) and the suite runs --runInBand,
 // so the login-tier counter here never leaks into another suite.

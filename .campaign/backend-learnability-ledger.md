@@ -432,7 +432,7 @@ Arabic cases are first-class in the suite: `\b` is undefined over Arabic codepoi
 matcher uses explicit `[^A-Za-z0-9_-]` lookarounds instead.
 
 **Reading at phase-0 close:** 68 archaeology + 25 rot — the debt the campaign retires.
-**Reading after slice 4:** **0 archaeology + 0 rot.** `guard:docs` is GREEN, corroborated by a
+**Reading after slice 5:** **0 archaeology + 0 rot + 5 phrases, all deliberate keeps.** `guard:docs` is GREEN, corroborated by a
 guard-independent sweep. Campaign phrases (hyphenless, outside the pass/fail gate) stand at 30,
 down from 96 — the remaining open work. The rot class is fully retired; convention
 4.D now holds across the whole scanned corpus. Archaeology remains the open half of the gate.
@@ -511,6 +511,35 @@ on both sides. Two are worth carrying forward as *general* checks, because neith
 
 **Recorded disagreements:** none yet. Codex's findings were verified and accepted, and its `F004`
 flag directly produced D-9.
+
+### ⚠ THE PEER LANE DID NOT RUN FOR SLICES 1–5. This is an open exit-gate item.
+
+Stated plainly because the mechanism failing silently is the same defect class this campaign
+exists to remove. **Two Codex reviews were dispatched and neither returned any output** — one
+scoped to the slice-1 diff, one to the cumulative campaign diff; one follow-up ping went
+unanswered. No third was spawned: retrying a lane that has produced nothing twice is not
+evidence-gathering.
+
+So **every slice in this session shipped on self-review only.** What substituted for the peer,
+and what it does not cover:
+
+| Substituted with | Covers | Does NOT cover |
+| --- | --- | --- |
+| Guard-independent sweeps with positive controls | whether a family is really retired | whether the replacement prose is *true* |
+| Compiler-emitted-JS diff (`tsc --removeComments`) | that no executable code changed | anything about comment quality |
+| Full unit suite, typecheck, `prisma validate`, YAML parse | nothing regressed | whether a comment now misdescribes the code |
+| Manual re-read against the code | caught the `max` overstatement in `prisma.service.ts` before commit | its own blind spots — this is the author checking the author |
+
+The last row is the gap. Three of the four questions the peer was to answer are unanswered by
+anything else: **does every replacement pointer resolve to what the new sentence promises; does
+any rewritten sentence now assert something the code does not do; did an Arabic edit drop a
+causal *why* or leave a broken sentence.** A green test suite cannot answer any of them — the
+whole campaign changed only comments, so every gate would stay green if every new sentence were
+subtly wrong.
+
+**Exit-gate obligation:** one consolidated peer pass over the cumulative diff, answering those
+questions, before the PR is opened. If the Codex lane still cannot be made to produce, that must
+be recorded in the PR as a known limitation rather than quietly dropped.
 
 ---
 
@@ -630,7 +659,28 @@ Phase 0 is closed: every gate that blocked design is now answered.
       Gates: typecheck 0, `prisma validate` 0, guard GREEN, self-test 43/43, **61 suites / 1273
       tests**.
 
-- [ ] **Slice 5 — widen the guard's file selection (D-11).** An instrument change, deliberately
+- [x] **Slice 5 — DONE. The hyphenless phrase families are retired.** `Feature 00N`,
+      `Phase 12A`/`10A`/`11B-β2`/`9`, `F004`/`F005`. Phrase occurrences **96 → 5**, and all five
+      remaining are deliberate keeps:
+
+      - 4 × `T1`/`T2` in `test/media.e2e-spec.ts` — transaction labels, not task ids (D-14).
+      - 1 × "Feature 007" in `prisma/migrations/…_localize_availability_status/migration.sql`.
+        **An applied migration must not be edited**: Prisma records a checksum per migration and
+        a modified file makes `migrate deploy` fail on a checksum mismatch. The cost of touching
+        it is a broken deployment; the benefit is one retired phrase in a file no learner reads
+        as documentation. Left deliberately, recorded here so it is not mistaken for an oversight.
+
+      **My own sweep had a false negative here, and the guard caught it** — the exact inverse of
+      D-15. My independent grep used `Feature [0-9]{3}`; the guard's pattern is
+      `/\b[Ff]eature\s+\d{3}\b/`, so three lowercase "feature 00N" sites were invisible to *me*
+      and visible to *it*. **Neither instrument dominates the other.** The rule from D-15 stands
+      but needs its converse attached: agreement between two independently-built instruments is
+      the evidence — a single clean reading from either one is not.
+
+      One of those three was also a false claim: `prisma/schema.prisma` read
+      "schema-complete for feature 002+; **no M1 module**" while `src/modules/projects/` exists.
+
+- [ ] **Slice 6 — widen the guard's file selection (D-11) and fix the boundary (D-15).** An instrument change, deliberately
       kept out of every content slice: a self-test regression must not be able to hide inside a
       documentation diff. Must also settle whether `OD-1`/`OD-3` in CI config are archaeology.
 
@@ -700,6 +750,41 @@ standing claim from slice 1 onward is narrower and is re-proved per slice:
 | dead-path sweep, repo-wide incl. non-`.ts`/`.md` | **0** remaining outside this ledger |
 
 No application behaviour, test assertion or API contract changed.
+
+**Slices 3–5: proved with the compiler, not with a heuristic.** Per-slice "comment-only" checks
+used a line filter that skips lines starting with `//`, `#`, `>`, `*`, `-`, `|`, a backtick or an
+Arabic character — which a changed line of code could satisfy by accident. Re-proved with an
+instrument that cannot be fooled that way: compile the baseline and the branch with
+`tsc --removeComments` and diff the **emitted JavaScript**.
+
+Across all **45** touched TypeScript files, the emitted JS differs in exactly **five string
+literals** and nothing else:
+
+| Emitted difference | Kind |
+| --- | --- |
+| `describe('media descriptors (T7)'` → `'media descriptors'` | test label |
+| `describe('image descriptor invariants (T7 correction)'` → `'image descriptor invariants'` | test label |
+| `describe('… résumé descriptor (T7, FR-PUB-023)'` → `'… (FR-PUB-023)'` | test label |
+| `describe('request body size limit (doc 19 §5, AD-7 — 1 MiB JSON)'` → `'… (doc 19 §5 — 1 MiB JSON)'` | test label |
+| `` `…proves nothing about the C-6 race.` `` → `` `…proves nothing about the race.` `` | barrier-timeout diagnostic |
+
+**Zero executable statements changed.** Earlier commit messages said "four `describe()` labels";
+the correct count is five strings — the fifth is the diagnostic message, not a label. Recorded
+here because the ledger, not the commit message, is the durable record.
+
+A hand-written comment-stripper was tried first and reported six files differing, one of them
+(`media-usage-invariant.spec.ts`) a pure comment change. **It was leaking comment text into the
+comparison**, i.e. producing false positives. It was discarded rather than debugged: on a
+question this load-bearing, the compiler already is the authority.
+
+Two further checks the emitted-JS diff does not cover, both run and both clean:
+- **No test selector was broken.** Nothing in any script, workflow or config selects on the four
+  changed `describe()` strings (`--testNamePattern` and literal-string sweep: 0 hits outside the
+  definitions themselves).
+- **The rewritten module index matches reality.** `src/modules/README.md`'s alphabetical list was
+  diffed programmatically against `ls src/modules/`: **18 = 18, nothing missing, nothing extra.**
+  Checked because D-12's whole point is that a hand-maintained index drifts, and a typo in the
+  replacement would have been that same defect with better prose.
 
 **Slice 1b + 2 changed documentation and comments only.**
 

@@ -66,10 +66,10 @@ export function ApiAdminErrorResponses(): MethodDecorator & ClassDecorator {
   );
 }
 
-// The 400 a route earns purely by parsing a UUID path parameter (Phase 12A).
+// The 400 a route earns purely by parsing a UUID path parameter.
 //
 // `ParseUUIDPipe` runs BEFORE the global `ValidationPipe` and answers a malformed `:id` with 400,
-// not the 422 the rest of the request surface uses — measured in Phase 11B-β2, frozen in β-3.
+// not the 422 the rest of the request surface uses — measured against the real pipe order.
 // Every route carrying `@Param('…', ParseUUIDPipe)` can therefore return a 400 that no request
 // body or query can explain, and until now only the two reply routes said so.
 //

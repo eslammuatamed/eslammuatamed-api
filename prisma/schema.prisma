@@ -293,7 +293,7 @@ model ArticleTag {
   @@map("article_tags")
 }
 
-// ===== Projects (schema-complete for feature 002+; no M1 module) =====
+// ===== Projects =====
 
 model Project {
   id          String  @id @default(uuid(7))

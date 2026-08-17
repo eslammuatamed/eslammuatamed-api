@@ -12,7 +12,7 @@ import {
 } from './utils/e2e-app';
 import { loadApiSpec } from './utils/contract';
 
-// Feature 005 retention (doc 19 §6, D09-14/D19-10): the archive transition maintains archivedAt over
+// Retention (doc 19 §6, D09-14/D19-10): the archive transition maintains archivedAt over
 // the real HTTP path, and the purge hard-deletes only rows archived more than 12 months ago.
 // Requires a migrated + seeded eslammuatamed_test database.
 interface Msg {

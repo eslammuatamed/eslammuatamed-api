@@ -5,7 +5,7 @@ import { USAGE_INCLUDE } from './media.service';
 /**
  * The public contract is that deleting a referenced `MediaAsset` answers **409 with `usages`** —
  * a body naming what still points at the asset. Two independent things have to agree for that to
- * be true, and nothing bound them together before Phase 12A:
+ * be true, and nothing binds them together automatically:
  *
  *   1. the DATABASE decides whether the delete fails at all — a relation whose effective delete
  *      policy is `Restrict` is what turns `DELETE /admin/media/{id}` into a rejection;

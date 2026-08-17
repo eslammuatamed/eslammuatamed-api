@@ -132,7 +132,7 @@ describe('SkillsService', () => {
   // Two skills behind one public filter URL is precisely what the unique constraint prevents, so a
   // duplicate is a caller error. Left unmapped it surfaces as a 500, which reads as a server fault
   // and tells the caller nothing about how to fix the request.
-  // Phase 12A: the inverse of what this test used to assert. A duplicate slug must NOT be
+  // A duplicate slug must NOT be
   // translated here — it belongs to `AllExceptionsFilter`, like every other module's unique
   // violation. Asserting "rejects with the raw Prisma error" is what makes this
   // discriminating: re-adding any local P2002 arm turns the rejection into an `HttpException`

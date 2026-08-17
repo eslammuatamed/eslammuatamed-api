@@ -289,7 +289,7 @@ describe('Prisma 7 runtime errors through AllExceptionsFilter (e2e)', () => {
 
   // ── B2. The SAME path through PROJECTS, which used to translate P2002 itself ────────────────
   //
-  // Until Phase 10A, `ProjectsService` caught P2002 and threw a bare
+  // `ProjectsService` once caught P2002 and threw a bare
   // `UnprocessableEntityException('A project translation slug or relation value already exists.')`.
   // That took the `fromHttpException` branch: still a 422, but `title: 'Unprocessable Entity'`,
   // a project-specific `detail`, and NO `errors[]` — a different contract from Articles above for
@@ -441,7 +441,7 @@ describe('Prisma 7 runtime errors through AllExceptionsFilter (e2e)', () => {
 
   // ── B3. The SAME path through SKILLS, the last module that translated P2002 itself ─────────
   //
-  // Phase 12A. Until this phase `SkillsService.create` caught P2002 and threw
+  // `SkillsService.create` once caught P2002 and threw
   // `ConflictException('Skill slug "…" is already taken.')` — a **409**. That was not merely an
   // contract inconsistency: `POST /api/v1/admin/skills` declares `201/401/403/422/429` and no
   // 409 at all, so the runtime answered a status its own published contract did not admit, on a

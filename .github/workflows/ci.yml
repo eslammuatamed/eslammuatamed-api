@@ -146,7 +146,7 @@ jobs:
           path: openapi.json
 
       # Dependency-advisory gate (doc 19 §7). PROMOTED TO BLOCKING: the precondition this step's
-      # own comment set — "once the baseline is clean" — was met in Phase 9, which measured
+      # own comment set — "once the baseline is clean" — was met by the audit that measured
       # `npm audit` at 0 vulnerabilities in both scopes (and 0 with `--omit=dev`) from a fresh
       # `npm ci`. An advisory-only gate on a clean baseline reports nothing it would not also
       # report while blocking, so leaving it soft only preserved the ability to miss the first

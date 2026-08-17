@@ -16,7 +16,7 @@ import { TagsAdminController } from '../../modules/taxonomy/tags.admin.controlle
 import { TestimonialsAdminController } from '../../modules/testimonials/testimonials.admin.controller';
 
 /**
- * Phase 12A. `ParseUUIDPipe` runs before the global `ValidationPipe` and answers a malformed
+ * `ParseUUIDPipe` runs before the global `ValidationPipe` and answers a malformed
  * `:id` with **400** — a status no request body or query explains, and one that a client can hit
  * on every one of these routes. Before this phase exactly two of the 35 said so in OpenAPI.
  *
@@ -170,7 +170,7 @@ describe('every UUID-parsing route documents the 400 its pipe can produce', () =
   it('finds the routes at all, so the assertions below cannot pass vacuously', () => {
     // Pins the Nest reflection keys. If `__routeArguments__` or the PARAM paramtype index moves,
     // `parsesUuidParam` silently becomes false everywhere and every check below would pass while
-    // testing nothing. 35 is the count measured in Phase 12A.
+    // testing nothing. 35 is the count measured when this guard was written.
     expect(uuidRoutes).toHaveLength(35);
     for (const route of uuidRoutes) {
       expect(contract.paths[route.path]?.[route.verb]).toBeDefined();
