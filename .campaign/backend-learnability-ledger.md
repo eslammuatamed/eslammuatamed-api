@@ -971,6 +971,30 @@ Phase 0 is closed: every gate that blocked design is now answered.
 
 - [ ] **Then** design the learning architecture, prerequisite graph and difficulty model.
 
+## 7b. PHASE 2 — in flight (durable note; survives session compaction)
+
+**Phase 2 opened.** The primary session is the control plane only: investigations are delegated
+and only their compact results land here.
+
+| Dispatched | Purpose | Status |
+| --- | --- | --- |
+| `codex-5c` — peer review of slice 5c (`eff70d3`) | verify the two false-claim rewrites and the α replacements; enumerate any remaining marker shape | **OUTSTANDING** |
+| `graph-derive` — module dependency graph, size/test/surface signal, concept load | re-derive the phase-0 input that was never recorded (§6) | **OUTSTANDING** |
+| `readme-survey` — de-facto section template across the 17 module READMEs, divergence, depth, opening contract | input to the module template | **OUTSTANDING** |
+
+Results land in **§10** (below) as compact tables. If a dispatched agent never returns, that is
+recorded here as review debt in the same terms §5 uses — never silently upgraded into
+"verified".
+
+**Review debt carried, and NOT to be silently discharged:** everything from `7f7a505` onward
+carries author verification only unless a peer pass says otherwise. Slice 5c's pass is
+outstanding. This gates the **PR**, not phase 2 (owner direction).
+
+## 10. Phase 2 measurements
+
+*(Empty until the dispatched investigations return. Data lands here rather than in a session
+transcript, because §6 already recorded one "extracted" result that was lost exactly that way.)*
+
 ## 8. Owner-decision blockers
 
 **OD-B — the governing record of API release state is wrong AND internally contradictory (D-10).**
