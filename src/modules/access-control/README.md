@@ -66,8 +66,14 @@ PermissionsGuard.canActivate (بعد JwtAuthGuard، فـ request.user مضبوط
   > `ContentStatus` و`SkillGroup` و`EmploymentType` و`MediaKind` قيود `enum` في `schema.prisma`،
   > و`PAGE_SEO_KEYS` لها فحصٌ في الخدمة على **مسار الكتابة** نفسه (`assertKnownKey` تُستدعى داخل
   > `update` في `seo.service.ts`)، وخريطة ترجمات المعرض يفحص مفاتيحها `assertLocales` في
-  > `projects.service.ts` ويسندها مفتاحٌ أجنبيّ إلى `Locale`. المنحة وحدها بلا سندٍ خلفيّ، وذلك
-  > سبب إفرادها هنا — **وهذا مسحٌ مُنفَّذ على الشيفرة، لا انطباع.**
+  > `projects.service.ts` ويسندها مفتاحٌ أجنبيّ إلى `Locale`. فالمنحة هي الوحيدة **بين مُتحقِّقات
+  > الـ `DTO`** التي لا سند خلفها.
+  >
+  > *ولا يقف الأمر عند الـ `DTOs`، وهذا هو حدّ المسح أعلاه:* الأنابيب المخصّصة تفرض هي الأخرى
+  > قواعد على قيم تُخزَّن. و`IdempotencyKeyPipe` في `contact` مثالٌ ثانٍ للنمط نفسه — يفرض طول
+  > ترويسة `Idempotency-Key` ومحارفها (`ASCII` مطبوع بلا فراغات)، بينما `contact-reply.service.ts`
+  > يخزّن القيمة كما جاءت وعمودها `String` حرّ؛ وفرادة المفتاح لكلّ رسالة مسنودة في `DB`، أمّا
+  > **شكله** فلا. **فالخلاصة ليست «موضع واحد شاذّ» بل «هذه فئة، وهذان عضواها المعروفان».**
 - الاختبارات: `permissions.guard.spec.ts` (السماح/المنع، `'*'`, حساب معطّل)، `access-control.service.spec.ts`، `route-permissions.spec.ts`، و`test/access-control.e2e-spec.ts`.
 
 ## أخطاء شائعة

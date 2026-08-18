@@ -14,7 +14,7 @@
 | `filters/all-exceptions.filter.ts` | `AllExceptionsFilter` العام: كل استثناء → `RFC 7807 problem+json` |
 | `http/problem-details.ts` | نوع `ProblemDetails` + `ProblemDetailsDto` (لـ Swagger) + `PROBLEM_TYPES` |
 | `http/validation-problem.exception.ts` | `ValidationProblemException` + `flattenValidationErrors` (مسارات حقول مُنقَّطة) |
-| `interceptors/response-envelope.interceptor.ts` | `ResponseEnvelopeInterceptor`: يغلّف كل رد 2xx في `{ data }` أو `{ data, meta }` |
+| `interceptors/response-envelope.interceptor.ts` | `ResponseEnvelopeInterceptor`: يغلّف كل رد 2xx **له جسم** في `{ data }` أو `{ data, meta }`؛ و`204` بلا جسم فلا غلاف له |
 | `pagination/page-meta.ts` | `PageMeta`, `buildPageMeta`, و`PaginatedResult<T>` (الحارس الذي يفكّه الـ interceptor إلى قائمة) |
 | `dto/pagination-query.dto.ts` | `PaginationQueryDto` — ترقيم offset (page/perPage مع getters skip/take) |
 | `dto/locale-query.dto.ts` | `LocaleQueryDto` — يتحقّق من صيغة `?locale=` |
@@ -74,7 +74,7 @@ providers: [
 القيمة instance من PaginatedResult ؟ → { data: value.data, meta: value.meta }
                                      → { data: value ?? null }
 ```
-شكل واحد بلا استثناء (`D10-3`)، فيبقى تحليل العميل موحّدًا. الأخطاء تتجاوز هذا المسار (الفلتر يملكها).
+شكل واحد لكلّ ردٍّ له جسم (`D10-3`)، فيبقى تحليل العميل موحّدًا. **والاستثناء ليس شكلًا ثالثًا بل غياب الجسم:** الحذف يُجيب `204` بلا محتوى، فلا `{ data }` فيه — لا تكتب عميلًا يفترض جسمًا على كلّ `2xx`. الأخطاء تتجاوز هذا المسار (الفلتر يملكها).
 
 ## العقود والثوابت
 
