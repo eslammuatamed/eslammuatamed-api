@@ -169,7 +169,9 @@ this table: `git log 9af1aac..HEAD --name-only` and drop the commits touching on
 | `49c611b` the fixes for those | §11h | **2 MAJOR + 2 MINOR** — including a stale comment 20 lines above the repaired one |
 | `689ff08` · `59d5a57` the fixes for those | §11h | **2 MAJOR + 8 MINOR** — from the first *family-scoped* round |
 | `a3e993f` the family sweep | §11h | **0 MAJOR + 9 MINOR** |
-| `a738cb9` the nine narrowings | §11h | final consistency pass in flight at time of writing |
+| `a738cb9` the nine narrowings | §11h | **0 MAJOR + 7 MINOR** |
+| `716a7c5` those seven | §11h | **0 MAJOR + 1 MINOR** — an enumeration missing three of eight |
+| `e6d6b01` that one | §11h | **CLEAN** |
 | commits touching only `.campaign/` | — | not source-touching |
 
 **The campaign-wide finding total is NOT reconstructible from these records, so it is not stated.**
@@ -2787,7 +2789,9 @@ ownership boundary is stated in the sentence itself (§11f settled this once alr
 | 3 | `f7dfe37..49c611b` | 2 MAJOR + 2 MINOR |
 | 4 | **whole family, not the diff** | 2 MAJOR + 8 MINOR |
 | 5 | `689ff08..a3e993f` | **0 MAJOR** + 9 MINOR |
-| 6 | `a3e993f..a738cb9` | final consistency pass |
+| 6 | `a3e993f..a738cb9` | 0 MAJOR + 7 MINOR |
+| 7 | `a738cb9..716a7c5` | 0 MAJOR + 1 MINOR |
+| 8 | `716a7c5..e6d6b01` | **CLEAN** |
 
 **Round 3 is the one that changed the method.** It found a stale comment **twenty lines above** the
 one being repaired, contradicting it: `compensate()`'s own header still read *"any other failure
@@ -2834,6 +2838,16 @@ was correcting** (*"Not the large sanitized master"*), left dangling by my own e
    orphan object"* was copied faithfully from `media.service.ts`, whose `cleanup()` comment asserted
    *"Cleanup never throws"* while the sibling `cleanupAfterDelete` — 175 lines away, same file, same
    adapter — said the opposite and wrapped it in `try`.
+6. **An enumeration offered as evidence is a claim of completeness.** Round 6's own repair listed four
+   nullable FKs and omitted three; round 7 caught it. Restated as *the single exception*
+   (`ProjectGalleryItem.mediaAssetId`), which is exhaustive by construction — **a list invites the
+   miss that a stated exception cannot make.** The same defect appeared earlier in the round when a
+   seven-item count was backed by a six-item enumeration.
+
+**Peer lane closed for run 6: 2 → 2 → 4 → 10 → 9 → 7 → 1 → CLEAN, over eight rounds.** Round 8
+re-enumerated all eight blocking relations against `schema.prisma` and confirmed the inverse claim is
+exhaustively true. *Eight rounds on one claim family is the most this campaign has spent anywhere —
+and rounds 4 onward only became productive when the sweep stopped following the diff.*
 
 ### ⚠ OWNER-FACING — the shipped spec asserts a property the implementation does not provide
 

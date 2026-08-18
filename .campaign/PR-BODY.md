@@ -207,9 +207,36 @@ returns zero, with passing positive controls.
   36%. **A retraction in one file is not a fix for the word.** The peer lane on the run-5 repairs ran
   **3 MAJOR → 1 MAJOR → CLEAN**, and that single round-2 MAJOR was a sentence its own next clause
   refuted.
-- **One item remains:** a new uncoached reader on a bundle from the current head — the
-  `data-mapper`/`repository` prerequisite, each confirmed run-5 repair, a few unchanged controls, and
-  an unscored open-ended pass kept.
+- **Run 6 closed the prerequisite-order class.** A sixth reader read the guide linearly and reported
+  nothing out of order — six runs after the defect began as one misplaced vocabulary table. Its
+  unscored pass then found the sharpest finding of the campaign.
+- **The media README promised a guarantee the code does not make, and it had copied it from a source
+  comment.** *"Cleanup never throws; and if objects remain, `media.compensation_incomplete` is logged
+  — so there is neither an orphan row nor an orphan object"* — one clause denying what the clause
+  before it states, and `media.service.ts` logs exactly that case by name. The false half was
+  inherited: `cleanup()`'s own comment asserted *"Cleanup never throws"* while awaiting `deleteMany`
+  bare, and the sibling `cleanupAfterDelete` — 175 lines away, same file, same adapter — said the
+  opposite and wrapped it in `try`. **The document was the honest witness of a lying comment.**
+- **Repairing it took eight peer rounds — 2, 2, 4, 10, 9, 7, 1, clean — and three of my first three
+  attempts each shipped a new absolute:** "absolutely", then "every failure", then "the only path".
+  The last fell because a rejected `create` does not prove PostgreSQL did not commit.
+- **Round 4 changed the method, and that is the transferable part.** Three diff-scoped rounds each
+  found defects created by the previous repair, including a stale comment *twenty lines above* the one
+  being fixed. Dispatched against the claim *family* instead of the diff, the next round returned ten
+  findings — every one a probabilistic or best-effort mechanism written up as a guarantee: "the raw
+  upload is never persisted" (true of images, false of PDFs), "cleanup can never touch another asset's
+  objects" (rests on `randomUUID()` alone), "never the master" (the admin entity falls back), "a
+  further upload is rejected with 429" (a dedup hit never reaches the cap), and six more. Two later
+  rounds found sentences contradicting their own next clause, and one found a plain factual error —
+  a column documented as `text` that is named `alt`.
+- **Two other run-6 findings, both confirmed:** the e2e summary's *"non-image → 422"* is a category the
+  test is not about (its fixture is plain text with a spoofed image extension, and PDF is a supported
+  type accepted with `201`); and the guide said you would not meet `locales` *"in preview"* — true of
+  the imports array and false about behaviour, since both preview reads delegate to `getPreviewById`
+  where `assertEnabled` runs. **A delegated dependency does not appear in an imports list.**
+- **One item remains:** a **narrow** cold regression on a bundle from the current head — the
+  compensation invariant, supported versus unsupported non-image behaviour, direct versus delegated
+  locale validation, a few unchanged controls, and an unscored open-ended pass kept.
 - The provenance guard has four known blind spots (pattern family, file selection, token boundary,
   alphabet). The corpus is clean by *independent sweep*, not because the guard says so. Widening it
   is queued and deliberately not required for this branch.
