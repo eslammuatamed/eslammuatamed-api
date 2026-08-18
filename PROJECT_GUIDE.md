@@ -24,8 +24,8 @@
 | المصطلح | ما تعنيه هنا | المصدر الرسمي |
 |---|---|---|
 | decorator (`@…`) | دالّة تعمل **مرّة واحدة عند تعريف الصنف** (لا عند كلّ طلب)، وغالب ما تفعله هنا هو تسجيل ميتاداتا يقرأها `Nest` و`Swagger` والتحقّق لاحقًا. ولهذا `reflect-metadata` تبعيّة إنتاج | [Custom decorators](https://docs.nestjs.com/custom-decorators) |
-| `provider` | أيّ شيء مُسجَّل تحت مُعرّف (token) ليُعطيه الإطار لمن يطلبه: صنف (`useClass` — وهو الشائع: كلّ `*.service.ts`)، أو مصنع (`useFactory` — مثل `STORAGE_ADAPTER` و`MAIL_TRANSPORT`)، أو قيمة جاهزة (`useValue`) | [Providers](https://docs.nestjs.com/providers) |
-| `service` | الصنف الذي يملك **قواعد المجال**: منطق العمل، الـ `transactions`، تحليل اللغة (تفصيله في القسم ٥). يُسجَّل `provider` ويُحقَن حيث يُطلَب، وكلّ `*.service.ts` هنا من هذا النوع | [Providers](https://docs.nestjs.com/providers) |
+| `service` | الصنف الذي يملك **قواعد المجال**: منطق العمل، الـ `transactions`، تحليل اللغة (تفصيله في القسم ٥). كلّ ملفّ `*.service.ts` هنا من هذا النوع | [Providers](https://docs.nestjs.com/providers) |
+| `provider` | أيّ شيء مُسجَّل تحت مُعرّف (token) ليُعطيه الإطار لمن يطلبه: صنف (`useClass` — وهو الشائع: كلّ ملفّات `*.service.ts`)، أو مصنع (`useFactory` — مثل `STORAGE_ADAPTER` و`MAIL_TRANSPORT`)، أو قيمة جاهزة (`useValue`) | [Providers](https://docs.nestjs.com/providers) |
 | `@Module` | صندوق تجميع: يُعلن ما يملكه (`providers`) وما يراه (`imports`) وما يُعيره لغيره (`exports`). التطبيق شجرة من هذه الصناديق جذرها `AppModule` | [Modules](https://docs.nestjs.com/modules) |
 | حقن التبعيّات (DI) · `@Injectable` | لا تُنشئ الخدمات بـ `new`؛ تُعلنها في الـ constructor فيُمرّرها الإطار. وهذا هو **مقعد الاختبار**: يُمرَّر بديل مُموَّه بدل التبعيّة الحقيقيّة في اختبار الوحدة | [Providers · DI](https://docs.nestjs.com/providers#dependency-injection) |
 | وحدة ديناميكيّة · `ConfigModule.forRoot({ … })` | وحدة تُبنى بمعاملات وقت التسجيل بدل أن تُستورَد ساكنة. الشكل `forRoot`/`registerAsync` الذي ستراه في `config` و`auth` | [Dynamic modules](https://docs.nestjs.com/fundamentals/dynamic-modules) |
