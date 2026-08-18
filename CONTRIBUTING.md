@@ -91,7 +91,7 @@ This repository is **public** and carries **active GitHub rulesets**. The rulese
 
 - **A pull request is required** — a direct push to `main` is refused, not merely discouraged. No bypass actors are configured.
 - **A merge commit is the only permitted merge method** — GitHub refuses squash and rebase on `main`. This makes `D17-4`'s promotion rule structural rather than procedural.
-- **`Lint · Typecheck · Unit · Contract` and `E2E (Postgres)` are required checks** — a PR failing either cannot be merged. The other CI contexts (CodeQL, the branch-policy guard) are deliberately **not** required; promoting one is a separate owner decision.
+- **`Lint · Typecheck · Unit · Contract` and `E2E (Postgres)` are required checks** — a PR failing either cannot be merged. The remaining four contexts (`CodeQL`, `Analyze (actions)`, `Analyze (javascript-typescript)`, and the branch-policy guard) are deliberately **not** required; promoting one is a separate owner decision.
 - Branch deletion and non-fast-forward pushes are refused.
 
 **Enforced by GitHub on `dev`** (ruleset *dev integration protection*): branch deletion and non-fast-forward pushes only. `dev` intentionally carries **no required PR and no required checks**, because `D17-4`'s post-release **fast-forward of `dev` to the new `main` merge commit is a direct push** — a required-check rule on `dev` would block the governed synchronization.
