@@ -4,8 +4,9 @@ import { ProjectListQueryDto } from '../../projects/dto/project-query.dto';
 import { CreateSkillDto, UpdateSkillDto } from './skill.dto';
 
 // `slug` is a PUBLIC URL segment, so its format is part of the contract rather than a naming
-// convention. These assertions pin the rule at the validation boundary — the only place that can
-// keep a malformed slug out of the database in the first place.
+// convention. These assertions pin the rule at the validation boundary, which is where a caller
+// gets a 422 naming the field. It is not the last line of defence: the column has its own CHECK
+// (`skills_slug_format_check`), which is what covers the seed and raw SQL.
 const errorsFor = <T extends object>(
   cls: new () => T,
   payload: Record<string, unknown>,
