@@ -312,7 +312,7 @@ npm run test:e2e         # يحتاج PostgreSQL (Supertest + jest-openapi)
 > تقيس شيئًا ليست بوابة. الخطوة الحالية تتحقّق من وجود `shellcheck` وتُنهي التشغيل بـ
 > `exit 1` مع تعليق `::error::` إن غاب، ثم تفحص سكربت التحويل فعليًّا.
 
-**خط الإصدار** (`.github/workflows/deploy.yml`) يعمل على `push: main` وحده، ورسمه الحالي:
+**خط الإصدار** (`.github/workflows/deploy.yml`) لا يعمل إلا على `main`: دفعًا إليه، أو `workflow_dispatch` على مرجعه — وهو ما يستعمله احتياطيّ الـ PR المدموج (انظر أدناه). ورسمه الحالي:
 
 ```
 preflight  →  (verify  ∥  e2e)  →  deploy

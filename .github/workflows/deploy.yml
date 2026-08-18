@@ -29,6 +29,9 @@
 #     ln -sfn /srv/eslammuatamed-api/releases/<previous> /srv/eslammuatamed-api/current.new
 #     mv -Tf  /srv/eslammuatamed-api/current.new /srv/eslammuatamed-api/current
 #     sudo systemctl restart eslammuatamed-api
+#   Then re-run the SAME acceptance checks against the release you rolled back to — the
+#   automatic path does exactly that (`verify_app` in scripts/deploy/remote-cutover.sh).
+#   A restarted process is not a verified rollback.
 #   Migrations are fix-forward (doc 09 §6); rolling the symlink back does NOT roll the
 #   schema back. Database restore (doc 23 §4) is the disaster path only.
 #
