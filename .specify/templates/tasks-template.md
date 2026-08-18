@@ -181,7 +181,7 @@ here is checked. "Not requested in the prompt" is never a reason to skip it.
 
 > **Data-backed flows (doc 16 §5.2 / D16-9):** when a feature adds or changes a data-backed backend flow, `/speckit-tasks` MUST also add a **dev/demo seed** task in the implementation phase (author the idempotent, dev-only, bilingual `seed.dev.ts` entries and integrate them into `db:seed:dev`) — the FINAL-gate line above only verifies it was done.
 
-> **Release freeze (doc 17 D17-5):** while the release freeze is active, a passed gate clears the feature to push / PR / merge to `dev` only — **`dev → main` promotion and deployment stay blocked** until the owner opens the Website/Homepage phase.
+> **Release authorization (doc 17 D17-5 / doc 23 D23-17):** the Website/Homepage freeze lifecycle is complete, but a passed gate does not pre-authorize release. Every `dev → main` promotion still needs the owner's decision, and deployment separately waits for `production` Environment approval.
 
 ---
 

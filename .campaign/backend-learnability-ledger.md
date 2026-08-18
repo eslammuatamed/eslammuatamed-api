@@ -1829,7 +1829,7 @@ that it is **not sufficient**, and this is the measurement of that.
 - **MAJOR — "one pipeline per SHA" is wrong, and the missing mechanism was the interesting part.**
   `deploy-fallback.yml` exists (`pull_request: closed` on `main`) and dispatches `deploy.yml`,
   because the `push → main` event is intermittently dropped. A merge can therefore start **two**
-  runs on the same `SHA`; the concurrency group and `preflight`'s `already-deployed` verdict make
+  runs on the same `SHA`; the concurrency group and `preflight`'s `already-current` verdict make
   the pair idempotent so at most one reaches a server write. Corrected in `README` **and** in
   `PROJECT_GUIDE` §11, which carried the same claim independently of this pass.
 - **MAJOR — the rewritten Q2 was still underspecified.** Assuming authentication and authorization
@@ -3536,6 +3536,26 @@ their own "no production deployment took place". Not blocking this campaign (4.D
 language either way), but two governing documents disagree with each other and both disagree with
 production. Reconciling them is stop condition 3.
 
+**Resolved 2026-08-19 by the release-governance follow-up.** The governing docs now preserve the
+2026-07-20 freeze as history, record its API lifecycle completion through the owner-authorized
+PR `#54` promotion (`fb88674`) and successful deploy runs `31058724362`/`31058729833`, and retain
+the durable rule that neither a future promotion nor its separate Environment-approved deployment
+is pre-authorized. The same repair records the current public-repository ruleset and production
+Environment enforcement model without rewriting the original rationale.
+
+| Site | Current claim | Governing truth | Configured/executable truth | Verdict | Action |
+| --- | --- | --- | --- | --- | --- |
+| doc 17 §4/D17-5; doc 23 §3/D23-18 | API freeze active; `main` untouched at `40a0c91` | The hold lifts through explicit owner authorization; future releases remain individually authorized | PR `#54` merged `dev → main` at `fb88674`; deploy runs `31058724362`/`31058729833` succeeded | GOVERNANCE CONTRADICTION | Preserve the original hold as history and record the completed API lift |
+| doc 17 §1/D17-2; doc 23 §3/D23-16 | A green `main` commit deploys automatically | A trigger, Environment approval, and deployment acceptance are distinct gates | `deploy.yml` triggers on `push: main` and `workflow_dispatch`; only the `production` job mutates the server and it requires owner approval | GOVERNANCE CONTRADICTION | Separate trigger from approval and completion |
+| doc 17 §7/D17-4; doc 23 §3/D23-16 | Free/private means branch policy and Environment review are unavailable | Live enforcement owns platform facts; governance owns the durable branch model | Both code repositories are public with active rulesets; `main` requires PRs/merge commits/release checks; `production` requires the owner and forbids admin bypass | GOVERNANCE CONTRADICTION | Preserve the adoption rationale as history and state the current enforced/procedural split |
+| doc 17 D17-6; doc 23 D23-19 | Hosted stack is disposable pre-launch staging; production is future | A production release ends staging reset authority | The owner promoted and approved the API release on 2026-08-06; later production promotions followed | GOVERNANCE CONTRADICTION | Add D17-7/D23-26 lifecycle records; retain D17-6/D23-19 as historical only |
+| doc 23 §3; `CONTRIBUTING.md`; `deploy.yml` comment | An "authorized push" may directly update `main` | `main` changes arrive through a governed promotion/hotfix PR | The active `main` ruleset requires a PR and configures no bypass actor | IMPLEMENTATION DRIFT | Remove the impossible direct-push route from current guidance |
+| `PROJECT_GUIDE.md` release verification note | `dev → main` is squash-merged | D17-4 mandates a merge commit for promotion, unlike feature/fix/chore PRs into `dev` | The `main` ruleset allows merge commits only; recent promotions are two-parent merges | CONFIRMED STALE DOC | Correct the promotion explanation without changing workflow behavior |
+| `PROJECT_GUIDE.md` trigger introduction | Release workflow runs on `push: main` only | D23-17 defines push, merged-PR fallback dispatch, and manual recovery | `deploy.yml` supports both `push: main` and `workflow_dispatch`; fallback dispatches the latter | CONFIRMED STALE DOC | State both executable triggers and the fallback's role |
+| root `README.md` | Repository is private | Licensing and visibility are separate facts | Repository visibility is public; package remains `UNLICENSED` | CONFIRMED STALE DOC | Remove the stale private-repository claim without changing the license |
+| doc 17/doc 23 version history and quoted original decisions | Old Free/private, freeze, and staging facts describe their adoption date | History remains evidence and must not be rewritten as current permission | Later lifecycle rows explicitly supersede those facts | HISTORICAL ONLY | Keep the text, label it historical, and add current lifecycle records |
+| `.github/workflows/deploy.yml` | Suspected exclusive `push` trigger or missing approval gate | Both triggers and a separate Environment gate are required by D23-16/D23-17 | Parsed YAML contains `push: main` plus `workflow_dispatch`; deploy job binds `environment: production` | FALSE FINDING | No executable change; comments only, with parsed-equivalence proof |
+
 *Carried forward:* each `dev → main` promotion and each production deploy needs fresh, explicitly
 scoped owner authorization. This campaign ends at a PR.
 
@@ -3557,7 +3577,7 @@ authoritative, and do not assert any production/freeze state in a code-adjacent 
 | Item | State |
 | --- | --- |
 | `OD-A` (`D16-13` cited but absent from governance) | open, unchanged |
-| `OD-B` (governing API release state stale + self-contradictory) | open, unchanged |
+| `OD-B` (governing API release state stale + self-contradictory) | resolved 2026-08-19 — lifecycle and current enforcement reconciled in docs 17/23 |
 | Contract gap: `POST /api/v1/admin/media` can return `400`, undeclared in `openapi.json` | open — needs the doc 16 §3 contract flow, not this branch |
 | `.github/workflows/ci.yml:161` comment vs the job's actual E2E steps | open, deferred outside the campaign corpus |
 | `test/README` pure-unit row (~29) vs moved arithmetic | open — **not** replaced with a new number; that needs the whole 95-spec corpus classified per file |

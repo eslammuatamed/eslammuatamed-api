@@ -1,14 +1,15 @@
 # Production deploy — NestJS API → Contabo VPS (doc 23 §3 "API release").
 #
 # TRIGGERS:
-#   push -> main        : happy path — a merged dev->main promotion (or authorized push).
+#   push -> main        : happy path — a merged dev->main promotion or hotfix PR.
 #   pull_request:closed : the merged-PR FALLBACK (deploy-fallback.yml) dispatches this
 #                         workflow via workflow_dispatch with target_sha, because the
 #                         push->main event is intermittently dropped by GitHub (proven in
 #                         the runbook). Both converge on this exact-SHA path.
 #   workflow_dispatch   : manual recovery / the fallback dispatcher (optional target_sha).
-# No tag trigger and no scheduled reconciliation (cost + schedule reliability — owner
-# Option 4). Direct pushes to main are prohibited by policy.
+# No tag trigger and no scheduled reconciliation: a schedule can itself be delayed or
+# dropped, so it would not close the observed event gap (owner Option 4). Direct pushes to
+# main are refused by the repository ruleset and prohibited by policy.
 #
 # MANUAL APPROVAL GATE: the `deploy` job below — the only job here that
 # mutates the server — is bound to the `production` environment, so every path pauses
@@ -17,8 +18,9 @@
 #
 # EXACT-SHA + IDEMPOTENCY: `preflight` resolves the target SHA (push -> github.sha;
 # workflow_dispatch -> target_sha, which must equal github.sha), asserts it is the current
-# main tip, and reads the live release SHA over SSH. It emits action = deploy /
-# already-deployed / superseded. verify + e2e + deploy run ONLY when action == deploy, so a
+# main tip, and reads the live release SHA over SSH. Successful preflight outcomes are
+# release / already-current / superseded; invalid refs and lookup failures abort closed.
+# verify + e2e + deploy run ONLY when action == release, so a
 # same-SHA push+fallback pair is idempotent (one deploys; the queued one no-ops at
 # preflight). The whole workflow shares one concurrency group so only one path mutates the
 # server, and the deploy job re-checks github.sha == current main immediately before any
@@ -65,7 +67,7 @@ permissions:
 jobs:
   # Resolve + validate the exact target SHA and decide the action. Runs first (after
   # acquiring the concurrency slot), reads the live release SHA over SSH, and short-circuits
-  # already-deployed / superseded so the second path of a same-SHA pair is a cheap no-op.
+  # already-current / superseded so the second path of a same-SHA pair is a cheap no-op.
   preflight:
     name: Preflight — resolve & validate exact SHA
     runs-on: ubuntu-latest
@@ -86,7 +88,7 @@ jobs:
           [ -n "$DEPLOY_KNOWN_HOSTS" ] || { echo "DEPLOY_KNOWN_HOSTS secret is empty" >&2; exit 1; }
           printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"; chmod 600 "$HOME/.ssh/known_hosts"
 
-      - name: Resolve trigger, validate SHA == current main, check already-deployed
+      - name: Resolve trigger, validate SHA == current main, check already-current
         id: pf
         env:
           GH_TOKEN: ${{ github.token }}
@@ -297,7 +299,7 @@ jobs:
     # dispatches `deploy.yml --ref main`. Manual workflow_dispatch from any other ref is
     # rejected twice over — by the preflight ref check and by the branch policy.
     environment: production
-    # Cannot start unless preflight decided `deploy` AND both verification jobs of THIS run
+    # Cannot start unless preflight decided `release` AND both verification jobs of THIS run
     # (same github.sha) pass.
     needs: [preflight, verify, e2e]
     if: needs.preflight.outputs.action == 'release'
