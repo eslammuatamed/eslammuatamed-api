@@ -179,9 +179,37 @@ returns zero, with passing positive controls.
   because `zsh` does not word-split an unquoted multi-line variable. Both now assert their subject's
   size before reporting, and both are negative-controlled with exit codes read directly rather than
   through a pipe, which had masked them.
-- **One item remains:** a new uncoached reader on a bundle from the current head — internal
-  vocabulary ordering, each confirmed run-4 repair, a few unchanged controls, and an unscored
-  open-ended pass kept.
+- **Run 5: the vocabulary block passes, and the same defect was one level up.** A fifth reader walked
+  all fifteen rows and reported no forward dependency — four runs of work on that block holds. Then
+  §4 calls Prisma *"the `data-mapper` (no `repository` layer)"* and §5 builds an architectural
+  decision on the contrast, while **both terms are defined only in `src/prisma/README.md`**, which
+  the guide's own reading order places *after* the guide. Defined now in one bounded line at first
+  use; the full argument stays where it was.
+- **Six more from its unscored pass, and the census had to come before the wording.** *"Every service
+  injects `PrismaService`"* is false — and so was `prisma/README`'s softer *"almost every"*: of 25
+  `*.service.ts` files besides `PrismaService` itself, **18** inject it and **7** do not. The count
+  was never the lesson; the lesson is that no repository layer sits between a service and Prisma, and
+  that **the `.service.ts` suffix promises no database access while the absence of an injection does
+  not mean the absence of a database** — `auth.service.ts` reaches the database through `users` and
+  `refresh-token`. Also: the test seam is the **constructor**, not the DI container; the reading path
+  claimed exactly three modules lay outside it and `users` is a fourth, previously left with no slot
+  at all; `projects/README` said `ogImageId` "remains a raw reference", which reads as *and nothing
+  else*, while the contract carries both it and `ogImage`; `media/README` called résumé-PDF upload
+  the module's work and then, under accepted limitations, said it was outside the module's scope —
+  the subject was wrong, it is outside the e2e tests; and `test/README`'s e2e file map read as an
+  inventory while naming 11 of 34.
+- **An "accepted limitation" had decayed like any other claim.** *"No e2e for PDF upload"* is false:
+  `page-seo.e2e-spec.ts` uploads a real `resume.pdf` through `POST /admin/media`, expects `201` and
+  asserts `kind === PDF`. Its two neighbouring limitations were then checked rather than assumed, and
+  both hold.
+- **And "most" shipped twice, one round apart, in the same claim family.** It was struck from the DI
+  vocabulary row by one peer round and reappeared in `src/prisma/README.md` the next — 22 of 61 is
+  36%. **A retraction in one file is not a fix for the word.** The peer lane on the run-5 repairs ran
+  **3 MAJOR → 1 MAJOR → CLEAN**, and that single round-2 MAJOR was a sentence its own next clause
+  refuted.
+- **One item remains:** a new uncoached reader on a bundle from the current head — the
+  `data-mapper`/`repository` prerequisite, each confirmed run-5 repair, a few unchanged controls, and
+  an unscored open-ended pass kept.
 - The provenance guard has four known blind spots (pattern family, file selection, token boundary,
   alphabet). The corpus is clean by *independent sweep*, not because the guard says so. Widening it
   is queued and deliberately not required for this branch.
