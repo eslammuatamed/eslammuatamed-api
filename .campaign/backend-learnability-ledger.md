@@ -155,8 +155,8 @@ this table: `git log 9af1aac..HEAD --name-only` and drop the commits touching on
 | `0262e5b` · `846dc73` run-1/run-2 repairs | §11c, §11d | 9 findings / 3 MAJOR (§11c); first attempt **rejected** and redone (§11d) |
 | `4f7f10d` · `f3becd8` run-3 repairs | §11e | two rounds — 4 MAJOR, then 5 more |
 | `b6f17b0` · `21c20f1` run-4 repairs | §11f | **7 MAJOR + 1 MINOR**, each re-verified here before action |
-| `483c9c5` · `87839d6` the fixes for those | §11f | **5 MAJOR + 2 MINOR** — four of the five MAJORs were introduced *by* the fixes; one peer count pushed back on with an enumeration |
-| `d3455d5` the fixes for those | §11f | **0 MAJOR + 1 MINOR** |
+| `87839d6` the fixes for those | §11f | **5 MAJOR + 2 MINOR** — four of the five were introduced *by* the fixes; one peer count pushed back on with an enumeration |
+| `483c9c5` · `d3455d5` the fixes for those | §11f | **0 MAJOR + 1 MINOR** |
 | `2fd62e2` the fix for that MINOR | §11f | **CLEAN** |
 | commits touching only `.campaign/` | — | not source-touching |
 
@@ -2346,7 +2346,12 @@ no service, so it is not among the 22. The sixteen files were listed by name and
 stands.** *Stronger evidence wins in both directions; a peer verdict is evidence, not authority.*
 
 **Comment-only, proved and negative-controlled.** Three `.ts` files changed. Both sides compiled with
-`tsc --removeComments`: emitted `JS` byte-identical across all three. The proof was then negative
+`tsc --removeComments`: emitted `JS` byte-identical across all three. **And the PR's headline figure
+was re-measured end to end rather than inherited:** `9af1aac..HEAD` touches **68** `.ts` files, and
+the emitted `JS` differs in **exactly six string literals — four `describe()` labels and two
+diagnostic messages — and zero executable statements**, which is what the PR body has claimed since
+before this session. *A published count nobody has re-measured is the same defect as a `SHA`-pinned
+status line; it is now measured at the head that carries it.* The proof was then negative
 controlled — appending one executable statement makes the emitted `JS` differ *and names the
 statement in the diff*; restoring returns a byte-identical file and an IDENTICAL verdict.
 
@@ -2426,6 +2431,33 @@ questions in all four runs so far.
 
 *Neither this session's agent nor Codex may read the bundle: both have seen the corpus and the
 answers, and a reader who has seen either is not cold.*
+
+### The prompt was re-validated against the shipped corpus — and it had gone stale in the usual way
+
+§11's own rule — *"re-validate every gate question against the corpus immediately before running the
+gate, not when writing it"* — was written after a peer found question 4 testing a trap the campaign
+had already closed. **It nearly failed the same way here.** The run-5 prompt was drafted *before* the
+first peer finding was read; the corpus then changed through four peer rounds across ten files. A
+prompt written at 15:18 against a bundle cut at 16:17 is a prompt for a tree that never shipped.
+
+Re-validated question by question against the bundle files as they now stand. The fourteen drafted
+questions survive — each still points at a live discrimination — but the pass found **four confirmed
+repairs with no question at all**, every one of them in prose the peer rounds had rewritten:
+
+| Added | Tests |
+| --- | --- |
+| Q15 — does a `*.service.ts` always own its area's business rules? | the `service` row's three shapes — the single most-rewritten sentence of the round, and the site of the repair's own false quantifier |
+| Q16 — does the injection container perform the substitution in a unit test? | the `DI` row's corrected seam claim, and whether the reader can find the measured counts |
+| Q17 — with mail on, is any setting still not required? | the `SMTP_SECURE` exception |
+| Q18 — who consumes the media resolver, and who validates a locale *on every read*? | the five-consumer list **and** the admin-read nuance, in one question that a too-broad answer fails |
+
+Each was checked to be answerable **from the bundle**, not merely from the repository. And the whole
+prompt was re-checked by `grep` — not by intention — for pass criteria, expected answers, repair
+labels, severities, prior-run history, and any mention of the peer.
+
+*The rule that produced this section is worth restating, because it has now fired twice: **a test
+written against a snapshot of the thing it tests stops testing it the moment that thing is fixed** —
+and a repair round is exactly when the thing gets fixed.*
 
 ## 8. Owner-decision blockers
 
