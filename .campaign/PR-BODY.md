@@ -273,7 +273,7 @@ returns zero, with passing positive controls.
   named site — because I had swept the Arabic words I happened to write rather than grepping
   `@Public()`, `availableLocales`, and the `404` claim across the corpus. Five of round 2's seven were
   against text round 1's repairs had written, including two false universals introduced *in the round
-  whose subject is unverified universals*.
+  whose subject is unverified universals*. **The convergence — 20, then 7, then 4 — is the evidence the method worked; the first number is the evidence it was needed.**
 - **One sentence was refuted twice, for two different reasons,** and it is the best single artefact
   of the round: "delete the locale check and all you lose is the error's name". It also guards
   **writes** — the locale foreign keys reference `Locale.code` and `isEnabled` is a column, not a
