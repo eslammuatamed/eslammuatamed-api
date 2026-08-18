@@ -96,7 +96,9 @@ section is historical narrative, fixed at the commit that wrote it, and may be s
 | Phase 2 (learning architecture) | **COMPLETE.** difficulty model §9b · measurements §10 · reading order · status-code section · README template · testing curriculum · flow trace — all peer-reviewed |
 | Cold-reader gate (§11) | **RUN TWICE.** Run 1: 9 of 10 scoreable correct, Q2 unscored (defective question); produced 4 documentation defects — all fixed (§11c). **Run 2: 10/10 main + 6/6 §C = 16/16 — the scoring gate PASSES** (§11d) |
 | Open-ended assessment | **THE PRODUCTIVE INSTRUMENT, BOTH RUNS.** Run 2 scored 16/16 *and* found a real prerequisite defect no question touched: the vocabulary table sat at §15 while §2 and §5 already relied on it. Verified, moved to the head of the guide, peer-reviewed |
-| Campaign exit gate | **NOT YET SATISFIED — one item.** A targeted regression on prerequisite placement, by a NEW uncoached reader, on a bundle from the current head (§11d). Nothing else is owed |
+| Cold-reader Run 3 | **Gate 16/16; targeted regression FAILED on `Controller`** (used inside the vocabulary block before it was defined) **+ 5 open-ended findings, all confirmed**, two worse than reported. All repaired across two peer rounds (§11e) |
+| Campaign exit gate | **NOT YET SATISFIED — one item.** A new uncoached reader, on a bundle from the current head: re-run the placement questions, test the six repaired findings, keep an unscored open-ended pass |
+| Open contract gap | `POST /admin/media` can return `400` undeclared in `openapi.json`. **Owner-facing**, needs the doc 16 §3 contract flow — not this branch (§11e) |
 | PR | **OPEN: #86**, base `dev` (never `main`), head `campaign/backend-learnability` — **all 6 checks pass, `MERGEABLE / CLEAN`** |
 
 **CI evidence at `2356fb6` — the last commit before this checkpoint.** *Stated this way on purpose:
@@ -1925,6 +1927,106 @@ all sixteen questions would measure nothing new. A **new** reader, uncoached, re
 framework vocabulary, did the guide already supply the minimum needed to continue; which concepts
 did it prepare them for; and did any required term appear before it was introduced. **It must pass
 without coaching.** If it does and nothing new surfaces, the campaign exit gate is satisfied.
+
+## 11e. Run 3 — the targeted regression did NOT pass, and it was right not to
+
+Third cold reader, new, uncoached, on a bundle from the post-placement head.
+
+| Question | Result |
+| --- | --- |
+| Q1 — was the minimum vocabulary in place before first material use? | **YES**, HIGH |
+| Q2 — name the concepts prepared | HIGH, enumerated all thirteen |
+| Q3 — any term needed before it was introduced? | **NOT CLEAN** — `Controller`, MEDIUM |
+
+**The pre-registered criterion required Q3 clean, so the regression FAILS.** And the failure is
+real: `Guard → Pipe → Controller` and *"بين الطلب والـ controller"* both sit **inside** the
+vocabulary block, at lines 28 and 34, while `controller` was defined only at line 134 (§5). The
+placement fix had moved the block to the head and then reproduced the original defect **inside the
+block itself**. *The MEDIUM confidence was the reader hedging on whether an ordinary English word
+needs defining in a Nest-specific sense. It does — `controller` here is a routing class with a
+`@Controller()` decorator, not a colloquialism.*
+
+### The five open-ended findings — all five confirmed, and two were worse than reported
+
+Again the **unscored** instrument out-produced the scored one. Third run, third time.
+
+- **`PROJECT_GUIDE` §10 classified `preview` as `Planned`.** It has a module, two controllers, a
+  service, a README, four `OpenAPI` routes and a registration in `app.module.ts`. The label was
+  removed, not corrected — a corrected lifecycle label rots again. **And the same defect class
+  survived in `src/config/README.md`**, which asserted that previously-`Planned` modules "have
+  become delivered". Found by sweeping the *claim*, not the file the reader named.
+- **The media descriptor contract — worse than reported, and `openapi.json` decided it.** The
+  reader saw two module READMEs contradicting the general rule. The contract shows the rule holds
+  for `coverImage`, `ogImage`, gallery `mediaAsset`, `avatar`, `portrait` — so `articles` and
+  `testimonials` were simply **wrong**. But `PublicSiteSettingsEntity` carries **no
+  `resumeAssetId` at all**: `resumeAsset` *replaces* it, and it is the only field resolved by
+  `resolvePdf`. **So the campaign's own general rule was overbroad and named that exact field as an
+  example of itself.** `AdminSiteSettingsEntity` also uniquely carries a resolved `portrait`, so
+  "admin is always raw" was wrong too. **Four statements narrowed, not two** — verdict D.
+- **`settings/README` advertised `GET /settings?locale=`.** The controller and the contract have
+  only `GET /settings/site`. No bare public `/settings` exists.
+- **The archetype's `400` summary** said `400` means "rejected before the body was read". Its own
+  table contradicted it and the source confirms the table. **The retired model also survived in
+  `src/common/README.md`** (*"`400` محجوز للطلب المُشوَّه"*) — a second partial-sweep miss in the
+  same round.
+- **`prisma/README.md` cited `docs/09-database-design.md`.** There is no `docs/` directory in this
+  repository, so **nobody could follow that prerequisite** — with or without the governing repo.
+  **Not a bundle artefact.** The reader flagged it at MEDIUM as an artefact; it was a real dead
+  pointer, and rating it MEDIUM cost nothing because the finding was still checked.
+
+### Two peer rounds on the repair, and I failed the same way three times
+
+**The peer found four MAJOR in the first repair round**, including two that are the campaign's own
+signature defect turned on itself:
+
+- I claimed *"every row is readable using only the rows above it"* — an absolute, and false: the
+  `DI` row names `PrismaService`, defined below it.
+- I asserted **"`preview` is the ONLY deliberate exception"** to the thin-controller rule **without
+  sweeping the controllers.** Sweeping found five: `redirects` (`null` → `404`), `media`
+  (missing `file` → `400`; deduplicated → `200` not `201`), `auth` (refresh cookie),
+  `messages.admin` (absent `req.user` → `401`), `preview` (`verify()` → `404`).
+
+**The correction is a better lesson than the claim it replaced:** the line is not *"no code in a
+controller"* — it is **no domain rules**; an `HTTP`-shaped decision belongs at the boundary. And
+`preview` is not the only exception, it is the only one whose decision is a **security** decision —
+`403` would prove the draft exists. That table now lives once, in the archetype.
+
+**A second peer round then found five more**, including that my `400` enumeration was *still*
+incomplete (five sources, not three; and `ParseUUIDPipe` is on `@Param` in all **35** uses, never
+`@Query`), and that I had over-claimed in the opposite direction — *"`422` means the body was read
+and failed validation"* is false, since `access-control` returns `422` from a **bodyless** `DELETE`.
+
+*Three rounds, three unswept absolutes — "only", "every", "one fixed meaning". The pattern is not
+carelessness about facts; every individual fact was checked. It is that a **quantifier** feels like
+prose and is actually a claim, and this campaign has no instrument that checks quantifiers. That is
+the finding worth keeping.*
+
+### An instrument was lying, and the peer caught it
+
+The link checker used all round special-cased any path containing `eslammuatamed-docs` onto the
+primary checkout — so **wrong-depth links passed as clean.** Rebuilt to resolve every link from its
+own file's directory, and **negative-controlled**: it now passes a corrected depth and fails the
+real one. It immediately found three dead links the campaign had never seen —
+`src/modules/seo/README.md` (×2) and `.github/PULL_REQUEST_TEMPLATE.md`, all resolving **inside**
+this repository. Full sweep now: **61 files, 0 broken.** *The clean readings this instrument gave
+in Runs 1 and 2 were not evidence; they were the instrument's blind spot.*
+
+### Two peer items pushed back on, with reasons
+
+- **"deferred"/"future item" labels in `seo/README`** are an accepted category here —
+  `PROJECT_GUIDE` §14 is titled *"مخاطر معلومة وعمل مؤجَّل"* — and each is attributed to the
+  governing document that owns it. Deferred work is not release state.
+- **"Rewrite the governing links as absolute URLs"** because they do not resolve from
+  `~/worktrees`. That is a property of the review environment: the sibling docs checkout is absent
+  there, which breaks *every* pre-existing governing link equally. The depths are correct under the
+  repository's actual layout, and the rebuilt checker confirms it.
+
+### Owner-facing, deliberately not fixed on this branch
+
+`POST /api/v1/admin/media` can return **`400`** (missing `file` part, thrown in the controller and
+covered by tests) and **`openapi.json` does not declare it.** A real contract gap — but declaring it
+*changes the contract*, and this branch is documentation-only. It needs the doc 16 §3 flow
+(export → version → `web` adopts) as its own change. **Queued, not silently absorbed.**
 
 ## 8. Owner-decision blockers
 

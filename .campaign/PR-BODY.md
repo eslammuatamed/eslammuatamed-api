@@ -100,9 +100,33 @@ returns zero, with passing positive controls.
   did not hold (§5 positions a pipe but never defines one; `DTO` and `ValidationPipe` appear in §4,
   *before* §5), so five bounded rows were added — one line each, with the official page that owns
   the teaching. All thirteen terms now have their first occurrence inside the block.
-- **One remaining item before this branch is complete:** a targeted regression on prerequisite
-  placement, by a new uncoached reader, from a bundle rebuilt at the current head. Re-running all
-  sixteen questions would measure nothing new — the change is narrowly about placement.
+- **Run 3 scored the gate 16/16 again, and its targeted regression FAILED** — correctly. The
+  placement fix had moved the vocabulary block to the head of the guide and then reproduced the
+  original defect *inside the block*: `Guard → Pipe → Controller` and "بين الطلب والـ controller"
+  both appear there, while `controller` was defined only in §5.
+- **Its five open-ended findings were all confirmed, and two were worse than reported.** A
+  lifecycle label calling `preview` "Planned" (it has a module, two controllers, four routes and a
+  registration) — and the same defect class in a second file. A `settings` README advertising a
+  route that does not exist. A `400` summary its own table falsified — and the retired model
+  surviving in a second file. A prerequisite pointing at `docs/09-…`, which **no one could follow**:
+  there is no `docs/` directory in this repository. And the media contract, where `openapi.json`
+  showed the campaign's own general rule was **overbroad and named as its own example** the one
+  field that breaks it (`PublicSiteSettingsEntity` has no `resumeAssetId`; `resumeAsset` replaces
+  it). Four statements narrowed, not two.
+- **Two peer rounds then found nine more, in the repairs themselves** — including that I claimed
+  `preview` was the *only* thin-controller exception without sweeping the controllers. There are
+  five. The corrected teaching is better than the claim it replaced: the line is not "no code in a
+  controller", it is **no domain rules** — an HTTP-shaped decision belongs at the boundary, and
+  `preview` is distinctive only because its decision is a *security* one (`403` would prove the
+  draft exists).
+- **An instrument was lying.** The link checker special-cased any `eslammuatamed-docs` path onto
+  the primary checkout, so wrong-*depth* links passed. Rebuilt and negative-controlled; it
+  immediately found three dead links this campaign had never seen. Full sweep: 61 files, 0 broken.
+- **Open, owner-facing, deliberately not fixed here:** `POST /admin/media` can return `400`
+  (missing `file` part) and `openapi.json` does not declare it. Declaring it changes the contract,
+  which this documentation-only branch must not do — it needs the doc 16 §3 flow.
+- **One item remains:** a new uncoached reader on a bundle from the current head — placement
+  questions re-run, the six repaired findings tested, and an unscored open-ended pass kept.
 - The provenance guard has four known blind spots (pattern family, file selection, token boundary,
   alphabet). The corpus is clean by *independent sweep*, not because the guard says so. Widening it
   is queued and deliberately not required for this branch.
