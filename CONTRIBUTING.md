@@ -16,7 +16,7 @@ feature/<slug>   (branch from dev)
   → PR to dev → CI green → merge to dev
   → integration verification on dev
   → PR dev → main → owner merge
-  → CI re-verifies the exact main SHA → automatic production deployment
+  → CI re-verifies the exact main SHA → owner approves the run → production deployment
 ```
 
 - Source branches for `dev` PRs: `feature/*`, `fix/*`, `chore/*` (bots: `dependabot/*`, `renovate/*`).
@@ -26,7 +26,7 @@ feature/<slug>   (branch from dev)
 
 ```
 hotfix/<slug>   (branch from main)
-  → PR to main → CI → owner merge → automatic production deployment
+  → PR to main → CI → owner merge → CI re-verifies the exact main SHA → owner approves the run → production deployment
   → merge the hotfix back into dev
 ```
 
@@ -53,11 +53,11 @@ Code may be promoted from `dev` to `main` in **exactly two cases**:
 
 **Case 1 — completed and verified work (the normal case).** The agreed scope is complete; all applicable unit/integration/E2E/contract/typecheck/lint/build checks pass; `dev` integration is green; documentation and configuration are accurate; no known blocker remains; the owner makes the final promotion decision.
 
-**Case 2 — controlled server-environment verification.** Allowed only when the remaining behavior **genuinely cannot be validated outside the real server environment** (systemd/service behavior; Caddy/TLS/DNS/proxy/cookie/CORS integration; production filesystem permissions; production-compatible native binaries; real R2/S3 or other external integration; release symlink/cutover/rollback behavior; production build/runtime differences not reproducible locally or in CI). This is a controlled production verification, **not** permission to publish unfinished work. Before such a promotion: complete every test that can run locally or in CI; explain exactly why server validation is necessary; define the expected result, health/smoke checks, and rollback procedure; confirm the change is minimal, reversible, and involves no destructive database/storage operation (additive/fix-forward migrations only); hide or disable incomplete user-facing behavior where practical; and **mark the `dev → main` PR as a `server-verification-required` promotion** — the owner merging it is the authorization. After deployment: run the predefined checks immediately, monitor service/proxy logs, verify the exact deployed SHA; on failure use the documented rollback and fix on a branch from `dev` (never patch production directly); sync the result back through `dev`; record the outcome in the PR or ops documentation.
+**Case 2 — controlled server-environment verification.** Allowed only when the remaining behavior **genuinely cannot be validated outside the real server environment** (systemd/service behavior; Caddy/TLS/DNS/proxy/cookie/CORS integration; production filesystem permissions; production-compatible native binaries; real R2/S3 or other external integration; release symlink/cutover/rollback behavior; production build/runtime differences not reproducible locally or in CI). This is a controlled production verification, **not** permission to publish unfinished work. Before such a promotion: complete every test that can run locally or in CI; explain exactly why server validation is necessary; define the expected result, health/smoke checks, and rollback procedure; confirm the change is minimal, reversible, and involves no destructive database/storage operation (additive/fix-forward migrations only); hide or disable incomplete user-facing behavior where practical; and **mark the `dev → main` PR as a `server-verification-required` promotion** — the owner merging it is the authorization **to promote**; the deployment itself still waits on the separate `production` approval. After deployment: run the predefined checks immediately, monitor service/proxy logs, verify the exact deployed SHA; on failure use the documented rollback and fix on a branch from `dev` (never patch production directly); sync the result back through `dev`; record the outcome in the PR or ops documentation.
 
 **Production is not a general testing environment.** Do not promote incomplete work because local testing is inconvenient. Stop and require a staging environment instead when server testing could damage or expose real data, require a destructive migration/reset/drop, interrupt production materially, expose incomplete or insecure functionality, send real external messages/transactions, alter existing R2 objects or user content unsafely, make rollback uncertain, or require experimenting with secrets/authentication.
 
-## Automatic deployment (from green `main`)
+## Deployment (from green `main`) — triggered automatically, gated on owner approval
 
 - **Triggers (three, converging on one exact-SHA path):**
   - `push` to `main` — the **happy path** (a merged promotion or authorized push).
@@ -65,15 +65,19 @@ Code may be promoted from `dev` to `main` in **exactly two cases**:
   - `workflow_dispatch` — **manual recovery** / redeploy.
   - **No tags. No scheduled reconciliation** (Actions-minute cost on the Free plan, and schedules can themselves be delayed/dropped).
 - **Idempotent duplicates:** when both the push and the fallback fire for the same SHA, the shared production concurrency group serializes them and a `preflight` job reads the live release SHA — one path **releases**, the other exits **already-current** with no server mutation. A stale SHA exits **superseded**. Main-tip lookups use the **git backend** (`ls-remote` + retries), not the REST API, which can lag or 503 during GitHub incidents.
-- The `deploy` job cannot start unless the **same workflow run** re-verifies the **exact `github.sha`** — it does **not** rely only on the pre-merge PR checks (`needs: [verify, e2e]`). Before any server mutation it asserts `github.ref == refs/heads/main` **and** `HEAD == github.sha`.
-- No manual approval gate (see Free-plan note).
-- **Verification:** lint · typecheck · unit · OpenAPI contract idempotence · PostgreSQL E2E.
+- The `deploy` job cannot start unless the **same workflow run** re-verifies the **exact `github.sha`** — it does **not** rely only on the pre-merge PR checks (`needs: [preflight, verify, e2e]`). Before any server mutation it asserts `github.ref == refs/heads/main` **and** `HEAD == github.sha`.
+- **Manual approval gate — a merged promotion is not a finished deployment.** The `deploy` job is the only job that mutates the server, and it is bound to the `production` GitHub environment, so the run pauses for the owner's approval **before the first remote write**. Everything upstream (`preflight`, `verify`, `e2e`) runs unapproved so cheap checks still fail fast. After merging a promotion, go and approve the run — an unapproved run simply waits and nothing is deployed.
+- **Verification:** lint · typecheck · unit · FTS migration guard · OpenAPI contract idempotence · PostgreSQL E2E.
 - **Migrations:** `prisma migrate deploy` only — **fix-forward** (a bad migration is repaired by a new one); production is **never** reset/dropped and the schema is **never** rolled back.
 - One deployment at a time (`concurrency: deploy-api-production`, never cancelled).
 
 ## Rollback
 
-Each release is a self-contained `releases/<ts>` behind the `current` symlink. If the post-cutover `/api/v1/health` gate fails, the deploy **automatically rolls back** (repoints `current` to the previous release + `systemctl restart`). The schema is untouched (fix-forward). Manual form is in `.github/workflows/deploy.yml`.
+Each release is a self-contained `releases/<UTC-ts>-<short-sha>` behind the `current` symlink. If the post-cutover **acceptance gate** fails, the deploy **automatically rolls back** (repoints `current` to the previous release + `systemctl restart`) and re-runs the **same** acceptance checks against the rollback target; with no previous release to fall back to it stops and reports that manual intervention is required. The schema is untouched (fix-forward). Manual form is in `.github/workflows/deploy.yml` — but a manual rollback is finished only when the **same acceptance checks** pass against the release you rolled back to. The authoritative probe list is `verify_app` in `scripts/deploy/remote-cutover.sh`; [`scripts/deploy/README.md`](scripts/deploy/README.md) shows how to run one by hand without fooling yourself. A restarted process is not a verified rollback.
+
+**A failed deploy is not automatically a safe state.** Rollback needs somewhere to roll back *to*. With no previous release, nothing is reverted and the failed new release is still `current`. If the rollback does happen but the previous release fails verification too, `current` is that older release — also unhealthy. Either way the run goes red announcing `MANUAL INTERVENTION REQUIRED` and leaves an unhealthy release selected, serving badly or not serving at all. Treat that outcome as an **ongoing outage**, not a safe abort.
+
+**The acceptance gate is not `/api/v1/health`.** That endpoint is **liveness** — it answers `200` from a process that is merely listening, even when the database is unreachable. Liveness cannot accept a release of a database-backed application, and because automatic rollback is driven by this same gate, **a gate that cannot fail cannot roll back**: on 2026-08-14 a release whose every database-backed endpoint was failing passed a liveness-only gate, was cut over, and left the rollback disarmed (`D23-23`). Acceptance therefore requires liveness **and** readiness **and** real database-backed reads, together — and so does the re-verification of a rollback target. **Never re-point rollback at a liveness-only signal.** The probe list itself belongs to the code that runs it, `scripts/deploy/remote-cutover.sh`, and is documented in [`scripts/deploy/README.md`](scripts/deploy/README.md) and [`PROJECT_GUIDE.md` §11](PROJECT_GUIDE.md) — deliberately not duplicated here, because a second copy is what let this section rot.
 
 ## Coordinated API + Web releases
 
@@ -81,7 +85,7 @@ The repos deploy **independently**. For a cross-repo contract change: **deploy A
 
 ## ⚠️ Free-plan reality — branch policy is procedural, not GitHub-enforced
 
-This is a **private repo on GitHub Free**: **branch protection, rulesets, and environment required-reviewers are unavailable**. Therefore:
+This is a **private repo on GitHub Free**: **branch protection and rulesets are unavailable**. Therefore:
 
 - **Direct pushes to `main` are prohibited by policy, but GitHub will not block them** — always go through a PR.
 - The CI **branch-policy guard is advisory**: it reports an unexpected promotion path but cannot block a merge.
