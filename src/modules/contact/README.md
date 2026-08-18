@@ -20,7 +20,7 @@
 | `contact.controller.ts` | `POST /api/v1/contact` عامّ (`@Public`) + `@UseGuards(ContactThrottlerGuard)` |
 | `messages.admin.controller.ts` | `GET /api/v1/admin/messages` · `GET :id` · `GET :id/replies` (`messages.read`) · `PATCH :id` (`messages.update`) · `POST :id/replies` (`messages.reply`) |
 | `contact-reply.service.ts` | نطاق الردّ: الحفظ، ومنع التكرار (`Idempotency-Key`)، وآلة الحالة `PENDING`→`SENT`/`FAILED` + مسار التعافي. يُنسّق التسليم ولا **يبنيه**: بناء الرسالة وإرسالها في `contact-mail.service.ts` |
-| `idempotency-key.pipe.ts` | التحقّق من ترويسة `Idempotency-Key` كـ pipe، أي **قبل** أيّ قراءة من قاعدة البيانات. وهو **موضع الإنفاذ الوحيد لشكل المفتاح**: الخدمة تخزّنه كما جاء، والعمود `String` حرّ — والفرادة لكلّ رسالة مسنودة في `DB`، أمّا الطول والمحارف فلا. النمط نفسه في [`access-control`](../access-control/README.md) |
+| `idempotency-key.pipe.ts` | التحقّق من ترويسة `Idempotency-Key` كـ pipe، أي **قبل** أيّ قراءة من قاعدة البيانات. وهو **موضع الإنفاذ الوحيد لشكل المفتاح**: الخدمة تخزّنه كما جاء، والعمود `String` حرّ — والفرادة لكلّ رسالة مسنودة في `DB`، أمّا الطول والمحارف فلا. وهذا هو **الوضع الطبيعيّ** لقيود المقاس والشكل في هذا المستودع لا استثناءً فيه ([لماذا، ومتى يصير الأمر جدّيًّا](../access-control/README.md)) |
 | `reply-subject.ts` | اشتقاق `Re: <الموضوع>` دون تكرار البادئة |
 | `provider-idempotency.ts` | اشتقاق مفتاح تكرار **المزوّد** (`contact-reply/<id>`) وحساب نافذة الـ 24 ساعة |
 | `message-not-repliable.exception.ts` | `409` لرسالة بلا بريد (`D02-10` يسمح برقم هاتف وحده) |

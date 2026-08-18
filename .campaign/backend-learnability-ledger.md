@@ -2960,13 +2960,13 @@ whose subject is unverified universals:
   with two known members** instead of an anomaly.
 
 **And one sentence was refuted twice, for two different reasons** — the counterfactual "delete
-`assertEnabled` and all you lose is the error's name". Round 2 pointed out it also guards
-**writes**: the twelve locale foreign keys reference `Locale.code`, and `isEnabled` is a column,
-not a constraint, so the `FK` proves existence and says nothing about enablement. Round 3's
-predecessor pointed out it is not even true of reads: the guard tests **two** conditions, and a
-locale that exists but is **disabled**, with stored translations, would become publicly readable.
-*Unknown and disabled are not the same case, and the sentence had merged them.* Three attempts on
-one counterfactual is this round's most expensive sentence.
+`assertEnabled` and all you lose is the error's name". **Round 1** pointed out it also guards
+**writes**: the locale foreign keys reference `Locale.code`, and `isEnabled` is a column, not a
+constraint, so the `FK` proves existence and says nothing about enablement. **Round 2** then
+pointed out the repaired sentence was not true of reads either: the guard tests **two**
+conditions, and a locale that exists but is **disabled**, with stored translations, would become
+publicly readable. *Unknown and disabled are not the same case, and the sentence had merged them.*
+Three attempts on one counterfactual is this round's most expensive sentence.
 
 ### The instrument that destroyed work, and the one that lied
 
