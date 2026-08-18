@@ -94,17 +94,24 @@ section is historical narrative, fixed at the commit that wrote it, and may be s
 | Commits on branch | see `git rev-list --count 9af1aac..HEAD` — do not trust a number typed here |
 | Phase 1 (corpus cleanup) | **CLOSED.** archaeology 68→0, rot 25→0, phrases 96→5 (all deliberate keeps) |
 | Phase 2 (learning architecture) | **COMPLETE.** difficulty model §9b · measurements §10 · reading order · status-code section · README template · testing curriculum · flow trace — all peer-reviewed |
-| Cold-reader gate (§11) | **DEFINED, NOT RUN.** Cannot be run by any agent here; owner-facing |
+| Cold-reader gate (§11) | **RUN ONCE — NOT PASSED.** 9 of 10 scoreable questions correct (4 of 5 §A, 5 of 5 §B); Q2 **unscored**, the question was defective, not the answer. The run produced 4 documentation defects the gate never pointed at — all verified, all fixed, all peer-reviewed. **A rerun by a NEW reader on a bundle from the current head is the open item.** Full account: §11c |
+| §C regression set | **WRITTEN, NOT RUN.** Six questions, one per repair, scored **separately** from the 8-of-10 threshold so the two runs stay comparable (§11c) |
 | PR | **OPEN: #86**, base `dev` (never `main`), head `campaign/backend-learnability` — **all 6 checks pass, `MERGEABLE / CLEAN`** |
 
-**CI evidence at the PR head** (gated on `mergeStateStatus: CLEAN`, not on a check count):
+**CI evidence at the PR head `2356fb6`** (gated on `mergeStateStatus: CLEAN`, not on a check count
+— a check name appears twice per `SHA`, once for the push run and once for the PR run):
 
 | Check | Result |
 | --- | --- |
-| Lint · Typecheck · Unit · Contract | pass (1m27s) |
-| **E2E (Postgres)** | **pass (2m11s)** |
+| Lint · Typecheck · Unit · Contract | pass (1m5s) |
+| **E2E (Postgres)** | **pass (2m2s)** |
 | CodeQL · Analyze (actions) · Analyze (javascript-typescript) | pass |
 | Branch-policy guard (advisory) | pass |
+
+**Local gates before the push:** `guard:docs:selftest` 43/43 → `guard:docs` GREEN (27 code-adjacent
+docs, 315 source files, exit 0); zero broken relative links in every changed Markdown file. No `.ts`
+changed in this round, so `lint`/`typecheck`/`unit` carry no new information locally — CI ran them
+anyway and they pass.
 
 **The E2E result is the one that adds information.** Every other check re-confirms something already
 run locally. The e2e suite needs a live PostgreSQL, which this worktree has no credentials for — so
