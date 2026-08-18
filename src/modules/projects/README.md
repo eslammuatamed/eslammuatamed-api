@@ -17,7 +17,8 @@
 
 ## خريطة الاتصال
 
-- **يعتمد على:** `PrismaService`، `LocalesService`.
+- **وارد:** `PreviewModule` يستورد `ProjectsModule` ويحقن `ProjectsService` (فحص الوجود عند سكّ رمز المعاينة + `getPreviewById`).
+- **يعتمد على:** `PrismaService`، `LocalesService`، و`MediaDescriptorResolver` (من `MediaModule` — واصفات القراءة العامّة)، و`RedirectService` (من `RedirectsModule` — عمليّات التحويل تُدفَع داخل معاملة إعادة التسمية). الوحدة تستورد `LocalesModule` و`MediaModule` و`RedirectsModule`.
 - **علاقات:** `ProjectTechnology` (many-to-many مع `Skill`)، `ProjectGalleryItem` (صور + تعليق مُترجَم).
 
 ## ما يميّز هذه الوحدة عن النموذج
@@ -31,7 +32,7 @@
   قاعدة البيانات. النتيجة: تصادم slug في مشروع ومثله في مقال يُرجِعان **العقد نفسه**، بعد أن كانا
   يختلفان.
 - **وسائط التفاصيل العامّة:** كل عنصر معرض يُرجِع `mediaAssetId` ومعه واصف `mediaAsset` العام
-  (`url`, `width`, `height`, `blurDataUrl`, `alt`, `variants`) والتعليق المترجم والترتيب. يبقى
+  (`url`, `width`, `height`, `blurhash`, `alt`, `variants`) والتعليق المترجم والترتيب. يبقى
   `ogImageId` مرجعًا خامًا في هذا العقد.
 
 ## العقود والثوابت

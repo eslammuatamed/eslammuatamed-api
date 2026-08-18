@@ -18,7 +18,7 @@
 
 ## خريطة الاتصال
 
-- **يعتمد على:** `PrismaService`، `LocalesService`.
+- **يعتمد على:** `PrismaService`، `LocalesService`، و`MediaDescriptorResolver` (من `MediaModule` — واصفا `portrait` و`resumeAsset`).
 
 ## حقول صفحات الملف الشخصي (الميزة 008)
 

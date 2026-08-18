@@ -16,7 +16,7 @@
 
 ## خريطة الاتصال
 
-- **يعتمد على:** `PrismaService`، `LocalesService`.
+- **يعتمد على:** `PrismaService`، `LocalesService`، و`MediaDescriptorResolver` (من `MediaModule` — واصف `avatar` في القراءة العامّة).
 
 ## ما يميّز هذه الوحدة عن النموذج
 

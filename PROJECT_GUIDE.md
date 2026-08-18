@@ -14,22 +14,24 @@
 المستودع لا يشرح الإطار** (`principle 16`, `D00-6`) — يشرح ما فعله بالإطار. إن كان `NestJS`
 معروفًا لديك أصلًا فتخطَّ الجدول إلى القسم ١ مباشرةً؛ لا شيء بعده يعتمد على قراءته سطرًا سطرًا.
 
-**اقرأ الجدولين كاملين قبل المتابعة، لا سطرًا سطرًا.** الترتيب يبدأ بالأعمّ، لكنّ الصفوف متشابكة
-بطبيعتها — صفّ `DI` يذكر `PrismaService` الذي يُعرِّفه صفّ تحته، وصفّ `@Global` يذكر الوحدة
-الديناميكيّة كذلك. *كُتب هنا أنّ «كلّ صفّ مقروء بما فوقه وحده»، وكان ادّعاءً مطلقًا وغير صحيح؛
-كشفته المراجعة. الجدول شبكة صغيرة تُقرأ دفعةً واحدة؛ لا يَعِد بأكثر من مدخل، ومتى نقص فالروابط الرسمية هي التتمّة
-— والادّعاء الأدقّ أنفع من الأنيق.*
+**الترتيب مقصود: لا يحتاج أيّ صفّ إلى صفّ تحته ولا إلى قسم لاحق كي يُفهَم** — رُوجِعت الصفوف
+واحدًا واحدًا للتأكّد، والإحالات بين قوسين تزيد تفصيلًا ولا يتوقّف عليها المعنى. *ولم يكن الأمر
+كذلك: كان صفّ `DI` يذكر `PrismaService` قبل تعريفه، وصفّ `@Global` يذكر الوحدة الديناميكيّة
+قبلها، وصفّ `PrismaService` يذكر دورة الحياة قبلها، وصفّ `controller` يترك «قواعد المجال» لـ
+`service` لم يكن له صفّ أصلًا — وجدها قارئ بارد، فأُعيد ترتيب الصفوف وأُضيف صفّ `service`.*
+الجدولان مدخل لا مرجع؛ ومتى نقص السطر فالرابط الرسمي بجانبه هو التتمّة.
 
 | المصطلح | ما تعنيه هنا | المصدر الرسمي |
 |---|---|---|
 | decorator (`@…`) | دالّة تعمل **مرّة واحدة عند تعريف الصنف** (لا عند كلّ طلب)، وغالب ما تفعله هنا هو تسجيل ميتاداتا يقرأها `Nest` و`Swagger` والتحقّق لاحقًا. ولهذا `reflect-metadata` تبعيّة إنتاج | [Custom decorators](https://docs.nestjs.com/custom-decorators) |
 | `provider` | أيّ شيء مُسجَّل تحت مُعرّف (token) ليُعطيه الإطار لمن يطلبه: صنف (`useClass` — وهو الشائع: كلّ `*.service.ts`)، أو مصنع (`useFactory` — مثل `STORAGE_ADAPTER` و`MAIL_TRANSPORT`)، أو قيمة جاهزة (`useValue`) | [Providers](https://docs.nestjs.com/providers) |
+| `service` | الصنف الذي يملك **قواعد المجال**: منطق العمل، الـ `transactions`، تحليل اللغة (تفصيله في القسم ٥). يُسجَّل `provider` ويُحقَن حيث يُطلَب، وكلّ `*.service.ts` هنا من هذا النوع | [Providers](https://docs.nestjs.com/providers) |
 | `@Module` | صندوق تجميع: يُعلن ما يملكه (`providers`) وما يراه (`imports`) وما يُعيره لغيره (`exports`). التطبيق شجرة من هذه الصناديق جذرها `AppModule` | [Modules](https://docs.nestjs.com/modules) |
-| حقن التبعيّات (DI) · `@Injectable` | لا تُنشئ الخدمات بـ `new`؛ تُعلنها في الـ constructor فيُمرّرها الإطار. هذا هو **مقعد الاختبار** الذي يجعل تمويه `PrismaService` ممكنًا | [Providers · DI](https://docs.nestjs.com/providers#dependency-injection) |
-| `@Global` | وحدة تُسجَّل مرّة في الجذر فتراها كلّ الوحدات بلا `imports` متكرّر. الـ decorator نفسه على وحدتين فقط: `AppConfigModule` و`PrismaModule`. والوحدة الديناميكيّة تبلغ الأثر نفسه بالخيار `global: true` — وهو ما يفعله `JwtModule` في `auth`. استثناء مقصود ومحدود في الحالتين، لا أسلوب عامّ | [Global modules](https://docs.nestjs.com/modules#global-modules) |
+| حقن التبعيّات (DI) · `@Injectable` | لا تُنشئ الخدمات بـ `new`؛ تُعلنها في الـ constructor فيُمرّرها الإطار. وهذا هو **مقعد الاختبار**: يُمرَّر بديل مُموَّه بدل التبعيّة الحقيقيّة في اختبار الوحدة | [Providers · DI](https://docs.nestjs.com/providers#dependency-injection) |
 | وحدة ديناميكيّة · `ConfigModule.forRoot({ … })` | وحدة تُبنى بمعاملات وقت التسجيل بدل أن تُستورَد ساكنة. الشكل `forRoot`/`registerAsync` الذي ستراه في `config` و`auth` | [Dynamic modules](https://docs.nestjs.com/fundamentals/dynamic-modules) |
-| `class PrismaService extends PrismaClient` | لا نمط جديد: صنف عميل `Prisma` المولَّد نفسه، مُغلَّفًا كـ provider ليدخل في DI ودورة حياة `Nest` | [NestJS + Prisma](https://docs.nestjs.com/recipes/prisma) |
+| `@Global` | وحدة تُسجَّل مرّة في الجذر فتراها كلّ الوحدات بلا `imports` متكرّر. الـ decorator نفسه على وحدتين فقط: `AppConfigModule` و`PrismaModule`. والوحدة الديناميكيّة تبلغ الأثر نفسه بالخيار `global: true` — وهو ما يفعله `JwtModule` في `auth`. استثناء مقصود ومحدود في الحالتين، لا أسلوب عامّ | [Global modules](https://docs.nestjs.com/modules#global-modules) |
 | خطّافات دورة الحياة (`onModuleInit` · `onModuleDestroy`) | دوالّ يستدعيها الإطار عند الإقلاع والإطفاء. هنا: فصل اتصال `Prisma`، وإلغاء مؤقّتات إعادة المحاولة في `mail` | [Lifecycle events](https://docs.nestjs.com/fundamentals/lifecycle-events) |
+| `class PrismaService extends PrismaClient` | لا نمط جديد: صنف عميل `Prisma` المولَّد نفسه، مُغلَّفًا كـ provider ليدخل في DI ودورة حياة `Nest` | [NestJS + Prisma](https://docs.nestjs.com/recipes/prisma) |
 
 **وطبقات دورة حياة الطلب** — الطلب يمرّ بها قبل أن يصل إلى وجهته، بالترتيب الذي يرسمه القسم ٥،
 وتفصيلها هناك وفي القسم ٦.١ وفي `src/common/README.md`. هنا سطر واحد لكلٍّ، لا أكثر — والصفّ الأوّل
@@ -242,10 +244,14 @@ ThrottlerGuard → JwtAuthGuard → PermissionsGuard → (Controller)
 
 ## 10. البيئة والإعداد
 
-كل متغيّر **مُتحقَّق منه عند الإقلاع** في `src/config/env.validation.ts`؛ متغيّر مفقود أو غير صالح يُفشِل الإقلاع فورًا (لا خطأ 500 بعد ساعة). القالب الكامل في `.env.example` (عقد الإعداد). المجموعات على هذا الأساس:
+كل متغيّر **مُتحقَّق منه عند الإقلاع** في `src/config/env.validation.ts`؛ متغيّر مفقود أو غير صالح يُفشِل الإقلاع فورًا (لا خطأ 500 بعد ساعة). **القائمة الكاملة والمُلزِمة هي `.env.example` (عقد الإعداد) ومخطّط `env.validation.ts` وحدهما** — وما يلي عيّنة للتوجيه لا حصر، لأنّ سرد المتغيّرات في موضعين يفترق عند أوّل إضافة. المجموعات الأكبر:
 
 `NODE_ENV`, `PORT` · `DATABASE_URL` · `CORS_ORIGIN` · `JWT_ACCESS_SECRET`, `JWT_ACCESS_TTL`, `REFRESH_TOKEN_TTL_DAYS`, `REFRESH_TOKEN_PEPPER`, `PREVIEW_TOKEN_SECRET`, `COOKIE_DOMAIN` · `SEED_OWNER_EMAIL`, `SEED_OWNER_PASSWORD` · `STORAGE_DRIVER`, `STORAGE_LOCAL_DIR`, `PUBLIC_MEDIA_URL`.
 
+> وإلى جانبها مجموعتان لا تظهران أعلاه: `PUBLIC_WEB_URL` (أصل الموقع الذي يعرض صفحة المعاينة)،
+> ومجموعة البريد `SMTP_*` مع `CONTACT_NOTIFICATION_TO` — وهي مُتحقَّق منها كغيرها، لكنّها اختياريّة
+> ومُغلَقة افتراضيًّا خلف `SMTP_ENABLED` (تفصيلها في [`src/modules/mail/README.md`](src/modules/mail/README.md)).
+>
 > `STORAGE_*` تستخدمها وحدة `media` الآن، و`S3_*` (`S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_REGION`) مطلوبة عند `STORAGE_DRIVER=s3` (الإنتاج). و`PREVIEW_TOKEN_SECRET` مُتحقَّق منه عند الإقلاع كغيره. **والقاعدة هنا بنيويّة لا حالة:** التحقّق يملكه
 `src/config` وحده، فهو لا يسأل أيّ وحدة تستهلك المتغيّر ولا متى بدأت — متغيّر مُعلَن يُتحقَّق منه، وانتهى.
 *(كان هذا الموضع يصنّف وحدة `preview` بحالة تسليم. صنف من الوصف يتعفّن بالتعريف، وقد تعفّن فعلًا —
@@ -291,7 +297,10 @@ npm run test:e2e         # يحتاج PostgreSQL (Supertest + jest-openapi)
 **CI** (`.github/workflows/ci.yml`) مساران:
 - `verify`: lint · typecheck · unit · تصدير العقد (بلا DB) · `npm audit --audit-level=high`
   **حاجب** (بلا `continue-on-error`) · **`shellcheck` على `scripts/deploy/remote-cutover.sh`**.
-- `e2e`: يشغّل خدمة `postgres:16` → `migrate deploy` → `db:seed` → `test:e2e`.
+- `e2e`: خدمة `postgres:16` ثمّ `npm ci` → `prisma generate` → `test:e2e`. **ولا خطوة `migrate deploy`
+  ولا `db:seed` في سير العمل:** مِعمار الاختبارات يملك قاعدة بياناته لكلّ تشغيل — يُنشئها ويُرحّلها
+  ويبذرها ويُسقطها بنفسه (`D18-8`)، فمالك التهيئة واحد لا اثنان. تفصيل المِعمار في
+  [`test/README.md`](test/README.md).
 
 > **بوابة `shellcheck` صريحة وتفشل بوضوح.** كانت قبل ذلك تُشغَّل انتهازيًّا داخل اختبار
 > انحدار: إن لم يكن الملفّ التنفيذي موجودًا **مرّت البوابة**. أداة قياس تُبلِّغ «نظيف» دون أن

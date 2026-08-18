@@ -14,13 +14,13 @@ CRUD المقالات مع ترجمات لكل لغة، حالات محتوى (`
 | `articles.admin.controller.ts` | CRUD محروس تحت `/admin/articles` (كل نقطة تُعلن `articles.*`) |
 | `articles.service.ts` | كل المنطق: القوائم، البحث، التفاصيل، المرتبطة، الكتابة، ترقية المجدولة |
 | `articles.scheduler.ts` | cron كل دقيقة يرقّي المقالات المستحقّة |
-| `articles.module.ts` | يستورد `LocalesModule`؛ يسجّل الـ scheduler كـ provider |
+| `articles.module.ts` | يستورد `LocalesModule` و`MediaModule` و`RedirectsModule`؛ يسجّل الـ scheduler كـ provider ويُصدِّر `ArticlesService` |
 | `dto/*` · `entities/*` | مدخلات (مع الاستعلامات) ومخرجات (public list/detail + admin بخريطة ترجمة كاملة) |
 
 ## خريطة الاتصال
 
-- **وارد:** — (لا وحدة أخرى تستورد `ArticlesService`).
-- **يعتمد على:** `PrismaService`، `LocalesService` (تحقّق اللغة)، و`@nestjs/schedule` (يكتشف `@Cron` في الـ scheduler لأنه provider).
+- **وارد:** `PreviewModule` يستورد `ArticlesModule` ويحقن `ArticlesService` (فحص الوجود عند سكّ رمز المعاينة + `getPreviewById`).
+- **يعتمد على:** `PrismaService`، `LocalesService` (تحقّق اللغة)، و`MediaDescriptorResolver` (من `MediaModule` — واصفات القراءة العامّة)، و`RedirectService` (من `RedirectsModule` — عمليّات التحويل تُدفَع داخل معاملة إعادة التسمية)، و`@nestjs/schedule` (يكتشف `@Cron` في الـ scheduler لأنه provider).
 
 ## التدفّقات
 
