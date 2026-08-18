@@ -89,10 +89,12 @@ const FORMAT_TO_PRISMA: Record<ImageVariantFormat, MediaVariantFormat> = {
   avif: MediaVariantFormat.AVIF,
 };
 
-// The reusable central media library (D02-7): upload orchestration, SHA-256 dedup, no-orphan
-// compensation, usages, and safe deletion. Objects are written before the DB row and compensated
-// on any failure (D07-6). Processing runs inside the 2-wide concurrency cap (Q3); the raw upload is
-// never persisted — everything comes from `MediaProcessingService`'s sanitized outputs.
+// The reusable central media library (D02-7): upload orchestration, SHA-256 dedup, best-effort
+// compensation, usages, and safe deletion. Objects are written before the DB row and cleanup is
+// attempted on failure (D07-6) — that ordering narrows the orphan window without closing it; see
+// compensate(). Processing runs inside the 2-wide concurrency cap (Q3), which a dedup hit skips.
+// A raw IMAGE upload is never persisted — everything comes from `MediaProcessingService`'s
+// sanitized outputs — but a validated PDF is stored as its original bytes.
 @Injectable()
 export class MediaService {
   constructor(
@@ -143,7 +145,8 @@ export class MediaService {
     contentHash: string,
   ): Promise<MediaUploadOutcome> {
     // Every object for this asset lives under one random prefix, so a duplicate-race loser's keys
-    // are disjoint from the winner's and cleanup can never touch another asset's objects.
+    // are disjoint from the winner's and cleanup does not touch another asset's objects. The only
+    // separation is randomUUID() — negligible collision risk, not a formal guarantee.
     const prefix = randomUUID();
     return this.normalizeMime(input.declaredMimeType) === PDF_MIME_TYPE
       ? this.persistPdf(input, contentHash, prefix)
@@ -266,8 +269,10 @@ export class MediaService {
     }
   }
 
-  // The single compensation path for both kinds (D07-6). A duplicate-content race is resolved to
-  // the winner; any other failure attempts cleanup and rethrows.
+  // The single compensation path for both kinds (D07-6). A duplicate-content race resolves to the
+  // winner WHEN cleanup resolves and that row is still there — cleanup can reject first, and the
+  // reread can find nothing if the winner was deleted meanwhile; either way the error escapes.
+  // Any other failure attempts cleanup and rethrows.
   //
   // Deliberately NOT a no-orphan guarantee, though it once claimed to be. Three things break it:
   // cleanup() can reject and pre-empt the rethrow below (see its comment); the callers' try blocks
@@ -297,8 +302,9 @@ export class MediaService {
   }
 
   // Deletes the keys this request recorded in `uploaded` — i.e. those whose put() resolved in this
-  // process. A remote write that succeeded but whose response was lost rejects locally, so its key
-  // is never pushed and cleanup cannot know it. Per-key failures are surfaced
+  // process. A remote write that succeeded but whose response was lost CAN reject locally (the SDK
+  // retries, so one lost response need not fail the call); when it does, its key is never pushed
+  // and cleanup cannot know it. Per-key failures are surfaced
   // structurally (never swallowed) — the doc-07-§6 model has no reconciliation job, so an operator
   // sees the orphan in the log.
   //
@@ -457,8 +463,8 @@ export class MediaService {
   }
 
   // The usages behind an FK rejection, read after the fact. An empty result is possible and is not
-  // an error: the blocking transaction may have rolled back in the moment between the rejection and
-  // this read. The response stays a 409 either way — the database already refused the delete, and
+  // an error: between the rejection and this read, the committed blocking reference may itself be
+  // deleted, or the asset may disappear. The response stays a 409 either way — the database already refused the delete, and
   // reporting anything else would contradict what actually happened.
   private async usagesAfterRejection(id: string): Promise<MediaUsageEntity[]> {
     const asset = await this.prisma.mediaAsset.findUnique({
@@ -470,8 +476,10 @@ export class MediaService {
 
   // Post-commit object cleanup. The row is already gone, so there is nothing to compensate and
   // nothing to roll back — deleting the row again is impossible and re-creating it would be a lie.
-  // A failure here leaves an orphaned object: wasted bytes no reader can observe, removable by
-  // hand. That is the recoverable side of D07-7, so it is logged for an operator and never thrown.
+  // A failure here leaves an orphaned object: bytes no API response points at any more, removable
+  // by hand. Not strictly unobservable — object URLs are public and cached immutably for a year, so
+  // a URL already handed out can still resolve. That is the recoverable side of D07-7, so it is
+  // logged for an operator and never thrown.
   // Throwing would tell the client the deletion failed after it had already succeeded, and invite a
   // retry of a request that has nothing left to delete.
   private async cleanupAfterDelete(
@@ -494,7 +502,8 @@ export class MediaService {
 
     if (failed.length > 0) {
       // Keys and the asset id only — enough to find and remove the objects by hand, and never the
-      // original filename, a signed URL or any credential. `failed` alone, never the full key list:
+      // original filename, a signed URL or any credential. `failed` alone, which on a total adapter
+      // rejection IS every input key, since none is known to have been deleted:
       // an object that WAS deleted must not be reported as an orphan.
       this.logger.error(
         {
@@ -611,7 +620,9 @@ export class MediaService {
     };
   }
 
-  // The primary URL: for a PDF its download; for an image the WIDEST WebP rendition — never the
+  // The primary URL: for a PDF its download; for an image the WIDEST WebP rendition — falling back
+  // to the master only if a row somehow has no WebP rendition, which the service never creates. The
+  // public descriptor refuses that case instead of falling back. Not the
   // large sanitized master (doc 07 §6, doc 10 §6). Every image has ≥ 1 WebP rendition.
   private primaryUrl(asset: AdminMediaAsset): string {
     if (asset.kind === MediaKind.PDF) {
