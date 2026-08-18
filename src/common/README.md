@@ -38,7 +38,7 @@ providers: [
 
 الترتيب مقصود: throttle يطبَّق حتى على العامّ، ثم المصادقة تضع `request.user`، ثم التفويض يحلّ الصلاحيات. `PermissionsGuard` نفسه يعيش في وحدة `access-control` (لأنه يحتاج `PrismaService`)، لكنه يعمل في هذا الترتيب العالمي.
 
-- **وارد:** كل controller/DTO في `modules/` يستخدم `@Public()`, `PaginationQueryDto`, `LocaleQueryDto`, ومساعدات Swagger.
+- **وارد:** وحدات `modules/` هي المستهلِك — **لا كلُّ ملفّ فيها ولا كلُّ أداة هنا:** `@Public()` للمسارات غير المُصادَق عليها وحدها (والمحروسة تحمل `@RequirePermission` بدلًا منه)، و`PaginationQueryDto` لما يُصفَّح، و`LocaleQueryDto` لما يُحلَّ للّغة؛ ومساعدات `Swagger` وحدها عامّة الاستعمال تقريبًا. اقرأ الاستيرادات لا هذا السطر.
 - **صادر:** حزم `@nestjs/*` + `AppConfigService`. **لا استيراد من `modules/`.**
 
 ## التدفّقات الأساسية

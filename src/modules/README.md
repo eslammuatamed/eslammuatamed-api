@@ -93,7 +93,7 @@ GET /<resource>?locale=xx
   → { data } أو { data, meta }
 ```
 
-مبدأ حرج: **لا رجوع صامت عبر اللغات.** ترجمة مفقودة تبقى مفقودة — القائمة تُسقِط الصفّ، والوصول المباشر يُعيد 404 (`D05-3`، [الوثيقة 07 §4](../../../eslammuatamed-docs/docs/07-backend-architecture.md)). كل كيان عام يحمل حقل `availableLocales` (اللغات المتوفّرة فعلًا).
+مبدأ حرج: **لا رجوع صامت عبر اللغات.** ترجمة مفقودة تبقى مفقودة (`D05-3`، [الوثيقة 07 §4](../../../eslammuatamed-docs/docs/07-backend-architecture.md)) — **لكنّ شكل ذلك يختلف بالوحدة:** القائمة تُسقِط الصفّ، وتفاصيل مقال/مشروع تُعيد `404`، بينما `settings` و`seo` تُعيدان `200` بحقول `null`. الثابت هو **غياب البديل**، لا رمزٌ واحد. وكيانات المحتوى العامّة تحمل `availableLocales` (اللغات المتوفّرة فعلًا) — **ولا تفترضه في كلّ استجابة عامّة:** `PublicPageSeoEntity` وواصفات الوسائط العامّة لا تحمله.
 
 ### تتبّع حقيقيّ: `GET /api/v1/articles?locale=ar` — الخطوات التي تفشل **بصمت**
 
@@ -103,7 +103,7 @@ GET /<resource>?locale=xx
 
 | الخطوة | الملف | لو غابت |
 | --- | --- | --- |
-| الحارسان يتنحّيان | `jwt-auth.guard.ts` · `access-control/guards/permissions.guard.ts` | `list()` عليها `@Public()` فقط، **بلا أيّ `@RequirePermission`**. لولا التحقّق من `@Public()` داخل `PermissionsGuard` لكان الردّ **`403`** بحجّة «لا صلاحية معلَنة» — وكل قراءة عامّة في الـ API تنكسر بالطريقة نفسها |
+| الحارسان يتنحّيان | `jwt-auth.guard.ts` · `access-control/guards/permissions.guard.ts` | `list()` عليها `@Public()` فقط، **بلا أيّ `@RequirePermission`**. لولا التحقّق من `@Public()` داخل `PermissionsGuard` لكان الردّ **`403`** بحجّة «لا صلاحية معلَنة» — وكلّ مسار `@Public()` في الـ API ينكسر بالطريقة نفسها، **قراءةً كان أو كتابة**: الحارس يفحص `@Public()` ثمّ `@RequirePermission` ولا ينظر إلى فعل `HTTP` إطلاقًا، فـ `POST /contact` وكتابات `auth` كانت ستسقط بالـ `403` نفسه |
 | `ValidationPipe` يبني كائن `DTO` حقيقيًّا | `main.ts` (`transform: true`) | `skip` و`take` **خاصّيّتان محسوبتان (getters)** على `PaginationQueryDto`، لا حقلان في الطلب. بلا `transform` يبقى `query` كائنًا عاديًّا فتصير `skip`/`take` = `undefined`، ويمرّران إلى `Prisma` هكذا — فتعود **كل** المقالات المنشورة بلا صفحات وبلا خطأ |
 | `assertEnabled(locale)` | `locales.service.ts` | لغة غير معروفة تمرّ إلى `where` فلا تطابق ترجمة، فتحصل على **`200` بصفحة فارغة** بدل `400`. الخطأ لا يختفي، بل يتنكّر في هيئة نتيجة صحيحة |
 | `$transaction([findMany, count])` | `articles.service.ts` | نداءان مستقلّان: مقال يُنشر بينهما يجعل `meta.total` لا يطابق ما في الصفحة فعلًا |
