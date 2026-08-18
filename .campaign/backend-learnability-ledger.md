@@ -3493,6 +3493,39 @@ the branch policy and the test-database ownership changed underneath them.* `R10
 a doc that tells an operator a green `/health` means a good release, in a repository whose own ledger
 records that belief causing an outage.
 
+### The second reader, on the corpus that actually ships — and the repairs are now load-bearing
+
+**Both probes pass again, at `HIGH`, on the final head.** `Q2` is answered decisively and the reader
+quotes the repaired line back *including the `صالح` refinement that landed after the first bundle was
+cut*: the slot is taken after the dedup miss and **before** the type fork; both slots busy → `429` +
+`Retry-After: 2`, never queued; and *"the constant's name is a red herring: it is named after its
+motive (`Sharp` memory), not its scope."* All three controls held at `HIGH`.
+
+**And `Q1` used the blocker fix as its discriminator.** Asked how to tell direct from indirect access,
+the reader opened with *module-level availability is uninformative by construction*, citing
+`src/prisma/README.md:5` — «يحكم **الإتاحة لا الاستعمال**: ليست كلّ وحدة تستعمله» — the clause added
+hours earlier to close the Arabic twin. *A repair is load-bearing when a reader reasons **from** it
+rather than merely failing to trip over it.* Neither repaired site was reported as a defect by either
+reader; both were cited as authority.
+
+**Two independent readers, two bundles, and the open passes converged.** `CONTRIBUTING.md:76`,
+`CLAUDE.md`'s fixed test database, the cross-module `Prisma` exception, the release freeze, the
+two-homed `e2e` guard and the unquantified `PDF` byte ceiling were each found **twice, independently**.
+*Convergence across readers is the strongest signal this campaign has produced about where the corpus
+is now weakest — and it is not `src/**`.*
+
+**Two findings the second reader added, both author-confirmed:**
+
+| # | Site | Finding |
+| --- | --- | --- |
+| **R10-8** | `PROJECT_GUIDE.md:315` vs `:367-371` | «خط الإصدار … يعمل على `push: main` **وحده**» — and fifty lines later the same file describes `deploy-fallback.yml` sending the same pipeline by `workflow_dispatch`. **«وحده» is false, in a governed document, in the sentence that introduces the release-line diagram.** This one is *not* a root-file finding, which makes it the exception to the pattern. |
+| **R10-9** | `PROJECT_GUIDE.md:340` vs `CONTRIBUTING.md:69,84` | The approval-gate contradiction has a **decisive tiebreaker, and it is a measurement**: `:340` excludes «زمن انتظار موافقة المالك (`1 701` ثانية في تلك النشرة)» from a timing table. *You cannot measure 1,701 seconds of waiting at a gate `CONTRIBUTING.md` says cannot exist.* `CONTRIBUTING.md` is the stale side — and it is the file named for newcomers. |
+
+*The reader's closing observation is the one to carry forward:* **four of its five answers were possible
+only because of `src/modules/README.md` or `media/README.md`** — `PROJECT_GUIDE.md` alone was
+sufficient for none of `Q2`–`Q5`. The module READMEs this campaign spent itself on are the load-bearing
+layer, and the guide is an index to them, not a substitute.
+
 ## 8. Owner-decision blockers
 
 **OD-B — the governing record of API release state is wrong AND internally contradictory (D-10).**

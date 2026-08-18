@@ -391,6 +391,19 @@ ledger as `R10-1`..`R10-7`; two I confirmed against source myself:
   `Prisma` — presented as the reason there is no cycle rather than as an exception, and structural to
   `usages` rather than incidental.
 
+**A second reader, on the corpus that actually ships, passed every probe and control again** — and
+used the repairs as *authority* rather than tripping over them: asked how to tell direct from indirect
+database access, it opened with `src/prisma/README.md:5`'s «`@Global` يحكم الإتاحة لا الاستعمال», the
+clause added to close the blocker. Neither repaired site was reported as a defect by either reader.
+
+**The two open passes converged independently** on `CONTRIBUTING.md:76`, `CLAUDE.md`'s fixed test
+database, the cross-module `Prisma` exception, the release freeze, the two-homed `e2e` guard and the
+unquantified `PDF` byte ceiling. Two further findings are author-confirmed: `PROJECT_GUIDE.md:315`
+says the release line runs on `push: main` **alone** while `:367-371` in the same file describes
+`workflow_dispatch` (`R10-8`), and the approval-gate contradiction has a decisive tiebreaker —
+`:340` excludes **1,701 seconds** of owner-approval wait from a timing table, which cannot be measured
+at a gate `CONTRIBUTING.md:69,84` says cannot exist (`R10-9`).
+
 **None were repaired.** Run 9 scoped this work to two findings and explicitly forbade a broad run 10;
 widening it here would be the scope creep that instruction exists to prevent. They are the owner's
 call.
