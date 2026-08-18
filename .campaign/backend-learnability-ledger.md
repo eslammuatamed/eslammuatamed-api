@@ -97,7 +97,7 @@ section is historical narrative, fixed at the commit that wrote it, and may be s
 | Cold-reader gate (§11) | **RUN TWICE.** Run 1: 9 of 10 scoreable correct, Q2 unscored (defective question); produced 4 documentation defects — all fixed (§11c). **Run 2: 10/10 main + 6/6 §C = 16/16 — the scoring gate PASSES** (§11d) |
 | Open-ended assessment | **THE PRODUCTIVE INSTRUMENT, BOTH RUNS.** Run 2 scored 16/16 *and* found a real prerequisite defect no question touched: the vocabulary table sat at §15 while §2 and §5 already relied on it. Verified, moved to the head of the guide, peer-reviewed |
 | Cold-reader Run 3 | **Gate 16/16; targeted regression FAILED on `Controller`** (used inside the vocabulary block before it was defined) **+ 5 open-ended findings, all confirmed**, two worse than reported. All repaired across two peer rounds (§11e) |
-| Cold-reader Run 4 | **Targeted regression FAILED again on internal ordering** — three sites inside the vocabulary block, a fourth by sweep, a fifth by a mechanical check. **6 confirmed open-ended defects + 2 experiment artifacts.** The peer round on the repair then found **7 MAJOR + 1 MINOR**, including a quantifier the repair itself shipped (§11f) |
+| Cold-reader Run 4 | **Regression FAILED on the block's *inside*** — 3 sites reported, a 4th by sweep, a 5th by a mechanical check. **6 confirmed open-ended defects + 2 experiment artifacts.** Peer lane then ran **four rounds** on the repair — 7+1 → 5+2 → 0+1 → **CLEAN** — and four of round 2's five MAJORs were defects the *repair* introduced (§11f) |
 | Campaign exit gate | **NOT YET SATISFIED — one item.** A new uncoached reader, on a bundle from the current head: internal vocabulary ordering, each confirmed run-4 repair, a few unchanged controls, and an unscored open-ended pass |
 | Open contract gap | `POST /admin/media` can return `400` undeclared in `openapi.json`. **Owner-facing**, needs the doc 16 §3 contract flow — not this branch (§11e) |
 | PR | **OPEN: #86**, base `dev` (never `main`), head `campaign/backend-learnability` — **all 6 checks pass, `MERGEABLE / CLEAN`** |
@@ -154,8 +154,10 @@ this table: `git log 9af1aac..HEAD --name-only` and drop the commits touching on
 | `d069828` flow trace | §10e | CLEAN |
 | `0262e5b` · `846dc73` run-1/run-2 repairs | §11c, §11d | 9 findings / 3 MAJOR (§11c); first attempt **rejected** and redone (§11d) |
 | `4f7f10d` · `f3becd8` run-3 repairs | §11e | two rounds — 4 MAJOR, then 5 more |
-| `b6f17b0` · `21c20f1` run-4 repairs | §11f | **7 MAJOR + 1 MINOR**, all verified here before action; two corrected upward |
-| `<peer-fix>` the fixes for those | §11f | **NOT YET REVIEWED** — a fix round is a new tree; the verdict above does not cover it |
+| `b6f17b0` · `21c20f1` run-4 repairs | §11f | **7 MAJOR + 1 MINOR**, each re-verified here before action |
+| `483c9c5` · `87839d6` the fixes for those | §11f | **5 MAJOR + 2 MINOR** — four of the five MAJORs were introduced *by* the fixes; one peer count pushed back on with an enumeration |
+| `d3455d5` the fixes for those | §11f | **0 MAJOR + 1 MINOR** |
+| `2fd62e2` the fix for that MINOR | §11f | **CLEAN** |
 | commits touching only `.campaign/` | — | not source-touching |
 
 **The campaign-wide finding total is NOT reconstructible from these records, so it is not stated.**
@@ -2356,6 +2358,48 @@ changed-file count. And the first negative control **never mutated anything**: i
 occurred twice, the guard assertion fired, and the run that followed reported IDENTICAL — a
 *vacuous* pass being read as a passing control. **A negative control that does not first prove the
 mutation landed is not a control.**
+
+### Peer round 3 — it converged, and the last MINOR was the same defect one layer up
+
+`87839d6..d3455d5` went back to the peer. **No MAJOR. One MINOR.**
+
+| Round | Findings |
+| --- | ---: |
+| 1 — on the run-4 repair | 7 MAJOR + 1 MINOR |
+| 2 — on the fixes for those | 5 MAJOR + 2 MINOR |
+| 3 — on the fixes for those | **0 MAJOR + 1 MINOR** |
+
+*Three rounds is where this converged, and the second round was the expensive one because four of
+its five MAJORs were defects the **repair** introduced. Fixing is not a safe operation on this
+corpus; it is another edit, and it needs the same review the original did.*
+
+**The last MINOR is worth more than its severity.** `src/config/README.md` said the validation shapes
+were listed "**بمثال لكلٍّ، لا حصرًا**" — an example each, *not exhaustively* — and in the same
+sentence counted them: "**خمسة**". **A count is the exhaustive claim.** And there is a sixth shape
+it would have excluded: `PUBLIC_WEB_URL` is defaulted outside production and required in it, done in
+`validate()` rather than by a decorator. *The hedge and the number contradicted each other, and the
+number would have won with any reader.* The count is gone; the hedge stays.
+
+**What round 3 checked and found clean**, each with per-file evidence: `users.service.ts` is exactly
+27 lines and mechanical; `AppConfigService` and `MailService` carry no domain rules while
+`MediaProcessingService` rejects with `422`; "many" is consistent with 22 of 61; all eight named
+environment cases classified correctly; `PUBLIC_WEB_URL` independent of SMTP and `S3_REGION`
+completed with `'auto'`; **every `assertEnabled` call site across all ten locale-importing modules
+enumerated**, with no admin read calling it and no locale-addressed path missing it; the five
+resolver consumers all real; **no remaining "future page-SEO" or unqualified "every field is
+required" anywhere in the repository**; and the three `.ts` hunks inspected at zero context —
+comments only, no import, declaration, decorator or statement touched.
+
+### Peer round 4 — narrow, and **CLEAN**
+
+`d3455d5..2fd62e2` is one sentence. Reviewed anyway, because the rule is that a fix round is a new
+tree and the campaign's own record shows why: the previous "small" fix round produced four MAJORs.
+
+**CLEAN on all four questions asked:** the sentence no longer implies completeness; the shapes and
+their examples still match `env.validation.ts`; removing the count broke neither the grammar nor any
+sentence near it or elsewhere; and no new absolute was introduced.
+
+**Peer lane closed for run 4: 7 MAJOR + 1 MINOR → 5 MAJOR + 2 MINOR → 0 MAJOR + 1 MINOR → CLEAN.**
 
 ## 8. Owner-decision blockers
 

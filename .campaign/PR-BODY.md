@@ -46,7 +46,7 @@ confident wrong name reads as authoritative.
 
 ## Verification
 
-`prisma validate` 0 · `typecheck` 0 · **61 suites / 1273 tests** · guard GREEN · self-test 43/43 ·
+`typecheck` 0 · `lint` 0 · **61 suites / 1273 tests** (re-run this round) · guard GREEN · self-test 43/43 ·
 all four workflow YAMLs parse · guard-independent sweep for every archaeology and chronology family
 returns zero, with passing positive controls.
 
@@ -158,6 +158,27 @@ returns zero, with passing positive controls.
   read 26; that census had missed two of jest's four declared roots. The real total is 95, so the
   residual points the *other* way. Had the first number been written in, the corpus would now carry
   a confident falsehood. The row keeps its `~` until all 95 specs are classified per file.
+- **Three peer rounds on the run-4 repair, and the middle one is the lesson.** Round 1 returned
+  **7 MAJOR + 1 MINOR**, round 2 **5 MAJOR + 2 MINOR**, round 3 **0 MAJOR + 1 MINOR**. Four of round
+  2's five MAJORs were defects the *repair* introduced, not survivors of it — including my own
+  unswept quantifier ("every `*.service.ts` owns domain rules": `AppConfigService`, `PrismaService`
+  and `MailService` do not), and a correction that put the line on directory location while both
+  counter-examples live in the same directory. **Fixing is not a safe operation on this corpus.**
+  One peer finding was pushed back on with an enumeration and the original number stands.
+- **A document and the comment beside it were made to disagree in the same hour.** The media README
+  was corrected to name `seo` a current consumer while `media.module.ts` and
+  `media-descriptor.resolver.ts` kept calling it "a future page-SEO read"; `env.validation.ts` and
+  `.env.example` both still said every SMTP field becomes required when enabled, which
+  `SMTP_SECURE` does not. The sweep that should have caught it searched documents, and the claim
+  also lived in `.ts`. Those three `.ts` files changed — **comments only**, proved by compiling both
+  sides with `tsc --removeComments` to byte-identical output, with a negative control confirming an
+  appended statement does show up.
+- **Two of this round's own instruments produced a false green before they produced evidence.** The
+  vocabulary-ordering checker located its table by hard-coded line numbers, so when the block grew
+  it silently read 13 of 15 rows and passed; the comment-only proof compared two empty directories,
+  because `zsh` does not word-split an unquoted multi-line variable. Both now assert their subject's
+  size before reporting, and both are negative-controlled with exit codes read directly rather than
+  through a pipe, which had masked them.
 - **One item remains:** a new uncoached reader on a bundle from the current head — internal
   vocabulary ordering, each confirmed run-4 repair, a few unchanged controls, and an unscored
   open-ended pass kept.
