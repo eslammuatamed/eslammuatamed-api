@@ -2846,6 +2846,39 @@ was correcting** (*"Not the large sanitized master"*), left dangling by my own e
 
 **Peer lane closed for run 6: 2 → 2 → 4 → 10 → 9 → 7 → 1 → CLEAN, over eight rounds.** Round 8
 re-enumerated all eight blocking relations against `schema.prisma` and confirmed the inverse claim is
+exhaustively true.
+
+### The run-7 bundle and prompt — NARROW by design
+
+The owner's instruction after run 6 was explicit: the formal questions passed, so the next reader
+does **not** need another broad regression. The prompt is **eleven** questions, not seventeen, and it
+is built to attack the one family that took eight peer rounds:
+
+| Covers | Questions |
+| --- | --- |
+| The compensation invariant — what is guaranteed, what is not, what is logged | 1, 2 |
+| Delete: is the object certainly gone; is a URL fetched an hour ago | 3 |
+| Supported vs unsupported non-image, and stored-as-is vs transformed | 4 |
+| Direct vs delegated locale validation, and how a reader can tell | 5, 6 |
+| Unchanged controls carried from earlier gates | 7, 8, 9, 10, 11 |
+| Unscored open assessment, pointed at over-certainty | Part 2 |
+
+*Questions 1–3 are deliberately adversarial about certainty:* they ask what is **not** guaranteed and
+treat "orphan object" and "orphan row" as two separate questions — because the defect this round
+removed was exactly the conflation of the two. Part 2 asks specifically for **"any sentence that
+promises more certainty than the rest of its own section does"**, which is the shape of every one of
+the ten findings round 4 produced.
+
+Bundle: **27 files**, corpus from `git ls-tree`, positive 27/27, negative control flagged exactly one
+on corruption, restore 27/27, `zip` round-trip 27/27, and re-verified against the head that carries
+it. Run-6 artifacts renamed `-SUPERSEDED`. Every question was checked answerable **from the bundle**.
+
+*One check reported a false negative doing that:* the delete-sentence probe failed because the grep
+pattern mis-escaped the `**bold**` markers around the very words it was looking for. The text was
+there. **A failing probe is a claim about the corpus and needs the same scepticism as a passing one** —
+this is the fourth instrument in this campaign to be wrong in the reassuring direction and the second
+in the alarming one. Round 8
+re-enumerated all eight blocking relations against `schema.prisma` and confirmed the inverse claim is
 exhaustively true. *Eight rounds on one claim family is the most this campaign has spent anywhere —
 and rounds 4 onward only became productive when the sweep stopped following the diff.*
 
