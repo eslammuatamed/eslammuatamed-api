@@ -289,9 +289,14 @@ export class MediaService {
     throw error;
   }
 
-  // Deletes exactly the objects a failed/losing request uploaded. Partial failures are surfaced
+  // Deletes exactly the objects a failed/losing request uploaded. Per-key failures are surfaced
   // structurally (never swallowed) — the doc-07-§6 model has no reconciliation job, so an operator
-  // sees the orphan in the log. Cleanup never throws: the caller must still rethrow / return.
+  // sees the orphan in the log.
+  //
+  // NOT total, unlike cleanupAfterDelete below: deleteMany is awaited bare. The LOCAL adapter
+  // catches per key and cannot reject, but the S3/R2 adapter can reject outright on a transport or
+  // credential failure — that rejection escapes here, replaces the original upload error at the
+  // `throw error` in compensate(), and logs neither the event nor the keys.
   private async cleanup(keys: string[], reason: string): Promise<void> {
     if (keys.length === 0) {
       return;
