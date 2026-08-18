@@ -177,7 +177,10 @@ this table: `git log 9af1aac..HEAD --name-only` and drop the commits touching on
 | `a2dfe62` the fix for the `@IsEnum` universal I introduced | §11i | self-caught before the peer reported it; covered by the round-2 pass |
 | `80aae0f` the fixes for round 1's five | §11i | **7 MAJOR** — five of them against text those very fixes wrote |
 | `587f9e0` the fixes for round 2's seven | §11i | **4 MAJOR** — a third class member, a five-module over-generalisation, and two stale counts |
-| `9053d6c` the fixes for round 3's four | §11i | verdict recorded with the final head below |
+| `9053d6c` the fixes for round 3's four | §11i | **7 MAJOR** — the census-artifact finding, two false source comments, and two of my own new claims |
+| `5311096` the fixes for round 4's seven | §11i | **3 MAJOR** — a third site of a family, a sibling comment in an already-repaired file, and the locale cell's third correction |
+| `c297395` the fixes for round 5's three | §11i | **3 MAJOR** — the locale cell's fourth, a third membership mechanism, and the media byte-limit layering |
+| `241e2f0` the fixes for round 6's three | §11i | verdict recorded with the final head below |
 | commits touching only `.campaign/` | — | not source-touching |
 
 **The campaign-wide finding total is NOT reconstructible from these records, so it is not stated.**
@@ -2938,7 +2941,10 @@ Three peer rounds, and **the repairs were the defect source every time**:
 | 1 | **20 MAJOR + 1 MINOR** | 12 against `.specify/` (out of scope, §8); 1 already fixed; **5 in-corpus**, every one a sibling of a family I had "fixed at the named site" |
 | 2 | **7 MAJOR** | **5 against text round 1's repairs wrote** |
 | 3 | **4 MAJOR** | one was a THIRD member of the class round 2 had just bounded at two; two were counts, one of which **this round's own edit had invalidated** |
-| 4 | see the verdict recorded with the final head | — |
+| 4 | **7 MAJOR** | the central one demolished a *reasoning* step, not a sentence: my census had been run against the one artifact that cannot show the evidence |
+| 5 | **3 MAJOR** | all against my own text, all in families I had already "closed" — including a sibling comment in a file where I had fixed only the named line |
+| 6 | **3 MAJOR** | one I had already queued from my own sweep; one repeated round 4's mistake in a new instrument; one a pre-existing defence-in-depth overclaim |
+| 7 | narrow, scoped to the changed cells — verdict recorded with the final head | — |
 
 **The lesson is about the shape of my sweeps, not about care.** F1 was swept by searching the
 Arabic surface terms (`سطح عام`, `قراءة عامّة`) and never by grepping `@Public()` in prose — which is
@@ -2980,6 +2986,69 @@ template said "shortest file 37 lines, longest 136" — and the `F5` repair push
 to 156. *An edit can falsify a number in a file it never touches.* Both that count and the section
 count next to it were replaced or given their derivation, and a later pass removed two more
 numerals that the repairs themselves had introduced.
+
+**Round 4 produced the round's most important finding, and it was about an instrument, not a
+sentence.** The repair after round 3 argued that every length and shape cap is boundary-only "by
+construction", and offered a census as proof: zero `@db.VarChar`/`@db.Char` in `schema.prisma`.
+**`Prisma` cannot model `CHECK` constraints.** They are written in migration `SQL` and never appear
+in the schema at all — so the census was run against the one artifact that is blind to the
+counter-evidence *by design*, and it returned a confident zero. There are **ten** `CHECK`
+constraints across three migrations; `skills_slug_format_check` enforces `kebab-case` **and**
+refuses `uuid`-shaped slugs at the column, and `media_assets_content_hash_sha256_hex_check` pins a
+hash format. The length half of the claim survives — re-attacked directly and independently: zero
+length `CHECK`s, zero `DOMAIN`s, zero `TRIGGER`s, zero `VARCHAR`/`CHAR` in any migration. The shape
+half was simply false.
+
+*And the repository had already said so, in the file I had not read.* The skills migration's own
+comment reads: "Prisma cannot model CHECK constraints, so like that one it lives in migration SQL
+and is invisible in `schema.prisma`." **The transferable lesson is not "verify your claims" — it is
+that an instrument can be wrong because it is pointed at the wrong artifact, not because it is
+implemented wrong.** A green census over `schema.prisma` is not weak evidence about `CHECK`
+constraints; it is *no* evidence, and it reads identically to strong evidence.
+
+Two source comments carried the same error and were corrected: `skill.dto.ts` claimed its
+`@Matches` rule "is the ONLY place that can prevent" a `uuid`-shaped slug, and
+`skill-slug.dto.spec.ts` called the `DTO` "the only place that can keep a malformed slug out of the
+database". The column `CHECK` covers the seed and raw `SQL` — precisely what a `DTO` cannot.
+
+**One round-4 item was recorded rather than repaired.** The same migration's comment calls itself
+the "Second CHECK constraint in the schema"; the media migration added eight, earlier. It is an
+**applied** migration, and editing its `SQL` changes the checksum `Prisma` records in
+`_prisma_migrations`, so correcting it in place would risk a deploy-time drift error. Queued for
+the owner in §8.
+
+**And one finding this round came from the sweep, not the peer — the first time that happened.**
+The controller-decisions table claimed to list "every HTTP-shaped decision in the repository,
+without exception". It is exhaustive only over decisions taken *in code at runtime*, and it was
+missing one of exactly the shape it already documents: a new reply is `201` and an idempotent
+replay `200`, chosen with `res.status` under `@Res({ passthrough: true })`. The row was added, the
+predicate the table actually uses is now stated, and the second class — status and header choices
+*declared* by decorator — is described as examples rather than a set.
+
+
+**Round 5 found the sweep failing in the smallest possible way.** `skill-slug.dto.spec.ts` carried
+**two** "the only place that can prevent it" comments; I had corrected the one at the top of the
+file and left its sibling forty lines down asserting the opposite of the comment I had just fixed
+in `skill.dto.ts`. *The defect is not the claim — it is repairing a line instead of grepping the
+file.* A repo-wide sweep of enforcement universals in `.ts` comments followed; the two others it
+surfaced (`projects.service.ts`'s facet-group policy, `mail.service.ts`'s provider header name)
+were both **verified true** and deliberately left alone.
+
+**Round 6 caught the same blindness in a second instrument.** List membership turned out to have a
+**third** mechanism: with `q`, `GET /articles` routes to `searchPublic`, where locale membership is
+a raw-SQL `JOIN article_translations ... AND t.locale = …`. My census regex matched `Prisma` include
+syntax only, so raw `SQL` was invisible to it — *exactly* how the `schema.prisma` census missed
+`CHECK` constraints two rounds earlier. **Twice in one campaign the instrument was blind to an
+artifact rather than wrong in its logic, and both times it returned a confident, clean-looking
+answer.** That is the pattern worth carrying forward: ask what the instrument *cannot see* before
+reading what it reports.
+
+**The locale-selection cell was rewritten four times, and only the last one stopped needing
+repair** — because it stopped being an example list. The census is the rule: the returned
+translation for an entity itself is always picked in memory, a related entity's translations are
+filtered in-query (`articles`, `projects`, `experiences`), and `seo` alone selects by a unique key.
+*Every earlier version failed for the same reason: it enumerated where it should have generalised,
+and each round found the member I had not listed.*
 
 **And one sentence was refuted twice, for two different reasons** — the counterfactual "delete
 `assertEnabled` and all you lose is the error's name". **Round 1** pointed out it also guards

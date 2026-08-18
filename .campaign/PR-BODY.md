@@ -267,13 +267,27 @@ returns zero, with passing positive controls.
   count in the module-README template ("shortest 37 lines, longest 136") stale. Counts in this round
   were either given their derivation or removed, including two numerals the repairs had themselves
   introduced.
-- **The peer rounds cost 20 MAJOR, then 7, then 4, and the repairs were the defect source every
-  time.** Of
+- **An instrument can be wrong because it is pointed at the wrong artifact, and it happened twice.**
+  I argued every length and shape cap is boundary-only, evidence being zero `@db.VarChar` in
+  `schema.prisma`. `Prisma` cannot represent `CHECK` constraints — they live in migration `SQL` and
+  never appear in the schema. Ten exist; two of them back shape at the column. Later, a census of
+  locale filtering matched `Prisma` include syntax only and missed a raw-`SQL` `JOIN` doing the same
+  job. **Both censuses returned confident, clean-looking zeros, and neither was weak evidence — each
+  was no evidence at all.** The repository had even said so, in a migration comment I had not read.
+- **Repairing a named line is not repairing a family.** One file carried two "the only place that can
+  prevent it" comments; the first was corrected and the second left asserting the opposite. A
+  repo-wide sweep of enforcement universals in source comments followed — the two others it found
+  were verified TRUE and left alone.
+- **One passage was rewritten four times and only stopped needing repair when it stopped
+  enumerating.** Every earlier version of the locale-ownership cell listed examples, and every round
+  found the member the list omitted. The version that holds states the rule the census supports.
+- **The peer rounds cost 20 MAJOR, then 7, 4, 7, 3 and 3, and the repairs were the defect source
+  every time.** Of
   round 1's five in-corpus findings, every one was a sibling of a family I had already "fixed" at its
   named site — because I had swept the Arabic words I happened to write rather than grepping
   `@Public()`, `availableLocales`, and the `404` claim across the corpus. Five of round 2's seven were
   against text round 1's repairs had written, including two false universals introduced *in the round
-  whose subject is unverified universals*. **The convergence — 20, then 7, then 4 — is the evidence the method worked; the first number is the evidence it was needed.**
+  whose subject is unverified universals*. **The convergence is the evidence the method worked; the first number is the evidence it was needed.** And the lane did not end on a round count — it ended when a round found nothing.
 - **One sentence was refuted twice, for two different reasons,** and it is the best single artefact
   of the round: "delete the locale check and all you lose is the error's name". It also guards
   **writes** — the locale foreign keys reference `Locale.code` and `isEnabled` is a column, not a
