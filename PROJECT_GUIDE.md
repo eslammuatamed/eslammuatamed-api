@@ -145,7 +145,7 @@ HTTP → Guard(s) → Pipe (ValidationPipe) → Controller → Service → Prism
 
 - **Controllers رفيعة:** توجيه، ربط DTO للتحقّق، decorators لـ Swagger. **لا قواعد مجال** — وهذا هو الحدّ، لا «لا كود». القرار ذو الشكل `HTTP` (ترجمة `null` إلى `404`، اختيار `200` بدل `201` عند التكرار، كتابة كوكي `refresh`) موضعه الصحيح هو الـ `controller`. الجدول الكامل لكلّ موضع من هذه المواضع، ولماذا `preview` أخصّها، في [`src/modules/README.md`](src/modules/README.md).
 - **Services تملك المنطق:** قواعد العمل، الـ transactions، تحليل اللغة. وهي وحدة الاختبار (`principle 13`).
-- **لا طبقة repository (`D07-2`):** الـ services التي تصل إلى القاعدة **بنفسها** تحقن `PrismaService` مباشرة. `Prisma` نفسه هو التجريد؛ ولفّه في repositories تمريرية هو الطبقية الاحتفالية التي يمنعها `D00-3`. مقعد الاختبار (seam) هو حقن `PrismaService` نفسه.
+- **لا طبقة repository (`D07-2`):** الـ services التي تصل إلى قاعدة البيانات **بنفسها** تحقن `PrismaService` مباشرة. `Prisma` نفسه هو التجريد؛ ولفّه في repositories تمريرية هو الطبقية الاحتفالية التي يمنعها `D00-3`. مقعد الاختبار (seam) هو حقن `PrismaService` نفسه.
 - **اتجاه التبعية أحادي:** `services` لا تستورد `controllers`؛ الوحدات تتفاعل عبر خدمات مُصدَّرة صراحةً، لا عبر نماذج `Prisma` لوحدة أخرى؛ و`common/` لا يستورد من `modules/` أبدًا.
 
 خريطة الطبقات على القرص في [`src/` — انظر الوثيقة 08](../eslammuatamed-docs/docs/08-folder-structure.md) وملفات `README.md` داخل كل مجلد:
