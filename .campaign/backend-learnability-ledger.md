@@ -1184,10 +1184,20 @@ reference model", then lumps everything else into "the rest of the content modul
 `locales` at all — the 76-line module that **ten modules depend on** and that appears in every
 service a reader will open.
 
-Replaced with an 11-step order that respects prerequisites *then* ascends concept load, and that
-states the trap explicitly at the top rather than leaving a reader to fall into it. This is the
-first Phase 2 change grounded in a measurement that contradicted an existing decision, rather than
-in an opinion about what reads better.
+Replaced with an 11-step order that ascends concept load and states the trap explicitly at the top
+rather than leaving a reader to fall into it. This is the first Phase 2 change grounded in a
+measurement that contradicted an existing decision, rather than in an opinion about what reads
+better.
+
+> **CORRECTION (cold-reader run, §11c).** This paragraph originally read *"respects prerequisites
+> **then** ascends concept load"*, and `PROJECT_GUIDE` §15 carried the same claim in the same
+> words. **It was false, and this table is what falsifies it:** `articles` and `projects` are
+> step 9 and both import `MediaModule`, which is step 10. The order was never prerequisite-first —
+> it deliberately demotes `media` because `media` is the heaviest module in the repo, and that
+> trade is defensible. The claim was not. Corrected in both places rather than appended to, because
+> the sentence itself is the defect; a finding added below it would have left the false clause
+> readable. *Same failure class the campaign spent six slices removing — and this is the second
+> time it has appeared inside the campaign's own instruments rather than in the documentation.*
 
 ## 10. Phase 2 measurements
 
@@ -1525,7 +1535,7 @@ answer is guessable tests nothing.
 | # | Question | Wrong answer a reader would reasonably give | Where the docs answer it |
 | :-: | --- | --- | --- |
 | 1 | You POST a body containing an unknown field. What status? | `400` | archetype, status-code table |
-| 2 | `GET /admin/articles/not-a-uuid` — what status, and which component decides? | "`ParseUUIDPipe`, because it runs first" | archetype, pipe-order note |
+| 2 | **Assume all three global guards pass — the request is below its throttle limit, authenticated, and authorized.** `GET /admin/articles/not-a-uuid` → what status? The global `ValidationPipe` runs **before** the route's `ParseUUIDPipe` — so why is it not the pipe that rejects this? | "the global `ValidationPipe` rejects it, because it runs first" — or naming `ParseUUIDPipe` without the ordering fact | archetype, pipe-order note |
 | 3 | Where is the `try/catch` that turns a duplicate slug into `422`? | "in the module's service" | archetype — there isn't one; `AllExceptionsFilter` owns it |
 | 4 | `redirects/README.md` says **حمولة** (*payload*) `{ toPath }`, not **ردّ** (*response*). Why that word, and what does the HTTP body actually contain? | "they mean the same thing" / `{ toPath }` | archetype, envelope rule |
 | 5 | You upload a 5 MB image. Rejected by the `1 MiB` limit? | "yes" | archetype — `multer` has a separate 10 MiB limit |
@@ -1571,7 +1581,7 @@ one inside a measuring device rather than a document.**
 *Rule: re-validate every gate question against the corpus immediately before running the gate,
 not when writing it.*
 
-### Status: NOT YET RUN — and it cannot be run by me
+### Status BEFORE the run — historical, superseded by §11c
 
 The gate requires a reader who has not worked on this repository. **Every agent in this campaign is
 disqualified**, including the peer, which has now read most of this code closely. Author
@@ -1588,6 +1598,186 @@ facts it found *by reading source* — the pipe-order mechanism, the `PUBLIC_INC
 separate "the docs taught me this" from "I already knew it and would recognise it regardless of
 what the docs said". That is precisely the bias §11 exists to exclude, and it is worth recording
 that the disqualification was accepted by the party being disqualified rather than imposed.
+
+## 11c. The gate RAN — one cold-gate defect, four confirmed documentation defects
+
+A genuinely cold reader (no repo history, documentation-only bundle from PR head
+`07125d3c0b00534edb62d658ddd44fbca478f21a`) answered the gate. **The gate is NOT scored and NOT
+passed**; this run is treated as *experimental evidence*, and its main product is four confirmed
+defects in the corpus plus one defect in the instrument.
+
+### The instrument failed question 2 — the reader did not
+
+Q2 as written asked for a status and a deciding component on `GET /admin/articles/not-a-uuid`. That
+is an **`/admin` route**, and the corpus correctly teaches that global guards run before route
+pipes — so `401`/`403` legitimately precede the intended `400` unless authentication is stated. The
+question was underspecified; the reader nevertheless recovered the whole intended truth (after
+guards: `400`, `ParseUUIDPipe` decides, `ValidationPipe` runs earlier and is a no-op on a simple
+path param).
+
+**Recorded as a COLD-GATE DEFECT. Q2 counts as neither PASS nor FAIL.** Rewritten above to state
+the authentication assumption explicitly, and — because the reader's answer exposed that the
+*component* is guessable from the route shape — the scored content moved to the ordering fact:
+`ValidationPipe` runs first and still does not decide. The "wrong answer" column was updated
+accordingly; it previously named `ParseUUIDPipe`, which is the **right** component.
+
+*This is the second time a §11 question has been wrong about its own corpus, and the first time it
+was wrong about the corpus being **right**.*
+
+### Re-validation of all ten questions against the changed corpus
+
+§11's own rule — *re-validate every gate question against the corpus immediately before running the
+gate* — applies to this campaign's own edits, not only to the passage of time. Corpus changed in
+this pass: `README.md` §النشر, `PROJECT_GUIDE` §15 (intro note, vocabulary block, items 1/8/10).
+
+| Q | Verdict after the edits |
+| :-: | --- |
+| 1 | unchanged — archetype status table untouched |
+| 2 | **rewritten** (above) |
+| 3 | unchanged — `AllExceptionsFilter` ownership untouched |
+| 4 | unchanged — envelope rule and the **حمولة** wording untouched |
+| 5 | unchanged — the two size limits untouched |
+| 6 | re-checked, still `locales` at step 4 on the fan-in-of-ten evidence; the `mail` insertion is at step 10 and does not move it |
+| 7 | re-checked, still answerable — the depth-≠-readiness paragraph is **expanded**, not replaced; `contact` remains on the ridge |
+| 8 | unchanged — README template untouched |
+| 9 | unchanged — `test/README.md` untouched (see the source-access note below) |
+| 10 | re-checked. The reader answered it correctly **and** used the `README`/`PROJECT_GUIDE` deployment contradiction as live proof of the danger. That contradiction is now fixed, so the proof is gone — but the *rule* it tests still lives in the `PROJECT_GUIDE` opening note and convention 4.D, which is where the question points |
+
+### The four documentation defects the run produced, each verified before it was fixed
+
+- **`README.md` §النشر asserted a deployment mechanism that does not exist.** It claimed a
+  `vX.Y.Z` tag on `main` triggers deploy and attaches `openapi.json` as a release artifact.
+  Verified against literal YAML at PR head: `deploy.yml` has `on: push: branches: [main]` +
+  `workflow_dispatch` and **no tag trigger**; `openapi.json` is an `actions/upload-artifact` in
+  `ci.yml`, and there is no `gh release`/`create-release` step anywhere. `PROJECT_GUIDE` §11 was
+  already correct. **Both clauses were false.** Repo-wide sweep of all tracked Markdown found
+  exactly one instance. Fixed by making `README` state the stable trigger in one sentence and
+  hand mechanism detail to §11 + doc 23 — a single owner, rather than a second copy that will
+  drift again. The `environment: production` approval-gate claim added to `README` was read off
+  the `deploy` job's literal `environment:` key, not the workflow's comment header.
+- **`$transaction` "first encounter" was false.** §15 item 8 called `redirects` the reader's first
+  meeting with `$transaction`. It is at least the fourth: the archetype's admin-write flow
+  (step 3), then `experiences`/`skills` (step 6), then `taxonomy` (step 7). What `redirects` is
+  genuinely first at is **transaction-boundary ownership** — `buildRedirectOps` returns operations
+  for the *caller* to push. Rewritten to say that, and to name where the earlier exposures were.
+- **`mail` is a real prerequisite of `contact` and was absent from the reading order.** Confirmed
+  from the `imports:` array (`contact.module.ts` imports `MailModule` and nothing else) and from
+  the content: `contact`'s `PENDING`→`SENT`/`FAILED` machine is unreadable without three facts
+  that live only in `mail/README.md` — `send` never throws and returns `MailSendResult`, retry is
+  bounded with no retry on a permanent `5xx`, and the whole group is optional and disabled by
+  default behind `SMTP_ENABLED`. Inserted before `contact` in step 10 with those three facts named.
+  **`auth → users` was checked as the same shape and deliberately NOT treated the same:** `users`
+  is 24 code lines, no controller, no routes, and this ledger's own concept-load table says "none
+  beyond the archetype". It gets a one-clause mention, not a reading step — an import edge is not
+  automatically a pedagogical prerequisite, which is the exact trap §15's intro warns about.
+- **Framework vocabulary was used before it was available.** The order sends a Vue/Nuxt reader
+  into `src/config` and `src/prisma` immediately, and both open on `@Global`, providers, DI,
+  `imports`/`exports`, `ConfigModule.forRoot`, `extends PrismaClient`, and lifecycle hooks with no
+  definition anywhere earlier in the path. Fixed with a bounded **eight-row vocabulary table** in
+  `PROJECT_GUIDE` §15: one line of *what it means in this repo* per term, and the official NestJS
+  page that owns the actual teaching. **Deliberately not a tutorial** — that is `principle 16`
+  (`D00-6`) applied to the guide itself. Guards/pipes/interceptors/filters are excluded because
+  §5/§6.1 already introduce them in place.
+
+### One reported finding deliberately NOT actioned
+
+The reader could not open the test-source files `test/README.md` points at (`boolean-query.spec.ts`
+and the five-pattern examples). **That is an artefact of the experiment, not a defect.** The bundle
+excluded source by design; a real learner has the repo. This documentation system is deliberately
+**code-adjacent**, not documentation-only, and copying source into prose to make an artificial
+bundle self-contained would damage the thing being measured. `test/README.md` restates each
+principle in prose before pointing at its example, so the prose does not depend on the source to
+teach. **No change.**
+
+### What the run actually established
+
+The **nine scoreable questions — four of the five in §A, and all five in §B — were answered
+correctly** from the documents alone, by a reader with no repository history; including the three
+the campaign considered its hardest teaching problems (the layer that rejects first, the missing
+`try/catch`, the two unrelated size limits). The tenth is Q2, which belongs to §A and is unscored
+because the question was defective; the reader recovered its intended fact anyway. **That is the campaign's core claim surviving its first external test.**
+Against that: the corpus still contained a false deployment mechanism, a false "first encounter",
+a missing prerequisite, and an unmet vocabulary assumption — and **none of the four were found by
+the ten gate questions**. They were found by a cold reader reading *around* them. *A gate measures
+what it was pointed at; the reader measured the corpus.*
+
+### Two defects in the fix, caught by self-review before the peer saw them
+
+Recorded because the campaign's rule is that self-review does not substitute for peer review — not
+because it found nothing, but because it cannot be trusted to.
+
+- The vocabulary table's `@Global` row said the decorator is on `AppConfigModule` and `PrismaModule`
+  **"only"**. True of the decorator, and **false of the effect**: `auth.module.ts` registers
+  `JwtModule` with `global: true`, and `auth/README.md` says so in as many words. A reader reaching
+  step 10 would have hit a flat contradiction with a table written to prevent exactly that. Row now
+  names both mechanisms.
+- The intro note first told the reader that `settings`, `seo` and `testimonials` are "archetype
+  repetition with no new idea". **This ledger's own concept-load table contradicts that for two of
+  the three:** `settings`/`seo` carry singleton / per-key upsert with locale resolution. Only
+  `testimonials` is "none beyond the archetype". Rewritten to say what is true — those two carry a
+  real idea, it is simply not one a later step depends on. *Writing a skip-list is a claim about
+  content, and it has to be measured like any other.*
+
+### Instrument note — how the eight official links were actually verified
+
+HTTP status is **not** a usable instrument here: `docs.nestjs.com` is client-rendered and returns
+`200` with a byte-identical shell for a fabricated path (`/this-page-does-not-exist-xyz`).
+Negative control fired, so status codes were discarded. Verified instead against the docs **source**
+repository (`nestjs/docs.nestjs.com`, `content/*.md`), where the same fabricated path returns `404`
+— a discriminating instrument. All eight resolve; the two anchors (`#dependency-injection`,
+`#global-modules`) were confirmed as real headings in `components.md` and `modules.md`. Note that
+`/providers` is published from `content/components.md`, so a naive path-to-file check reports it
+missing; that is a routing fact, not a broken link.
+
+### The peer round on the fix — nine findings, three MAJOR, all accepted
+
+Self-review had already caught two defects (above) and still shipped **nine more** into peer
+review. Recording the split, because the campaign's claim is not that self-review is worthless but
+that it is **not sufficient**, and this is the measurement of that.
+
+- **MAJOR — the approval gate was inferred from the wrong artefact.** The new `README` sentence
+  said the cutover job *stops for owner approval* because it is bound to `environment: production`.
+  The binding is in the `YAML`; the **pause is not** — required reviewers are an environment
+  setting outside every workflow file, and an environment with no protection rule does not pause.
+  This is the repo's own rule (*CI provenance comes from literal YAML*) failing in the opposite
+  direction: not prose over YAML, but **inferring from YAML something YAML cannot carry**. Now
+  states the binding as fact and attributes the approval requirement to `D23-16`/`D23-17`.
+- **MAJOR — "one pipeline per SHA" is wrong, and the missing mechanism was the interesting part.**
+  `deploy-fallback.yml` exists (`pull_request: closed` on `main`) and dispatches `deploy.yml`,
+  because the `push → main` event is intermittently dropped. A merge can therefore start **two**
+  runs on the same `SHA`; the concurrency group and `preflight`'s `already-deployed` verdict make
+  the pair idempotent so at most one reaches a server write. Corrected in `README` **and** in
+  `PROJECT_GUIDE` §11, which carried the same claim independently of this pass.
+- **MAJOR — the rewritten Q2 was still underspecified.** Assuming authentication and authorization
+  does not settle it: `ThrottlerGuard` is the **first** global guard, and the archetype itself
+  documents `429`. The assumption now covers all three guards. *A gate question defective in the
+  same way twice, caught the second time by the peer rather than by the fix.*
+- **MINOR ×3 in the new vocabulary table.** `provider` was defined as "a class the framework
+  instantiates" — this repo registers `useFactory` and `useValue` providers (`STORAGE_ADAPTER`,
+  `MAIL_TRANSPORT`), so the definition excluded live code. `decorator` was defined as "metadata,
+  not code that runs at the line" — decorators **do** execute at class-definition time; the
+  intended distinction was *not per-request*. And the table claimed to be sufficient for the next
+  two documents while `src/prisma/README.md` opens on **data mapper** and **repository**, neither
+  defined anywhere. All three fixed; the last one inside `src/prisma/README.md`, where the terms
+  are actually used — *a glossary that does not cover the sentence that motivated it is decoration.*
+- **MINOR — the fix introduced a contradiction into this ledger.** §11's *"Status: NOT YET RUN"*
+  sat directly above §11c's *"The gate RAN"*. Marked historical and superseded. **The campaign's
+  own defect, committed while documenting that defect class.**
+- **MINOR — a miscount.** §11c said "the five §A questions and the four other §B questions".
+  Q2 is in §A: the split is **four of five §A, all five §B**. The wrong split silently implied a
+  §B question had failed.
+- **MINOR — `src/contract/README.md` still called `openapi.json` a release artifact**, which
+  `PROJECT_GUIDE` §11 records as deferred work. The rot claim survived in a third file that
+  neither the cold reader nor the deployment sweep reached, because it is phrased as a
+  compatibility verdict rather than as deployment state. *Sweep by claim, not by section heading.*
+
+### The rerun, and why it needs a different reader
+
+A **new** cold reader (never this one, never coached) answers from a bundle rebuilt at the new PR
+head. The ten §A/§B questions are re-asked as the comparable instrument; a separate **§C
+regression set** — deployment mechanism and its owner, the `$transaction` sequencing distinction,
+`mail` before `contact`, and whether the vocabulary block actually discharges the prerequisite —
+is scored **separately**, so the 8-of-10 threshold keeps meaning what it meant before.
 
 ## 8. Owner-decision blockers
 
