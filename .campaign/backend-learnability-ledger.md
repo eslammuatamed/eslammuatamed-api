@@ -98,7 +98,7 @@ section is historical narrative, fixed at the commit that wrote it, and may be s
 | Open-ended assessment | **THE PRODUCTIVE INSTRUMENT, BOTH RUNS.** Run 2 scored 16/16 *and* found a real prerequisite defect no question touched: the vocabulary table sat at §15 while §2 and §5 already relied on it. Verified, moved to the head of the guide, peer-reviewed |
 | Cold-reader Run 3 | **Gate 16/16; targeted regression FAILED on `Controller`** (used inside the vocabulary block before it was defined) **+ 5 open-ended findings, all confirmed**, two worse than reported. All repaired across two peer rounds (§11e) |
 | Cold-reader Run 4 | **Regression FAILED on the block's *inside*** — 3 sites reported, a 4th by sweep, a 5th by a mechanical check. **6 confirmed open-ended defects + 2 experiment artifacts.** Peer lane then ran **four rounds** on the repair — 7+1 → 5+2 → 0+1 → **CLEAN** — and four of round 2's five MAJORs were defects the *repair* introduced (§11f) |
-| Cold-reader Run 5 | **Vocabulary block PASSES** — read top-to-bottom, no row needing a later row. **Q3 not clean one level up:** `data-mapper`/`repository` used in the guide, defined only in a document read after it. **6 confirmed open-ended defects**, 0 artifacts; a 7th quantifier found by sweep (§11g) |
+| Cold-reader Run 5 | **Vocabulary block PASSES** — read top-to-bottom, no row needing a later row. **Q3 not clean one level up:** `data-mapper`/`repository` used in the guide, defined only in a document read after it. **6 confirmed open-ended defects**, 0 artifacts; a 7th quantifier found by sweep. Peer lane **3 MAJOR → 1 → CLEAN** (§11g) |
 | Campaign exit gate | **NOT YET SATISFIED — one item.** A new uncoached reader, on a bundle from the current head: the `data-mapper`/`repository` prerequisite, each confirmed run-5 repair, a few unchanged controls, and an unscored open-ended pass |
 | Open contract gap | `POST /admin/media` can return `400` undeclared in `openapi.json`. **Owner-facing**, needs the doc 16 §3 contract flow — not this branch (§11e) |
 | PR | **OPEN: #86**, base `dev` (never `main`), head `campaign/backend-learnability` — **all 6 checks pass, `MERGEABLE / CLEAN`** |
@@ -159,7 +159,9 @@ this table: `git log 9af1aac..HEAD --name-only` and drop the commits touching on
 | `87839d6` the fixes for those | §11f | **5 MAJOR + 2 MINOR** — four of the five were introduced *by* the fixes; one peer count pushed back on with an enumeration |
 | `483c9c5` · `d3455d5` the fixes for those | §11f | **0 MAJOR + 1 MINOR** |
 | `2fd62e2` the fix for that MINOR | §11f | **CLEAN** |
-| `d8f56c8` · `9163639` run-5 repairs | §11g | peer round in flight at time of writing — **not yet discharged** |
+| `d8f56c8` run-5 repairs | §11g | **3 MAJOR**, each re-verified here before action |
+| `9163639` · `0b62767` the fixes for those | §11g | **1 MAJOR** — a universal its own next clause refuted |
+| `a602f71` the fix for that | §11g | **CLEAN** |
 | commits touching only `.campaign/` | — | not source-touching |
 
 **The campaign-wide finding total is NOT reconstructible from these records, so it is not stated.**
@@ -2583,6 +2585,64 @@ the guide's own measure (non-blank, non-comment, module-wide: `users.service.ts`
 file — two true numbers under two measures, in one document, about one module. The row now
 *describes* (`two lookups, by id and by email` — verified: `findByEmail`, `findById`, and nothing
 else) instead of counting.
+
+### The peer rounds on the run-5 repairs — 3 MAJOR, then 1, and the count was never the problem
+
+| Round | Scope | Findings |
+| --- | --- | ---: |
+| 1 | `deedf75..d8f56c8` | **3 MAJOR**, 0 MINOR |
+| 2 | `d8f56c8..0b62767` | **1 MAJOR**, 0 MINOR |
+| 3 | `0b62767..a602f71` | **CLEAN** |
+
+**Round 1 confirmed the number and rejected the sentence built on it.** `18` of `25` was reproducible
+and correct; *"the seven that never touch the database"* was not the right partition. `auth.service.ts`
+touches persisted data constantly — it just does so through `UsersService` and `RefreshTokenService`,
+**both of which inject `PrismaService`**. The honest split is **direct injection**, and the mistake
+produced the better lesson: *the `.service.ts` suffix promises no database access, and the absence of
+an injection does not mean the absence of a database.* The role list was wrong in the other direction
+too — *"the mail service and its messages"* would sweep in `contact-reply.service.ts`, which **does**
+inject `Prisma`; the non-injecting one is `contact-mail.service.ts`. Both are now named as files.
+
+**"Most" shipped again, in the same claim family, one round after being retracted.** Round 2 of the
+*run-4* lane had already struck *"أغلب اختبارات الوحدة"* out of the `DI` vocabulary row. It reappeared
+here in `src/prisma/README.md` — `22` of `61` is **36 %**. It now carries the measured numbers.
+*Twice in one campaign, the same word, the same claim, in two different files. A retraction in one
+file is not a fix for the sentence; the word has to be swept.*
+
+**And an "accepted limitation" that was not accurate.** `media/README` recorded *"no `e2e` for `PDF`
+upload"* as a known gap. `page-seo.e2e-spec.ts:376` uploads a real `resume.pdf` through
+`POST /admin/media`, expects `201`, and asserts `kind === 'PDF'` — incidentally, as the control for a
+different `422` assertion, but the path runs. *A limitation is a claim about the test suite and
+decays exactly like any other.* Restated as partial coverage, with the file named. **Its two
+neighbours were then checked rather than assumed** and both hold: `ci.yml` configures no `S3_*`, and
+the `40 MP` ceiling (`MAX_INPUT_PIXELS`) is exercised in `media-processing.service.spec.ts`.
+
+**Round 2's single MAJOR was a sentence that refuted itself one clause later.** The rewrite opened
+with *"the service that **needs** the database injects `PrismaService` directly"* — a universal — and
+the same paragraph then said `auth.service.ts` needs it and injects nothing. Fixed by one word:
+**reaches it *by itself***. *The defect survived because the paragraph was read as an argument rather
+than as a sequence of claims; each sentence has to be true on its own.*
+
+### A coarse instrument flagged four services, and reading them cleared all four
+
+Verifying that the six named services do no database work, a grep for
+`prisma|Prisma|\.findMany|\.findUnique|\.create\(|\.update\(|\.delete\(` returned a hit in
+four of them. Every one was a false positive, and only reading resolved them:
+
+| File | The "hit" | What it actually is |
+| --- | --- | --- |
+| `mail.service.ts` | `this.sleepers.delete(...)` | a `Set`, not a table |
+| `contact-mail.service.ts` | `import { ContactMessage } from '…/prisma/client'` | a **type-only** import |
+| `media-processing.service.ts` | the word `Prisma` | a comment saying it is independent of Prisma |
+| `preview-token.service.ts` | `.update(...)` | an `HMAC`, not a row |
+
+*A pattern broad enough to be safe is broad enough to be useless on its own.* The peer independently
+audited the same six by reading and reached the same verdict.
+
+**Peer lane closed for run 5: 3 MAJOR → 1 MAJOR → CLEAN.** Round 3 re-checked the amended sentence,
+all 25 service files, every direct injector's Prisma usage, all seven non-injectors, `auth`'s
+delegation path, and the parallel statement in `src/prisma/README.md` — no contradictory universal
+remains and no new count was introduced.
 
 ## 8. Owner-decision blockers
 
