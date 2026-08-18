@@ -5,6 +5,43 @@
 > منشور وما ينتظر إصدارًا — تلك حالة تتغيّر بينما النصّ لا يتغيّر معها، فتصير كذبًا صامتًا على
 > القارئ. حالة الإصدار والنشر يملكها مستودع الوثائق الحاكمة وسجلّ الإصدارات.
 
+
+## مفردات `NestJS` — اقرأها قبل أيّ شيء آخر
+
+**بقيّة** هذا الدليل — ومن بعده `src/config/README.md` و`src/prisma/README.md` — تستعمل مفردات
+الإطار دون أن تُعيد تعريفها عند كلّ ورود، لأنّها تصف هذا المستودع ولا تشرح `NestJS`. وهذا الجدول هو الحدّ الأدنى الذي يجعل ما بعده
+مقروءًا لقادم من `Vue`/`Nuxt`: سطر لكلّ مصطلح، ثمّ **رابط التوثيق الرسمي** الذي يملك شرحه. **هذا
+المستودع لا يشرح الإطار** (`principle 16`, `D00-6`) — يشرح ما فعله بالإطار. إن كان `NestJS`
+معروفًا لديك أصلًا فتخطَّ الجدول إلى القسم ١ مباشرةً؛ لا شيء بعده يعتمد على قراءته سطرًا سطرًا.
+
+| المصطلح | ما تعنيه هنا | المصدر الرسمي |
+|---|---|---|
+| `@Module` | صندوق تجميع: يُعلن ما يملكه (`providers`) وما يراه (`imports`) وما يُعيره لغيره (`exports`). التطبيق شجرة من هذه الصناديق جذرها `AppModule` | [Modules](https://docs.nestjs.com/modules) |
+| `provider` | أيّ شيء مُسجَّل تحت رمز حقن (token) ليُعطيه الإطار لمن يطلبه: صنف (`useClass` — وهو الشائع: كلّ `*.service.ts`)، أو مصنع (`useFactory` — مثل `STORAGE_ADAPTER` و`MAIL_TRANSPORT`)، أو قيمة جاهزة (`useValue`) | [Providers](https://docs.nestjs.com/providers) |
+| حقن التبعيّات (DI) · `@Injectable` | لا تُنشئ الخدمات بـ `new`؛ تُعلنها في الـ constructor فيُمرّرها الإطار. هذا هو **مقعد الاختبار** الذي يجعل تمويه `PrismaService` ممكنًا | [Providers · DI](https://docs.nestjs.com/providers#dependency-injection) |
+| `@Global` | وحدة تُسجَّل مرّة في الجذر فتراها كلّ الوحدات بلا `imports` متكرّر. الـ decorator نفسه على وحدتين فقط: `AppConfigModule` و`PrismaModule`. والوحدة الديناميكيّة تبلغ الأثر نفسه بالخيار `global: true` — وهو ما يفعله `JwtModule` في `auth`. استثناء مقصود ومحدود في الحالتين، لا أسلوب عامّ | [Global modules](https://docs.nestjs.com/modules#global-modules) |
+| وحدة ديناميكيّة · `ConfigModule.forRoot({ … })` | وحدة تُبنى بمعاملات وقت التسجيل بدل أن تُستورَد ساكنة. الشكل `forRoot`/`registerAsync` الذي ستراه في `config` و`auth` | [Dynamic modules](https://docs.nestjs.com/fundamentals/dynamic-modules) |
+| `class PrismaService extends PrismaClient` | لا نمط جديد: صنف عميل `Prisma` المولَّد نفسه، مُغلَّفًا كـ provider ليدخل في DI ودورة حياة `Nest` | [NestJS + Prisma](https://docs.nestjs.com/recipes/prisma) |
+| خطّافات دورة الحياة (`onModuleInit` · `onModuleDestroy`) | دوالّ يستدعيها الإطار عند الإقلاع والإطفاء. هنا: فصل اتصال `Prisma`، وإلغاء مؤقّتات إعادة المحاولة في `mail` | [Lifecycle events](https://docs.nestjs.com/fundamentals/lifecycle-events) |
+| decorator (`@…`) | دالّة تعمل **مرّة واحدة عند تعريف الصنف** (لا عند كلّ طلب)، وغالب ما تفعله هنا هو تسجيل ميتاداتا يقرأها `Nest` و`Swagger` والتحقّق لاحقًا. ولهذا `reflect-metadata` تبعيّة إنتاج | [Custom decorators](https://docs.nestjs.com/custom-decorators) |
+
+**وطبقات دورة حياة الطلب** — تراها في رسم القسم ٥ بالترتيب `Guard → Pipe → Controller`، وتفصيلها
+في القسمين ٥ و٦.١ وفي `src/common/README.md`. هنا سطر واحد لكلٍّ، لا أكثر:
+
+| المصطلح | ما تعنيه هنا | المصدر الرسمي |
+|---|---|---|
+| `DTO` | صنف يصف **شكل جسم الطلب** ويحمل قواعد التحقّق كـ decorators (`@IsString()`…). ليس كيان قاعدة بيانات ولا شكل الرد | [Validation](https://docs.nestjs.com/techniques/validation) |
+| `pipe` · `ValidationPipe` | يقف **بين الطلب والـ controller** فيحوّل القيمة الواردة أو يرفضها. `ValidationPipe` عامّ هنا ويفحص الـ `DTO`؛ و`ParseUUIDPipe` مثال على أنبوب مقصور على معامل واحد | [Pipes](https://docs.nestjs.com/pipes) |
+| `guard` | يقرّر **هل يُسمح للطلب بالمرور أصلًا** قبل أيّ تحقّق. هنا ثلاثة عالميّة بترتيب مُلزِم (القسم ٦.١) | [Guards](https://docs.nestjs.com/guards) |
+| `interceptor` | يلفّ تنفيذ المعالج فيقدر على تعديل **الرد** بعد نجاحه. هنا: `ResponseEnvelopeInterceptor` الذي يغلّف كلّ جسم `2xx` | [Interceptors](https://docs.nestjs.com/interceptors) |
+| `exception filter` | يلتقط أيّ استثناء ويحوّله إلى رد خطأ موحّد. هنا: `AllExceptionsFilter` ← `RFC 7807` | [Exception filters](https://docs.nestjs.com/exception-filters) |
+
+> **هذا القسم بلا رقم عمدًا،** ولا يُرقَّم لاحقًا: الترقيم `1`–`16` مُستشهَد به من خارج الملفّ —
+> `README.md` يحيل إلى **§11** بعينه — فإقحام رقم جديد في الصدر كان سيُزيح كلّ رقم بعده ويُبطل
+> تلك الإحالة بصمت. وموضعه في الصدر **ليس** تنسيقًا: كان الجدول في القسم ١٥، أي بعد ثلاثة عشر
+> قسمًا اعتمدت عليه فعلًا — أوّلها القسم ٢ وأصرحها القسم ٥. *وجدها قارئ بارد في التشغيلة
+> الثانية: الترتيب المُعلَن كان صحيحًا، والقراءة الخطّية لا.*
+
 ---
 
 ## 1. الغرض من المستودع
@@ -72,7 +109,7 @@
 | `helmet` | ترويسات أمان HTTP افتراضية |
 | `nestjs-pino` · `pino-http` | تسجيل مُهيكَل JSON مع تنقيح الحقول الحسّاسة (`D07-5`) |
 | `reflect-metadata` | polyfill الميتاداتا اللازم لـ decorators في `NestJS` |
-| `rxjs` | الأساس التفاعلي الذي تُبنى عليه الـ interceptors في `NestJS` |
+| `rxjs` | الأساس التفاعلي الذي تُبنى عليه الـ interceptors في `NestJS` (مكتبة تدفّقات — لا يلزمك إتقانها لقراءة هذا المستودع) |
 
 > ملاحظة: مكتبات خط الوسائط (`sharp`, `@aws-sdk/client-s3`, `blurhash`, `load-esm`) هي **جزء من هذا الأساس**.
 
@@ -192,6 +229,9 @@ ThrottlerGuard → JwtAuthGuard → PermissionsGuard → (Controller)
 لا `Docker` في المشروع (توجيه المالك، `D16-5`): `PostgreSQL` أصلي محليًّا، ودور `eslammuatamed` بلا كلمة مرور على المنفذ `5432`.
 
 > **في الإنتاج يجب أن يكون مضيف `DATABASE_URL` هو `127.0.0.1` حرفيًّا، لا `localhost` (`D23-24`).**
+> *(`pg_hba.conf` هو جدول `PostgreSQL` الذي يُطابق **عنوان مصدر الاتصال** بطريقة تحقّق: `trust`
+> تعني «ادخل بلا كلمة مرور»، و`scram-sha-256` تعني «قدّم كلمة مرور». هذا القدر يكفي لفهم القاعدة
+> أدناه؛ إدارة `PostgreSQL` نفسها ليست من عمل هذا المستودع.)*
 > قاعدة `trust` في `pg_hba.conf` على الخادم مقصورة على `IPv4` عند `127.0.0.1/32`، بينما
 > `PostgreSQL` يستمع على العائلتين. و`localhost` يُحلّ إلى `::1` أوّلًا، فيقع الاتصال على
 > `host all all ::1/128 scram-sha-256` — والدور بلا كلمة مرور يقدّمها، فيفشل `SASL`.
@@ -380,27 +420,9 @@ preflight  →  (verify  ∥  e2e)  →  deploy
 
 **عند التعديل:** (1) إن ناقض العمل وثيقة حاكمة، نقّح الوثيقة أولًا (`Documentation First`). (2) اكتب على فرع `feat/…`/`fix/…`. (3) شغّل البوابات الأربع بلا قاعدة بيانات + e2e إن مسّ السلوك. (4) إن تغيّر العقد، اتبع تدفّق القسم 7 (عقد الواجهة الأمامية ↔ الـ API). (5) commit ذرّي بصيغة Conventional Commits عبر PR ([الوثيقة 17](../eslammuatamed-docs/docs/17-git-workflow.md)).
 
-**مفردات `NestJS` قبل أوّل قراءة.**
-
-الوثيقتان التاليتان في الترتيب (`src/config` ثمّ `src/prisma`) تستعملان مفردات الإطار **بلا
-تعريف**، لأنّهما تصفان هذا المستودع لا تشرحان `NestJS`. وهذا الجدول هو الحدّ الأدنى الذي يجعلهما
-مقروءتين لقادم من `Vue`/`Nuxt`: سطر لكلّ مصطلح، ثمّ **رابط التوثيق الرسمي** الذي يملك شرحه. **هذا
-المستودع لا يشرح الإطار** (`principle 16`, `D00-6`) — يشرح ما فعله بالإطار.
-
-| المصطلح | ما تعنيه هنا | المصدر الرسمي |
-|---|---|---|
-| `@Module` | صندوق تجميع: يُعلن ما يملكه (`providers`) وما يراه (`imports`) وما يُعيره لغيره (`exports`). التطبيق شجرة من هذه الصناديق جذرها `AppModule` | [Modules](https://docs.nestjs.com/modules) |
-| `provider` | أيّ شيء مُسجَّل تحت رمز حقن (token) ليُعطيه الإطار لمن يطلبه: صنف (`useClass` — وهو الشائع: كلّ `*.service.ts`)، أو مصنع (`useFactory` — مثل `STORAGE_ADAPTER` و`MAIL_TRANSPORT`)، أو قيمة جاهزة (`useValue`) | [Providers](https://docs.nestjs.com/providers) |
-| حقن التبعيّات (DI) · `@Injectable` | لا تُنشئ الخدمات بـ `new`؛ تُعلنها في الـ constructor فيُمرّرها الإطار. هذا هو **مقعد الاختبار** الذي يجعل تمويه `PrismaService` ممكنًا | [Providers · DI](https://docs.nestjs.com/providers#dependency-injection) |
-| `@Global` | وحدة تُسجَّل مرّة في الجذر فتراها كلّ الوحدات بلا `imports` متكرّر. الـ decorator نفسه على وحدتين فقط: `AppConfigModule` و`PrismaModule`. والوحدة الديناميكيّة تبلغ الأثر نفسه بالخيار `global: true` — وهو ما يفعله `JwtModule` في `auth`. استثناء مقصود ومحدود في الحالتين، لا أسلوب عامّ | [Global modules](https://docs.nestjs.com/modules#global-modules) |
-| وحدة ديناميكيّة · `ConfigModule.forRoot({ … })` | وحدة تُبنى بمعاملات وقت التسجيل بدل أن تُستورَد ساكنة. الشكل `forRoot`/`registerAsync` الذي ستراه في `config` و`auth` | [Dynamic modules](https://docs.nestjs.com/fundamentals/dynamic-modules) |
-| `class PrismaService extends PrismaClient` | لا نمط جديد: صنف عميل `Prisma` المولَّد نفسه، مُغلَّفًا كـ provider ليدخل في DI ودورة حياة `Nest` | [NestJS + Prisma](https://docs.nestjs.com/recipes/prisma) |
-| خطّافات دورة الحياة (`onModuleInit` · `onModuleDestroy`) | دوالّ يستدعيها الإطار عند الإقلاع والإطفاء. هنا: فصل اتصال `Prisma`، وإلغاء مؤقّتات إعادة المحاولة في `mail` | [Lifecycle events](https://docs.nestjs.com/fundamentals/lifecycle-events) |
-| decorator (`@…`) | دالّة تعمل **مرّة واحدة عند تعريف الصنف** (لا عند كلّ طلب)، وغالب ما تفعله هنا هو تسجيل ميتاداتا يقرأها `Nest` و`Swagger` والتحقّق لاحقًا. ولهذا `reflect-metadata` تبعيّة إنتاج | [Custom decorators](https://docs.nestjs.com/custom-decorators) |
-
-الحرّاس (`guards`) والأنابيب (`pipes`) والمُعترِضات (`interceptors`) والفلاتر (`filters`) **لا
-تحتاج تمهيدًا هنا**: القسمان ٥ و٦.١ يصفانها في موضعها من دورة حياة الطلب، و`src/common/README.md`
-يملك تفصيلها.
+**المفردات أوّلًا إن كان `NestJS` جديدًا عليك.** جدول «مفردات `NestJS`» في **صدر هذا الدليل**،
+قبل القسم ١، هو الشرط المُسبَق للخطوة ٢ أدناه. **نسخة واحدة منه، في مكان واحد** — تكراره هنا كان
+سيصير نسختين تفترقان عند أوّل تعديل، وهو العيب الذي أُصلح في القسم ١١ بالضبط.
 
 **ترتيب القراءة للمطوّر الجديد.**
 
@@ -425,7 +447,7 @@ preflight  →  (verify  ∥  e2e)  →  deploy
 > يرتّب الأفكار التي يبني بعضُها على بعض؛ ما لا يدخل في ذلك البناء يُقرأ عند الحاجة إليه، لا
 > لإتمام قائمة.**
 
-1. هذا الدليل (`PROJECT_GUIDE.md`) — وإن كان `NestJS` جديدًا عليك فجدول المفردات أعلاه **قبل** الخطوة ٢، لا بعدها.
+1. هذا الدليل (`PROJECT_GUIDE.md`) من أوّله — وجدول «مفردات `NestJS`» في صدره يسبق القسم ١، فإن قرأته من البداية فقد مررت به فعلًا.
 2. [`src/config/README.md`](src/config/README.md) → [`src/prisma/README.md`](src/prisma/README.md) → [`src/common/README.md`](src/common/README.md) (البنية العرضية).
 3. **[`src/modules/README.md`](src/modules/README.md) — إلزاميّ، وليس اختياريًّا.** وفيه تحديدًا قسم «أيّ طبقة ترفض أوّلًا» الذي يشرح لماذا تحصل على `422` هنا و`400` هناك بينما الـ `controller` لا يذكر أيًّا منهما. من دونه ستقرأ كل وحدة وأنت تفتقد نصف ما يجري فيها.
 4. [`locales`](src/modules/locales/README.md) — **٧٦ سطر شيفرة (غير فارغة وغير تعليق؛ `wc -l` الخام يعطي ٩٠)، وتعتمد عليها عشر وحدات.** أصغر وحدة حقيقية وأكثر مقطع مشترك في المستودع؛ ستراها في كل `service` بعدها.
