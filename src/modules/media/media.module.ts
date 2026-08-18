@@ -12,8 +12,8 @@ import { StorageModule } from './storage/storage.module';
 // The reusable media library. Imports StorageModule (the STORAGE_ADAPTER seam) and
 // LocalesModule (alt-locale validation). PrismaService is global. `MediaProcessingService`, the
 // orchestration service, and the in-process concurrency limiter are module-local providers.
-// MediaDescriptorResolver is EXPORTED so public modules (projects/articles/testimonials/settings —
-// and a future page-SEO read) resolve descriptors without duplicating media/URL logic.
+// MediaDescriptorResolver is EXPORTED so public modules (projects/articles/testimonials/settings/seo)
+// resolve descriptors without duplicating media/URL logic.
 @Module({
   imports: [StorageModule, LocalesModule],
   controllers: [MediaAdminController],

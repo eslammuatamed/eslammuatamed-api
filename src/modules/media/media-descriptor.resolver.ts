@@ -36,7 +36,7 @@ export interface DescriptorPdfInput {
 
 // Maps already-loaded media data to the PUBLIC descriptor contract (doc 10 §6). Pure per call — it
 // NEVER queries Prisma, so a list mapper can call it per row without an N+1. Reusable across
-// projects/articles/testimonials/settings (and a future page-SEO read). Exported from MediaModule.
+// projects/articles/testimonials/settings/seo. Exported from MediaModule.
 @Injectable()
 export class MediaDescriptorResolver {
   constructor(

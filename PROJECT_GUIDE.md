@@ -25,10 +25,10 @@
 | المصطلح | ما تعنيه هنا | المصدر الرسمي |
 |---|---|---|
 | decorator (`@…`) | دالّة تعمل **مرّة واحدة عند تعريف الصنف** (لا عند كلّ طلب)، وغالب ما تفعله هنا هو تسجيل ميتاداتا يقرأها `Nest` و`Swagger` والتحقّق لاحقًا. ولهذا `reflect-metadata` تبعيّة إنتاج | [Custom decorators](https://docs.nestjs.com/custom-decorators) |
-| `service` | الصنف الذي يُنفِّذ عمل الوحدة. **خدمات المجال** — `articles` و`projects` و`settings` وأخواتها — تملك **قواعد المجال**: منطق العمل، وحدود المعاملة على قاعدة البيانات (`transaction` — عدّة عمليّات تنجح أو تفشل معًا)، وتحليل اللغة؛ تفصيلها في القسم ٥. وإلى جانبها **خدمات بنية تحتيّة** (الإعداد، البريد، معالجة الصور) لا قواعد مجال فيها — والموضع لا يفرزها، فكلاهما تحت `src/modules/`؛ الاسم `service` لا يَعِد بالمحتوى | [Providers](https://docs.nestjs.com/providers) |
+| `service` | الصنف الذي يُنفِّذ عمل الوحدة. **خدمات المجال** — `articles` و`projects` و`settings` وأخواتها — تملك **قواعد المجال**: منطق العمل، وحدود المعاملة على قاعدة البيانات (`transaction` — عدّة عمليّات تنجح أو تفشل معًا)، وتحليل اللغة؛ تفصيلها في القسم ٥. **والاسم لا يتنبّأ بالمحتوى، ولا الموضع:** منها الآليّ المحض (`users` في سبعة وعشرين سطرًا)، ومنها ما هو بنية تحتيّة بلا قواعد مجال (الإعداد، البريد)، ومنها ما يفرض قواعد رفعٍ خاصّة بالمستودع ويرفض بـ `422` (`media-processing`) | [Providers](https://docs.nestjs.com/providers) |
 | `provider` | أيّ شيء مُسجَّل تحت مُعرّف (token) ليُعطيه الإطار لمن يطلبه: صنف (`useClass` — وهو الشائع: كلّ ملفّات `*.service.ts`)، أو مصنع (`useFactory` — مثل `STORAGE_ADAPTER` و`MAIL_TRANSPORT`)، أو قيمة جاهزة (`useValue`) | [Providers](https://docs.nestjs.com/providers) |
 | `@Module` | صندوق تجميع: يُعلن ما يملكه (`providers`) وما يراه (`imports`) وما يُعيره لغيره (`exports`). التطبيق شجرة من هذه الصناديق جذرها `AppModule` | [Modules](https://docs.nestjs.com/modules) |
-| حقن التبعيّات (DI) · `@Injectable` | في شيفرة الإنتاج لا تُنشئ الخدمات بـ `new`؛ تُعلن تبعيّاتها في الـ constructor فيُمرّرها الإطار. والـ constructor نفسه هو **مقعد الاختبار**، ولهذا أغلب اختبارات الوحدة هنا **تتجاوز حاوية الإطار** وتُنشئ الصنف بـ `new` مُمرِّرةً بدائل مُموَّهة مباشرةً | [Providers · DI](https://docs.nestjs.com/providers#dependency-injection) |
+| حقن التبعيّات (DI) · `@Injectable` | في شيفرة الإنتاج لا تُنشئ الخدمات بـ `new`؛ تُعلن تبعيّاتها في الـ constructor فيُمرّرها الإطار. والـ constructor نفسه هو **مقعد الاختبار**، ولهذا كثير من اختبارات الوحدة هنا **تتجاوز حاوية الإطار** وتُنشئ الصنف بـ `new` مُمرِّرةً بدائل مُموَّهة مباشرةً (العدد المقيس في [`test/README.md`](test/README.md)) | [Providers · DI](https://docs.nestjs.com/providers#dependency-injection) |
 | وحدة ديناميكيّة · `ConfigModule.forRoot({ … })` | وحدة تُبنى بمعاملات وقت التسجيل بدل أن تُستورَد ساكنة. الشكل `forRoot`/`registerAsync` الذي ستراه في `config` و`auth` | [Dynamic modules](https://docs.nestjs.com/fundamentals/dynamic-modules) |
 | `@Global` | وحدة تُسجَّل مرّة في الجذر فتراها كلّ الوحدات بلا `imports` متكرّر. الـ decorator نفسه على وحدتين فقط: `AppConfigModule` و`PrismaModule`. والوحدة الديناميكيّة تبلغ الأثر نفسه بالخيار `global: true` — وهو ما يفعله `JwtModule` في `auth`. استثناء مقصود ومحدود في الحالتين، لا أسلوب عامّ | [Global modules](https://docs.nestjs.com/modules#global-modules) |
 | خطّافات دورة الحياة (`onModuleInit` · `onModuleDestroy`) | دوالّ يستدعيها الإطار عند الإقلاع والإطفاء. هنا: فصل اتصال `Prisma`، وإلغاء مؤقّتات إعادة المحاولة في `mail` | [Lifecycle events](https://docs.nestjs.com/fundamentals/lifecycle-events) |
@@ -246,15 +246,16 @@ ThrottlerGuard → JwtAuthGuard → PermissionsGuard → (Controller)
 
 ## 10. البيئة والإعداد
 
-الإعداد **مُتحقَّق منه عند الإقلاع** في `src/config/env.validation.ts`: متغيّر **مطلوب في الوضع الجاري** إن غاب أو فسد أفشل الإقلاع فورًا (لا خطأ 500 بعد ساعة). وليس كلّ متغيّر مطلوبًا دائمًا — `STORAGE_LOCAL_DIR` مطلوب للمحرّك المحلّي وحده، ومجموعة البريد كلّها ساكنة ما لم تُفعَّل، و`SMTP_SECURE` اختياريّ حتّى بعد تفعيلها. **القائمة الكاملة والمُلزِمة هي `.env.example` (عقد الإعداد) ومخطّط `env.validation.ts` وحدهما** — وما يلي عيّنة للتوجيه لا حصر، لأنّ سرد المتغيّرات في موضعين يفترق عند أوّل إضافة. المجموعات الأكبر:
+الإعداد **مُتحقَّق منه عند الإقلاع** في `src/config/env.validation.ts`: متغيّر **مطلوب في الوضع الجاري** إن غاب أو فسد أفشل الإقلاع فورًا (لا خطأ 500 بعد ساعة). وليس كلّ متغيّر مطلوبًا دائمًا، وأشكال الشرط عدّة — **وهذه أمثلة لا حصر:** `STORAGE_LOCAL_DIR` مطلوب للمحرّك المحلّي وحده، ومجموعة `S3_*` لمحرّك `s3`، ومجموعة البريد ساكنة ما لم تُفعَّل، و`COOKIE_DOMAIN` اختياريّ دائمًا، و`S3_REGION` و`SMTP_SECURE` اختياريّان **داخل** شرطيهما، و`PUBLIC_WEB_URL` له قيمة افتراضيّة خارج الإنتاج ويُطلَب فيه. وثمّة قيود إنتاج إضافيّة لا تحملها الـ decorators (تُفحَص في `validate()`). **القائمة الكاملة والمُلزِمة هي `.env.example` (عقد الإعداد) ومخطّط `env.validation.ts` وحدهما** — وما يلي عيّنة للتوجيه لا حصر، لأنّ سرد المتغيّرات في موضعين يفترق عند أوّل إضافة. المجموعات الأكبر:
 
 `NODE_ENV`, `PORT` · `DATABASE_URL` · `CORS_ORIGIN` · `JWT_ACCESS_SECRET`, `JWT_ACCESS_TTL`, `REFRESH_TOKEN_TTL_DAYS`, `REFRESH_TOKEN_PEPPER`, `PREVIEW_TOKEN_SECRET`, `COOKIE_DOMAIN` · `SEED_OWNER_EMAIL`, `SEED_OWNER_PASSWORD` · `STORAGE_DRIVER`, `STORAGE_LOCAL_DIR`, `PUBLIC_MEDIA_URL`.
 
-> وإلى جانبها مجموعتان لا تظهران أعلاه: `PUBLIC_WEB_URL` (أصل الموقع الذي يعرض صفحة المعاينة)،
-> ومجموعة البريد `SMTP_*` مع `CONTACT_NOTIFICATION_TO` — وهي مُتحقَّق منها كغيرها، لكنّها اختياريّة
-> ومُغلَقة افتراضيًّا خلف `SMTP_ENABLED` (تفصيلها في [`src/modules/mail/README.md`](src/modules/mail/README.md)).
+> ولا تظهر أعلاه مجموعتان. الأولى `PUBLIC_WEB_URL` وحده: أصل الموقع الذي يعرض صفحة المعاينة،
+> له قيمة افتراضيّة خارج الإنتاج و**مطلوب في الإنتاج** — ولا علاقة له بالبريد. والثانية مجموعة
+> البريد `SMTP_*` مع `CONTACT_NOTIFICATION_TO`: مُتحقَّق منها كغيرها، لكنّها **ساكنة** خلف
+> `SMTP_ENABLED` (تفصيلها في [`src/modules/mail/README.md`](src/modules/mail/README.md)).
 >
-> `STORAGE_*` تستخدمها وحدة `media` الآن، و`S3_*` (`S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_REGION`) مطلوبة عند `STORAGE_DRIVER=s3` (الإنتاج). و`PREVIEW_TOKEN_SECRET` مُتحقَّق منه عند الإقلاع كغيره. **والقاعدة هنا بنيويّة لا حالة:** التحقّق يملكه
+> `STORAGE_*` تستخدمها وحدة `media` الآن، و`S3_*` (`S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`) مطلوبة عند `STORAGE_DRIVER=s3` (الإنتاج)، أمّا `S3_REGION` فاختياريّ حتّى هناك (`R2` يستعمل `auto`، وطبقة الإعداد تُكمِله). و`PREVIEW_TOKEN_SECRET` مُتحقَّق منه عند الإقلاع كغيره. **والقاعدة هنا بنيويّة لا حالة:** التحقّق يملكه
 `src/config` وحده، فهو لا يسأل أيّ وحدة تستهلك المتغيّر ولا متى بدأت — متغيّر مُعلَن يُتحقَّق منه، وانتهى.
 *(كان هذا الموضع يصنّف وحدة `preview` بحالة تسليم. صنف من الوصف يتعفّن بالتعريف، وقد تعفّن فعلًا —
 وهو ما وجده قارئ بارد. والمقصود بالتحديد **حالة الإصدار والنشر ودورة حياة الوحدة**، لا وصف ما

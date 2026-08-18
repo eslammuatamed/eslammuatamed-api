@@ -17,7 +17,7 @@
 
 ## خريطة الاتصال
 
-- **وارد:** عشر وحدات تستورد `LocalesModule` — وحدات المحتوى (`articles`, `projects`, `settings`, `taxonomy`, `skills`, `experiences`, `testimonials`) وكذلك `media` و`seo` و`redirects` — وتستدعي `assertEnabled(locale)` قبل أيّ قراءة/كتابة مُترجَمة.
+- **وارد:** عشر وحدات تستورد `LocalesModule` — وحدات المحتوى (`articles`, `projects`, `settings`, `taxonomy`, `skills`, `experiences`, `testimonials`) وكذلك `media` و`seo` و`redirects` — وتستدعي `assertEnabled(locale)` على **اللغة المُمرَّرة**: أي في القراءة العامّة الموجَّهة بـ `?locale=` وفي الكتابة لكلّ لغة. أمّا القراءة الإداريّة التي تُرجِع خريطة الترجمات كاملة فلا لغة مُمرَّرة فيها ولا تستدعيه.
 - **يعتمد على:** `PrismaService` فقط.
 
 ## التدفّق: الحارس `assertEnabled`
