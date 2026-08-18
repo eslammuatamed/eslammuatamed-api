@@ -2,12 +2,12 @@
 
 ## Branches
 
-- **`main`** — production, and the GitHub default branch. Every commit on `main` **triggers** the production deploy workflow automatically; the deployment itself still waits on the owner's approval (see below). Protected by an **active GitHub ruleset** *and* by project policy — see [Branch policy](#branch-policy--what-github-enforces-and-what-is-procedural).
+- **`main`** — production, and the GitHub default branch. Merging a PR into `main` **triggers** the production deploy workflow automatically; the deployment itself still waits on the owner's approval (see below). Protected by an **active GitHub ruleset** *and* by project policy — see [Branch policy](#branch-policy--what-github-enforces-and-what-is-procedural).
 - **`dev`** — development / integration. Feature work lands here first, then promotes to `main`.
 
-## Release freeze (active — until the Website/Homepage phase)
+## Release authorization
 
-`main` is **frozen at the current production baseline** by owner directive (2026-07-20) — canonical rule **doc 17 §4 / D17-5**, deployment hold **doc 23 §3 / D23-18**. `feature → PR → dev` merges continue as normal, but **no `dev → main` promotion and no production deployment** happen until the owner opens the Website/Homepage phase and explicitly authorizes it (deploy workflows are unchanged). The full rule lives in doc 17 / doc 23 and is **not restated here**.
+The Website/Homepage release freeze completed its lifecycle for the API on 2026-08-06 through the owner-authorized PR `#54` promotion and approved production deploy — canonical record **doc 17 §4 / D17-5**, deployment record **doc 23 §3 / D23-18**. That historical lift is **not standing authorization**: every future `dev → main` promotion still needs the owner's decision under D23-17, and every production deployment separately waits for approval on the `production` GitHub Environment.
 
 ## Normal flow
 
@@ -32,8 +32,8 @@ hotfix/<slug>   (branch from main)
 
 ## Merge strategy & branch synchronization
 
-- **Feature / fix / chore → `dev`:** **squash merge** (preferred) — keeps `dev` one complete commit per PR.
-- **Promotion `dev` → `main`:** **merge commit** — never squash or rebase a `dev → main` promotion. A squash gives `main` a fresh commit with no shared ancestry to `dev`, leaving the branches content-identical but historically divergent.
+- **Feature / fix / chore → `dev`:** **squash merge** — keeps `dev` one complete commit per PR.
+- **Promotion `dev` → `main`:** **merge commit** — never squash or rebase a `dev → main` promotion. A squash gives `main` a fresh tip that does not contain the promoted `dev` tip, leaving the branches content-identical but historically divergent.
 - **After a successful `main` deployment** (and, for a `server-verification-required` promotion, after the predefined server checks pass): **fast-forward `dev` to the new `main` merge commit**, so `dev` and `main` share history at their tips.
 - **Hotfixes** merged into `main` must be **merged back into `dev`** (a merge, not a squash) to keep the branches synchronized.
 - **Never reset or force-push the shared `dev` branch**, and never recreate it.
@@ -60,7 +60,7 @@ Code may be promoted from `dev` to `main` in **exactly two cases**:
 ## Deployment (from green `main`) — triggered automatically, gated on owner approval
 
 - **Triggers (three, converging on one exact-SHA path):**
-  - `push` to `main` — the **happy path** (a merged promotion or authorized push).
+  - `push` to `main` — the **happy path** emitted by a merged promotion or hotfix PR. The `main` ruleset requires a PR and configures no bypass actor; direct pushes are not a release route.
   - **Merged-PR fallback** — `deploy-fallback.yml` fires on `pull_request: closed` into `main` (merged only), validates the exact merge SHA against the current `main` tip, and dispatches `deploy.yml` with `target_sha`. It exists because the `push` event is **empirically dropped by GitHub at times** (proven in the trigger audit); the merged-PR event is delivered independently, so both events missing is far less likely than one. The dispatcher holds **no production secrets** and never runs PR-branch code.
   - `workflow_dispatch` — **manual recovery** / redeploy.
   - **No tags. No scheduled reconciliation** — a schedule can itself be delayed or dropped, so it adds a lane without adding a guarantee. (`D23-17` also weighed Actions-minute cost; that half of the rationale was recorded while the repo was private and metered, and no longer applies.)
@@ -94,13 +94,13 @@ This repository is **public** and carries **active GitHub rulesets**. The rulese
 - **`Lint · Typecheck · Unit · Contract` and `E2E (Postgres)` are required checks** — a PR failing either cannot be merged. The remaining four contexts (`CodeQL`, `Analyze (actions)`, `Analyze (javascript-typescript)`, and the branch-policy guard) are deliberately **not** required; promoting one is a separate owner decision.
 - Branch deletion and non-fast-forward pushes are refused.
 
-**Enforced by GitHub on `dev`** (ruleset *dev integration protection*): branch deletion and non-fast-forward pushes only. `dev` intentionally carries **no required PR and no required checks**, because `D17-4`'s post-release **fast-forward of `dev` to the new `main` merge commit is a direct push** — a required-check rule on `dev` would block the governed synchronization.
+**Enforced by GitHub on `dev`** (ruleset *dev integration protection*): branch deletion and non-fast-forward pushes only. `dev` carries **no required PR and no required checks**, which preserves `D17-4`'s post-release **fast-forward of `dev` to the new `main` merge commit**; a required-check rule on `dev` would block that governed direct push.
 
 **Procedural only — GitHub will not stop you:**
 
 - **PRs into `dev`**, and **not merging a red PR into `dev`**, are discipline: nothing on `dev` enforces either.
 - The CI **branch-policy guard is advisory by choice, not by platform limitation** — it reports an unexpected promotion path and never fails the build (`.github/workflows/ci.yml`).
-- The model assumes **`eslammuatamed` is the sole writer** — sole admin, no other collaborators, no deploy keys, no webhooks, read-only default `GITHUB_TOKEN`. Adding a second write collaborator means revisiting the procedural half above; it is no longer a question of the account plan.
+- Governance assumes **one operator**. Adding another writer means revisiting the procedural `dev` half above; it is no longer a question of the account plan.
 - Do **not** use `[skip ci]` on a commit that reaches `main` — GitHub would skip the deploy workflow; recover with a `workflow_dispatch` run on `main`.
 
 ## Local environment files — never touched by tests

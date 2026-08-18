@@ -23,16 +23,10 @@ permissions:
 jobs:
   # Advisory branch-policy guard. It REPORTS an unexpected promotion path; it does not block one.
   #
-  # The comment here used to say rulesets were "unavailable on this plan". That was true when
-  # written and is now FALSE: this repository became public on 2026-08-12 and carries active
-  # rulesets, including `main production promotion control` (allowed_merge_methods: ["merge"],
-  # required checks: `Lint · Typecheck · Unit · Contract` + `E2E (Postgres)`).
-  #
-  # So the guard stays advisory BY CHOICE, not by platform limitation: it is deliberately not a
-  # required check, because `dev` intentionally carries none — D17-4's post-release fast-forward
-  # of `dev` to the `main` merge commit is a DIRECT PUSH, and a required-check rule on `dev`
-  # would block the governed synchronization. Enforcement of the promotion path itself is now
-  # structural on `main` (GitHub refuses squash and rebase there); see the deployment runbook.
+  # This guard stays advisory by design, not by account-plan limitation. `dev` carries no
+  # required checks so D17-4's post-release direct fast-forward remains possible; `main` has
+  # structural ruleset enforcement. The live ruleset owns exact settings and check names;
+  # CONTRIBUTING.md owns the stable enforced/procedural split.
   policy:
     name: Branch-policy guard (advisory)
     if: github.event_name == 'pull_request'

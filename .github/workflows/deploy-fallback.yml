@@ -11,7 +11,7 @@
 # runs PR-branch code. It only reads PR metadata + the current main SHA, validates the
 # exact merged SHA, and dispatches deploy.yml via workflow_dispatch (which a GITHUB_TOKEN
 # is permitted to do). deploy.yml re-verifies and deploys; concurrency + the
-# already-deployed check make a same-SHA push+fallback pair idempotent (one deploys, the
+# already-current check make a same-SHA push+fallback pair idempotent (one deploys, the
 # other no-ops).
 name: Deploy fallback (merged PR)
 
