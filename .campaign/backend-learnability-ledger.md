@@ -98,8 +98,14 @@ section is historical narrative, fixed at the commit that wrote it, and may be s
 | §C regression set | **WRITTEN, NOT RUN.** Six questions, one per repair, scored **separately** from the 8-of-10 threshold so the two runs stay comparable (§11c) |
 | PR | **OPEN: #86**, base `dev` (never `main`), head `campaign/backend-learnability` — **all 6 checks pass, `MERGEABLE / CLEAN`** |
 
-**CI evidence at the PR head `2356fb6`** (gated on `mergeStateStatus: CLEAN`, not on a check count
-— a check name appears twice per `SHA`, once for the push run and once for the PR run):
+**CI evidence at `2356fb6` — the last commit before this checkpoint.** *Stated this way on purpose:
+stamping "at the PR head" is false the instant the stamping commit lands, which is this ledger's
+own signature defect. Every commit after `2356fb6` touches `.campaign/` only — no source, no
+code-adjacent doc, no workflow — so this reading stays valid until one does not. Current head:
+`gh pr checks 86`.* Gated on `mergeStateStatus: CLEAN`, not on a check count — a check name appears
+twice per `SHA`, once for the push run and once for the PR run — **and on step arrays, not on the
+green tick**: `E2E (Postgres)` reports `steps=11, all success`, so it ran rather than being skipped
+at zero steps with a `success` conclusion:
 
 | Check | Result |
 | --- | --- |
@@ -1724,6 +1730,27 @@ because it found nothing, but because it cannot be trusted to.
   `testimonials` is "none beyond the archetype". Rewritten to say what is true — those two carry a
   real idea, it is simply not one a later step depends on. *Writing a skip-list is a claim about
   content, and it has to be measured like any other.*
+
+### Instrument note — `zsh` silently ate two git refs, and a `>` redirect destroyed a file
+
+Twice in one session, `git show "$SHA:PROJECT_GUIDE.md"` and `git rev-parse "$SHA:src/..."` failed
+with *bad substitution* / *ambiguous argument*. Cause: in `zsh`, `"$VAR:x…"` where `x` is a
+**history-modifier letter** (`s P h t r e a A c l u q x f F w W`) is parsed as a modifier, not as a
+git `rev:path` separator. `$SHA:src/…` reads as the `:s` substitution; `$SHA:PROJECT_GUIDE.md`
+reads as `:P` (realpath).
+
+**The second one was destructive, and the destruction was silent.** The command was
+`git show "$SHA:PROJECT_GUIDE.md" > bundle/PROJECT_GUIDE.md` — the shell performed the `>`
+truncation **before** git ran and failed, so a 46 KB file became 0 bytes while the only visible
+symptom was a git error about an unknown revision. The bundle was then checksummed, made read-only
+and zipped in that state; the zip dropped from 114 KB to 95 KB, which was the only other signal.
+
+*Two rules, both cheap:* build git refs with `printf '%s:%s' "$SHA" "$PATH"` so no modifier letter
+can ever follow a bare `$VAR:`, and never let a failing command's `>` redirect be the only thing
+standing between you and a file — write to a temp path and move it. **And the reason this was
+survivable at all is that the recovery was a rebuild from the object store, not a repair of the
+damaged tree** — the same instinct as the negative-control rule: do not trust a tree you have
+just mutated.
 
 ### Instrument note — how the eight official links were actually verified
 
