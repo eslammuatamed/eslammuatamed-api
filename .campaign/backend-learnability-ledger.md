@@ -3390,6 +3390,33 @@ use. Rewritten to say so.
 *The honest summary of this run's assurance: strong on source verification, complete on emitted
 behaviour, and thin on independent review of the final tree.*
 
+### Round 2's blocker: the repair grew its own sibling, in the file it had just cited
+
+**The fix for `MAJOR 2` created a `MINOR A`.** Rewriting `prisma.module.ts:4` to separate `@Global`
+**availability** from **use** was correct — and it left `src/prisma/README.md:5`, the file that line
+now points at, still asserting «`data-mapper` الوحيد **لكلّ الوحدات**»: the same universal, the same
+`@Global` framing, and false in the same way. Measured at that tree: `MailModule` carries **zero**
+`PrismaService` references anywhere under `src/modules/mail`.
+
+*A peer had already named this pair in round 2 and asked for both or neither; one was fixed.* Shipping
+it would have put this campaign's signature defect — a word retracted in one file, surviving in
+another — inside the very commit written to condemn it. **The sweep after a repair must cover the
+files the repair cites, because a repair is the most likely place to create the next sibling.**
+
+**And the correct form was already in the repository.** Sweeping the new family — `@Global` + *every
+module* — turned up `src/config/config.module.ts:6`: *"Global so every module **can** inject
+`AppConfigService` without re-importing."* The availability phrasing was house style in the file next
+door the whole time. *The sweep's value was not only what it retracted; it was finding that the
+project had already solved this and one file had not been told.*
+
+Three `MINOR`s were closed with it. The sharpest: `"a further **non-duplicate** upload is rejected
+with `429`"` — the very predicate this run installed — is **over-broad**. `validateIdentity` runs at
+`media.service.ts:117`, *before* the hash at `:119` and `limiter.run` at `:132`, so an invalid upload
+is `422` and never reaches the cap. The exact set entering the limiter is
+`{passes identity validation} ∩ {no existing contentHash}`. *Run 9 replaced an over-narrow predicate
+with an over-broad one and called the family closed;* it is now **"valid, non-duplicate"** in both
+`media.constants.ts:2` and `media/README.md:100`.
+
 ### The run-10 micro-regression — scope and boundary, recorded BEFORE it runs
 
 **Deliberately not a broad run.** Run 9's own instruction was that no broad run 10 follows, so this
