@@ -2191,14 +2191,27 @@ totals are **61 non-`e2e` + 34 `e2e` = 95**, confirmed independently by `npm tes
 the residual now points at `~٢٩` being nearer **31** — *the opposite direction from the first
 derivation.*
 
-**Nothing was changed, and that decision survived being wrong.** Had the first residual been written
-into the file, the corpus would now carry `٢٦` where the evidence says `٣١`, stated without a hedge,
-justified by arithmetic over four categories nobody has classified per-file. What actually holds:
-the `31 + 3 = 34` e2e split is exact against a direct count, and `3` DI-booting files is exact
-against `@nestjs/testing`/`NestFactory` usage. The other four categories cannot be separated by
+**Nothing was changed, and that decision has now survived being wrong three times.** The residual has
+moved every time one of its *inputs* was corrected, and never once because anyone measured the row
+itself:
+
+| When | Residual for `~٢٩` | What changed underneath it |
+| --- | :-: | --- |
+| First derivation | **26** | census missed two of `jest`'s four roots (total read as 90) |
+| Census corrected | **31** | true total is 95 |
+| `١٩ → ١٦` landed (peer round 1) | **34** | the mocked-`Prisma` row had been a filename count |
+
+*Had any one of those been written into the corpus at the moment it was derived, the file would now
+carry a confident number that later evidence contradicts — and the two later corrections would have
+had to chase it.* The arithmetic is `61` non-`e2e` specs minus the four named non-`e2e` rows
+(`3 + 16 + 3 + 5 = 27`).
+
+What actually holds, measured rather than derived: the `30 + 4 = 34` `e2e` split is exact against a
+direct count; `3` DI-booting files is exact against `@nestjs/testing`/`NestFactory`; and `16` now has
+**two independent derivations** (below). The remaining three categories cannot be separated by
 filename or `grep` — "structural via reflection" and "unit with a mocked `Prisma`" both match
-ordinary controller specs — so settling `~٢٩` needs a per-file read of 95 specs. **Queued, and the
-`~` stays until then.**
+ordinary controller specs — so settling `~٢٩` still needs a per-file read of all 95 specs.
+**Queued, and the `~` stays until then.**
 
 *The instrument lesson, which generalises past this table:* **a spec-file census must be taken from
 the runner's own roots, never from a directory list you thought of.** The guessed list was wrong by
@@ -2458,6 +2471,38 @@ labels, severities, prior-run history, and any mention of the peer.
 *The rule that produced this section is worth restating, because it has now fired twice: **a test
 written against a snapshot of the thing it tests stops testing it the moment that thing is fixed** —
 and a repair round is exactly when the thing gets fixed.*
+
+### A fifth reviewer returned late, on a superseded tree — two corroborations, one false confirmation, one miss
+
+The in-process reviewer dispatched at the *start* of run 4 returned after the peer lane had already
+closed. It reviewed `b6f17b01` — nine commits behind — so its verdict is **commit-scoped to a tree
+that no longer exists** and cannot discharge anything. It is recorded because three of its four
+outcomes are still informative.
+
+**Corroborated, independently and by a different rule.** It reached `١٦` for the mocked-`Prisma` row
+by grepping `mockDeep<PrismaService>` (18 files use `mockDeep`; two of them —
+`preview.controller.spec.ts`, `preview.admin.controller.spec.ts` — mock `ArticlesService`/
+`ProjectsService` and never touch `Prisma`). The direct round reached the same 16 from
+*direct-construction ∩ `PrismaService`*. **Two unrelated rules, one number — which is worth more than
+either count alone.** It also independently flagged the `DI` row's seam wording as risking the
+DI-container misconception. Both were already fixed.
+
+**A false confirmation, from the exact blind spot this ledger already records.** It closed its
+argument with "corrected sum `29+3+16+31+3+3+5 = 90` — **exact match** to the real file count." The
+real total is **95**: it counted `*.spec.ts` under `src/` and `test/` only and missed the four specs
+under `prisma/` and the one under `scripts/` — *the same two `jest` roots the first census here
+missed.* Two independent readers made the same omission, and in this case it manufactured an
+**agreement between a wrong sum and a wrong total**. A residual that lands on a round number is not
+evidence that the parts are right.
+
+**And a miss, in the direction the campaign already named.** Its section E swept every module's
+dependency map and reported none wrong — having checked `seo/README` and found it correctly lists
+`MediaDescriptorResolver`. On the very tree it was reading, `media/README.md:24` listed the
+resolver's consumers as `projects`/`articles`/`testimonials`/`settings` with **no `seo`**, and
+`locales/README.md:20` enumerated seven importers where ten import `LocalesModule`. **It checked
+A→B and concluded about B→A** — the same inversion the direct round caught, found here by a reviewer
+that had been told the rule. *That is the strongest evidence in this ledger that the rule needs an
+instrument rather than a reminder.*
 
 ## 8. Owner-decision blockers
 
