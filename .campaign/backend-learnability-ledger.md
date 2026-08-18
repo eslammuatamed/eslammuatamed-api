@@ -101,8 +101,9 @@ section is historical narrative, fixed at the commit that wrote it, and may be s
 | Cold-reader Run 5 | **Vocabulary block PASSES** — read top-to-bottom, no row needing a later row. **Q3 not clean one level up:** `data-mapper`/`repository` used in the guide, defined only in a document read after it. **6 confirmed open-ended defects**, 0 artifacts; a 7th quantifier found by sweep. Peer lane **3 MAJOR → 1 → CLEAN** (§11g) |
 | Cold-reader Run 6 | **PREREQUISITE-ORDER REGRESSION CLOSED** — linear read clean, all fifteen rows clean, every run-5 repair and control answered. Unscored pass found **3 confirmed defects**, 0 artifacts: an upload guarantee the code does not make (inherited from a false source comment), a category word, and a delegated dependency read as absent behaviour (§11h) |
 | Cold-reader Run 7 | **NARROW PASS on the taught concepts** — compensation as best-effort, orphan object vs orphan row, delete `204` vs storage cleanup, transformed image vs raw `PDF`, delegated locale validation, the three size/dimension limits, `P2002`→`422`, reading order, env authority: all answered correctly. The **unscored** pass produced the round's whole yield: **F1/F2/F3/F6 confirmed defects, F5 a narrow pointer gap, F4 an experiment artefact** (§11i) |
-| Peer lane (run 7) | **CLOSED — `CLEAN` on the exact tree.** Eight rounds: 20 · 7 · 4 · 7 · 3 · 3 · 1 · **CLEAN**. The last two were narrow and claim-numbered; the lane ended because a round found nothing, not on a count. The `CLEAN` was taken on `55201e4`, and every later commit touches `.campaign/` only — the 27 corpus blobs are byte-identical since |
-| Campaign exit gate | **NOT YET SATISFIED — one item, and it is no longer preparation.** The run-8 bundle (27 files) **and** its neutral 13-question prompt are **built, validated and pinned to the final head** — positive 27/27, corruption negative-control flagged exactly the corrupted file, restore 27/27, `zip` round-trip 27/27, run-7 artefacts retired `-SUPERSEDED`. **What remains is running the reader**, and *neither `Claude` nor `Codex` may be it.* Artefacts: `scratchpad/cold-reader-bundle-pr86-run8{,.zip,.SOURCE_COMMIT}` and `scratchpad/cold-reader-run8-PROMPT.md` |
+| Peer lane (runs 7–8) | **CLOSED — `CLEAN` at depth.** Ten rounds: 20 · 7 · 4 · 7 · 3 · 3 · 1 · CLEAN · *CLEAN(shallow, discounted)* · **CLEAN (8,976 lines / 43 tool calls, traces shown)**. The last two were narrow and claim-numbered; the lane ended because a round found nothing, not on a count. The `CLEAN` was taken on `55201e4`, and every later commit touches `.campaign/` only — the 27 corpus blobs are byte-identical since |
+| Cold-reader Run 8 | **RUN, and the gate PASSED.** Both pre-registered boundaries answered correctly (`Q9` → `prisma/migrations/**.sql`, `Q12` → `openapi.json`); 4 of 7 open findings were the repairs working; 3 were real and are repaired (§11j). **Its artefacts are consumed history** — the bundle on disk was pinned to `a00913a` and three corpus commits have landed since |
+| Campaign exit gate | **NOT SATISFIED — one item, and it is an owner decision, not preparation.** The concepts this round changed (upload ordering either side of the dedup lookup, the ceiling/cap disambiguation, `auth`'s mediated database access, and **reachability** itself) have not been put to an external reader. A **Run-9 prompt is drafted and leak-checked** (`scratchpad/cold-reader-run9-PROMPT.md`); the bundle is rebuilt from the final head. **Whether to run it is the owner's call** — and neither `Claude` nor `Codex` may be the reader |
 | Open contract gap | `POST /admin/media` can return `400` undeclared in `openapi.json`. **Owner-facing**, needs the doc 16 §3 contract flow — not this branch (§11e) |
 | PR | **OPEN: #86**, base `dev` (never `main`), head `campaign/backend-learnability`. State is READ, not stamped — see the note below |
 
@@ -3155,6 +3156,63 @@ something the artificial bundle cannot hold. *A reader who answers "the document
 what you gave me" has answered correctly and must be scored correct* — not recorded as having found
 a defect. Stating this before the run is the whole point; stating it afterwards would be fitting the
 gate to the result.
+
+## 11j. Run 8 — the gate passed, and the two findings that outrank the defect list
+
+**The reader scored correct on both boundaries pre-registered before the run:** `Q9` named
+`prisma/migrations/**.sql` as where database-refused rules live and said the bundle does not carry
+it; `Q12` named `openapi.json` and said the same. Those are the correct answers, recorded as
+correct in advance precisely so they could not be re-scored as defects afterwards.
+
+**Four of its seven open findings were the repairs working.** It read the "examples, not an
+exhaustive set" marker, the "«عامّ» لا تعني «بلا حرس»" qualifier, the architectural-exception block,
+and the delegated-dependency note — and reported each as something it had to *reconcile*, which is
+what those passages exist to make possible. *This section is a defect log everywhere else; that
+half of the result matters more.*
+
+**Three were real, and all three were verified against source before anything was edited:** the
+upload diagram had the 40 MP ceiling and all `Sharp` work on the wrong side of the dedup lookup;
+the media `422` list named only the malformed-`PDF` case while a corrupt image header is also `422`;
+and `auth/README` listed `PrismaService` as a dependency when `AuthService` does not inject it —
+silently contradicting the guide and `prisma/README`, which both use `auth` as **the** worked example
+of reaching the database by mediation.
+
+### Finding 1 — reachability is a separate question from correctness, and mechanism-checking misses it
+
+Having established the true ordering, the repair drew a consequence from it: *a byte-identical
+re-upload of an image over `40 MP` returns `200` deduplicated rather than `422`*. **That state cannot
+exist.** `contentHash` is the `SHA-256` of the **original** bytes, and `mediaAsset.create` runs only
+after `processImage` succeeds — which is where the ceiling is enforced. No stored asset can carry the
+hash of a `>40 MP` original. The mechanism was right; the precondition was impossible.
+
+**Both reviewers passed it.** The peer round returned `CLEAN` on it, and it was caught only by asking
+a different question: *not "is this mechanism correct?" but "can the state this sentence assumes
+exist at all?"* The next round, told to test reachability explicitly, verified the correction and
+went further than the author had — auditing the migrations, both seeds and the content-sync
+allowlist, and noting that the `PDF` branch is a second `mediaAsset.create` that never calls
+`processImage` (it cannot produce the precondition either, because `PDF` bytes submitted as an image
+are rejected by identity validation before the lookup).
+
+*The trap is written into `media/README.md` rather than quietly deleted*, because it is worth more as
+a lesson than as a correction — and with it the ordering's real meaning: **the `40 MP` ceiling is an
+admission gate on bytes the system has not seen, not a standing invariant over what is stored.**
+
+### Finding 2 — a CLEAN verdict is only as strong as the round that produced it, and that is measurable
+
+The round that blessed the unreachable claim can be read from its own transcript:
+
+| Round | Lines | Tool invocations | Per-claim attention | Verdict |
+| --- | --: | --: | --- | --- |
+| 8 | 7,750 | 20 | all six claims addressed | `CLEAN` — held |
+| 9 | 2,808 | **7** | `D1` examined 26×, `D3`–`D7` **once each** | `CLEAN` — **did not hold** |
+| 10 | **8,976** | **43** | `R1` 6× · `R2` 35× · `R3` 4× · `R4` 5× · `R5` 4× · `R6` 5×, with call chains shown | `CLEAN` — held |
+
+**Do not argue with a verdict; measure the round that produced it.** Round 9 verified the one claim
+it engaged with and ticked the rest, and its `CLEAN` was recorded as *not covering* the untraced
+claims rather than as a pass. Round 10 was dispatched with an explicit method — confirm the
+mechanism **and** confirm the precondition is reachable — and with the instruction that a verdict
+without traces would be treated as not performed. *Depth is a readable property of a transcript, so
+"trust but verify" becomes a check someone else can run.*
 
 ## 8. Owner-decision blockers
 

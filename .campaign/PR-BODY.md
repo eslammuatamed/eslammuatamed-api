@@ -311,8 +311,25 @@ returns zero, with passing positive controls.
   rule *and* the exception.
 - **The peer lane ended CLEAN on the exact final tree**, not on a round count — 20, 7, 4, 7, 3, 3,
   1, then nothing, the last two rounds narrow and claim-numbered.
-- **One item remains:** a narrow Run-8 cold regression from this exact head, over the concepts this
-  round changed.
+- **Run 8 ran, and the gate passed.** The reader answered both pre-registered boundaries correctly,
+  and four of its seven open findings were the repairs working — it read the "examples, not a set"
+  marker, the "public is not unguarded" qualifier, the architectural-exception block and the
+  delegated-dependency note, and reported each as something it had to reconcile. Three were real: the
+  upload diagram had the pixel ceiling and all `Sharp` work on the wrong side of the dedup lookup; the
+  media `422` list named only the malformed-`PDF` case; and `auth/README` claimed a `PrismaService`
+  dependency `AuthService` does not have.
+- **The most useful finding of the campaign came from the repair to that diagram, and it was mine.**
+  From a correct ordering I drew a consequence — a `>40 MP` byte-identical duplicate returns `200`, not
+  `422` — whose precondition cannot exist, because no stored asset can carry the hash of a `>40 MP`
+  original. **A peer round returned `CLEAN` on it.** Correctness and *reachability* are different
+  questions, and checking the mechanism does not cover the second one.
+- **A `CLEAN` verdict is only as strong as the round behind it, and that is measurable.** The round that
+  blessed it ran 2,808 lines and 7 tool invocations, examining one claim 26 times and five others once
+  each; the round that caught and confirmed the correction ran 8,976 lines and 43, with call chains
+  shown. The first was recorded as not covering the untraced claims rather than as a pass.
+- **One item remains, and it is a decision rather than preparation:** the concepts this round changed
+  have not been put to an external reader. A Run-9 prompt is drafted and leak-checked and the bundle is
+  rebuilt from the final head; running it is the owner's call.
 - The provenance guard has four known blind spots (pattern family, file selection, token boundary,
   alphabet). The corpus is clean by *independent sweep*, not because the guard says so. Widening it
   is queued and deliberately not required for this branch.
