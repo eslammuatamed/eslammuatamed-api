@@ -3385,6 +3385,27 @@ use. Rewritten to say so.
 *The honest summary of this run's assurance: strong on source verification, complete on emitted
 behaviour, and thin on independent review of the final tree.*
 
+### The run-10 micro-regression — scope and boundary, recorded BEFORE it runs
+
+**Deliberately not a broad run.** Run 9's own instruction was that no broad run 10 follows, so this
+is a *regression on two concepts*, not a fresh gate: **two probes** on what changed (`Q1` — does the
+`.service.ts` suffix predict database access, with `AuthService` as the worked case; `Q2` — does a new
+non-duplicate `PDF` take a processing slot, when, and what happens at capacity), **three controls** on
+concepts this run did **not** touch (`Q3` the `40 MP` reachability trap, `Q4` the delete-order `204`
+semantics, `Q5` the per-module missing-translation outcomes), and the unstructured open assessment
+that has out-produced the scored instrument in every run so far.
+
+**Bundle:** the same 30 code-adjacent `*.md` files prior runs used, taken from `0e04e0f`. Leak-checked:
+no source, no `openapi.json`, no `prisma/migrations/**`, no `.campaign/**`, no `.specify/**`.
+
+**Boundary, stated before the result exists.** `Q2` is the one question whose answer this run *put*
+into the documentation. Before the repair a reader could not settle it from prose and would have had
+to name `media.service.ts`; **after the repair, naming the source file instead of answering is a
+regression, not a correct boundary call** — which is precisely what makes `Q2` a test of the repair
+rather than of the reader. `Q1`, `Q3`, `Q4` and `Q5` were answerable from the bundle before this run
+and must remain so. *Stating this now is the point; stating it afterwards would be fitting the gate
+to the result.*
+
 ## 8. Owner-decision blockers
 
 **OD-B — the governing record of API release state is wrong AND internally contradictory (D-10).**
