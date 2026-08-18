@@ -234,9 +234,49 @@ returns zero, with passing positive controls.
   type accepted with `201`); and the guide said you would not meet `locales` *"in preview"* — true of
   the imports array and false about behaviour, since both preview reads delegate to `getPreviewById`
   where `assertEnabled` runs. **A delegated dependency does not appear in an imports list.**
-- **One item remains:** a **narrow** cold regression on a bundle from the current head — the
-  compensation invariant, supported versus unsupported non-image behaviour, direct versus delegated
-  locale validation, a few unchanged controls, and an unscored open-ended pass kept.
+- **Run 7 passed on every taught concept and the open pass carried the round.** Compensation as
+  best-effort, orphan object separated from orphan row, `204` separated from storage cleanup and
+  from a cached URL, transformed image bytes vs raw `PDF` bytes, delegated locale validation, the
+  `1 MiB` / `10 MiB` / `40 MP` split, `P2002` → `422`, reading order, env authority — all correct.
+  The unscored pass produced the entire yield, for the fourth consecutive run.
+- **What it found was one family wearing five faces: a summary claiming ownership it does not have.**
+  The guide called the whole unauthenticated surface read-only — there are four `@Public()` writes
+  (`auth` login/refresh/logout, `contact`) and several public reads that return no localized content
+  at all. A `422` row said media rejects a file's "size", eleven lines below the row mapping byte
+  size to `413` — the `422` case is pixels. `locales/README` credited `assertEnabled` with the
+  platform-wide no-fallback rule, when its body is `findUnique` plus an `isEnabled` check and the
+  actual behaviour is split across per-module query shapes whose missing-translation outcome is not
+  even uniform (`404` in articles/projects, `null` fields in `settings` and `seo`). And "domain rules
+  are all in the service" had counter-examples worth teaching rather than hiding.
+- **The counter-example turned out to be a class, not an anomaly — and finding that took two
+  corrections.** The storable-grant catalog is enforced only by `@IsIn(GRANTABLE_PERMISSIONS)`: the
+  service writes the array through unchecked, the column is free text, and `prisma/seed.ts` writes
+  it directly. I wrote that it was the *only* such case. It is not: `IdempotencyKeyPipe` enforces the
+  `Idempotency-Key` header's length and character set while the service stores the value as given —
+  the per-message uniqueness is `DB`-backed, the key's **shape** is not. My sweep had enumerated DTO
+  validators and never looked at pipes.
+- **The peer rounds cost 20 MAJOR, then 7, and the repairs were the defect source both times.** Of
+  round 1's five in-corpus findings, every one was a sibling of a family I had already "fixed" at its
+  named site — because I had swept the Arabic words I happened to write rather than grepping
+  `@Public()`, `availableLocales`, and the `404` claim across the corpus. Five of round 2's seven were
+  against text round 1's repairs had written, including two false universals introduced *in the round
+  whose subject is unverified universals*.
+- **One sentence was refuted twice, for two different reasons,** and it is the best single artefact
+  of the round: "delete the locale check and all you lose is the error's name". It also guards
+  **writes** — the locale foreign keys reference `Locale.code` and `isEnabled` is a column, not a
+  constraint. And it is not true of reads either — the guard tests *two* conditions, and a locale
+  that exists but is **disabled**, with stored translations, would become publicly readable. Unknown
+  and disabled are not the same case.
+- **`openapi.json` was reported unreadable and is not a defect.** It is tracked and named as the
+  deciding authority in six places; the reader's bundle simply did not carry it. Contract content was
+  **not** duplicated into READMEs to make a bundle self-contained. Likewise the per-width byte budgets
+  are governed by doc 20 §4 and mirrored in `RENDITION_BUDGETS`; the repair names that authority and
+  deliberately does **not** copy the six numbers into prose.
+- **One `.ts` file changed, and only a comment in it.** Emitted `JavaScript` is byte-identical across
+  all **216** files (`sha256` manifest of `tsc -p tsconfig.build.json`), with the instrument
+  negative-controlled first — a real `@MaxLength` change moved the hash.
+- **One item remains:** a narrow Run-8 cold regression from the exact final head, over the concepts
+  this round changed.
 - The provenance guard has four known blind spots (pattern family, file selection, token boundary,
   alphabet). The corpus is clean by *independent sweep*, not because the guard says so. Widening it
   is queued and deliberately not required for this branch.

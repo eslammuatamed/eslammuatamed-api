@@ -100,9 +100,10 @@ section is historical narrative, fixed at the commit that wrote it, and may be s
 | Cold-reader Run 4 | **Regression FAILED on the block's *inside*** — 3 sites reported, a 4th by sweep, a 5th by a mechanical check. **6 confirmed open-ended defects + 2 experiment artifacts.** Peer lane then ran **four rounds** on the repair — 7+1 → 5+2 → 0+1 → **CLEAN** — and four of round 2's five MAJORs were defects the *repair* introduced (§11f) |
 | Cold-reader Run 5 | **Vocabulary block PASSES** — read top-to-bottom, no row needing a later row. **Q3 not clean one level up:** `data-mapper`/`repository` used in the guide, defined only in a document read after it. **6 confirmed open-ended defects**, 0 artifacts; a 7th quantifier found by sweep. Peer lane **3 MAJOR → 1 → CLEAN** (§11g) |
 | Cold-reader Run 6 | **PREREQUISITE-ORDER REGRESSION CLOSED** — linear read clean, all fifteen rows clean, every run-5 repair and control answered. Unscored pass found **3 confirmed defects**, 0 artifacts: an upload guarantee the code does not make (inherited from a false source comment), a category word, and a delegated dependency read as absent behaviour (§11h) |
-| Campaign exit gate | **NOT YET SATISFIED — one item.** A **narrow** cold regression on a bundle from the current head: the compensation invariant, supported vs unsupported non-image behaviour, direct vs delegated locale validation, a few unchanged controls, and an unscored open-ended pass |
+| Cold-reader Run 7 | **NARROW PASS on the taught concepts** — compensation as best-effort, orphan object vs orphan row, delete `204` vs storage cleanup, transformed image vs raw `PDF`, delegated locale validation, the three size/dimension limits, `P2002`→`422`, reading order, env authority: all answered correctly. The **unscored** pass produced the round's whole yield: **F1/F2/F3/F6 confirmed defects, F5 a narrow pointer gap, F4 an experiment artefact** (§11i) |
+| Campaign exit gate | **NOT YET SATISFIED — one item.** A narrow Run-8 cold regression from the exact final head, over the concepts this round changed: public-endpoint taxonomy, byte size vs pixel dimensions, locale enabled-validation vs no-fallback ownership, boundary vs service/DB enforcement, the budget-authority pointer, unchanged controls, and an unscored open pass |
 | Open contract gap | `POST /admin/media` can return `400` undeclared in `openapi.json`. **Owner-facing**, needs the doc 16 §3 contract flow — not this branch (§11e) |
-| PR | **OPEN: #86**, base `dev` (never `main`), head `campaign/backend-learnability` — **all 6 checks pass, `MERGEABLE / CLEAN`** |
+| PR | **OPEN: #86**, base `dev` (never `main`), head `campaign/backend-learnability`. State is READ, not stamped — see the note below |
 
 **CI state is READ, never stamped here.** The authority is `gh pr checks 86` together with the
 step arrays of its jobs (`gh api repos/:owner/:repo/actions/jobs/<id>`). Gate on `mergeStateStatus:
@@ -172,6 +173,10 @@ this table: `git log 9af1aac..HEAD --name-only` and drop the commits touching on
 | `a738cb9` the nine narrowings | §11h | **0 MAJOR + 7 MINOR** |
 | `716a7c5` those seven | §11h | **0 MAJOR + 1 MINOR** — an enumeration missing three of eight |
 | `e6d6b01` that one | §11h | **CLEAN** |
+| `bf42300` run-7 repairs (F1/F2/F3/F5/F6 + the one `.ts` comment) | §11i | **20 MAJOR + 1 MINOR** — 12 out of scope (`.specify/`), 1 already fixed, **5 in-corpus**, each a sibling of a family repaired at only its named site |
+| `a2dfe62` the fix for the `@IsEnum` universal I introduced | §11i | self-caught before the peer reported it; covered by the round-2 pass |
+| `80aae0f` the fixes for round 1's five | §11i | **7 MAJOR** — five of them against text those very fixes wrote |
+| `587f9e0` the fixes for round 2's seven | §11i | verdict recorded with the final head below |
 | commits touching only `.campaign/` | — | not source-touching |
 
 **The campaign-wide finding total is NOT reconstructible from these records, so it is not stated.**
@@ -2902,6 +2907,91 @@ JavaScript** and this branch changes no behaviour:
   own partial-cleanup test records a remaining object. A test label is a string literal in the
   emitted `JS`.
 
+## 11i. Run 7 — the questions passed and the open pass found an ownership family
+
+The narrow gate did its job: every taught concept came back correct — compensation as best-effort
+rather than a guarantee, orphan object separated from orphan row, `204` separated from storage
+cleanup and from a cached URL, transformed image bytes vs raw `PDF` bytes, preview locale
+validation as delegated rather than owned, the `1 MiB` / `10 MiB` / `40 MP` split, unknown body
+field → `422`, duplicate slug `P2002` through `AllExceptionsFilter`, reading order, env authority.
+**Nothing in the scored set failed.** The whole yield came from the unscored pass, which is now
+the fourth consecutive run where that is true.
+
+### The findings, classified against source before any edit
+
+| # | Reader's report | Verdict | What the source said |
+| --- | --- | --- | --- |
+| F1 | the guide calls the public surface read-only while module docs show public writes | **CONFIRMED, and wider than reported** | 22 `@Public()` sites, **4 non-GET** (`auth` login/refresh/logout, `contact`). A second overclaim in the same sentence: `health`, `health/ready`, `locales` and `redirects/resolve` are public reads returning no locale-resolved content |
+| F2 | "type, size or structure → `422`" may conflate bytes with pixels | **CONFIRMED — self-contradiction inside one file** | `src/modules/README.md:198` said size → `422`; line 177 of the same file maps byte size over `10 MiB` to `413`. The `422` case is `MAX_INPUT_PIXELS` |
+| F3 | `assertEnabled` credited with the platform-wide no-fallback rule | **CONFIRMED — four concepts, three owners** | the function is `findUnique` + `isEnabled`. Selection is per-module and itself split (nested relations filter in-query, the entity's own translation is picked in memory); the missing-translation outcome differs by module — `404` in articles/projects, `null` fields in `settings` and `seo` |
+| F4 | `openapi.json` not inspectable | **EXPERIMENT ARTEFACT — no change** | the file is tracked (335 KB) and named as the decider in six places. A bundle limitation, not a repository defect. **Not** duplicated into READMEs |
+| F5 | per-width byte budgets named without values | **NARROW POINTER GAP** | values are governed by doc 20 §4 / `D20-6` and mirrored in `RENDITION_BUDGETS`; **documentation does not own them**. The real gap was that the line named `RENDITION_WIDTHS` but not the budget symbol, against the file's own convention. Pointer added; the six numbers deliberately not copied |
+| F6 | "all domain rules in services" vs a DTO-enforced invariant | **CONFIRMED** | `@IsIn(GRANTABLE_PERMISSIONS)` is the sole enforcement — the service writes the array through unchecked, the column is free text, and `prisma/seed.ts` writes it directly |
+
+### What the round actually cost, and where the defects came from
+
+Three peer rounds, and **the repairs were the defect source every time**:
+
+| Round | Result | Where the findings landed |
+| --- | --- | --- |
+| 1 | **20 MAJOR + 1 MINOR** | 12 against `.specify/` (out of scope, §8); 1 already fixed; **5 in-corpus**, every one a sibling of a family I had "fixed at the named site" |
+| 2 | **7 MAJOR** | **5 against text round 1's repairs wrote** |
+| 3 | see the verdict recorded with the final head | — |
+
+**The lesson is about the shape of my sweeps, not about care.** F1 was swept by searching the
+Arabic surface terms (`سطح عام`, `قراءة عامّة`) and never by grepping `@Public()` in prose — which is
+exactly why `src/common/README.md:41` ("every controller/DTO uses `@Public()`") survived until the
+peer found it. Same shape for `availableLocales` and for the "missing translation → 404" claim,
+each of which existed in two more places than the one I repaired. *A family sweep that greps the
+words I happened to write is not a family sweep; it is a re-read of my own diff.*
+
+**Two false universals were introduced BY the repairs and caught afterwards**, both in the round
+whose subject is unverified universals:
+
+- *"every other non-shape DTO validator is backed, because `@IsEnum` values are backed by a
+  `schema.prisma` enum"* — `AdminProjectSortBy` and `SortOrder` are local TypeScript enums with no
+  Prisma counterpart. The sorting question was wrong: not *which validator is this*, but **is the
+  value it constrains stored at all**.
+- *"the grant catalog is the only invariant enforced at the request boundary alone"* — the peer
+  produced a second, and it is not a DTO: `IdempotencyKeyPipe` enforces the `Idempotency-Key`
+  header's length and character set, `contact-reply.service.ts` stores the value as given, and the
+  column is free `String`. The per-message uniqueness *is* `DB`-backed; the key's **shape** is not.
+  My sweep had enumerated DTO validators and never looked at pipes. The text now names a **class
+  with two known members** instead of an anomaly.
+
+**And one sentence was refuted twice, for two different reasons** — the counterfactual "delete
+`assertEnabled` and all you lose is the error's name". Round 2 pointed out it also guards
+**writes**: the twelve locale foreign keys reference `Locale.code`, and `isEnabled` is a column,
+not a constraint, so the `FK` proves existence and says nothing about enablement. Round 3's
+predecessor pointed out it is not even true of reads: the guard tests **two** conditions, and a
+locale that exists but is **disabled**, with stored translations, would become publicly readable.
+*Unknown and disabled are not the same case, and the sentence had merged them.* Three attempts on
+one counterfactual is this round's most expensive sentence.
+
+### The instrument that destroyed work, and the one that lied
+
+`git checkout -- <file>` was used to revert a link-checker negative control **in a dirty tree**,
+and it reverted to `HEAD` — discarding the uncommitted F3 repair entirely. It was noticed only
+because the next check looked for the repaired text. **Negative controls are reverted with a
+`cp -p` copy taken before the probe, never with `git checkout`,** and the revert is verified by
+hash against the pre-probe file.
+
+The relative-link checker also reported **3 broken links at the baseline** on its first run. All
+three were the cross-repo rebase failing because the baseline had been exported to a path whose
+parent is not the sibling-repo parent — the instrument was mis-rooted, not the documents. Rewritten
+to rebase from the `eslammuatamed-*` component wherever it appears, the honest reading is **0 broken
+now, 0 at baseline, 0 introduced**, and its negative control flags exactly one injected bad link.
+*This is the second time this specific instrument has produced a false alarm.*
+
+### Emitted-behaviour proof for the one `.ts` change
+
+`role.dto.ts`'s comment carried the same overclaim, so it was narrowed. The proof is a per-file
+`sha256` manifest of `tsc -p tsconfig.build.json` output: **identical across all 216 emitted `.js`
+files**. The instrument was negative-controlled **first** — changing `@MaxLength(60)` to `(61)`
+moved `role.dto.js`'s hash — and the source was restored from a `cp -p` copy and hash-checked
+against its pre-mutation value. `git diff <that head>..HEAD -- '*.ts'` is empty at every later
+head, which is what carries the proof forward rather than leaving it pinned to a stale tree.
+
 ## 8. Owner-decision blockers
 
 **OD-B — the governing record of API release state is wrong AND internally contradictory (D-10).**
@@ -2927,6 +3017,28 @@ it is not an owner decision and is not pending.
 resolved.** They are recorded governing-document decisions belonging to the owner. The campaign's
 only obligation is to avoid propagating either error: do not repeat the `D16-13` citation as
 authoritative, and do not assert any production/freeze state in a code-adjacent document.
+
+**Carried forward from run 7 — still open, none resolved by this round.**
+
+| Item | State |
+| --- | --- |
+| `OD-A` (`D16-13` cited but absent from governance) | open, unchanged |
+| `OD-B` (governing API release state stale + self-contradictory) | open, unchanged |
+| Contract gap: `POST /api/v1/admin/media` can return `400`, undeclared in `openapi.json` | open — needs the doc 16 §3 contract flow, not this branch |
+| `.github/workflows/ci.yml:161` comment vs the job's actual E2E steps | open, deferred outside the campaign corpus |
+| `test/README` pure-unit row (~29) vs moved arithmetic | open — **not** replaced with a new number; that needs the whole 95-spec corpus classified per file |
+| Upload-path implementation limits (cleanup not wrapped in `try`; a wholesale cleanup rejection replacing the original error and skipping the incomplete-compensation log; the catch boundary extending past `mediaAsset.create`; post-commit compensation against a committed row) | open — code behaviour, out of scope for a documentation branch |
+| `.specify/specs/003-media-pipeline` acceptance language asserting stronger orphan guarantees than the implementation provides | open — **not** rewritten (convention 4.E) |
+| Executable strings carrying the same over-certainty (`media.service.ts` delete-cleanup log says objects "remain"; `media.service.spec.ts` label "compensation (no orphans)") | open — both change emitted `JS`; owner's call |
+
+*New evidence on the `.specify` item, not a new item.* The round-1 peer pass was scoped
+repository-wide rather than to the diff, and returned **twelve** independent MAJOR findings against
+`.specify/specs/003-media-pipeline/{spec,plan,tasks}.md` — unconditional no-orphan guarantees, a
+`ParseFilePipe`/`MaxFileSizeValidator` upload path that does not exist in the code, dev static
+serving of `STORAGE_LOCAL_DIR` that the app never registers, and object-metadata claims the local
+adapter ignores. **These were reached without being told the item exists**, which is the useful
+part: they are independent corroboration that the shipped acceptance records overclaim, not eight
+new decisions. Still not edited here, and still the owner's call.
 
 ## 9. Commits
 
