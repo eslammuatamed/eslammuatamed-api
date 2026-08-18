@@ -2639,7 +2639,25 @@ four of them. Every one was a false positive, and only reading resolved them:
 *A pattern broad enough to be safe is broad enough to be useless on its own.* The peer independently
 audited the same six by reading and reached the same verdict.
 
-**Peer lane closed for run 5: 3 MAJOR → 1 MAJOR → CLEAN.** Round 3 re-checked the amended sentence,
+**Peer lane closed for run 5: 3 MAJOR → 1 MAJOR → CLEAN.**
+
+### The run-6 bundle and prompt — written after the corpus was final, not before
+
+Bundle cut from the reviewed head by `scratchpad/build-bundle.sh`, corpus derived from
+`git ls-tree` rather than a kept list: **27 files**; positive verify 27/27; **negative control**
+corrupted one file and the checker flagged **exactly one**; restore 27/27; `zip` round-trip 27/27.
+Files `chmod 444`; run-5 artifacts renamed `-SUPERSEDED`.
+
+**The prompt was written after the last repair landed, which is the whole point.** Run 5's prompt was
+drafted before its first peer finding and needed a re-validation pass that found four untested
+repairs; this one was authored against the shipped tree, and each of its seventeen questions was then
+checked to be answerable **from the bundle** by locating the sentence that settles it. It covers the
+`data-mapper`/`repository` prerequisite, all six confirmed run-5 repairs plus the swept quantifier,
+five unchanged controls carried from earlier gates, and keeps the unscored open-ended pass — which
+has out-produced the scored questions in **all five runs**.
+
+Checked by `grep`, not by intention: no pass criteria, no expected answers, no repair labels, no
+severities, no prior-run history, no mention of the peer. Round 3 re-checked the amended sentence,
 all 25 service files, every direct injector's Prisma usage, all seven non-injectors, `auth`'s
 delegation path, and the parallel statement in `src/prisma/README.md` — no contradictory universal
 remains and no new count was introduced.
