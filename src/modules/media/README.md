@@ -21,8 +21,8 @@
 
 ## خريطة الاتصال
 
-- **وارد:** `MediaDescriptorResolver` تستهلكه `projects`/`articles`/`testimonials`/`settings` لحقن الواصفات.
-- **يعتمد على:** `PrismaService`، و`StorageAdapter` عبر رمز الحقن `STORAGE_ADAPTER` (`@Inject`)، و`Sharp`، ومُحمّل `file-type` (`ESM`) لكشف البايتات السحرية.
+- **وارد:** `MediaDescriptorResolver` تستهلكه `projects`/`articles`/`testimonials`/`settings`/`seo` لحقن الواصفات — خمس وحدات، وكلّها تستورد `MediaModule`.
+- **يعتمد على:** `PrismaService`، و`LocalesService` (تحقّق لغة النصّ البديل — الوحدة تستورد `LocalesModule`)، و`StorageAdapter` عبر رمز الحقن `STORAGE_ADAPTER` (`@Inject`)، و`Sharp`، ومُحمّل `file-type` (`ESM`) لكشف البايتات السحرية.
 
 ## التدفّقات
 

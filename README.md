@@ -64,7 +64,7 @@ npm run test:e2e              # Supertest + jest-openapi — يبني dist-ops �
 > `fail-closed` في `test/utils/e2e-setup.ts` يرفض إقلاع التطبيق أصلًا إن لم تُشِر `DATABASE_URL` إلى قاعدة
 > وَلَّدَتْها هذه الجولة. التفاصيل في [`test/README.md`](test/README.md).
 
-في الـ CI يعمل المسار نفسه بخدمة `Postgres 16`، بلا خطوات ترحيل أو بذر مقابلة — المحلّي والـ CI يستعملان الحزمة نفسها المالكة لقاعدتها. خطوات مسار `e2e` بتفصيلها يملكها [`PROJECT_GUIDE.md` §11](PROJECT_GUIDE.md) — **لا تُكرَّر هنا**.
+وفي الـ CI تعمل الحزمة نفسها المالكة لقاعدتها، فلا خطوات يدويّة مقابلة هناك أيضًا. خطوات مسار `e2e` يملكها [`PROJECT_GUIDE.md` §11](PROJECT_GUIDE.md) — **لا تُكرَّر هنا**.
 
 ## النشر
 

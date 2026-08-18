@@ -32,7 +32,7 @@
 
 ## خريطة الاتصال
 
-- **يعتمد على:** `PrismaService` + `MailModule` (لا `LocalesService` — الرسائل مستقلّة عن اللغة).
+- **يعتمد على:** `PrismaService` + `MailModule`، و`AppConfigService` (تحقنه `ContactMailService` لعنوان الإشعار وإعداد البريد) — ولا `LocalesService`، فالرسائل مستقلّة عن اللغة.
 - **`ContactThrottlerGuard`** مُسجَّل كـ provider ليُشغَّل `onModuleInit` (بناء نافذتَي المعدّل) ويُحلّ من
   DI عند `@UseGuards` — نفس أسلوب `UploadUserIpThrottlerGuard` في `MediaModule`.
 - **`ContactPurgeScheduler`** مُسجَّل كـ provider ليكتشف `ScheduleModule` (المُسجَّل في `AppModule`) مُعالِج

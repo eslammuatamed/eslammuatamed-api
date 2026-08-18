@@ -97,7 +97,7 @@ section is historical narrative, fixed at the commit that wrote it, and may be s
 | Cold-reader gate (§11) | **RUN TWICE.** Run 1: 9 of 10 scoreable correct, Q2 unscored (defective question); produced 4 documentation defects — all fixed (§11c). **Run 2: 10/10 main + 6/6 §C = 16/16 — the scoring gate PASSES** (§11d) |
 | Open-ended assessment | **THE PRODUCTIVE INSTRUMENT, BOTH RUNS.** Run 2 scored 16/16 *and* found a real prerequisite defect no question touched: the vocabulary table sat at §15 while §2 and §5 already relied on it. Verified, moved to the head of the guide, peer-reviewed |
 | Cold-reader Run 3 | **Gate 16/16; targeted regression FAILED on `Controller`** (used inside the vocabulary block before it was defined) **+ 5 open-ended findings, all confirmed**, two worse than reported. All repaired across two peer rounds (§11e) |
-| Cold-reader Run 4 | **Targeted regression FAILED again on internal ordering** — three sites inside the vocabulary block, a fourth found by sweep. **7 open-ended findings: 6 confirmed defects, 2 experiment artifacts** (one reader item split in two). All repaired (§11f) |
+| Cold-reader Run 4 | **Targeted regression FAILED again on internal ordering** — three sites inside the vocabulary block, a fourth by sweep, a fifth by a mechanical check. **6 confirmed open-ended defects + 2 experiment artifacts.** The peer round on the repair then found **7 MAJOR + 1 MINOR**, including a quantifier the repair itself shipped (§11f) |
 | Campaign exit gate | **NOT YET SATISFIED — one item.** A new uncoached reader, on a bundle from the current head: internal vocabulary ordering, each confirmed run-4 repair, a few unchanged controls, and an unscored open-ended pass |
 | Open contract gap | `POST /admin/media` can return `400` undeclared in `openapi.json`. **Owner-facing**, needs the doc 16 §3 contract flow — not this branch (§11e) |
 | PR | **OPEN: #86**, base `dev` (never `main`), head `campaign/backend-learnability` — **all 6 checks pass, `MERGEABLE / CLEAN`** |
@@ -154,7 +154,8 @@ this table: `git log 9af1aac..HEAD --name-only` and drop the commits touching on
 | `d069828` flow trace | §10e | CLEAN |
 | `0262e5b` · `846dc73` run-1/run-2 repairs | §11c, §11d | 9 findings / 3 MAJOR (§11c); first attempt **rejected** and redone (§11d) |
 | `4f7f10d` · `f3becd8` run-3 repairs | §11e | two rounds — 4 MAJOR, then 5 more |
-| `b6f17b0` run-4 repairs | §11f | see §11f |
+| `b6f17b0` · `21c20f1` run-4 repairs | §11f | **7 MAJOR + 1 MINOR**, all verified here before action; two corrected upward |
+| `<peer-fix>` the fixes for those | §11f | **NOT YET REVIEWED** — a fix round is a new tree; the verdict above does not cover it |
 | commits touching only `.campaign/` | — | not source-touching |
 
 **The campaign-wide finding total is NOT reconstructible from these records, so it is not stated.**
@@ -2252,9 +2253,67 @@ including `.campaign/` and `.specify/`. *Stated because a narrower scope had pas
 those two directories reads 30 files / 116 links and also passes, and a checker that skips part of
 the corpus reporting PASS is exactly the shape of the failure this instrument already had once.*
 
-### The peer round
+### The peer round — 7 MAJOR + 1 MINOR on the repair, and the repair's own quantifier fell
 
-*Recorded below once Codex's verdict on `b6f17b0` returns.*
+Codex reviewed `9af1aac..21c20f1` (corpus only). **It found more in the repair than the repair found
+in the corpus.** Every finding was re-verified here before it was acted on; two were corrected
+*upward* in the process.
+
+| # | Finding | Verified? |
+| :-: | --- | --- |
+| 1 | The new ordering absolute over-reached: the `service` row leans on `transaction`, which no row defines and §5 only *repeats* | **YES** — claim narrowed to the block's own vocabulary; `transaction` glossed inline |
+| 2 | **«كلّ ملفّ `*.service.ts` هنا من هذا النوع» is false** — `AppConfigService`, `PrismaService`, `MailService`, `MediaProcessingService` own no domain rules | **YES** — my own unswept quantifier, written in the round *about* quantifiers |
+| 3 | The `DI` row's seam wording implied the container does the substituting; and the inter-table prose said the request "passes through" all lifecycle layers before its destination — false for `interceptor` (wraps, runs after) and `exception filter` (only on throw) | **YES**, both |
+| 4 | §11's e2e step list omits `checkout` and `setup-node`; and "CI مساران" is not the literal job count — `ci.yml` has `policy`, `verify`, `e2e` | **YES**, both |
+| 5 | *(MINOR)* the CI mechanism is still summarised in two other files | **PARTLY** — `README.md` trimmed; `test/README.md:88` kept deliberately, see below |
+| 6 | Dependency-map repairs stopped at the four edited siblings | **YES**, four more sites |
+| 7 | §10's "every variable is validated, a missing one fails boot" is false for conditional/optional variables; `mail/README` claims **all** SMTP fields are required when enabled, but `SMTP_SECURE` is optional and defaults to `true`; and `src/config/README` held a third variable inventory that omitted `PUBLIC_WEB_URL` | **YES**, all three |
+| 8 | The test taxonomy's counts are family counts, not technique counts | **YES** — see below |
+
+**Finding 6 is the one worth keeping.** The sweep this round checked every *consumer* README against its
+module and services, found `seo` already correct, and recorded that as evidence the family was closed.
+It was not: `media/README.md:24` lists the resolver's consumers and **omits `seo`** — the same fact,
+from the other end, in the file that owns it. *Checking A→B is not checking B→A.* Also found:
+`media` injects `LocalesService` and its own map omitted it; `locales/README` enumerated seven
+importers under "كلّ وحدة محتوى" when ten modules import `LocalesModule`; and `contact/README`
+omitted `AppConfigService`, which the earlier coarse sweep had flagged as *possibly* a blind spot and
+declined to settle. **The blind spot was real and the peer settled it.**
+
+**Finding 8 vindicates leaving `~٢٩` alone, and then goes further.** The `١٩` row is exactly the
+number of files named `*.service.spec.ts` — a **filename family counted as a technique**. Measured by
+technique instead, with the rule stated in the file: **3** boot a real `Nest` container, **22**
+construct a service with `new` (not 19 — and four of them are not `*.service.spec.ts` at all), **16**
+of those pass a mocked `PrismaService`, and of the 34 `*.e2e-spec.ts` files **30** use `supertest`
+and **4** do not (the table said 31/3). The rows now carry the measured figures, and the table
+carries an explicit statement that its categories are the *dominant* technique, do not partition the
+95 files, and must not be summed.
+
+**Pushed back on, with a reason:** `test/README.md:88` states that CI runs the suite with a
+`postgres:16` service and does not migrate or seed. That is the **harness's own** architectural fact
+(`D18-8`) — the reason there is no second setup owner — not a restatement of the workflow's step
+list, which now lives only in §11. Removing it would take the *why* out of the file that owns it.
+
+### The ordering instrument gave a FALSE GREEN, and the repair round caught it
+
+After the peer repairs, the check printed `rows=13 … PASS`. **It should have printed 15.** The block
+had grown by two lines and the instrument located it by a **hard-coded line window** (`17..47`), so it
+silently read a truncated table and passed on it. *An instrument built this same session, to catch
+exactly this class of defect, committed exactly this class of defect.*
+
+Rebuilt to locate the block by **content markers** (the heading, and the blockquote after the second
+table) and to **assert the expected row count**, so a relocation fails loud instead of passing quiet.
+Negative-controlled with exit codes read directly — not through a pipe, which had masked them once:
+
+| Control | Expected | Got |
+| --- | --- | --- |
+| Baseline | `exit 0` PASS | `exit 0` PASS |
+| Move `PrismaService` above `DI` | `exit 1` FAIL | `exit 1`, flagged that pair |
+| Delete one row (the truncation mode) | `exit 2` FAIL | `exit 2`, "expected 15 rows, found 14" |
+| Restore | `exit 0` PASS | `exit 0`, file `sha256`-identical |
+
+*Two lessons, both already on this list and both re-earned: **an instrument that locates its subject
+by line number will eventually read the wrong subject**, and **a pipe hides the exit code** — the
+`RESULT:` text was right while `$?` read 0 for every one of them.*
 
 ## 8. Owner-decision blockers
 
