@@ -48,6 +48,20 @@ PermissionsGuard.canActivate (بعد JwtAuthGuard، فـ request.user مضبوط
 
 - **نقطة محروسة بلا `@RequirePermission` تفشل مغلقةً** (403 وقت التشغيل) وتفشل اختبار تغطية الميتاداتا (`route-permissions.spec.ts`) وقت البناء.
 - **المنحة الوحيدة القابلة للتخزين إمّا مفتاح كتالوج أو `'*'`.** الإنفاذ يقع في الـ DTO لا في الخدمة: `@IsIn(GRANTABLE_PERMISSIONS, { each: true })` على الحقل `permissions` في `CreateRoleDto` و`UpdateRoleDto` (`dto/role.dto.ts`). فمفتاح مجهول يُرفض بـ 422 عند `ValidationPipe` قبل أن يصل إلى الخدمة أو قاعدة البيانات.
+
+  > **وهذا الموضع استثناءٌ معماريّ، فاعرف حدّه بدقّة.** القاعدة المُلزِمة في
+  > [`src/modules/README.md`](../README.md) تضع **قواعد المجال** في الـ `service`، وهذا الثابت ليس
+  > قرارًا ذا شكل `HTTP` (لا رمز حالة، ولا كوكي، ولا `multipart`): إنّه قيدٌ على **ما يُخزَّن**. ومع
+  > ذلك فحدّ الطلب هو **موضع إنفاذه الوحيد** — `access-control.service.ts` يُزيل التكرار ويكتب
+  > المصفوفة كما جاءت بلا فحص كتالوج، وعمود `RolePermission.permission` في `schema.prisma` نصٌّ حرّ
+  > بلا `enum` ولا `CHECK`. فالنتيجة الواجب معرفتها: **كاتبٌ لا يمرّ بالـ `DTO` غير مُقيَّد** —
+  > و`prisma/seed.ts` كاتبٌ كهذا فعلًا، يكتب `'*'` مباشرةً بـ `rolePermission.upsert`. (قيمتُه
+  > صحيحة؛ المقصود أنّ المسار موجود ومُستخدَم، لا أنّه يخالف.)
+  >
+  > *ولا تُعمّم هذا على كلّ `@IsIn`/`@IsEnum` في المستودع:* مسحُ كلّ مُتحقِّق غير-شكليّ في الـ `DTOs`
+  > يُظهر أنّ نظائره مسنودة — قيم `@IsEnum` مسنودة بـ `enum` في `schema.prisma`، و`PAGE_SEO_KEYS`
+  > لها توأمٌ في الخدمة (`assertKnownKey` في `seo.service.ts`). هذا الثابت وحده بلا سندٍ خلفيّ،
+  > وذلك سبب إفراده هنا.
 - الاختبارات: `permissions.guard.spec.ts` (السماح/المنع، `'*'`, حساب معطّل)، `access-control.service.spec.ts`، `route-permissions.spec.ts`، و`test/access-control.e2e-spec.ts`.
 
 ## أخطاء شائعة
