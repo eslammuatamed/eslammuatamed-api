@@ -91,7 +91,9 @@ const FORMAT_TO_PRISMA: Record<ImageVariantFormat, MediaVariantFormat> = {
 
 // The reusable central media library (D02-7): upload orchestration, SHA-256 dedup, best-effort
 // compensation, usages, and safe deletion. Objects are written before the DB row and cleanup is
-// attempted on failure (D07-6) — that ordering narrows the orphan window without closing it; see
+// attempted for failures caught AFTER object persistence begins (D07-6) — validation, processing,
+// the dedup lookup and a limiter rejection all fail before any object is recorded, so none of them
+// compensates — that ordering narrows the orphan window without closing it; see
 // compensate(). Processing runs inside the 2-wide concurrency cap (Q3), which a dedup hit skips.
 // A raw IMAGE upload is never persisted — everything comes from `MediaProcessingService`'s
 // sanitized outputs — but a validated PDF is stored as its original bytes.
@@ -270,8 +272,9 @@ export class MediaService {
   }
 
   // The single compensation path for both kinds (D07-6). A duplicate-content race resolves to the
-  // winner WHEN cleanup resolves and that row is still there — cleanup can reject first, and the
-  // reread can find nothing if the winner was deleted meanwhile; either way the error escapes.
+  // winner only when cleanup resolves, the reread resolves WITH a winner, and mapping succeeds. A
+  // cleanup rejection escapes with the cleanup error; a reread rejection or mapping throw escapes
+  // with theirs; a null reread rethrows the original unique violation.
   // Any other failure attempts cleanup and rethrows.
   //
   // Deliberately NOT a no-orphan guarantee, though it once claimed to be. Three things break it:
@@ -463,8 +466,9 @@ export class MediaService {
   }
 
   // The usages behind an FK rejection, read after the fact. An empty result is possible and is not
-  // an error: between the rejection and this read, the committed blocking reference may itself be
-  // deleted, or the asset may disappear. The response stays a 409 either way — the database already refused the delete, and
+  // an error: between the rejection and this read the blocking relation may be deleted, cleared or
+  // repointed at another asset (the FKs are nullable), or the asset itself may be deleted once
+  // nothing blocks it any more. The response stays a 409 either way — the database already refused the delete, and
   // reporting anything else would contradict what actually happened.
   private async usagesAfterRejection(id: string): Promise<MediaUsageEntity[]> {
     const asset = await this.prisma.mediaAsset.findUnique({
@@ -476,9 +480,11 @@ export class MediaService {
 
   // Post-commit object cleanup. The row is already gone, so there is nothing to compensate and
   // nothing to roll back — deleting the row again is impossible and re-creating it would be a lie.
-  // A failure here leaves an orphaned object: bytes no API response points at any more, removable
-  // by hand. Not strictly unobservable — object URLs are public and cached immutably for a year, so
-  // a URL already handed out can still resolve. That is the recoverable side of D07-7, so it is
+  // A failure here leaves an orphaned object: no FUTURE db-backed response can discover it, since
+  // the row is gone. Not unobservable, though — a URL already returned or cached still names it, and
+  // in production those objects are written with year-long immutable cache metadata and served from
+  // the configured delivery origin (public access itself is bucket/domain configuration, and the
+  // local adapter sets neither serving nor cache headers). That is the recoverable side of D07-7, so it is
   // logged for an operator and never thrown.
   // Throwing would tell the client the deletion failed after it had already succeeded, and invite a
   // retry of a request that has nothing left to delete.
@@ -622,8 +628,8 @@ export class MediaService {
 
   // The primary URL: for a PDF its download; for an image the WIDEST WebP rendition — falling back
   // to the master only if a row somehow has no WebP rendition, which the service never creates. The
-  // public descriptor refuses that case instead of falling back. Not the
-  // large sanitized master (doc 07 §6, doc 10 §6). Every image has ≥ 1 WebP rendition.
+  // public descriptor refuses that case instead of falling back (doc 07 §6, doc 10 §6). Every image
+  // the service creates has ≥ 1 WebP rendition; no database constraint enforces it.
   private primaryUrl(asset: AdminMediaAsset): string {
     if (asset.kind === MediaKind.PDF) {
       return this.storage.publicUrl(asset.storageKey);

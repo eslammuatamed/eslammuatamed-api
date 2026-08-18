@@ -66,8 +66,9 @@ interface RenditionTarget {
 // Pure media processing: untrusted bytes → sanitized, delivery-ready outputs. Deliberately
 // independent of controllers, Prisma, and storage — it takes buffers + client hints and returns
 // buffers + metadata, so `MediaService` owns hashing, key generation, persistence,
-// uploads, and logging. It never persists or returns the raw upload (D07-6): everything derives from
-// the sanitized master.
+// uploads, and logging. For an IMAGE it never returns the raw upload (D07-6): every output derives
+// from the sanitized master. A validated PDF is different — processPdf returns its original bytes
+// unchanged, and those are what get stored.
 @Injectable()
 export class MediaProcessingService {
   // Lightweight IMAGE identity validation (doc 19 §5): magic-byte sniff + extension/declared-MIME
