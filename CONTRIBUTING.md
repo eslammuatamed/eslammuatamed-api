@@ -65,15 +65,17 @@ Code may be promoted from `dev` to `main` in **exactly two cases**:
   - `workflow_dispatch` — **manual recovery** / redeploy.
   - **No tags. No scheduled reconciliation** (Actions-minute cost on the Free plan, and schedules can themselves be delayed/dropped).
 - **Idempotent duplicates:** when both the push and the fallback fire for the same SHA, the shared production concurrency group serializes them and a `preflight` job reads the live release SHA — one path **releases**, the other exits **already-current** with no server mutation. A stale SHA exits **superseded**. Main-tip lookups use the **git backend** (`ls-remote` + retries), not the REST API, which can lag or 503 during GitHub incidents.
-- The `deploy` job cannot start unless the **same workflow run** re-verifies the **exact `github.sha`** — it does **not** rely only on the pre-merge PR checks (`needs: [verify, e2e]`). Before any server mutation it asserts `github.ref == refs/heads/main` **and** `HEAD == github.sha`.
-- No manual approval gate (see Free-plan note).
-- **Verification:** lint · typecheck · unit · OpenAPI contract idempotence · PostgreSQL E2E.
+- The `deploy` job cannot start unless the **same workflow run** re-verifies the **exact `github.sha`** — it does **not** rely only on the pre-merge PR checks (`needs: [preflight, verify, e2e]`). Before any server mutation it asserts `github.ref == refs/heads/main` **and** `HEAD == github.sha`.
+- **Manual approval gate — a merged promotion is not a finished deployment.** The `deploy` job is the only job that mutates the server, and it is bound to the `production` GitHub environment, so the run pauses for the owner's approval **before the first remote write**. Everything upstream (`preflight`, `verify`, `e2e`) runs unapproved so cheap checks still fail fast. After merging a promotion, go and approve the run — an unapproved run simply waits and nothing is deployed.
+- **Verification:** lint · typecheck · unit · FTS migration guard · OpenAPI contract idempotence · PostgreSQL E2E.
 - **Migrations:** `prisma migrate deploy` only — **fix-forward** (a bad migration is repaired by a new one); production is **never** reset/dropped and the schema is **never** rolled back.
 - One deployment at a time (`concurrency: deploy-api-production`, never cancelled).
 
 ## Rollback
 
-Each release is a self-contained `releases/<ts>` behind the `current` symlink. If the post-cutover `/api/v1/health` gate fails, the deploy **automatically rolls back** (repoints `current` to the previous release + `systemctl restart`). The schema is untouched (fix-forward). Manual form is in `.github/workflows/deploy.yml`.
+Each release is a self-contained `releases/<UTC-ts>-<short-sha>` behind the `current` symlink. If the post-cutover **acceptance gate** fails, the deploy **automatically rolls back** (repoints `current` to the previous release + `systemctl restart`) and re-runs the **same** acceptance checks against the rollback target; with no previous release to fall back to it stops and reports that manual intervention is required. The schema is untouched (fix-forward). Manual form is in `.github/workflows/deploy.yml`.
+
+**The acceptance gate is not `/api/v1/health`.** That endpoint is **liveness** — it answers `200` from a process that is merely listening, even when the database is unreachable. Liveness cannot accept a release of a database-backed application, and because automatic rollback is driven by this same gate, **a gate that cannot fail cannot roll back**: on 2026-08-14 a release whose every database-backed endpoint was failing passed a liveness-only gate, was cut over, and left the rollback disarmed (`D23-23`). Acceptance therefore requires liveness **and** readiness **and** real database-backed reads, together — and so does the re-verification of a rollback target. **Never re-point rollback at a liveness-only signal.** The probe list itself belongs to the code that runs it, `scripts/deploy/remote-cutover.sh`, and is documented in [`scripts/deploy/README.md`](scripts/deploy/README.md) and [`PROJECT_GUIDE.md` §11](PROJECT_GUIDE.md) — deliberately not duplicated here, because a second copy is what let this section rot.
 
 ## Coordinated API + Web releases
 
@@ -81,7 +83,7 @@ The repos deploy **independently**. For a cross-repo contract change: **deploy A
 
 ## ⚠️ Free-plan reality — branch policy is procedural, not GitHub-enforced
 
-This is a **private repo on GitHub Free**: **branch protection, rulesets, and environment required-reviewers are unavailable**. Therefore:
+This is a **private repo on GitHub Free**: **branch protection and rulesets are unavailable**. Therefore:
 
 - **Direct pushes to `main` are prohibited by policy, but GitHub will not block them** — always go through a PR.
 - The CI **branch-policy guard is advisory**: it reports an unexpected promotion path but cannot block a merge.
