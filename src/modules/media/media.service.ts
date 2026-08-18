@@ -265,8 +265,13 @@ export class MediaService {
   }
 
   // The single compensation path for both kinds (D07-6). A duplicate-content race is resolved to
-  // the winner; any other failure deletes every object this request uploaded and rethrows. No DB
-  // row exists at this point (the create is the commit point), so there is never a partial row.
+  // the winner; any other failure attempts cleanup and rethrows.
+  //
+  // Deliberately NOT a no-orphan guarantee, though it once claimed to be. Three things break it:
+  // cleanup() can reject and pre-empt the rethrow below (see its comment); the callers' try blocks
+  // extend past mediaAsset.create, so a post-commit throw lands here with the row already written;
+  // and a rejected create does not prove PostgreSQL did not commit. The ordering — objects first,
+  // row last — narrows the window; it does not close it.
   private async compensate(
     error: unknown,
     contentHash: string,
@@ -289,7 +294,9 @@ export class MediaService {
     throw error;
   }
 
-  // Deletes exactly the objects a failed/losing request uploaded. Per-key failures are surfaced
+  // Deletes the keys this request recorded in `uploaded` — i.e. those whose put() resolved in this
+  // process. A remote write that succeeded but whose response was lost rejects locally, so its key
+  // is never pushed and cleanup cannot know it. Per-key failures are surfaced
   // structurally (never swallowed) — the doc-07-§6 model has no reconciliation job, so an operator
   // sees the orphan in the log.
   //
