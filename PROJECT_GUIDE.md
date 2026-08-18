@@ -208,7 +208,7 @@ ThrottlerGuard → JwtAuthGuard → PermissionsGuard → (Controller)
 [`src/modules/media/README.md`](src/modules/media/README.md).
 
 ### 6.6 النشر المجدول
-`@nestjs/schedule` يشغّل cron داخل العملية كل دقيقة يرفع المقالات `SCHEDULED` المستحقّة (`publishAt <= now`) إلى `PUBLISHED` باستعلام واحد idempotent (`D07-3`). صحيح لنسخة API واحدة؛ التوسّع الأفقي مستقبلًا يحتاج قفلًا موزّعًا (موثّق في الوثيقة 07 §5).
+`@nestjs/schedule` يشغّل cron داخل العملية كل دقيقة يرفع المقالات `SCHEDULED` المستحقّة (`publishAt <= now`) إلى `PUBLISHED` باستعلام واحد idempotent — أي أنّ تشغيله مرّتين لا يُحدِث أثرًا ثانيًا — (`D07-3`). صحيح لنسخة API واحدة؛ التوسّع الأفقي مستقبلًا يحتاج قفلًا موزّعًا (موثّق في الوثيقة 07 §5).
 
 ### 6.7 نموذج الخطأ والغلاف
 - **الخطأ:** `AllExceptionsFilter` يحوّل كل استثناء إلى `RFC 7807 problem+json`، ويعيّن أكواد `Prisma` المعروفة (`P2002`→422، `P2025`→404، `P2003`→409) لأكواد HTTP ذات معنى، ويُخفي التفاصيل الداخلية في الإنتاج.
@@ -486,7 +486,7 @@ preflight  →  (verify  ∥  e2e)  →  deploy
 > [`src/modules/README.md`](src/modules/README.md)، وفيه **أربع** وحدات لا يمرّ بها هذا المسار:
 > `testimonials` (لا فكرة خارج النموذج القانوني)، و`users` (٢٤ سطر شيفرة، بلا `controller` وبلا
 > مسارات — حافة في الرسم لا مفهوم؛ اقرأ [`users/README.md`](src/modules/users/README.md) عند
-> `auth` إن احتجت)، و`settings`/`seo` (صفّ مفرد singleton و`upsert`
+> `auth` إن احتجت)، و`settings`/`seo` (صفّ مفرد singleton و`upsert` — أنشِئ الصفّ أو حدّثه إن وُجد —
 > لكلّ مفتاح، مع تحليل لغة — فكرة حقيقيّة، لكن لا يتوقّف عليها فهم أيّ خطوة تالية). **المسار
 > يرتّب الأفكار التي يبني بعضُها على بعض؛ ما لا يدخل في ذلك البناء يُقرأ عند الحاجة إليه، لا
 > لإتمام قائمة.**

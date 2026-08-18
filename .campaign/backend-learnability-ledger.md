@@ -2212,10 +2212,17 @@ had to chase it.* The arithmetic is `61` non-`e2e` specs minus the four named no
 
 What actually holds, measured rather than derived: the `30 + 4 = 34` `e2e` split is exact against a
 direct count; `3` DI-booting files is exact against `@nestjs/testing`/`NestFactory`; and `16` now has
-**two independent derivations** (below). The remaining three categories cannot be separated by
-filename or `grep` — "structural via reflection" and "unit with a mocked `Prisma`" both match
-ordinary controller specs — so settling `~٢٩` still needs a per-file read of all 95 specs.
-**Queued, and the `~` stays until then.**
+**two independent derivations**. The remaining three categories cannot be separated by filename or
+`grep` — "structural via reflection" and "unit with a mocked `Prisma`" both match ordinary controller
+specs — so settling `~٢٩` still needs a per-file read of all 95 specs.
+
+**⚠ OPEN, AND THE DEFERRAL IS ITSELF A CLAIM NOW.** The corpus still reads `~٢٩` while the arithmetic
+reads **34**, and a `~` does not stretch five files. The reason for not writing `34` is unchanged and
+still good — the reflection (`3`) and schema/migration (`5`) rows have never been verified per file
+by anyone, and no peer round has audited them, so `34` would be a residual over unaudited inputs for
+the fourth time. **But at three derivations, "deferred" stops being neutral:** it is a standing
+statement that a published number is probably wrong by five and is being left. Carried into the
+handoff explicitly rather than left to read as settled.
 
 *The instrument lesson, which generalises past this table:* **a spec-file census must be taken from
 the runner's own roots, never from a directory list you thought of.** The guessed list was wrong by
@@ -2653,8 +2660,12 @@ drafted before its first peer finding and needed a re-validation pass that found
 repairs; this one was authored against the shipped tree, and each of its seventeen questions was then
 checked to be answerable **from the bundle** by locating the sentence that settles it. It covers the
 `data-mapper`/`repository` prerequisite, all six confirmed run-5 repairs plus the swept quantifier,
-five unchanged controls carried from earlier gates, and keeps the unscored open-ended pass — which
-has out-produced the scored questions in **all five runs**.
+**four** unchanged controls carried from earlier gates (`422` on an unknown field, the `try/catch`
+that does not exist, the two size limits, and which module `README` comes first), and keeps the
+unscored open-ended pass — which has out-produced the scored questions in **all five runs**.
+*Counted deliberately: the environment question and the CI-lane question read like controls and are
+not — both target prose rewritten in run 4 **and** again in run 5, so they are repair tests. An
+instrument that miscounts its own controls overstates how much of it is holding still.*
 
 Checked by `grep`, not by intention: no pass criteria, no expected answers, no repair labels, no
 severities, no prior-run history, no mention of the peer. Round 3 re-checked the amended sentence,
