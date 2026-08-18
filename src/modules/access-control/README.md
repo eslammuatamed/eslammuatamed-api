@@ -58,10 +58,16 @@ PermissionsGuard.canActivate (بعد JwtAuthGuard، فـ request.user مضبوط
   > و`prisma/seed.ts` كاتبٌ كهذا فعلًا، يكتب `'*'` مباشرةً بـ `rolePermission.upsert`. (قيمتُه
   > صحيحة؛ المقصود أنّ المسار موجود ومُستخدَم، لا أنّه يخالف.)
   >
-  > *ولا تُعمّم هذا على كلّ `@IsIn`/`@IsEnum` في المستودع:* مسحُ كلّ مُتحقِّق غير-شكليّ في الـ `DTOs`
-  > يُظهر أنّ نظائره مسنودة — قيم `@IsEnum` مسنودة بـ `enum` في `schema.prisma`، و`PAGE_SEO_KEYS`
-  > لها توأمٌ في الخدمة (`assertKnownKey` في `seo.service.ts`). هذا الثابت وحده بلا سندٍ خلفيّ،
-  > وذلك سبب إفراده هنا.
+  > *ولا تُعمّم هذا على كلّ `@IsIn`/`@IsEnum` في المستودع.* والسؤال الفارز ليس «أيّ مُتحقِّق
+  > هذا؟» بل **«هل القيمة التي يقيّدها تُخزَّن؟»** — فمُتحقِّق على معامل استعلام لا شيء خلفه
+  > ليَسنده أصلًا، إذ لا يُخزَّن شيء (`AdminProjectSortBy` و`SortOrder` في
+  > `projects/dto/project-query.dto.ts`، وهما `enum` محلّيّان لا وجود لهما في `schema.prisma`).
+  > أمّا المُتحقِّقات التي **تقيّد قيمةً مُخزَّنة** فلها في كلّ حالة أخرى سندٌ خلفَ الـ `DTO`:
+  > `ContentStatus` و`SkillGroup` و`EmploymentType` و`MediaKind` قيود `enum` في `schema.prisma`،
+  > و`PAGE_SEO_KEYS` لها فحصٌ في الخدمة على **مسار الكتابة** نفسه (`assertKnownKey` تُستدعى داخل
+  > `update` في `seo.service.ts`)، وخريطة ترجمات المعرض يفحص مفاتيحها `assertLocales` في
+  > `projects.service.ts` ويسندها مفتاحٌ أجنبيّ إلى `Locale`. المنحة وحدها بلا سندٍ خلفيّ، وذلك
+  > سبب إفرادها هنا — **وهذا مسحٌ مُنفَّذ على الشيفرة، لا انطباع.**
 - الاختبارات: `permissions.guard.spec.ts` (السماح/المنع، `'*'`, حساب معطّل)، `access-control.service.spec.ts`، `route-permissions.spec.ts`، و`test/access-control.e2e-spec.ts`.
 
 ## أخطاء شائعة
