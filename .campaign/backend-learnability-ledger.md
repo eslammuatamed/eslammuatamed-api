@@ -1774,10 +1774,32 @@ that it is **not sufficient**, and this is the measurement of that.
 ### The rerun, and why it needs a different reader
 
 A **new** cold reader (never this one, never coached) answers from a bundle rebuilt at the new PR
-head. The ten §A/§B questions are re-asked as the comparable instrument; a separate **§C
-regression set** — deployment mechanism and its owner, the `$transaction` sequencing distinction,
-`mail` before `contact`, and whether the vocabulary block actually discharges the prerequisite —
-is scored **separately**, so the 8-of-10 threshold keeps meaning what it meant before.
+head. The ten §A/§B questions are re-asked as the comparable instrument. The **§C regression set**
+below is scored **separately**, so the 8-of-10 threshold keeps meaning exactly what it meant
+before — a repair set folded into the original score would make the two runs incomparable.
+
+### §C — regression set (scored separately; one question per repair)
+
+Same protocol: documentation alone, no source, no search, no asking. Each targets a claim that was
+**false in the previous head**, so a reader carrying the old text answers wrongly.
+
+| # | Question | Wrong answer the previous head would have produced |
+| :-: | --- | --- |
+| C1 | Which git event starts a production deployment, and how many workflow runs can a single `dev → main` merge produce? | "a `vX.Y.Z` tag" · "exactly one run" |
+| C2 | Which document owns the deployment mechanism in detail, and what does the other one deliberately refuse to restate? | "both describe it" — the failure mode being repaired |
+| C3 | Reading in the documented order, where do you **first** meet `$transaction` — and what is `redirects` actually the first module to teach? | "`redirects`, and it teaches `$transaction`" |
+| C4 | Why must `mail` be read before `contact`? Name one thing in `contact` you would misread without it. | "you needn't — `contact` is self-contained" · "because `contact` imports it" (an edge, not a reason) |
+| C5 | Does the reading order follow the module dependency graph? If not, give the counterexample the guide names, and the reason it accepts it. | "yes — it respects dependencies then ascends concept load" |
+| C6 | You are a Vue/Nuxt engineer opening `src/config/README.md` for the first time. What does the guide expect you to have read first, and what does it explicitly refuse to teach you? | "nothing in particular" · "the guide teaches you NestJS" |
+
+**What C2 and C5 are really testing** is not recall — it is whether the corpus now teaches its own
+*discipline*: single ownership of volatile mechanism, and a stated deliberate departure instead of
+a comfortable false claim. Those are the two failure modes this campaign exists to remove, and a
+reader who can name them from the documents is the only evidence that they were removed rather
+than relocated.
+
+**Answers are NOT written down anywhere in the bundle, and must not be.** They live in the code and
+in this ledger, which is excluded from the bundle by construction.
 
 ## 8. Owner-decision blockers
 
