@@ -101,7 +101,7 @@ service ← PrismaService ← PrismaClient (مولَّد) ← PrismaPg ← pg po
 
 ## نقطة تمديد آمنة: مقعد الاختبار (test seam)
 
-بما أنه لا repository، فمقعد الاختبار هو **حقن `PrismaService` نفسه** — أي الـ constructor. والاختبارات تستبدله بـ mock (`jest-mock-extended`)، فتُختبَر كل service وحدها دون قاعدة بيانات (`principle 13`). **والاستبدال يدويّ، لا تفعله حاوية `Nest`:** في **٢٢** ملفّ اختبار وحدة يُنشَأ الصنف بـ `new` ويُمرَّر المُموَّه في الـ constructor مباشرةً، و**١٦** منها تُمرّر `PrismaService` مُموَّهًا؛ وثلاثة ملفّات فقط تُقلع حاوية `Nest` حقيقيّة. الأعداد وقاعدة عدّها في [`test/README.md`](../../test/README.md).
+بما أنه لا repository، فمقعد الاختبار هو **حقن `PrismaService` نفسه** — أي الـ constructor. والاختبارات تستبدله بـ mock (`jest-mock-extended`)، فتُختبَر الخدمة وحدها دون قاعدة بيانات (`principle 13`). **والاستبدال يدويّ، لا تفعله حاوية `Nest`:** في **٢٢** ملفّ اختبار وحدة يُنشَأ الصنف بـ `new` ويُمرَّر المُموَّه في الـ constructor مباشرةً، و**١٦** منها تُمرّر `PrismaService` مُموَّهًا؛ وثلاثة ملفّات فقط تُقلع حاوية `Nest` حقيقيّة. الأعداد وقاعدة عدّها في [`test/README.md`](../../test/README.md).
 
 ## أخطاء شائعة
 

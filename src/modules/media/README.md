@@ -12,7 +12,7 @@
 | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | `media.admin.controller.ts`                                            | مسارات محروسة تحت `/admin/media` (كل نقطة تُعلن `media.*`)؛ حدّ الرفع + حالة `201/200` الديناميكية                  |
 | `media.service.ts`                                                     | التنسيق: إزالة التكرار، الترقيم (`persistImage`/`persistPdf`)، `usages`، الحذف الآمن (`D07-7`: الصفّ أوّلًا)، تعويض الرفع `D07-6`                 |
-| `media-processing.service.ts`                                          | خطّ `Sharp`: تعقيم الأصل → `master` → البدائل ضمن الميزانية → `BlurHash`                                            |
+| `media-processing.service.ts`                                          | خطّ `Sharp`: تعقيم الأصل → `master` → البدائل ضمن الميزانية → `BlurHash`؛ **وتحقّق الـ `PDF` أيضًا** (`validatePdfInput`/`processPdf`)                                            |
 | `media-processing.util.ts`                                             | منطق قابل للاختبار بلا `Sharp`: سُلّم الجودة، التحقّق من الامتداد، والتحقّق البنيوي للـ `PDF`                       |
 | `media-descriptor.resolver.ts` · `entities/media-descriptor.entity.ts` | حلّ الواصفات (`descriptors`) العامّة المُضافة على قراءات الوحدات الأخرى                                             |
 | `processing-concurrency.limiter.ts` · `retry-after.interceptor.ts`     | سقف المعالجة المتزامنة `2`، و`429` + `Retry-After`                                                                  |
@@ -38,6 +38,7 @@ sniff (file-type) → نوع مكتشَف من البايتات (مرجعي) →
               صورة؟ → سقف البكسلات 40 MP (MAX_INPUT_PIXELS)
                      → Sharp master (WebP q90, auto-orient, تجريد الميتاداتا)
                      → بدائل WebP/AVIF عند العروض المُهيَّأة 640/1280/1920 التي لا تتجاوز المصدر، ومعها بديل بعرض المصدر نفسه حين يقع تحت أصغر عرض أو بين عرضين (لا تكبير) ضمن ميزانية العرض×الصيغة → BlurHash 4×3
+              PDF؟   → بلا معالجة: البايتات الأصلية كما وصلت
               → كتابة الكائنات ثمّ صفّ DB → 201
 ```
 
