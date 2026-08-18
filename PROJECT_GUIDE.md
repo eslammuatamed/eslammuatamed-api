@@ -183,7 +183,7 @@ ThrottlerGuard → JwtAuthGuard → PermissionsGuard → (Controller)
 التفاصيل الكاملة في [`src/modules/auth/README.md`](src/modules/auth/README.md) و[`src/modules/access-control/README.md`](src/modules/access-control/README.md).
 
 ### 6.3 الوصول إلى قاعدة البيانات
-الخدمات التي تمسّ قاعدة البيانات تحقن `PrismaService` **مباشرة**، بلا طبقة repository بينها وبين `Prisma`. **وليست كلّ خدمة كذلك:** من خمسٍ وعشرين ملفّ `*.service.ts` (عدا `PrismaService` نفسه) تحقنه **ثمانية عشر**، وسبعةٌ لا تمسّ القاعدة أصلًا — الإعداد، البريد ورسائله، تجزئة كلمات المرور، معالجة الصور، ورموز المعاينة. **اللاحقة `.service.ts` لا تعني وصولًا إلى قاعدة البيانات.** الاتصال **كسول (lazy)**: لا `$connect` عند الإقلاع، فيفتح `Prisma` المجمّع عند أول استعلام — ما يتيح تصدير العقد وتشغيل الاختبارات دون قاعدة بيانات (`constitution rule 4`). التفاصيل في [`src/prisma/README.md`](src/prisma/README.md).
+الخدمات التي تمسّ قاعدة البيانات تحقن `PrismaService` **مباشرة**، بلا طبقة repository بينها وبين `Prisma`. **وليست كلّ خدمة كذلك:** من خمسٍ وعشرين ملفّ `*.service.ts` (عدا `PrismaService` نفسه) تحقنه **ثمانية عشر**، وسبعةٌ لا تمسّ القاعدة أصلًا: الإعداد، البريد ورسائله، تجزئة كلمات المرور، معالجة الصور، رموز المعاينة، وتنسيق تسجيل الدخول في `auth.service.ts` (يفوّض القراءة إلى `users` والرموز إلى `refresh-token`). **اللاحقة `.service.ts` لا تعني وصولًا إلى قاعدة البيانات.** الاتصال **كسول (lazy)**: لا `$connect` عند الإقلاع، فيفتح `Prisma` المجمّع عند أول استعلام — ما يتيح تصدير العقد وتشغيل الاختبارات دون قاعدة بيانات (`constitution rule 4`). التفاصيل في [`src/prisma/README.md`](src/prisma/README.md).
 
 ### 6.4 تحليل اللغة (i18n)
 الترجمات في جداول ترجمة منفصلة لكل كيان (`D09-1`). طبقة الـ service تملك تحليل اللغة:
