@@ -4,7 +4,7 @@
 
 ## Documentation & Handoff Gate (mandatory)
 
-Canonical rule: **doc 16 §5.1 / D16-8** ([`16-development-conventions.md`](../eslammuatamed-docs/docs/16-development-conventions.md)). A feature must **not** be merged to `dev`, promoted to `main`, or deployed until this gate passes — "not requested" is never a reason to skip it.
+Canonical rule: **doc 16 §5.1 / D16-8** ([`16-development-conventions.md`](../../eslammuatamed-docs/docs/16-development-conventions.md)). A feature must **not** be merged to `dev`, promoted to `main`, or deployed until this gate passes — "not requested" is never a reason to skip it.
 
 - [ ] Documentation & Handoff Gate satisfied (doc 16 D16-8): Arabic module docs · SpecKit closeout · central docs/OpenAPI sync · feature-map + handoff — or justified below
 

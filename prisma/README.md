@@ -1,6 +1,6 @@
 # `prisma` — المخطّط والترحيلات والبذور (Seeding)
 
-> اقرأ `PROJECT_GUIDE.md` و`docs/09-database-design.md` أولًا. هذا المجلد يملك مخطّط قاعدة البيانات
+> اقرأ [`PROJECT_GUIDE.md`](../PROJECT_GUIDE.md) و[الوثيقة 09 (Database Design)](../../eslammuatamed-docs/docs/09-database-design.md) أولًا — **وهي في مستودع الوثائق الحاكمة `eslammuatamed-docs`، لا في هذا المستودع** (لا يوجد `docs/` هنا). هذا المجلد يملك مخطّط قاعدة البيانات
 > (`schema.prisma`)، وترحيلات `Prisma` المُلتزَمة (`migrations/`)، وسكربتات البذور. أسماء الملفّات
 > والأوامر ومُعرّفات الشيفرة تبقى بالإنجليزية.
 
@@ -47,7 +47,7 @@ npm run db:seed:dev    # طبقة التطوير/العرض (المحتوى ثن
 
 **سلامة البيئة:** فحوص البيئة النظيفة تُجرى على قاعدة بيانات اختبار مؤقّتة عبر بيئة مؤقّتة خارجية —
 **لا يُقرأ ملفّ `.env` المحلّي الحقيقي ولا يُكتَب ولا يُطبَع ولا يُعاد توليده**. القاعدة الكاملة في
-`docs/16-development-conventions.md` §5.2 (`D16-9`) وآليّتها في `docs/09-database-design.md` §6 (`D09-15`).
+[الوثيقة 16](../../eslammuatamed-docs/docs/16-development-conventions.md) §5.2 (`D16-9`) وآليّتها في [الوثيقة 09](../../eslammuatamed-docs/docs/09-database-design.md) §6 (`D09-15`).
 
 ## `Skill.slug` — الهويّة العامّة المستقرّة وترحيلها المرحليّ
 

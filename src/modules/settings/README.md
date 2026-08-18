@@ -10,7 +10,7 @@
 
 | الملف | الدور |
 |---|---|
-| `settings.controller.ts` | قراءة عامّة مُحلّلة: `GET /settings?locale=` |
+| `settings.controller.ts` | قراءة عامّة مُحلّلة: `GET /settings/site?locale=` — **المسار الوحيد** على السطح العام لهذه الوحدة (لا يوجد `GET /settings` مجرَّد) |
 | `settings.admin.controller.ts` | قراءة كاملة + تحديث جزئي محروس |
 | `settings.service.ts` | تحميل الـ singleton، التحليل، التحديث الجزئي، تحقّق الحقول |
 | `dto/update-settings.dto.ts` · `entities/site-settings.entities.ts` | مدخلات/مخرجات |
@@ -50,7 +50,9 @@
 - **بوابة التحليلات (`D20-5`):** وسم تحليلات مُعطَّل (`analyticsEnabled=false` أو ناقص المعرّف) **لا يُعلَن للعميل أبدًا** في القراءة العامّة (يُرجِع `analytics: null`).
 - **أعمدة JSON:** `profileLinks` و`customMetas` تُعاد بناؤها كقيم صريحة (JSON لا يحمل `undefined`، فيُحذف مفتاح `icon` عند غيابه).
 - **تحقّق بداية المسيرة:** `careerStartYear`/`careerStartMonth` إمّا كلاهما حاضر أو كلاهما غائب، ضمن نطاقات (`validateCareerStart`).
-- **الوسائط بالمرجع:** `resumeAssetId` يُرجَع خامًا في القراءة الإدارية (لا descriptor على هذا الأساس؛ وصف الـ résumé PDF تتولّاه وحدة `media`).
+- **الوسائط — وهذه الوحدة هي استثناء القاعدة العامّة، فاقرأها بدقّة:**
+  - **القراءة العامّة:** `portraitAssetId` خام **+** `portrait` مُحلَّل بجانبه (القاعدة المعتادة)؛ أمّا الـ résumé فـ **`resumeAsset` (descriptor لـ `PDF`) يحلّ محلّ `resumeAssetId` ولا يظهر بجانبه** — الحقل الخام غائب من `PublicSiteSettingsEntity`. وهو الوسيط الوحيد في المستودع الذي يُحلّ بـ `resolvePdf` لا `resolveImage`.
+  - **القراءة الإدارية:** `portraitAssetId` و`resumeAssetId` خامّان، **و`portrait` مُحلَّل معهما** — فالسطح الإداريّ ليس «خامًّا دائمًا» هنا.
 
 ## العقود والثوابت
 

@@ -50,8 +50,8 @@ get isProduction(): boolean { return this.nodeEnv === NodeEnv.Production; }
 
 ## نطاق المخطّط اليوم
 
-الوحدات التي كان هذا القسم يصفها `Planned` صارت **مُسلَّمة**: `media` (الميزة 003) و`preview`. والمخطّط
-اليوم يتحقّق من `STORAGE_DRIVER`, `STORAGE_LOCAL_DIR`, `PUBLIC_MEDIA_URL`, `PREVIEW_TOKEN_SECRET`،
+**هذا القسم يصف ما يتحقّق منه المخطّط، لا حالة تسليم أيّ وحدة** — تلك تتغيّر بينما النصّ لا يتغيّر
+معها، ودليل وجود الوحدة هو مجلّدها وتسجيلها في `app.module.ts`. المخطّط اليوم يتحقّق من `STORAGE_DRIVER`, `STORAGE_LOCAL_DIR`, `PUBLIC_MEDIA_URL`, `PREVIEW_TOKEN_SECRET`،
 **ومن `S3_*`** (`S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, و`S3_REGION`
 الاختياري) التي دخلت مع الميزة 003، **ومن `SMTP_*`** و`CONTACT_NOTIFICATION_TO` لمسار البريد.
 

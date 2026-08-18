@@ -14,22 +14,29 @@
 المستودع لا يشرح الإطار** (`principle 16`, `D00-6`) — يشرح ما فعله بالإطار. إن كان `NestJS`
 معروفًا لديك أصلًا فتخطَّ الجدول إلى القسم ١ مباشرةً؛ لا شيء بعده يعتمد على قراءته سطرًا سطرًا.
 
+**اقرأ الجدولين كاملين قبل المتابعة، لا سطرًا سطرًا.** الترتيب يبدأ بالأعمّ، لكنّ الصفوف متشابكة
+بطبيعتها — صفّ `DI` يذكر `PrismaService` الذي يُعرِّفه صفّ تحته، وصفّ `@Global` يذكر الوحدة
+الديناميكيّة كذلك. *كُتب هنا أنّ «كلّ صفّ مقروء بما فوقه وحده»، وكان ادّعاءً مطلقًا وغير صحيح؛
+كشفته المراجعة. الجدول شبكة صغيرة تُقرأ دفعةً واحدة، وهذا يكفي — والادّعاء الأدقّ أنفع من الأنيق.*
+
 | المصطلح | ما تعنيه هنا | المصدر الرسمي |
 |---|---|---|
+| decorator (`@…`) | دالّة تعمل **مرّة واحدة عند تعريف الصنف** (لا عند كلّ طلب)، وغالب ما تفعله هنا هو تسجيل ميتاداتا يقرأها `Nest` و`Swagger` والتحقّق لاحقًا. ولهذا `reflect-metadata` تبعيّة إنتاج | [Custom decorators](https://docs.nestjs.com/custom-decorators) |
+| `provider` | أيّ شيء مُسجَّل تحت مُعرّف (token) ليُعطيه الإطار لمن يطلبه: صنف (`useClass` — وهو الشائع: كلّ `*.service.ts`)، أو مصنع (`useFactory` — مثل `STORAGE_ADAPTER` و`MAIL_TRANSPORT`)، أو قيمة جاهزة (`useValue`) | [Providers](https://docs.nestjs.com/providers) |
 | `@Module` | صندوق تجميع: يُعلن ما يملكه (`providers`) وما يراه (`imports`) وما يُعيره لغيره (`exports`). التطبيق شجرة من هذه الصناديق جذرها `AppModule` | [Modules](https://docs.nestjs.com/modules) |
-| `provider` | أيّ شيء مُسجَّل تحت رمز حقن (token) ليُعطيه الإطار لمن يطلبه: صنف (`useClass` — وهو الشائع: كلّ `*.service.ts`)، أو مصنع (`useFactory` — مثل `STORAGE_ADAPTER` و`MAIL_TRANSPORT`)، أو قيمة جاهزة (`useValue`) | [Providers](https://docs.nestjs.com/providers) |
 | حقن التبعيّات (DI) · `@Injectable` | لا تُنشئ الخدمات بـ `new`؛ تُعلنها في الـ constructor فيُمرّرها الإطار. هذا هو **مقعد الاختبار** الذي يجعل تمويه `PrismaService` ممكنًا | [Providers · DI](https://docs.nestjs.com/providers#dependency-injection) |
 | `@Global` | وحدة تُسجَّل مرّة في الجذر فتراها كلّ الوحدات بلا `imports` متكرّر. الـ decorator نفسه على وحدتين فقط: `AppConfigModule` و`PrismaModule`. والوحدة الديناميكيّة تبلغ الأثر نفسه بالخيار `global: true` — وهو ما يفعله `JwtModule` في `auth`. استثناء مقصود ومحدود في الحالتين، لا أسلوب عامّ | [Global modules](https://docs.nestjs.com/modules#global-modules) |
 | وحدة ديناميكيّة · `ConfigModule.forRoot({ … })` | وحدة تُبنى بمعاملات وقت التسجيل بدل أن تُستورَد ساكنة. الشكل `forRoot`/`registerAsync` الذي ستراه في `config` و`auth` | [Dynamic modules](https://docs.nestjs.com/fundamentals/dynamic-modules) |
 | `class PrismaService extends PrismaClient` | لا نمط جديد: صنف عميل `Prisma` المولَّد نفسه، مُغلَّفًا كـ provider ليدخل في DI ودورة حياة `Nest` | [NestJS + Prisma](https://docs.nestjs.com/recipes/prisma) |
 | خطّافات دورة الحياة (`onModuleInit` · `onModuleDestroy`) | دوالّ يستدعيها الإطار عند الإقلاع والإطفاء. هنا: فصل اتصال `Prisma`، وإلغاء مؤقّتات إعادة المحاولة في `mail` | [Lifecycle events](https://docs.nestjs.com/fundamentals/lifecycle-events) |
-| decorator (`@…`) | دالّة تعمل **مرّة واحدة عند تعريف الصنف** (لا عند كلّ طلب)، وغالب ما تفعله هنا هو تسجيل ميتاداتا يقرأها `Nest` و`Swagger` والتحقّق لاحقًا. ولهذا `reflect-metadata` تبعيّة إنتاج | [Custom decorators](https://docs.nestjs.com/custom-decorators) |
 
-**وطبقات دورة حياة الطلب** — تراها في رسم القسم ٥ بالترتيب `Guard → Pipe → Controller`، وتفصيلها
-في القسمين ٥ و٦.١ وفي `src/common/README.md`. هنا سطر واحد لكلٍّ، لا أكثر:
+**وطبقات دورة حياة الطلب** — الطلب يمرّ بها قبل أن يصل إلى وجهته، بالترتيب الذي يرسمه القسم ٥،
+وتفصيلها هناك وفي القسم ٦.١ وفي `src/common/README.md`. هنا سطر واحد لكلٍّ، لا أكثر — والصفّ الأوّل
+هو الوجهة نفسها، لأنّ بقيّة الصفوف تُعرَّف بالنسبة إليه:
 
 | المصطلح | ما تعنيه هنا | المصدر الرسمي |
 |---|---|---|
+| `controller` | الصنف الذي يستقبل الطلب عند مساره (`@Get('site')`…) ويُرجِع الرد. **وجهة الطلب**، وهو هنا رفيع **كقاعدة**: يربط ويوجّه ويترك منطق العمل للـ `service` (والاستثناء الموثّق في `preview`، القسم ٥) | [Controllers](https://docs.nestjs.com/controllers) |
 | `DTO` | صنف يصف **شكل جسم الطلب** ويحمل قواعد التحقّق كـ decorators (`@IsString()`…). ليس كيان قاعدة بيانات ولا شكل الرد | [Validation](https://docs.nestjs.com/techniques/validation) |
 | `pipe` · `ValidationPipe` | يقف **بين الطلب والـ controller** فيحوّل القيمة الواردة أو يرفضها. `ValidationPipe` عامّ هنا ويفحص الـ `DTO`؛ و`ParseUUIDPipe` مثال على أنبوب مقصور على معامل واحد | [Pipes](https://docs.nestjs.com/pipes) |
 | `guard` | يقرّر **هل يُسمح للطلب بالمرور أصلًا** قبل أيّ تحقّق. هنا ثلاثة عالميّة بترتيب مُلزِم (القسم ٦.١) | [Guards](https://docs.nestjs.com/guards) |
@@ -131,7 +138,7 @@ HTTP → Guard(s) → Pipe (ValidationPipe) → Controller → Service → Prism
                                          service فقط)        وتحليل اللغة)
 ```
 
-- **Controllers رفيعة:** توجيه، ربط DTO للتحقّق، decorators لـ Swagger. **لا منطق.**
+- **Controllers رفيعة — قاعدة لا قانون:** توجيه، ربط DTO للتحقّق، decorators لـ Swagger، ولا منطق عمل. **والاستثناء الوحيد المقصود في `preview`:** الـ `controller` هناك يستدعي `verify()` بنفسه ويحوّل الفشل إلى `404` (لا `401`/`403`)، لأنّ إخفاء وجود المسودّة **هو** القرار الأمنيّ ولا يجوز أن يتسرّب إلى الـ `service`؛ وسكّ الرمز يبني الـ `url` المطلق في الـ `controller` لأنّه شأن عرضٍ لا شأن مجال. إن وجدت منطقًا في `controller` آخر فهو عيب، لا نمط.
 - **Services تملك المنطق:** قواعد العمل، الـ transactions، تحليل اللغة. وهي وحدة الاختبار (`principle 13`).
 - **لا طبقة repository (`D07-2`):** الـ services تحقن `PrismaService` مباشرة. `Prisma` نفسه هو التجريد؛ ولفّه في repositories تمريرية هو الطبقية الاحتفالية التي يمنعها `D00-3`. مقعد الاختبار (seam) هو حقن `PrismaService` نفسه.
 - **اتجاه التبعية أحادي:** `services` لا تستورد `controllers`؛ الوحدات تتفاعل عبر خدمات مُصدَّرة صراحةً، لا عبر نماذج `Prisma` لوحدة أخرى؛ و`common/` لا يستورد من `modules/` أبدًا.
@@ -179,7 +186,21 @@ ThrottlerGuard → JwtAuthGuard → PermissionsGuard → (Controller)
 - **قراءة إدارية:** خريطة الترجمة الكاملة (لتحرير جنب-إلى-جنب).
 
 ### 6.5 الوسائط: وحدة `media`
-وحدة `media` تُدير الرفع والمعالجة والتخزين وحلّ الـ descriptors. القراءات العامة تُبقي حقول `*Id` الخامة (`Article.coverImageId`, `*.ogImageId`, gallery `mediaAssetId`, `Testimonial.avatarId`, `SiteSettings.resumeAssetId`) وتُضيف **بجانبها** descriptor مُحلّلًا (URL على أصل الوسائط + أبعاد + `blurhash` + نص بديل للّغة، قابل لـ `null`). التفاصيل الكاملة في [`src/modules/media/README.md`](src/modules/media/README.md).
+وحدة `media` تُدير الرفع والمعالجة والتخزين وحلّ الـ descriptors.
+
+**القاعدة:** القراءة العامّة تُبقي حقل `*Id` الخام وتُضيف **بجانبه** descriptor مُحلَّلًا (URL على
+أصل الوسائط + أبعاد + `blurhash` + نصّ بديل للّغة، قابل لـ `null`). تسري على:
+`Article.coverImageId` → `coverImage` · `*.ogImageId` → `ogImage` · gallery `mediaAssetId` →
+`mediaAsset` · `Testimonial.avatarId` → `avatar` · `SiteSettings.portraitAssetId` → `portrait`.
+
+**والاستثناء الوحيد، وهو في العقد لا في الوصف:** `SiteSettings.resumeAssetId` **لا يظهر أصلًا** في
+`PublicSiteSettingsEntity`؛ القراءة العامّة تُرجِع `resumeAsset` (descriptor لملفّ `PDF`) **بدلًا
+منه** لا بجانبه. وهو أيضًا الحقل الوحيد الذي يُحلّ بـ `resolvePdf` لا `resolveImage`.
+
+**والسطح الإداريّ ليس «خامًّا دائمًا»:** `AdminSiteSettingsEntity` يحمل `portrait` مُحلَّلًا إلى
+جانب `portraitAssetId` و`resumeAssetId` الخامّين. أمّا بقيّة الكيانات الإدارية فخامّة فعلًا.
+*راجِع `openapi.json` عند الشكّ — هو العقد، وهذه الفقرة وصفٌ له.* التفاصيل الكاملة في
+[`src/modules/media/README.md`](src/modules/media/README.md).
 
 ### 6.6 النشر المجدول
 `@nestjs/schedule` يشغّل cron داخل العملية كل دقيقة يرفع المقالات `SCHEDULED` المستحقّة (`publishAt <= now`) إلى `PUBLISHED` باستعلام واحد idempotent (`D07-3`). صحيح لنسخة API واحدة؛ التوسّع الأفقي مستقبلًا يحتاج قفلًا موزّعًا (موثّق في الوثيقة 07 §5).
@@ -224,7 +245,13 @@ ThrottlerGuard → JwtAuthGuard → PermissionsGuard → (Controller)
 
 `NODE_ENV`, `PORT` · `DATABASE_URL` · `CORS_ORIGIN` · `JWT_ACCESS_SECRET`, `JWT_ACCESS_TTL`, `REFRESH_TOKEN_TTL_DAYS`, `REFRESH_TOKEN_PEPPER`, `PREVIEW_TOKEN_SECRET`, `COOKIE_DOMAIN` · `SEED_OWNER_EMAIL`, `SEED_OWNER_PASSWORD` · `STORAGE_DRIVER`, `STORAGE_LOCAL_DIR`, `PUBLIC_MEDIA_URL`.
 
-> `STORAGE_*` تستخدمها وحدة `media` الآن، و`S3_*` (`S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_REGION`) مطلوبة عند `STORAGE_DRIVER=s3` (الإنتاج). `PREVIEW_TOKEN_SECRET` ما زال مُتحقَّقًا منه رغم أن وحدته `Planned` — الإعداد يسبق الوحدات عمدًا. التفاصيل في [`src/config/README.md`](src/config/README.md).
+> `STORAGE_*` تستخدمها وحدة `media` الآن، و`S3_*` (`S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_REGION`) مطلوبة عند `STORAGE_DRIVER=s3` (الإنتاج). و`PREVIEW_TOKEN_SECRET` مُتحقَّق منه عند الإقلاع كغيره. **والقاعدة هنا بنيويّة لا حالة:** التحقّق يملكه
+`src/config` وحده، فهو لا يسأل أيّ وحدة تستهلك المتغيّر ولا متى بدأت — متغيّر مُعلَن يُتحقَّق منه، وانتهى.
+*(كان هذا الموضع يصنّف وحدة `preview` بحالة تسليم. صنف من الوصف يتعفّن بالتعريف، وقد تعفّن فعلًا —
+وهو ما وجده قارئ بارد. والمقصود بالتحديد **حالة الإصدار والنشر ودورة حياة الوحدة**، لا وصف ما
+يفعله الكود: «هذه الوحدة تُرسِل بريدًا» وصفٌ تتحقّق منه من الشجرة، أمّا «هذه الوحدة `Planned`» فحالةٌ
+تتعفّن. ودليلُ وجود أيّ وحدة هو مجلّدها تحت `src/modules/` وتسجيلها في `app.module.ts`، كما يقول
+القسم ٣ — اقرأ الشجرة، لا فقرةً عنها.)* التفاصيل في [`src/config/README.md`](src/config/README.md).
 
 لا `Docker` في المشروع (توجيه المالك، `D16-5`): `PostgreSQL` أصلي محليًّا، ودور `eslammuatamed` بلا كلمة مرور على المنفذ `5432`.
 
@@ -412,7 +439,7 @@ preflight  →  (verify  ∥  e2e)  →  deploy
 
 ## 14. مخاطر معلومة وعمل مؤجَّل
 
-- **الوسائط:** القراءات العامة تُرجِع `*Id` خامة **مع** descriptor مُحلّل بجانبها (وحدة `media`، مدموجة).
+- **الوسائط:** القراءات العامة تُرجِع `*Id` خامة **مع** descriptor مُحلّل بجانبها (وحدة `media`، مدموجة) — عدا `SiteSettings.resumeAssetId`، فيُستبدَل بـ `resumeAsset` ولا يظهر خامًّا (القسم ٦.٥).
 - **cron داخل العملية:** صحيح لنسخة واحدة فقط؛ التوسّع الأفقي يحتاج قفلًا.
 - **تحذير إعداد محلّي:** الدور بلا كلمة مرور يحتاج سطر `trust` في `pg_hba.conf` (انظر تعليق `.env.example`).
 

@@ -63,7 +63,7 @@ assertEnabled(locale)
 - السطح العام: `PUBLISHED` فقط، مُحلّل للّغة، بلا رجوع صامت عبر اللغات.
 - slug فريد لكل لغة (`@@unique([locale, slug])`)؛ تصادم → `P2002` → 422.
 - حذف تصنيف مُستخدَم محميّ بـ `RESTRICT` → 409.
-- الوسائط بالمرجع فقط: `coverImageId`, `ogImageId` تُرجَع خامة (لا descriptor على هذا الأساس).
+- الوسائط: `coverImageId` و`ogImageId` تُرجَعان **خامَّين، ويُضاف بجانبهما** `coverImage` و`ogImage` — descriptor مُحلَّل (`PublicMediaImageDescriptor`، قابل لـ `null`) تبنيه `MediaDescriptorResolver` في القراءة العامّة. الحقلان الخامّان **لا يختفيان**؛ الوصف يُضاف إليهما ولا يحلّ محلّهما (القسم ٦.٥ من الدليل، و[`media/README.md`](../media/README.md)).
 
 ## الاختبارات وما تُثبته
 
