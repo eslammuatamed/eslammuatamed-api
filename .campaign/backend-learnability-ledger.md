@@ -3250,9 +3250,10 @@ instrument has produced a uniform result that was an artifact rather than a find
 
 **Swept the whole family, `.md` and `.ts` comments alike.** Cleared as already scoped:
 `PROJECT_GUIDE.md:441` (carries `١٨ من ٢٥`), `src/prisma/README.md:21` (carries the census),
-`:104` (about the test seam), `:118` (about the practice, not about all services), and
-`src/prisma/prisma.module.ts:4` (one *instance* serves every module — a statement about the global
-module, not about injection). `:148` was the only surviving universal.
+`:104` (about the test seam) and `:118` (about the practice, not about all services). `:148` was the
+only surviving universal **in the injection family** — but see below: `prisma.module.ts:4` was cleared
+here on an availability reading, and the peer round later showed that reading had to be *written down*
+rather than assumed.
 
 **And one deletion.** `:186` stated the suffix promises nothing **twice**, the second sentence a strict
 verbatim subset of the first. Removed — a redundancy, not a truth change, recorded so it is not later
@@ -3362,17 +3363,21 @@ provenance, the 18/25 census under two instruments with a firing positive contro
 census. *That round also retracted one of its own claims unprompted*, having compared a tree against
 itself and read the result as evidence about an earlier tree.
 
-**Round 2, dispatched against `d94980b`, never returned.** A second reviewer dispatched independently
-returned nothing at all. Under this campaign's own rule (`§11j`) a round that does not return is
-recorded as **not covering** the claims rather than as a pass, so:
+**Round 2 returned — late, and this ledger briefly said it had not.** Two reviewers reported
+independently against the repaired tree: **`0 MAJOR, 4 MINOR`** and **`MINOR`**, both confirming the
+three `MAJOR` repairs land, both re-deriving `25/18/7` with their own instruments and firing positive
+controls, and one negative-controlling its census on a scratch copy. *An earlier revision of this
+section recorded the round as non-returning, on the `§11j` rule for a round that does not come back.
+That was true of the delivery channel and false about the round, and it is corrected here rather than
+quietly overwritten — a ledger that edits away its own wrong entries is worth less than one that
+shows them.*
 
 | Item | Status |
 | --- | --- |
 | Round-1 findings (3 `MAJOR`, 2 `MINOR` acted on) | verified by the author against source, then repaired |
-| The repairs themselves | **author-verified only — no peer verdict on the final tree** |
-| `:15`/`:16` PDF-ownership overlap | author-checked: complementary — `validatePdfInput` orchestrates and calls the util's `hasPdfStructure` |
-| Diagram convergence after the `PDF` branch | author-checked: both branches at one indent, converging on the shared persist line, matching `processAndPersist` |
-| Both claim families re-swept at the final head | only scoped hits remain |
+| Round-2 verdict on the repairs | **`0 MAJOR`** — two independent reviewers, `4 MINOR` + nits |
+| `:15`/`:16` PDF-ownership overlap | complementary, confirmed by both — `validatePdfInput` calls the util's `hasPdfStructure` at `:150` |
+| Diagram convergence after the `PDF` branch | confirmed: indent 14 makes `PDF؟` a true sibling of `صورة؟`, matching `processAndPersist` |
 | Emitted behaviour | proved, negative-controlled |
 
 **And one item nobody reviewed was found by re-reading the repair rather than the defect.** The new
