@@ -346,6 +346,12 @@ returns zero, with passing positive controls.
   bare `القاعدة` as database shorthand, but that word means *the rule* at six of its seven sites in
   this guide and the database only at `:186`, where the full term appears first. Caught in self-review
   before the peer round.
+- **⚠ The post-repair tree carries no independent verdict.** One peer round returned (`3 MAJOR,
+  3 MINOR`) and every finding was re-derived from source before it was touched; the round dispatched
+  against the repaired tree never returned, and a second reviewer returned nothing. Recorded as *not
+  covering* the repairs rather than as a pass, which is how this campaign has recorded a
+  non-returning round before. The repairs are author-verified, gate-verified and proved at the
+  emitted-JS level — not peer-blessed.
 - **Emitted behaviour is proved, not asserted:** the two `.ts` edits are comment-only, whole project
   compiled with `tsc --removeComments` before and after, **all 341 emitted `.js` byte-identical by
   `sha256`** — with the instrument negative-controlled (mutating `2`→`3` did change the hash) and the

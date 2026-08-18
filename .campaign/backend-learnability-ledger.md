@@ -3354,6 +3354,37 @@ final tree: **all 341 emitted `.js` files byte-identical by `sha256`.** Only `.j
 compiled the two files in isolation was discarded: it emitted through `TS2307` module-resolution
 errors, which is a compile that cannot support a claim about the project's output.
 
+### ⚠ The post-repair tree carries NO independent verdict, and that is recorded, not glossed
+
+**One peer round returned, against `77f9c47`: `3 MAJOR, 3 MINOR`.** Every finding above comes from it,
+and every one was re-derived by the author from source before it was touched — including the `a3e993f`
+provenance, the 18/25 census under two instruments with a firing positive control, and the 19/6 spec
+census. *That round also retracted one of its own claims unprompted*, having compared a tree against
+itself and read the result as evidence about an earlier tree.
+
+**Round 2, dispatched against `d94980b`, never returned.** A second reviewer dispatched independently
+returned nothing at all. Under this campaign's own rule (`§11j`) a round that does not return is
+recorded as **not covering** the claims rather than as a pass, so:
+
+| Item | Status |
+| --- | --- |
+| Round-1 findings (3 `MAJOR`, 2 `MINOR` acted on) | verified by the author against source, then repaired |
+| The repairs themselves | **author-verified only — no peer verdict on the final tree** |
+| `:15`/`:16` PDF-ownership overlap | author-checked: complementary — `validatePdfInput` orchestrates and calls the util's `hasPdfStructure` |
+| Diagram convergence after the `PDF` branch | author-checked: both branches at one indent, converging on the shared persist line, matching `processAndPersist` |
+| Both claim families re-swept at the final head | only scoped hits remain |
+| Emitted behaviour | proved, negative-controlled |
+
+**And one item nobody reviewed was found by re-reading the repair rather than the defect.** The new
+`prisma.module.ts` comment put *"…for **every** module"* one line above *"**Not every** service
+does"*. The two quantify over different sets — module availability versus service usage — so they
+never contradicted; but they cannot be told apart on a linear read, which is the exact failure the
+`§11h` rule names. Line 4 was also loose on its own terms: `@Global()` governs **availability**, not
+use. Rewritten to say so.
+
+*The honest summary of this run's assurance: strong on source verification, complete on emitted
+behaviour, and thin on independent review of the final tree.*
+
 ## 8. Owner-decision blockers
 
 **OD-B — the governing record of API release state is wrong AND internally contradictory (D-10).**
