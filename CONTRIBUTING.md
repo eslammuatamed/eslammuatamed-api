@@ -2,7 +2,7 @@
 
 ## Branches
 
-- **`main`** — production, and the GitHub default branch. Every commit on `main` is deployed automatically (see below). Protected by an **active GitHub ruleset** *and* by project policy — see [Branch policy](#branch-policy--what-github-enforces-and-what-is-procedural).
+- **`main`** — production, and the GitHub default branch. Every commit on `main` **triggers** the production deploy workflow automatically; the deployment itself still waits on the owner's approval (see below). Protected by an **active GitHub ruleset** *and* by project policy — see [Branch policy](#branch-policy--what-github-enforces-and-what-is-procedural).
 - **`dev`** — development / integration. Feature work lands here first, then promotes to `main`.
 
 ## Release freeze (active — until the Website/Homepage phase)
