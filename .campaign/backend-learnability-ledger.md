@@ -3427,8 +3427,17 @@ concepts this run did **not** touch (`Q3` the `40 MP` reachability trap, `Q4` th
 semantics, `Q5` the per-module missing-translation outcomes), and the unstructured open assessment
 that has out-produced the scored instrument in every run so far.
 
-**Bundle:** the same 30 code-adjacent `*.md` files prior runs used, taken from `0e04e0f`. Leak-checked:
-no source, no `openapi.json`, no `prisma/migrations/**`, no `.campaign/**`, no `.specify/**`.
+**Bundle:** the same 30 code-adjacent `*.md` files prior runs used. Leak-checked: no source, no
+`openapi.json`, no `prisma/migrations/**`, no `.campaign/**`, no `.specify/**`.
+
+*The bundle was rebuilt once, and the reason is worth recording.* The first was taken at `0e04e0f`;
+the round-2 blocker then changed three documentation lines — `src/prisma/README.md:5`,
+`src/modules/media/README.md:15` and `:100` — two of which sit on the exact concepts `Q1` and `Q2`
+probe. **A regression run against a corpus that is not the one shipping validates nothing that
+ships,** so a second bundle was cut at the final head and a second reader run against it. The first
+reader's pass is kept: all three deltas are strict refinements, so any answer correct at `0e04e0f`
+remains correct at the final head, and if that reader independently flags `prisma/README.md:5` it is
+confirming a defect already repaired rather than finding a live one.
 
 **Boundary, stated before the result exists.** `Q2` is the one question whose answer this run *put*
 into the documentation. Before the repair a reader could not settle it from prose and would have had
@@ -3437,6 +3446,52 @@ regression, not a correct boundary call** — which is precisely what makes `Q2`
 rather than of the reader. `Q1`, `Q3`, `Q4` and `Q5` were answerable from the bundle before this run
 and must remain so. *Stating this now is the point; stating it afterwards would be fitting the gate
 to the result.*
+
+## 11l. Run 10 — the regression passed on both probes, and the open pass moved the defect to the root
+
+**Both probes PASS, and `Q2` is the one that matters.** Run 9 answered the `PDF`/slot question at
+`MEDIUM` and said it would have to read `media.service.ts` to settle it. Run 10 answers **`YES`, at
+`HIGH`**, from prose alone: *the slot is taken after the hash lookup misses and **before** the
+image/`PDF` branch; both slots busy → `429` + `Retry-After: 2`, never queued* — citing
+`media/README.md:100` and the diagram, and reproducing the reconciliation the repair installed
+(*"`PDF` gets no processing" describes what happens INSIDE the slot, not an exemption from it*).
+**That is the pre-registered success condition, met exactly.** `Q1` passes too, and goes further than
+the repair claimed (below).
+
+**All three controls held:** the `40 MP` reachability trap (`Q3`), the delete-order `204` semantics
+(`Q4`), and the per-module missing-translation outcomes (`Q5`) were each answered correctly at `HIGH`.
+*The repairs changed what they were meant to change and nothing else.*
+
+### `Q1` was answered better than the documentation deserves credit for
+
+The reader accepted the census and then made a point the campaign has never written down: **the
+denominator is a filename pattern, so the count cannot bound the set.** `PermissionsGuard` injects
+`PrismaService` and queries on every guarded request; `prisma/seed.ts` writes through
+`createPrismaClient()`; health issues a literal `SELECT 1`. **None is a `*.service.ts` file, so none is
+inside `18/25`.** *The repair made the count honest about its numerator and left its denominator
+unexamined — "18 of 25 `*.service.ts` files" is true and still not an answer to "which classes talk
+to the database".* Logged as a finding, not repaired: it is a new claim, not the one run 9 scoped.
+
+### ⚠ The open pass found the corpus's centre of gravity has moved — and one finding is operational
+
+**Not repaired. Out of run 9's scope, which forbade a broad run 10.** Recorded for the owner:
+
+| # | Site | Finding | Verified |
+| --- | --- | --- | --- |
+| **R10-1** | `CONTRIBUTING.md:76` | Still prescribes *"if the post-cutover `/api/v1/health` gate fails, the deploy automatically rolls back"* — **the liveness-only gate `D23-23` identifies as the cause of a real incident.** `PROJECT_GUIDE.md:375-389` records that a release whose every DB-backed endpoint returned `500` passed it, and that auto-rollback hangs off the same gate, so a falsely-passing gate **disarms the rollback at the moment it is needed**. The gate is now four checks. | **author-confirmed** |
+| **R10-2** | `src/modules/README.md:62` · `src/prisma/README.md:71` · `PROJECT_GUIDE.md:149` vs `src/modules/seo/README.md:26` | *"A module never reaches another module's `Prisma` models"* stated absolutely in three files; `seo/README.md:26` documents `media` reading `pageSeoOgImages` **directly via `Prisma`**, offered as the *reason* there is no cycle rather than as an exception — and it is structural, since `usages` enumerates every FK in one query. | **author-confirmed** |
+| R10-3 | `src/modules/README.md:215-217` | *"No module catches `Prisma` errors locally"* stated as universal; `skills/README.md:27` documents a bespoke `P2014 → 409`, and `P2014` has **no central mapping** in the filter's table, so that catch must be local. `media` likewise returns a structured `409` the generic filter cannot produce. | reader-reported |
+| R10-4 | `CONTRIBUTING.md:69,84` vs `README.md:73` · `PROJECT_GUIDE.md:327-340` | Whether owner approval gates production is asserted both ways — and a real run measured **1,701 s** waiting for an approval one file says cannot exist. | reader-reported |
+| R10-5 | `CLAUDE.md:27-29` vs `README.md:23` · `test/README.md:94` | Tells a newcomer to create `eslammuatamed_test`, which `D18-8` forbids because the e2e suite owns its own scratch database. | reader-reported |
+| R10-6 | `CONTRIBUTING.md:8-10` · `PULL_REQUEST_TEMPLATE.md:11` | Declare `main` frozen since `2026-07-20`, while `PROJECT_GUIDE.md:279,327-340` records real releases on `2026-08-14/15`. | reader-reported |
+| R10-7 | `src/modules/README.md:208` | Mandatory reading, placed **before** `media/README.md`, plants the *">40 MP duplicate returns 200"* inference that `media/README.md:54-63` exists to refute. The correction arrives a file later. | reader-reported |
+
+**The pattern is the finding.** *Every repair this campaign has made was in `src/**`, and the reader's
+verdict is that `src/**` has earned trust — it names the wrong inference before the reader reaches it.
+The rot has migrated to the root-level operational files, which were not re-read when the deploy gate,
+the branch policy and the test-database ownership changed underneath them.* `R10-1` is the sharp end:
+a doc that tells an operator a green `/health` means a good release, in a repository whose own ledger
+records that belief causing an outage.
 
 ## 8. Owner-decision blockers
 

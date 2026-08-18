@@ -365,6 +365,36 @@ returns zero, with passing positive controls.
 - Two governance items, **OD-A** and **OD-B**, are untouched and remain the owner's. This branch
   only stopped propagating them into code-adjacent docs.
 
+## Run 10 — the regression passed, and it moved the defect somewhere this branch did not touch
+
+**Both probes pass.** Run 9 could not settle the `PDF`/concurrency question from prose and rated it
+`MEDIUM`; a fresh cold reader now answers it **`YES` at `HIGH` confidence** from the documents alone —
+slot taken after the dedup miss and *before* the image/`PDF` branch, `429` + `Retry-After: 2` at
+capacity, never queued — exactly the pre-registered success condition. The `.service.ts`/database
+probe passes too. **All three untouched controls held** (the `40 MP` reachability trap, the
+delete-order `204` semantics, the per-module missing-translation outcomes).
+
+**The open pass then found what this branch does not fix, and should not silently absorb.** The
+reader's verdict on `src/**` is that it has earned trust — it names the wrong inference before you
+reach it. **The rot has moved to the root-level operational files.** Seven findings are logged in the
+ledger as `R10-1`..`R10-7`; two I confirmed against source myself:
+
+- **`R10-1` (operational).** `CONTRIBUTING.md:76` still tells an operator that the post-cutover
+  `/api/v1/health` gate triggers automatic rollback. That is the **liveness-only gate `D23-23`
+  records as the cause of a real incident**: a release whose every DB-backed endpoint returned `500`
+  passed it, and because auto-rollback hangs off the same gate, the rollback was disarmed at the
+  moment it was needed. The gate is four checks now. *A document telling an operator that a green
+  `/health` means a good release, in a repository whose own ledger records that belief causing an
+  outage.*
+- **`R10-2`.** *"A module never reaches another module's `Prisma` models"* is stated absolutely in
+  three files, while `seo/README.md:26` documents `media` reading `pageSeoOgImages` directly via
+  `Prisma` — presented as the reason there is no cycle rather than as an exception, and structural to
+  `usages` rather than incidental.
+
+**None were repaired.** Run 9 scoped this work to two findings and explicitly forbade a broad run 10;
+widening it here would be the scope creep that instruction exists to prevent. They are the owner's
+call.
+
 ## Scope
 
 Ends here. **No `dev` → `main` promotion and no production deployment** are authorized or performed;
