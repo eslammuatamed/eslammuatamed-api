@@ -167,7 +167,9 @@ export class MediaService {
       key: this.variantKey(prefix, variant.width, variant.format),
     }));
 
-    // Every object this request uploads is tracked so a failure can delete exactly them (D07-6).
+    // Each object whose put() resolves is tracked so a failure can delete those keys (D07-6). Not
+    // "exactly the objects uploaded": a remote write whose response is lost rejects locally and is
+    // never recorded here — see cleanup() below.
     const uploaded: string[] = [];
     try {
       await this.storage.put({
