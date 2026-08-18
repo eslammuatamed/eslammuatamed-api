@@ -2315,6 +2315,48 @@ Negative-controlled with exit codes read directly — not through a pipe, which 
 by line number will eventually read the wrong subject**, and **a pipe hides the exit code** — the
 `RESULT:` text was right while `$?` read 0 for every one of them.*
 
+### Peer round 2 — the corrections over-corrected, and two source comments still lied
+
+A fix round is a new tree, so `21c20f1..87839d6` went back to the peer. **5 MAJOR + 2 MINOR**, and
+the shape of them is the finding: *four of the five MAJORs were defects **created by the repair**,
+not survivors of it.*
+
+| # | Finding | Outcome |
+| :-: | --- | --- |
+| 1 | "infrastructure services (config, mail, **image processing**) own no domain rules" — `MediaProcessingService` enforces allowed types, MIME/extension agreement and a 40 MP ceiling and rejects with `422`; `src/modules/README.md` already calls that a rule | **accepted** — the row now says neither the name nor the directory predicts the content, and gives all three shapes |
+| 2 | "**most** unit tests bypass the container" — 22 of 61 is **36 %** | **accepted** — replaced with a hedge that points at the file carrying the count |
+| 3 | §10 named three conditional cases as if they were the set — `COOKIE_DOMAIN`, the `S3_*` group, `S3_REGION`, `PUBLIC_WEB_URL` and the cross-field production checks are all unlisted shapes | **accepted** — labelled examples, and the same fix applied to `src/config/README` |
+| 4 | Two contradictions in that same block: `PUBLIC_WEB_URL` grammatically lumped into the SMTP gating, and `S3_REGION` listed among the fields *required* under the `s3` driver while carrying `@IsOptional()` | **accepted**, both |
+| 5 | "ten modules … call `assertEnabled` before **any** translated read/write" — the count is right, the behaviour clause is not: admin reads return the full translation map, pass no locale, and do not call it | **accepted** |
+| 6 | *(MINOR)* `media.module.ts` and `media-descriptor.resolver.ts` still call `seo` "a future page-SEO read" | **accepted** |
+| 7 | *(MINOR)* `env.validation.ts` and `.env.example` both say every SMTP field becomes required when enabled | **accepted** |
+
+**Findings 6 and 7 are the campaign's founding defect, committed by the campaign.** The README was
+corrected to name `seo` a current consumer *in the same round* in which two source comments kept
+calling it future. **A document and the comment beside it were edited in the same hour and made to
+disagree.** The rule that would have caught it is already written down — *retiring a claim in one
+file is not evidence about the file beside it* — and it still did not fire, because the sweep
+searched the **documents** and the claim also lived in `.ts`.
+
+**Pushed back on, with an enumeration.** The peer read the direct-construction ∩ mocked-`Prisma`
+intersection as **15**, having counted `permissions.guard.spec.ts` — which constructs a *guard* and
+no service, so it is not among the 22. The sixteen files were listed by name and re-counted. **16
+stands.** *Stronger evidence wins in both directions; a peer verdict is evidence, not authority.*
+
+**Comment-only, proved and negative-controlled.** Three `.ts` files changed. Both sides compiled with
+`tsc --removeComments`: emitted `JS` byte-identical across all three. The proof was then negative
+controlled — appending one executable statement makes the emitted `JS` differ *and names the
+statement in the diff*; restoring returns a byte-identical file and an IDENTICAL verdict.
+
+*Two instrument failures worth keeping, both self-inflicted, both caught only because a count was
+asserted:* the first proof run compared **two empty directories** — `zsh` does not word-split an
+unquoted multi-line `$FILES`, so `tsc` received one absurd path, emitted nothing, and `diff` of two
+empty trees printed a confident IDENTICAL. The fix was to assert the emitted-file count equals the
+changed-file count. And the first negative control **never mutated anything**: its target string
+occurred twice, the guard assertion fired, and the run that followed reported IDENTICAL — a
+*vacuous* pass being read as a passing control. **A negative control that does not first prove the
+mutation landed is not a control.**
+
 ## 8. Owner-decision blockers
 
 **OD-B — the governing record of API release state is wrong AND internally contradictory (D-10).**
