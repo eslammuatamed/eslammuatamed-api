@@ -2401,6 +2401,32 @@ sentence near it or elsewhere; and no new absolute was introduced.
 
 **Peer lane closed for run 4: 7 MAJOR + 1 MINOR → 5 MAJOR + 2 MINOR → 0 MAJOR + 1 MINOR → CLEAN.**
 
+### The run-5 bundle — built from the reviewed head, verified three ways
+
+Built by script (`scratchpad/build-bundle.sh`) rather than by hand, and the corpus is derived from
+the repository, never from a kept list: `git ls-tree -r <sha> | grep README.md|PROJECT_GUIDE.md`.
+
+| Check | Result |
+| --- | --- |
+| Corpus at the head | **27 files**, and the path list is *generated*, so a new README cannot be silently missed |
+| Positive verify (`git rev-parse <sha>:<path>` vs `git hash-object`) | 27/27 match |
+| **Negative control** — corrupt one file | **exactly 1 mismatch**, naming that file |
+| Restore | 27/27 match again |
+| `zip` round-trip — re-extract and re-hash | 27/27 match |
+
+Bundle files are `chmod 444`. **Runs 1–4 bundles and prompts are renamed `-SUPERSEDED`** so the wrong
+archive cannot be uploaded by accident — the failure mode being that a reader answers questions about
+a tree that no longer exists and every finding is unreproducible.
+
+**The prompt carries no pass criteria, no expected answers, no repair labels, and no prior-run
+history**, and that was checked by grep rather than by intention. It asks the reader to walk the
+vocabulary block row by row, then covers each confirmed run-4 repair, four unchanged controls carried
+from earlier gates, and keeps the unscored open-ended pass — which has out-produced the scored
+questions in all four runs so far.
+
+*Neither this session's agent nor Codex may read the bundle: both have seen the corpus and the
+answers, and a reader who has seen either is not cold.*
+
 ## 8. Owner-decision blockers
 
 **OD-B — the governing record of API release state is wrong AND internally contradictory (D-10).**
