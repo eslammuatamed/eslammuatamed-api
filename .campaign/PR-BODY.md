@@ -255,7 +255,20 @@ returns zero, with passing positive controls.
   `Idempotency-Key` header's length and character set while the service stores the value as given —
   the per-message uniqueness is `DB`-backed, the key's **shape** is not. My sweep had enumerated DTO
   validators and never looked at pipes.
-- **The peer rounds cost 20 MAJOR, then 7, and the repairs were the defect source both times.** Of
+- **A category that gains a member every round is the wrong category.** Told the grant catalog was
+  the only boundary-only invariant, the next round produced a second; told it was a class of two, the
+  round after produced a third (`Role.name`'s length cap). The measurement ends the regress:
+  `schema.prisma` has **zero** `@db.VarChar`/`@db.Char`, so every length and shape cap in the
+  repository is boundary-only by construction. What is actually distinctive about the grant catalog
+  is that it constrains **meaning**, not size — and among constraints of that kind it is the only one
+  with nothing behind it. That passage was rewritten three times and only the third version rests on
+  a fact one grep can refute.
+- **An edit can falsify a number in a file it never touches.** Growing `media/README.md` made a
+  count in the module-README template ("shortest 37 lines, longest 136") stale. Counts in this round
+  were either given their derivation or removed, including two numerals the repairs had themselves
+  introduced.
+- **The peer rounds cost 20 MAJOR, then 7, then 4, and the repairs were the defect source every
+  time.** Of
   round 1's five in-corpus findings, every one was a sibling of a family I had already "fixed" at its
   named site — because I had swept the Arabic words I happened to write rather than grepping
   `@Public()`, `availableLocales`, and the `404` claim across the corpus. Five of round 2's seven were

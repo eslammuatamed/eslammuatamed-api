@@ -176,7 +176,8 @@ this table: `git log 9af1aac..HEAD --name-only` and drop the commits touching on
 | `bf42300` run-7 repairs (F1/F2/F3/F5/F6 + the one `.ts` comment) | §11i | **20 MAJOR + 1 MINOR** — 12 out of scope (`.specify/`), 1 already fixed, **5 in-corpus**, each a sibling of a family repaired at only its named site |
 | `a2dfe62` the fix for the `@IsEnum` universal I introduced | §11i | self-caught before the peer reported it; covered by the round-2 pass |
 | `80aae0f` the fixes for round 1's five | §11i | **7 MAJOR** — five of them against text those very fixes wrote |
-| `587f9e0` the fixes for round 2's seven | §11i | verdict recorded with the final head below |
+| `587f9e0` the fixes for round 2's seven | §11i | **4 MAJOR** — a third class member, a five-module over-generalisation, and two stale counts |
+| `9053d6c` the fixes for round 3's four | §11i | verdict recorded with the final head below |
 | commits touching only `.campaign/` | — | not source-touching |
 
 **The campaign-wide finding total is NOT reconstructible from these records, so it is not stated.**
@@ -2936,7 +2937,8 @@ Three peer rounds, and **the repairs were the defect source every time**:
 | --- | --- | --- |
 | 1 | **20 MAJOR + 1 MINOR** | 12 against `.specify/` (out of scope, §8); 1 already fixed; **5 in-corpus**, every one a sibling of a family I had "fixed at the named site" |
 | 2 | **7 MAJOR** | **5 against text round 1's repairs wrote** |
-| 3 | see the verdict recorded with the final head | — |
+| 3 | **4 MAJOR** | one was a THIRD member of the class round 2 had just bounded at two; two were counts, one of which **this round's own edit had invalidated** |
+| 4 | see the verdict recorded with the final head | — |
 
 **The lesson is about the shape of my sweeps, not about care.** F1 was swept by searching the
 Arabic surface terms (`سطح عام`, `قراءة عامّة`) and never by grepping `@Public()` in prose — which is
@@ -2958,6 +2960,26 @@ whose subject is unverified universals:
   column is free `String`. The per-message uniqueness *is* `DB`-backed; the key's **shape** is not.
   My sweep had enumerated DTO validators and never looked at pipes. The text now names a **class
   with two known members** instead of an anomaly.
+
+**Round 3's finding was the one worth keeping, because the right answer was not the peer's.**
+It produced a *third* member of the "enforced at the request boundary alone" class — `Role.name`'s
+`@MaxLength(60)`, written straight into an unconstrained column — and it was correct. But a
+category that gains a member every round is a category that is wrong, and the measurement settles
+it: `schema.prisma` carries **zero** `@db.VarChar`/`@db.Char`, because `String` in `Prisma` is
+`TEXT`. **Every** length and shape cap in this repository is boundary-only, by construction; that
+is the rule, and enumerating its members is endless by design. What actually distinguishes the
+grant catalog is that it is not a size cap at all but membership in a value set with **meaning** —
+and among constraints of *that* kind it is the only one with nothing behind it (`@IsEnum` values
+have `Prisma` enums, `PAGE_SEO_KEYS` has `assertKnownKey` on the write path, gallery locales have
+`assertLocales` plus an `FK`, and the résumé/portrait slots' `PDF`/`IMAGE` rules are owned by
+`settings.service.ts` itself). *Three rewrites of one passage, and only the third rests on a
+structural fact a reader can refute with one grep instead of a list I have to keep extending.*
+
+**Round 3 also caught a count that this round's own edit had invalidated:** the module-README
+template said "shortest file 37 lines, longest 136" — and the `F5` repair pushed `media/README.md`
+to 156. *An edit can falsify a number in a file it never touches.* Both that count and the section
+count next to it were replaced or given their derivation, and a later pass removed two more
+numerals that the repairs themselves had introduced.
 
 **And one sentence was refuted twice, for two different reasons** — the counterfactual "delete
 `assertEnabled` and all you lose is the error's name". **Round 1** pointed out it also guards
