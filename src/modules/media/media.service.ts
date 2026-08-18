@@ -466,9 +466,10 @@ export class MediaService {
   }
 
   // The usages behind an FK rejection, read after the fact. An empty result is possible and is not
-  // an error: between the rejection and this read the blocking relation may be deleted, cleared or
-  // repointed at another asset (the FKs are nullable), or the asset itself may be deleted once
-  // nothing blocks it any more. The response stays a 409 either way — the database already refused the delete, and
+  // an error: between the rejection and this read the blocking relation may be deleted or repointed
+  // at another asset — and where the FK is nullable (cover image, avatar, resume, portrait) it can
+  // also be cleared, though ProjectGalleryItem.mediaAssetId is required and cannot — or the asset
+  // itself may be deleted once nothing blocks it any more. The response stays a 409 either way — the database already refused the delete, and
   // reporting anything else would contradict what actually happened.
   private async usagesAfterRejection(id: string): Promise<MediaUsageEntity[]> {
     const asset = await this.prisma.mediaAsset.findUnique({

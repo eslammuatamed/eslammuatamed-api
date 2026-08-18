@@ -9,7 +9,8 @@ export const MAX_CONCURRENT_PROCESSING = 2;
 // spec mandates the header but does not pin the value — this is a chosen default.
 export const PROCESSING_RETRY_AFTER_SECONDS = 2;
 
-// Immutable, year-long cache for every stored media object. Keys are randomized per upload and so
+// Immutable, year-long cache supplied on every stored media object — `R2` persists it as object
+// metadata; the local adapter ignores it and writes bytes only. Keys are randomized per upload and so
 // are not reused in practice (doc 07 §6, doc 20 §4, doc 23 §1) — neither adapter uses create-only
 // semantics, so this rests on UUID collision being negligible — and each object is safe to cache. Images
 // (master + renditions) require it; the resume PDF carries it too (its key is equally immutable)

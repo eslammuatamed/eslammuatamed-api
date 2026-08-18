@@ -39,7 +39,8 @@ export const MAX_INPUT_PIXELS = 40_000_000;
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 
 // ── Master encoding (doc 07 §6, doc 20 §4) ──────────────────────────────────────────────────────
-// The raw upload is never persisted: Sharp produces one sanitized canonical master in WebP q90 at
+// A raw IMAGE upload is never persisted (a validated PDF is stored as its original bytes):
+// Sharp produces one sanitized canonical master in WebP q90 at
 // the full auto-oriented dimensions, retained only for future rendition regeneration.
 export const MASTER_QUALITY = 90;
 
