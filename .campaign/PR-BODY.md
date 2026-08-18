@@ -327,9 +327,29 @@ returns zero, with passing positive controls.
   blessed it ran 2,808 lines and 7 tool invocations, examining one claim 26 times and five others once
   each; the round that caught and confirmed the correction ran 8,976 lines and 43, with call chains
   shown. The first was recorded as not covering the untraced claims rather than as a pass.
-- **One item remains, and it is a decision rather than preparation:** the concepts this round changed
-  have not been put to an external reader. A Run-9 prompt is drafted and leak-checked and the bundle is
-  rebuilt from the final head; running it is the owner's call.
+- **Run 9 ran, and both of its findings were real.** `PROJECT_GUIDE.md:148` still carried the bare
+  *"services inject `PrismaService` directly"* that run 5 had already retracted 38 lines later — the
+  §5 bullet was never swept. And `media/README.md:99` said the concurrency cap rejects *"an upload
+  that needs processing"*, a predicate the code does not have: `media.service.ts:132` takes the slot
+  for **every** non-duplicate upload, **before** `processAndPersist` branches image/PDF at `:153`. A
+  new PDF takes a slot and gets `429` + `Retry-After: 2` exactly as an image does. Both repaired.
+- **The peer round then found the same two predicates in `src/**/*.ts`, and this campaign wrote one
+  of them.** `media.constants.ts:2` carried the retracted *"needs processing"* wording in the file
+  that defines the constant — inserted by commit `a3e993f`, *"the media reliability claims, swept as
+  a family instead of one at a time"*, which **replaced an accurate phrase with the ambiguous one**.
+  `prisma.module.ts:5` carried the English original of the `:148` universal. *A sweep is an insertion
+  instrument as well as a retraction instrument, and nothing was re-reading its own output.*
+- **A third, in an adjacent family, was repaired rather than deferred:** `prisma/README.md:104` said
+  the mock means *"**every** service is tested alone without a database"*. Six of 25 services —
+  `Auth`, `Users`, `Password`, `Health`, `Seo`, `Tags` — are constructed in no spec file at all.
+- **The fix for the first finding reproduced the defect class it was fixing.** Scoping `:148` used
+  bare `القاعدة` as database shorthand, but that word means *the rule* at six of its seven sites in
+  this guide and the database only at `:186`, where the full term appears first. Caught in self-review
+  before the peer round.
+- **Emitted behaviour is proved, not asserted:** the two `.ts` edits are comment-only, whole project
+  compiled with `tsc --removeComments` before and after, **all 341 emitted `.js` byte-identical by
+  `sha256`** — with the instrument negative-controlled (mutating `2`→`3` did change the hash) and the
+  mutation reverted by file copy with its pre-mutation hash re-verified.
 - The provenance guard has four known blind spots (pattern family, file selection, token boundary,
   alphabet). The corpus is clean by *independent sweep*, not because the guard says so. Widening it
   is queued and deliberately not required for this branch.

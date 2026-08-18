@@ -3214,6 +3214,146 @@ mechanism **and** confirm the precondition is reachable — and with the instruc
 without traces would be treated as not performed. *Depth is a readable property of a transcript, so
 "trust but verify" becomes a check someone else can run.*
 
+## 11k. Run 9 — two findings, both real, and the fix for one reproduced the campaign's own defect class
+
+**Scope was narrowed deliberately: `F1` and `F2` only.** The reader's `F3`–`F6` were re-read and left
+closed — each is the documentation working as designed (the `40 MP` reachability trap, the
+`schema.prisma`-is-insufficient warning, the deliberately-external rendition budgets, the two
+documented compensation holes). *`F2`'s source trace independently corroborated `F3`:* the `PDF`
+branch is a second `mediaAsset.create` that never calls `processImage`, so it cannot manufacture the
+unreachable precondition either. No new source evidence contradicted any of the four.
+
+### F1 — CONFIRMED, and it is the sibling of a defect this campaign already fixed once
+
+Run 5 replaced `§6.3`'s *"every service injects `PrismaService`"* with the measured census. **The `§5`
+architecture bullet was never swept**, and `PROJECT_GUIDE.md:148` still carried the bare universal
+*"الـ services تحقن `PrismaService` مباشرة"*. It survived because the ledger's only prior citation of
+that line (`§11f`) used it as evidence about **vocabulary placement**, not as a truth claim.
+
+The defence for leaving it — that the bullet is headed *"لا طبقة repository"*, so *"directly"* means
+*not via a repository* — is the defence this campaign already rejected. Round 2 of the run-5 peer lane
+struck a sentence for exactly this: **each sentence has to be true on its own**, not as a clause of a
+surrounding argument.
+
+**Re-measured before the edit, with the instrument controlled.** Of 25 `*.service.ts` files (excluding
+`PrismaService` itself) **18** inject it and **7** do not — reproduced by two independent instruments,
+a constructor regex and a plain `PrismaService` mention grep, the latter returning **zero hits in all
+seven**, and positive-controlled against `users.service.ts`, which must be a hit.
+`auth.service.ts` injects `UsersService`, `PasswordService`, `RefreshTokenService` and `JwtService`,
+and touches `Prisma` only as a **type-only** import.
+
+*The instrument lied once on the way there.* The first control loop passed the seven filenames in an
+unquoted variable; **`zsh` does not word-split**, so the loop ran once on a single nonexistent path and
+printed a clean `(no PrismaService mention)` — **a false all-negative that reads exactly like a pass**.
+Caught only because a positive control was required. This is the third time on this campaign a sweep
+instrument has produced a uniform result that was an artifact rather than a finding.
+
+**Swept the whole family, `.md` and `.ts` comments alike.** Cleared as already scoped:
+`PROJECT_GUIDE.md:441` (carries `١٨ من ٢٥`), `src/prisma/README.md:21` (carries the census),
+`:104` (about the test seam), `:118` (about the practice, not about all services), and
+`src/prisma/prisma.module.ts:4` (one *instance* serves every module — a statement about the global
+module, not about injection). `:148` was the only surviving universal.
+
+**And one deletion.** `:186` stated the suffix promises nothing **twice**, the second sentence a strict
+verbatim subset of the first. Removed — a redundancy, not a truth change, recorded so it is not later
+found as something walked past.
+
+### The fix for F1 reproduced the campaign's own forward-reference defect, and self-review caught it
+
+The first repair borrowed `§6.3`'s scoping device wholesale and wrote *"التي تصل إلى **القاعدة**
+بنفسها"*. **Measured across `PROJECT_GUIDE.md`, bare `القاعدة` means *the rule* at `:80`, `:196`,
+`:228`, `:258`, `:270` and `:362`, and *the database* only inside `:186`** — where the same sentence
+writes `قاعدة البيانات` in full first, which is what earns the shorthand. At `:148`, thirty-eight
+lines earlier, a linear first reader meets the dominant sense: *"the services that reach **the rule**
+by themselves."*
+
+*This is `§11g`'s defect class exactly — a term used materially before the passage that licenses it —
+reintroduced by the repair to a different defect in the same paragraph.* Written out in full at
+`:148`. **A fix inherits the document's own failure modes; it is not exempt from the sweep that found
+the defect it repairs.**
+
+### F2 — CONFIRMED AMBIGUITY, and the source settles it in one line
+
+The reader could not tell whether a new non-duplicate `PDF` takes a processing slot. **It does.**
+
+| Question | Answer, from source |
+| --- | --- |
+| Does a new non-duplicate `PDF` acquire the slot? | **Yes** |
+| Where? | `media.service.ts:132` — `this.limiter.run(() => this.processAndPersist(...))`, unconditional |
+| Before or after the kind branch? | **Before.** `processAndPersist` branches image/`PDF` at `:153`–`:155` |
+| Both slots occupied? | `limiter.ts:19–20` throws `ProcessingCapacityExceededException` → **`429`** + `Retry-After: 2`, no queue — identical for `PDF` and image |
+| Is the limiter image-specific? | **No.** It is a post-dedup critical section over *all* of `processAndPersist`; `limiter.ts:5` already self-describes as *"Sharp/PDF processing"* |
+
+**Only one of the three cited passages was defective.** `:37` (*"يلفّ **كلّ** ما تبقّى"*) is true;
+`:50` is true; `:64`'s *"لا معالجة له"* is true **of what happens inside the slot** — `processPdf`
+returns the original bytes unchanged. `:99`'s *"رفعٌ إضافي **يحتاج معالجة**"* was the defect: it
+implies a predicate the code does not have. The real predicate is **not a duplicate**.
+
+*The root cause is a name.* `MAX_CONCURRENT_PROCESSING` is named for its **motivation** — `Sharp`
+memory pressure (`limiter.ts:6`) — not for its **scope**, and the documentation had inherited the
+name's implication as if it were a boundary. `:99` now says the slot is taken irrespective of kind,
+and reconciles `:64` explicitly so the reader stops re-deriving the ambiguity. **No source was
+renamed:** the constant's name is correct about why it exists.
+
+### The peer round — and the family was in source, where neither the reader nor I had looked
+
+The reader saw two `.md` passages. **The peer round found the same two predicates living in
+`src/**/*.ts` comments, and one of them was written by this campaign.**
+
+| # | Site | The surviving claim |
+| --- | --- | --- |
+| MAJOR 1 | `src/modules/media/media.constants.ts:2` | *"a further upload that **needs processing** is rejected"* — the exact predicate just retracted from `README:99`, in the file that **defines** `MAX_CONCURRENT_PROCESSING` |
+| MAJOR 2 | `src/prisma/prisma.module.ts:5` | *"**Services** inject it directly — there is no repository layer (`D07-2`)"* — the English original of the universal struck at `:148` |
+| MAJOR 3 | `src/prisma/README.md:104` | *"فتُختبَر **كل** service وحدها دون قاعدة بيانات"* — false: six services have no unit spec at all |
+
+**`MAJOR 1` is the campaign's own work.** `git log -p --follow` on the file shows commit `a3e993f` —
+titled ***"the media reliability claims, swept as a family instead of one at a time"*** — performing
+this replacement:
+
+```
+-// …a further in-flight upload is rejected with 429 +
++// …a further upload that needs processing is rejected with
+```
+
+*The commit that existed to sweep a family as a family **replaced an accurate phrase with the
+ambiguous one**, in the constant's own definition file, and the ambiguity then surfaced two runs later
+in a different file where a cold reader tripped over it.* **A sweep that rewrites is not only a
+retraction instrument; it is also an insertion instrument, and nothing was re-reading its own output.**
+
+**`MAJOR 2` needed a discriminator, not a grep.** Two look-alikes are *not* defects and must not be
+"fixed": `CLAUDE.md:13` (*"PrismaService direct (no repository layer)"*) is telegraphic and
+subject-less, and `.specify/memory/constitution.md:20` (*"PrismaService is used directly"*) is
+passive. Both **prescribe how** database access is done. `prisma.module.ts:5` names **`Services`** as
+a plural subject and predicates injection of them — that is what makes it a universal and the other
+two not. *The test for this family is not the words; it is whether the sentence has a plural subject
+it quantifies over.*
+
+**`MAJOR 3` is an adjacent family, and was repaired anyway.** Measured twice with a firing positive
+control: 19 of 25 services have a sibling `*.spec.ts`, and `AuthService`, `UsersService`,
+`PasswordService`, `HealthService`, `SeoService` and `TagsService` are constructed in **no** spec file
+at all. Strictly this is the quantifier family rather than F1's injection family — but it was surfaced
+by the sweep that run 9 ordered, and it is verified false. *A finding does not become acceptable
+because it landed outside the lane it was found in.* `كل` dropped; the sentence now describes the
+mechanism instead of quantifying over services.
+
+Two `MINOR`s were also closed, both introduced or exposed by the repair itself: the upload diagram
+never drew the `PDF` branch that the new `:99` refers the reader to, and the file table called
+`media-processing.service.ts` the *"`Sharp` pipeline"* while it also owns `validatePdfInput` and
+`processPdf` — the very image-only reading `F2` exists to correct.
+
+### Emitted-behaviour proof — non-vacuous this round, and negative-controlled
+
+`MAJOR 1` and `MAJOR 2` are `.ts` comment edits, so the proof is a real obligation rather than a
+formality. Whole project compiled with `tsc --removeComments` at the pre-repair baseline and at the
+final tree: **all 341 emitted `.js` files byte-identical by `sha256`.** Only `.js.map` and
+`tsconfig.tsbuildinfo` differ, which is line numbering.
+
+*The proof was only trusted after it was shown to fail.* Mutating `MAX_CONCURRENT_PROCESSING` from
+`2` to `3` **did** change the emitted hash; the mutation was reverted **by file copy** — never
+`git checkout --` in a dirty tree — and the pre-mutation hash re-verified. An earlier attempt that
+compiled the two files in isolation was discarded: it emitted through `TS2307` module-resolution
+errors, which is a compile that cannot support a claim about the project's output.
+
 ## 8. Owner-decision blockers
 
 **OD-B — the governing record of API release state is wrong AND internally contradictory (D-10).**
@@ -3394,6 +3534,9 @@ would have read as 32 new defects.
 | `2aa031f` | docs(learnability): explain which layer decides the status code (phase 2) |
 | `a6d27f8` | docs(campaign): record the Phase 2 measurements and score the predictions |
 | `a464ed2` | docs(campaign): reconcile the delegated datasets, correcting two of my numbers |
+| `3dbf07c` | docs: the repository-layer bullet kept a universal the census had already retracted |
+| `77f9c47` | docs: "القاعدة" alone means "the rule" in this guide, not the database |
+| `d94980b` | docs: the sweep found the same two predicates in source, one written by this campaign |
 
 **Pushed to `origin/campaign/backend-learnability` as a durability checkpoint only.** No PR was
 opened. `dev` and `main` were not touched. Nothing was deployed.
