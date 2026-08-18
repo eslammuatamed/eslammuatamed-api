@@ -166,7 +166,10 @@ this table: `git log 9af1aac..HEAD --name-only` and drop the commits touching on
 | `3a78c3d` the `idempotent`/`upsert` glosses | §11g | **CLEAN** — with an exhaustive re-sweep of the term class |
 | `64f36c5` · `7d4bc0b` run-6 repairs | §11h | **2 MAJOR** — both against text written in this round |
 | `f7dfe37` · `56d3681` the fixes for those | §11h | **2 MAJOR** — one an absolute replacing an absolute |
-| `49c611b` the fixes for those | §11h | peer round in flight at time of writing |
+| `49c611b` the fixes for those | §11h | **2 MAJOR + 2 MINOR** — including a stale comment 20 lines above the repaired one |
+| `689ff08` · `59d5a57` the fixes for those | §11h | **2 MAJOR + 8 MINOR** — from the first *family-scoped* round |
+| `a3e993f` the family sweep | §11h | **0 MAJOR + 9 MINOR** |
+| `a738cb9` the nine narrowings | §11h | final consistency pass in flight at time of writing |
 | commits touching only `.campaign/` | — | not source-touching |
 
 **The campaign-wide finding total is NOT reconstructible from these records, so it is not stated.**
@@ -2775,6 +2778,63 @@ defect, and copying contract content into prose is exactly what §6.5 exists to 
 `prisma/README.md`'s doc-09 prerequisite resolves correctly under the primary-checkout layout and the
 ownership boundary is stated in the sentence itself (§11f settled this once already).
 
+### The peer lane on the run-6 repairs — six rounds, and the family only closed when the sweep stopped following the diff
+
+| Round | Scope | Findings |
+| :-: | --- | ---: |
+| 1 | `7a025be..64f36c5` | 2 MAJOR |
+| 2 | `64f36c5..f7dfe37` | 2 MAJOR |
+| 3 | `f7dfe37..49c611b` | 2 MAJOR + 2 MINOR |
+| 4 | **whole family, not the diff** | 2 MAJOR + 8 MINOR |
+| 5 | `689ff08..a3e993f` | **0 MAJOR** + 9 MINOR |
+| 6 | `a3e993f..a738cb9` | final consistency pass |
+
+**Round 3 is the one that changed the method.** It found a stale comment **twenty lines above** the
+one being repaired, contradicting it: `compensate()`'s own header still read *"any other failure
+deletes every object this request uploaded and rethrows. No DB row exists at this point … so there is
+never a partial row"* — three false clauses, sitting directly over the `cleanup()` comment that had
+just been corrected. **The rule was already written down** — *retiring a claim in one file is not
+evidence about the file beside it* — and it failed against a sibling **in the same function**.
+
+So round 4 was dispatched **against the family, not the diff**: read every reliability, ordering,
+atomicity, orphan and cleanup claim in the media source, the constants, both storage adapters and the
+README. It returned **ten**, and they were all one defect in different words: **a probabilistic or
+best-effort mechanism written up as a guarantee.**
+
+| The claim | What the code does |
+| --- | --- |
+| "no-orphan compensation … compensated on any failure" | the thing `compensate()` now says it is not |
+| "the raw upload is **never** persisted" | true of images; `processPdf` returns `input.buffer` and it is stored |
+| "cleanup can **never** touch another asset's objects" · keys "**never** overwritten" | rests on `randomUUID()` alone — neither adapter uses create-only semantics |
+| "a duplicate race **is resolved** to the winner" | unless cleanup rejects, the reread rejects or returns null, or mapping throws |
+| "a lost response **rejects** locally" | *can* reject — the SDK retries three times by default |
+| "the blocking transaction may have **rolled back**" | it cannot both cause the `P2003` and then roll back |
+| an orphan is "bytes **no reader can observe**" | object URLs are public and cached a year; an issued URL still resolves |
+| "`failed` alone, **never** the full key list" | on a total adapter rejection it **is** every key |
+| "the widest WebP rendition — **never** the master" | the admin entity falls back to the master |
+| "a further upload is rejected with `429`" | a dedup hit returns **before** the cap and consumes no slot |
+
+**Round 5 then found nine more, and two of them were sentences that contradicted their own next
+clause** — *"bytes no API response points at any more"* immediately followed by *"a URL already handed
+out can still resolve"*, and an orphan called "bytes nobody sees" three sections after that exact
+phrase had been corrected elsewhere. Also: the primary-URL comment still **ended with the sentence it
+was correcting** (*"Not the large sanitized master"*), left dangling by my own edit.
+
+*Five lessons, all re-earned:*
+
+1. **A sweep that follows the diff finds what the diff touched.** Four rounds of diff-scoped review
+   missed ten family members that one family-scoped round found.
+2. **A repair is an edit and inherits the full review burden.** Every round on this family found
+   defects created by the previous round's repair.
+3. **Read the sentence you leave behind, not only the one you change** — twice a correction was
+   grafted onto a clause that asserted the opposite.
+4. **A guarantee is a claim about the worst case, not the common one.** Every entry in that table
+   read as a guarantee and described a happy path.
+5. **The document is often the honest witness of a lying comment.** The README's *"no orphan row nor
+   orphan object"* was copied faithfully from `media.service.ts`, whose `cleanup()` comment asserted
+   *"Cleanup never throws"* while the sibling `cleanupAfterDelete` — 175 lines away, same file, same
+   adapter — said the opposite and wrapped it in `try`.
+
 ### ⚠ OWNER-FACING — the shipped spec asserts a property the implementation does not provide
 
 `.specify/specs/003-media-pipeline/spec.md:22` and `plan.md:29` record, as **acceptance conditions of
@@ -2784,6 +2844,16 @@ not hold. **The `.specify` records were NOT edited:** convention 4.E makes them 
 and amending an accepted feature's acceptance criteria is a governance act, not documentation
 cleanup. Queued for the owner alongside the two code-behaviour limits themselves, which this
 documentation-only branch records and does not repair.
+
+**Two further items are recorded rather than repaired, because both would change emitted
+JavaScript** and this branch changes no behaviour:
+
+- `media.service.ts`'s delete-cleanup log message says the objects **"remain"**, where *"potentially
+  remain"* is what the code knows — on a total adapter rejection nothing is known to have been
+  deleted. A log string is observable output, so it is left to the owner.
+- `media.service.spec.ts`'s `describe` label reads **"compensation (no orphans)"**, while the block's
+  own partial-cleanup test records a remaining object. A test label is a string literal in the
+  emitted `JS`.
 
 ## 8. Owner-decision blockers
 
