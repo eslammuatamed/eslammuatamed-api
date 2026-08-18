@@ -302,8 +302,17 @@ returns zero, with passing positive controls.
 - **One `.ts` file changed, and only a comment in it.** Emitted `JavaScript` is byte-identical across
   all **216** files (`sha256` manifest of `tsc -p tsconfig.build.json`), with the instrument
   negative-controlled first — a real `@MaxLength` change moved the hash.
-- **One item remains:** a narrow Run-8 cold regression from the exact final head, over the concepts
-  this round changed.
+- **An enumeration of code sites in prose is structurally unstable; the rule behind it is not.**
+  Seven of eight peer rounds found something in one passage, and every repair but the last was a
+  more precise list of modules — each round finding the site the previous list omitted. The version
+  that holds states the rule and cites a per-service census as its derivation. The counterweight is
+  equally important: generalising swept away a **true** exception an earlier version had stated
+  correctly (media `alt` text is never query-filtered, in any module), so the final text carries the
+  rule *and* the exception.
+- **The peer lane ended CLEAN on the exact final tree**, not on a round count — 20, 7, 4, 7, 3, 3,
+  1, then nothing, the last two rounds narrow and claim-numbered.
+- **One item remains:** a narrow Run-8 cold regression from this exact head, over the concepts this
+  round changed.
 - The provenance guard has four known blind spots (pattern family, file selection, token boundary,
   alphabet). The corpus is clean by *independent sweep*, not because the guard says so. Widening it
   is queued and deliberately not required for this branch.

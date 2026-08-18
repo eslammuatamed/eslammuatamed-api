@@ -180,7 +180,8 @@ this table: `git log 9af1aac..HEAD --name-only` and drop the commits touching on
 | `9053d6c` the fixes for round 3's four | §11i | **7 MAJOR** — the census-artifact finding, two false source comments, and two of my own new claims |
 | `5311096` the fixes for round 4's seven | §11i | **3 MAJOR** — a third site of a family, a sibling comment in an already-repaired file, and the locale cell's third correction |
 | `c297395` the fixes for round 5's three | §11i | **3 MAJOR** — the locale cell's fourth, a third membership mechanism, and the media byte-limit layering |
-| `241e2f0` the fixes for round 6's three | §11i | verdict recorded with the final head below |
+| `241e2f0` the fixes for round 6's three | §11i | **1 MAJOR** — media alt text, a true exception lost in a rewrite |
+| `55201e4` the fix for that | §11i | **CLEAN** — on the exact final tree, `55201e4` |
 | commits touching only `.campaign/` | — | not source-touching |
 
 **The campaign-wide finding total is NOT reconstructible from these records, so it is not stated.**
@@ -2944,7 +2945,8 @@ Three peer rounds, and **the repairs were the defect source every time**:
 | 4 | **7 MAJOR** | the central one demolished a *reasoning* step, not a sentence: my census had been run against the one artifact that cannot show the evidence |
 | 5 | **3 MAJOR** | all against my own text, all in families I had already "closed" — including a sibling comment in a file where I had fixed only the named line |
 | 6 | **3 MAJOR** | one I had already queued from my own sweep; one repeated round 4's mistake in a new instrument; one a pre-existing defence-in-depth overclaim |
-| 7 | narrow, scoped to the changed cells — verdict recorded with the final head | — |
+| 7 | **1 MAJOR** | narrow, scoped to the changed cells. The finding was a **true special case I had swept into a clean rule** while generalising |
+| 8 | **CLEAN** | narrow, one cell, six numbered claims. `7,750` lines of transcript, `20` tool invocations, all six addressed, reviewed `SHA` confirmed equal to `HEAD` |
 
 **The lesson is about the shape of my sweeps, not about care.** F1 was swept by searching the
 Arabic surface terms (`سطح عام`, `قراءة عامّة`) and never by grepping `@Public()` in prose — which is
@@ -3082,6 +3084,41 @@ files**. The instrument was negative-controlled **first** — changing `@MaxLeng
 moved `role.dto.js`'s hash — and the source was restored from a `cp -p` copy and hash-checked
 against its pre-mutation value. `git diff <that head>..HEAD -- '*.ts'` is empty at every later
 head, which is what carries the proof forward rather than leaving it pinned to a stale tree.
+
+### Where the lane ended, and the one thing generalising cost
+
+**Rounds 7 and 8 closed it: 1 MAJOR, then CLEAN on the exact final tree.** Round 8 was narrow by
+construction — one cell, six numbered claims (`C1`–`C6`), with an explicit instruction that
+grepping the `Prisma` form alone is insufficient because an earlier census of mine had missed raw
+`SQL`. It returned `CLEAN` after 7,750 lines and 20 tool invocations, having addressed every
+claim, and it confirmed the reviewed `SHA` equals `HEAD`. *The lane ended because a round found
+nothing, not because a counter reached a number.*
+
+**Seven of the eight rounds found something in one passage — the locale-ownership cell — and every
+repair but the last was a more precise list of code sites.** That is the durable finding here:
+**an enumeration of code sites in prose is structurally unstable, while the rule behind it is
+stable.** Each round found the site the previous list omitted; the version that finally held states
+the rule and cites the per-service census as its derivation.
+
+**But round 7 is the necessary counterweight, and it must not be dropped from this record.**
+Generalising has its own failure mode: the reframe onto "own translation versus related entity"
+swept away a special case that was **true** and that an earlier, worse version had stated
+correctly — media `alt` text is a related entity's localized text and is *never* filtered in a
+query, in any module. **Generalise the rule; do not let the generalisation eat a real exception.**
+The final cell carries both, because the split is stable rather than incidental: related **content**
+translations are query-filtered (`articles`, `projects`, `experiences`), related **media** alt text
+is always loaded whole and picked in memory, and `seo` selects by a unique key.
+
+### Bundle boundary for run 8 — record BEFORE the run, not after
+
+Run 8 asks where a reader would look to find the rules the database itself refuses. The correct
+answer, given by `access-control/README.md` and `contact/README.md`, is `prisma/migrations/**.sql`
+— **a path the 27-document bundle does not carry**, because the bundle is code-adjacent
+*documentation*. This is the same shape as run 7's `openapi.json` artefact: a correct pointer to
+something the artificial bundle cannot hold. *A reader who answers "the documents point me outside
+what you gave me" has answered correctly and must be scored correct* — not recorded as having found
+a defect. Stating this before the run is the whole point; stating it afterwards would be fitting the
+gate to the result.
 
 ## 8. Owner-decision blockers
 
