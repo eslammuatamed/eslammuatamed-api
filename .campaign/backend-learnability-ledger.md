@@ -94,8 +94,9 @@ section is historical narrative, fixed at the commit that wrote it, and may be s
 | Commits on branch | see `git rev-list --count 9af1aac..HEAD` — do not trust a number typed here |
 | Phase 1 (corpus cleanup) | **CLOSED.** archaeology 68→0, rot 25→0, phrases 96→5 (all deliberate keeps) |
 | Phase 2 (learning architecture) | **COMPLETE.** difficulty model §9b · measurements §10 · reading order · status-code section · README template · testing curriculum · flow trace — all peer-reviewed |
-| Cold-reader gate (§11) | **RUN ONCE — NOT PASSED.** 9 of 10 scoreable questions correct (4 of 5 §A, 5 of 5 §B); Q2 **unscored**, the question was defective, not the answer. The run produced 4 documentation defects the gate never pointed at — all verified, all fixed, all peer-reviewed. **A rerun by a NEW reader on a bundle from the current head is the open item.** Full account: §11c |
-| §C regression set | **WRITTEN, NOT RUN.** Six questions, one per repair, scored **separately** from the 8-of-10 threshold so the two runs stay comparable (§11c) |
+| Cold-reader gate (§11) | **RUN TWICE.** Run 1: 9 of 10 scoreable correct, Q2 unscored (defective question); produced 4 documentation defects — all fixed (§11c). **Run 2: 10/10 main + 6/6 §C = 16/16 — the scoring gate PASSES** (§11d) |
+| Open-ended assessment | **THE PRODUCTIVE INSTRUMENT, BOTH RUNS.** Run 2 scored 16/16 *and* found a real prerequisite defect no question touched: the vocabulary table sat at §15 while §2 and §5 already relied on it. Verified, moved to the head of the guide, peer-reviewed |
+| Campaign exit gate | **NOT YET SATISFIED — one item.** A targeted regression on prerequisite placement, by a NEW uncoached reader, on a bundle from the current head (§11d). Nothing else is owed |
 | PR | **OPEN: #86**, base `dev` (never `main`), head `campaign/backend-learnability` — **all 6 checks pass, `MERGEABLE / CLEAN`** |
 
 **CI evidence at `2356fb6` — the last commit before this checkpoint.** *Stated this way on purpose:
@@ -1834,6 +1835,96 @@ than relocated.
 
 **Answers are NOT written down anywhere in the bundle, and must not be.** They live in the code and
 in this ledger, which is excluded from the bundle by construction.
+
+## 11d. Run 2 — the gate scored 16/16 and a real defect was still standing
+
+Second cold reader, new, uncoached, documentation-only, on a bundle from the post-repair head.
+
+| Set | Score |
+| --- | :-: |
+| §A — the invisible layers | **5 / 5** |
+| §B — architecture and method | **5 / 5** |
+| **Main gate** | **10 / 10** (threshold was 8, and the two misses were not to come from §A — zero misses) |
+| §C — regression set | **6 / 6** |
+
+**By its own definition the scoring gate PASSES.** All four repairs held under an independent
+reader: the deployment mechanism and its single owner, the `$transaction` ownership distinction,
+`mail` as a true prerequisite of `contact`, and the departure from the dependency graph — each
+recovered from the documents alone, with the *reasons*, not just the facts.
+
+### And that is exactly why the next sentence matters
+
+**The reader's open-ended assessment found a HIGH-confidence prerequisite defect that none of the
+sixteen questions touched.** `PROJECT_GUIDE.md` used framework vocabulary long before the reader
+reached the vocabulary table this campaign had just added.
+
+Verified before touching anything: `decorators` first used at **line 33** (§2 — *"يُنفَّذ العقد في
+الكود بـ `decorators` من `@nestjs/swagger`"*), dependency injection at **line 99** (§5 — *"الـ
+services تحقن `PrismaService` مباشرة … مقعد الاختبار (seam)"*), and the table at **line 383** — §15,
+about 84 % into the document. **A linear first read met the vocabulary after thirteen sections had
+already relied on it.** The curriculum in §15 was correct and the fix in §11c was correct; what was
+wrong is that *nobody reads a guide by jumping to §15 first*, and the campaign had verified the
+declared order without ever verifying the **physical** one.
+
+*Run 1's lesson was "a gate measures what it was pointed at". Run 2 is the same lesson with a
+**perfect score** attached, which is strictly stronger evidence: 16 of 16 correct, and a real
+learning-path defect standing the whole time. **A passing gate is not a proof that the corpus is
+sound — only that the corpus answers these sixteen questions.** The open-ended assessment, which
+carries no score at all, has now out-produced the scored instrument in both runs.*
+
+### The repair — moved, not copied, and permanently unnumbered
+
+The single table now sits **before §1** as an **unnumbered `##` section**. Unnumbered on purpose
+and for good: `README.md` cites `PROJECT_GUIDE.md` **§11** by number, so inserting a numbered
+section at the head would shift every later number and break that citation silently. §15 keeps a
+back-reference only — duplicating the table would rebuild the two-copies-that-diverge defect this
+campaign removed from the deployment text one section earlier.
+
+### The peer round rejected the first attempt, and was right
+
+- **MAJOR — the carve-out did not hold.** The block claimed guards/pipes/interceptors/filters
+  "need no introduction here" because §5 and §6.1 cover them. §5 **positions** them in the pipeline
+  diagram but never defines a *pipe*, and `DTO`/`ValidationPipe` appear at line 101 with
+  interceptors at line 106 — **inside §4, before §5**. Five bounded rows added (`DTO`, `pipe` ·
+  `ValidationPipe`, `guard`, `interceptor`, `exception filter`), one line each plus the official
+  page that owns the teaching. *The exclusion was written from the declared reading order again —
+  the identical mistake, one layer down.*
+- **The rationale paragraph named `decorators` and dependency injection above the rows defining
+  them** — the defect being fixed, reproduced one paragraph higher. Moved below the table.
+- **The no-renumbering rationale was overstated:** it claimed all sixteen numbers are cited
+  externally. Exactly one is (`README.md` → §11). Narrowed to the truth; the decision survives it.
+- **"This guide uses framework vocabulary without definition" became false** the moment the table
+  moved into this guide. Now says the *rest* of the guide does not redefine the terms per
+  occurrence.
+
+**After the fix, every one of the thirteen terms has its first occurrence inside the block**
+(lines 19–37); §1 begins at line 46. The five new `docs.nestjs.com` links were verified against the
+docs **source** repo with a fabricated path as negative control (`404`), since the site itself
+returns `200` for any path.
+
+### The second observation was evaluated and is NOT a defect
+
+The same reader flagged (MEDIUM confidence) that PostgreSQL authentication terminology —
+`pg_hba.conf`, `trust`, `scram-sha-256`, `SASL` — is assumed rather than taught in
+`src/prisma/README.md`. Measured against the campaign principle: *the repository must teach why
+**this** implementation behaves as it does; it need not teach PostgreSQL administration.* The prose
+already carries the full causal chain (`localhost` → `::1` → a different `pg_hba` rule → a
+passwordless role → `SASL` fails), which is what the `127.0.0.1` invariant actually requires.
+
+**One bounded sentence added anyway**, at `pg_hba.conf`'s **first** appearance in the declared
+reading path (`PROJECT_GUIDE` §10, not `src/prisma/README.md` where the reader hit it — the guide
+is upstream): what the file is, what `trust` and `scram-sha-256` mean, and an explicit statement
+that PostgreSQL administration is out of scope. Defined once, upstream; `README.md` and
+`src/prisma/README.md` deliberately left un-glossed rather than carrying three copies of it.
+
+### What the exit gate now waits on
+
+**A targeted regression only** — the change is narrowly about prerequisite placement, so re-running
+all sixteen questions would measure nothing new. A **new** reader, uncoached, reads
+`PROJECT_GUIDE.md` from the top and answers: before the first section that materially uses
+framework vocabulary, did the guide already supply the minimum needed to continue; which concepts
+did it prepare them for; and did any required term appear before it was introduced. **It must pass
+without coaching.** If it does and nothing new surfaces, the campaign exit gate is satisfied.
 
 ## 8. Owner-decision blockers
 

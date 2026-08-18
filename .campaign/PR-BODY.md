@@ -83,8 +83,26 @@ returns zero, with passing positive controls.
   did.** `articles` and `projects` are step 9 and both import `MediaModule`, which is step 10. The
   trade is deliberate and defensible — `media` is the heaviest module in the repo — but the claim
   was false. Corrected in place in both documents, not appended to.
-- **A rerun is required before this branch is complete**, from a bundle rebuilt at the new head,
-  by a different reader who has never seen these questions.
+- **Run 2 happened, and the scoring gate PASSES: 10/10 on the main gate, 6/6 on the regression
+  set — 16 of 16.** A second, uncoached, documentation-only reader recovered every repair *with
+  its reason*, not just its fact.
+- **And a real defect was standing the whole time.** Run 2's unscored, open-ended assessment found
+  what none of the sixteen questions touched: this guide used framework vocabulary long before the
+  reader reached the vocabulary table this campaign had just added — `decorators` at line 33 (§2),
+  dependency injection at line 99 (§5), table at line 383 (§15, ~84% in). The declared reading
+  order was right; **the physical order was never checked.** *A passing gate is not proof the
+  corpus is sound — only that it answers those sixteen questions. In both runs the instrument that
+  carries no score out-produced the one that does.*
+  Repaired by **moving** the single table to the head of the guide, before §1, as a permanently
+  **unnumbered** section — `README.md` cites §11 by number, so numbering it would silently break
+  that citation. §15 keeps a back-reference, never a copy.
+  Peer review rejected the first attempt: the carve-out excusing guards/pipes/interceptors/filters
+  did not hold (§5 positions a pipe but never defines one; `DTO` and `ValidationPipe` appear in §4,
+  *before* §5), so five bounded rows were added — one line each, with the official page that owns
+  the teaching. All thirteen terms now have their first occurrence inside the block.
+- **One remaining item before this branch is complete:** a targeted regression on prerequisite
+  placement, by a new uncoached reader, from a bundle rebuilt at the current head. Re-running all
+  sixteen questions would measure nothing new — the change is narrowly about placement.
 - The provenance guard has four known blind spots (pattern family, file selection, token boundary,
   alphabet). The corpus is clean by *independent sweep*, not because the guard says so. Widening it
   is queued and deliberately not required for this branch.
