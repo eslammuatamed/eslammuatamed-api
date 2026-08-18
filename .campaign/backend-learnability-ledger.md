@@ -162,6 +162,7 @@ this table: `git log 9af1aac..HEAD --name-only` and drop the commits touching on
 | `d8f56c8` run-5 repairs | §11g | **3 MAJOR**, each re-verified here before action |
 | `9163639` · `0b62767` the fixes for those | §11g | **1 MAJOR** — a universal its own next clause refuted |
 | `a602f71` the fix for that | §11g | **CLEAN** |
+| `3a78c3d` the `idempotent`/`upsert` glosses | §11g | **CLEAN** — with an exhaustive re-sweep of the term class |
 | commits touching only `.campaign/` | — | not source-touching |
 
 **The campaign-wide finding total is NOT reconstructible from these records, so it is not stated.**
@@ -2646,7 +2647,31 @@ four of them. Every one was a false positive, and only reading resolved them:
 *A pattern broad enough to be safe is broad enough to be useless on its own.* The peer independently
 audited the same six by reading and reached the same verdict.
 
-**Peer lane closed for run 5: 3 MAJOR → 1 MAJOR → CLEAN.**
+**Peer lane closed for run 5: 3 MAJOR → 1 MAJOR → CLEAN → CLEAN.**
+
+### The prerequisite defect was a CLASS, and the first sweep stopped one line short
+
+`data-mapper`/`repository` was found by the reader. Sweeping *the class* rather than the pair found
+two more terms used bare in `PROJECT_GUIDE.md` whose explanations live only in documents the reading
+order places later: **`idempotent`** (`§7`, article promotion — its only parenthetical is the
+decision id `D07-3`, a citation and not a gloss; the explanations sit in `prisma/README.md` and
+`articles/README.md`) and **`upsert`** (`§15`). Both now carry one clause at first use, and both
+glosses were verified against source: the promotion is a single `updateMany` scoped to rows still
+`SCHEDULED`, so a re-run matches nothing; `settings` and `seo` both call `prisma.*.upsert` per key.
+
+*The instrument that found them was wrong in both directions, and only reading settled it.* Scoring
+"is there a gloss near first use" by looking for a parenthetical marked `idempotent` **glossed**
+(because `(D07-3)` is a parenthetical) and marked `seam` **unglossed** (because its gloss is the
+Arabic *مقعد الاختبار* that **precedes** the English). Two false readings out of seven terms, in
+opposite directions — a heuristic good enough to shortlist and never good enough to conclude.
+
+**Round 4 closed the class, exhaustively.** The peer re-swept for any remaining term naming a
+pattern, algorithm or protocol concept that a frontend engineer would need before it is explained,
+and listed what it checked: `data-mapper`/`repository`, transaction/atomic commit, lazy connection,
+cron/distributed lock, idempotency, singleton, upsert, `FTS`/`tsvector`/`GIN`, `JWT`/`HMAC`/pepper/
+rotation, `RBAC`/default-deny, descriptors/`BlurHash`, concurrency, state machine, post-commit
+sending, constant-time comparison. **No remaining qualifying term.** Both glosses accurate, both at
+first use, nothing nearby falsified, no new absolute.
 
 ### The run-6 bundle and prompt — written after the corpus was final, not before
 
