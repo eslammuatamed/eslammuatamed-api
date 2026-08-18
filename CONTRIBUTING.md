@@ -2,7 +2,7 @@
 
 ## Branches
 
-- **`main`** — production, and the GitHub default branch. Every commit on `main` is deployed automatically (see below). Protected **by project policy**, not by GitHub (see the Free-plan note).
+- **`main`** — production, and the GitHub default branch. Every commit on `main` is deployed automatically (see below). Protected by an **active GitHub ruleset** *and* by project policy — see [Branch policy](#branch-policy--what-github-enforces-and-what-is-procedural).
 - **`dev`** — development / integration. Feature work lands here first, then promotes to `main`.
 
 ## Release freeze (active — until the Website/Homepage phase)
@@ -63,7 +63,7 @@ Code may be promoted from `dev` to `main` in **exactly two cases**:
   - `push` to `main` — the **happy path** (a merged promotion or authorized push).
   - **Merged-PR fallback** — `deploy-fallback.yml` fires on `pull_request: closed` into `main` (merged only), validates the exact merge SHA against the current `main` tip, and dispatches `deploy.yml` with `target_sha`. It exists because the `push` event is **empirically dropped by GitHub at times** (proven in the trigger audit); the merged-PR event is delivered independently, so both events missing is far less likely than one. The dispatcher holds **no production secrets** and never runs PR-branch code.
   - `workflow_dispatch` — **manual recovery** / redeploy.
-  - **No tags. No scheduled reconciliation** (Actions-minute cost on the Free plan, and schedules can themselves be delayed/dropped).
+  - **No tags. No scheduled reconciliation** — a schedule can itself be delayed or dropped, so it adds a lane without adding a guarantee. (`D23-17` also weighed Actions-minute cost; that half of the rationale was recorded while the repo was private and metered, and no longer applies.)
 - **Idempotent duplicates:** when both the push and the fallback fire for the same SHA, the shared production concurrency group serializes them and a `preflight` job reads the live release SHA — one path **releases**, the other exits **already-current** with no server mutation. A stale SHA exits **superseded**. Main-tip lookups use the **git backend** (`ls-remote` + retries), not the REST API, which can lag or 503 during GitHub incidents.
 - The `deploy` job cannot start unless the **same workflow run** re-verifies the **exact `github.sha`** — it does **not** rely only on the pre-merge PR checks (`needs: [preflight, verify, e2e]`). Before any server mutation it asserts `github.ref == refs/heads/main` **and** `HEAD == github.sha`.
 - **Manual approval gate — a merged promotion is not a finished deployment.** The `deploy` job is the only job that mutates the server, and it is bound to the `production` GitHub environment, so the run pauses for the owner's approval **before the first remote write**. Everything upstream (`preflight`, `verify`, `e2e`) runs unapproved so cheap checks still fail fast. After merging a promotion, go and approve the run — an unapproved run simply waits and nothing is deployed.
@@ -83,14 +83,24 @@ Each release is a self-contained `releases/<UTC-ts>-<short-sha>` behind the `cur
 
 The repos deploy **independently**. For a cross-repo contract change: **deploy API `main` first**, verify its health + backward compatibility, **then** promote Web `main` (which regenerates its types from the committed `openapi.json`). Do not merge coordinated API + Web promotions simultaneously.
 
-## ⚠️ Free-plan reality — branch policy is procedural, not GitHub-enforced
+## Branch policy — what GitHub enforces, and what is procedural
 
-This is a **private repo on GitHub Free**: **branch protection and rulesets are unavailable**. Therefore:
+This repository is **public** and carries **active GitHub rulesets**. The rulesets themselves are the authority for the exact settings; what a contributor needs is the split between what is refused by the platform and what is only discipline.
 
-- **Direct pushes to `main` are prohibited by policy, but GitHub will not block them** — always go through a PR.
-- The CI **branch-policy guard is advisory**: it reports an unexpected promotion path but cannot block a merge.
-- **Red PRs must not be merged** (procedural discipline).
-- **Adding a second write collaborator requires upgrading to GitHub Pro/rulesets (for real branch protection) or a policy redesign first.** The current model assumes **`eslammuatamed` is the sole writer** — verified: sole admin, no other collaborators, no deploy keys, no webhooks, read-only default `GITHUB_TOKEN`.
+**Enforced by GitHub on `main`** (ruleset *main production promotion control*):
+
+- **A pull request is required** — a direct push to `main` is refused, not merely discouraged. No bypass actors are configured.
+- **A merge commit is the only permitted merge method** — GitHub refuses squash and rebase on `main`. This makes `D17-4`'s promotion rule structural rather than procedural.
+- **`Lint · Typecheck · Unit · Contract` and `E2E (Postgres)` are required checks** — a PR failing either cannot be merged. The other CI contexts (CodeQL, the branch-policy guard) are deliberately **not** required; promoting one is a separate owner decision.
+- Branch deletion and non-fast-forward pushes are refused.
+
+**Enforced by GitHub on `dev`** (ruleset *dev integration protection*): branch deletion and non-fast-forward pushes only. `dev` intentionally carries **no required PR and no required checks**, because `D17-4`'s post-release **fast-forward of `dev` to the new `main` merge commit is a direct push** — a required-check rule on `dev` would block the governed synchronization.
+
+**Procedural only — GitHub will not stop you:**
+
+- **PRs into `dev`**, and **not merging a red PR into `dev`**, are discipline: nothing on `dev` enforces either.
+- The CI **branch-policy guard is advisory by choice, not by platform limitation** — it reports an unexpected promotion path and never fails the build (`.github/workflows/ci.yml`).
+- The model assumes **`eslammuatamed` is the sole writer** — sole admin, no other collaborators, no deploy keys, no webhooks, read-only default `GITHUB_TOKEN`. Adding a second write collaborator means revisiting the procedural half above; it is no longer a question of the account plan.
 - Do **not** use `[skip ci]` on a commit that reaches `main` — GitHub would skip the deploy workflow; recover with a `workflow_dispatch` run on `main`.
 
 ## Local environment files — never touched by tests
