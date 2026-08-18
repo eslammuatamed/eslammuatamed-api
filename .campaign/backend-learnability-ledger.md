@@ -99,7 +99,8 @@ section is historical narrative, fixed at the commit that wrote it, and may be s
 | Cold-reader Run 3 | **Gate 16/16; targeted regression FAILED on `Controller`** (used inside the vocabulary block before it was defined) **+ 5 open-ended findings, all confirmed**, two worse than reported. All repaired across two peer rounds (§11e) |
 | Cold-reader Run 4 | **Regression FAILED on the block's *inside*** — 3 sites reported, a 4th by sweep, a 5th by a mechanical check. **6 confirmed open-ended defects + 2 experiment artifacts.** Peer lane then ran **four rounds** on the repair — 7+1 → 5+2 → 0+1 → **CLEAN** — and four of round 2's five MAJORs were defects the *repair* introduced (§11f) |
 | Cold-reader Run 5 | **Vocabulary block PASSES** — read top-to-bottom, no row needing a later row. **Q3 not clean one level up:** `data-mapper`/`repository` used in the guide, defined only in a document read after it. **6 confirmed open-ended defects**, 0 artifacts; a 7th quantifier found by sweep. Peer lane **3 MAJOR → 1 → CLEAN** (§11g) |
-| Campaign exit gate | **NOT YET SATISFIED — one item.** A new uncoached reader, on a bundle from the current head: the `data-mapper`/`repository` prerequisite, each confirmed run-5 repair, a few unchanged controls, and an unscored open-ended pass |
+| Cold-reader Run 6 | **PREREQUISITE-ORDER REGRESSION CLOSED** — linear read clean, all fifteen rows clean, every run-5 repair and control answered. Unscored pass found **3 confirmed defects**, 0 artifacts: an upload guarantee the code does not make (inherited from a false source comment), a category word, and a delegated dependency read as absent behaviour (§11h) |
+| Campaign exit gate | **NOT YET SATISFIED — one item.** A **narrow** cold regression on a bundle from the current head: the compensation invariant, supported vs unsupported non-image behaviour, direct vs delegated locale validation, a few unchanged controls, and an unscored open-ended pass |
 | Open contract gap | `POST /admin/media` can return `400` undeclared in `openapi.json`. **Owner-facing**, needs the doc 16 §3 contract flow — not this branch (§11e) |
 | PR | **OPEN: #86**, base `dev` (never `main`), head `campaign/backend-learnability` — **all 6 checks pass, `MERGEABLE / CLEAN`** |
 
@@ -163,6 +164,9 @@ this table: `git log 9af1aac..HEAD --name-only` and drop the commits touching on
 | `9163639` · `0b62767` the fixes for those | §11g | **1 MAJOR** — a universal its own next clause refuted |
 | `a602f71` the fix for that | §11g | **CLEAN** |
 | `3a78c3d` the `idempotent`/`upsert` glosses | §11g | **CLEAN** — with an exhaustive re-sweep of the term class |
+| `64f36c5` · `7d4bc0b` run-6 repairs | §11h | **2 MAJOR** — both against text written in this round |
+| `f7dfe37` · `56d3681` the fixes for those | §11h | **2 MAJOR** — one an absolute replacing an absolute |
+| `49c611b` the fixes for those | §11h | peer round in flight at time of writing |
 | commits touching only `.campaign/` | — | not source-touching |
 
 **The campaign-wide finding total is NOT reconstructible from these records, so it is not stated.**
@@ -2697,6 +2701,89 @@ severities, no prior-run history, no mention of the peer. Round 3 re-checked the
 all 25 service files, every direct injector's Prisma usage, all seven non-injectors, `auth`'s
 delegation path, and the parallel statement in `src/prisma/README.md` — no contradictory universal
 remains and no new count was introduced.
+
+## 11h. Run 6 — the regression CLOSED, and the unscored pass found a guarantee that was never made
+
+Sixth cold reader, on a bundle verified blob-identical to `7a025be`.
+
+**The prerequisite-order regression is CLOSED.** The reader read the guide linearly and reported no
+architectural term needing a substantially later explanation, walked all fifteen vocabulary rows with
+no forward dependency, and answered every run-5 repair question and every carried control coherently.
+*Six runs to close a defect class that started as one misplaced table.*
+
+**And the unscored pass produced the campaign's sharpest finding yet.** Third run in a row, and the
+fifth of six overall, in which the section carrying no score out-produced the scored questions.
+
+### F1 — the upload README promised a guarantee the code does not make
+
+`media/README.md:84` said, **inside one clause**: *"cleanup never throws; and if objects remain,
+`media.compensation_incomplete` is logged — **so there is neither an orphan row nor an orphan
+object**."* If objects remain, an orphan object is precisely what exists, and
+`media.service.ts:300-308` logs that case by name. The document also argued three sections earlier
+that an orphan object is the *safer* failure. **It contradicted itself twice over.**
+
+Repairing it took **three passes, and each pass produced a new false statement**:
+
+| Pass | What I wrote | Why it was wrong |
+| :-: | --- | --- |
+| 1 | "no orphan row **absolutely** — the row is never committed on failure" | an absolute, unearned |
+| 2 (self-review) | "the row is written last, so **every** failure that triggers compensation precedes it" | `logOverBudgetRenditions` and `toAdminEntity` run **after** `create` resolves, inside the same `try` — I checked the second and missed the first |
+| 3 (peer round 2) | "…and that is **the only path** that produces an orphan row" | a rejected `create` **does not prove** `PostgreSQL` did not commit; a connection lost after commit looks identical, and there is no idempotency token or post-error reconciliation |
+
+**Three absolutes in three consecutive attempts to remove an absolute.** The final text states what
+the ordering earns — object-write failure precedes the row, so the window is *narrowed, not closed* —
+and names the two limits instead of asserting past them.
+
+### The false claim was inherited from a source comment, not invented by the docs
+
+`media.service.ts:294` asserted *"Cleanup never throws: the caller must still rethrow / return."*
+`cleanup()` awaits `storage.deleteMany` **bare**; the local adapter catches per key and cannot reject,
+but the `R2` adapter awaits `client.send`, which can reject outright — and that rejection escapes
+`cleanup`, pre-empts `compensate()`'s `throw error`, and **replaces the original upload failure while
+logging neither the event nor the keys.**
+
+**The correct statement already existed 175 lines away, for the sibling path.** `cleanupAfterDelete`
+wraps the same call in `try` and its comment says exactly why: *"Only the LOCAL adapter is internally
+total (it catches per key); the S3/R2 adapter can reject outright…"* **Two comments about the same
+adapter, in one file, disagreeing** — and the README had faithfully copied the wrong one. *This is
+the campaign's founding defect in its purest form: the document was not the liar; it was the honest
+witness of a lying comment.* The upload comment now says what the code does.
+
+### F2 — a category word where the test is not about the category
+
+`media/README.md`'s e2e summary read *"non-image `422`"*, while the same file says `PDF` is the only
+supported non-image type — so it read as though the supported type were rejected. The actual test is
+`rejects a non-image (spoofed extension)` with a fixture of plain text named `evil.jpg`, asserting a
+**row** count. Narrowed to the real input class, and *"(no orphan)"* tightened to *"(no orphan
+**row**)"* to match both the test's own name and the invariant above.
+
+### F3 — "not in preview" was true of the imports array and false about behaviour
+
+The guide said you would not meet `locales` *"in `preview`"*. `preview.module.ts:13` imports only
+`ArticlesModule`/`ProjectsModule` and injects no `LocalesService` — **but both public preview reads
+delegate to `getPreviewById`, and `articles.service.ts:204` and `projects.service.ts:144` each call
+`assertEnabled` first.** A newcomer would conclude preview requests skip locale validation. Both
+sides now state the distinction, and the general rule with it: **a delegated dependency does not
+appear in an `imports` list, so absence from the list is not absence of the behaviour.** Admin
+token-mint routes take no locale and are correctly outside it.
+
+### Classified: experiment artifacts, not defects
+
+`openapi.json`, workflow files and source are **deliberately** absent from a documentation-only
+bundle — the reader's inability to re-audit contract claims is the experiment's design, not a corpus
+defect, and copying contract content into prose is exactly what §6.5 exists to avoid. The root
+`prisma/README.md`'s doc-09 prerequisite resolves correctly under the primary-checkout layout and the
+ownership boundary is stated in the sentence itself (§11f settled this once already).
+
+### ⚠ OWNER-FACING — the shipped spec asserts a property the implementation does not provide
+
+`.specify/specs/003-media-pipeline/spec.md:22` and `plan.md:29` record, as **acceptance conditions of
+a shipped feature**, *"compensation on failure … no orphaned rows or objects"* and *"objects-before-row
++ compensation on failure; no orphans."* The README now documents two limits under which that does
+not hold. **The `.specify` records were NOT edited:** convention 4.E makes them historical evidence,
+and amending an accepted feature's acceptance criteria is a governance act, not documentation
+cleanup. Queued for the owner alongside the two code-behaviour limits themselves, which this
+documentation-only branch records and does not repair.
 
 ## 8. Owner-decision blockers
 
