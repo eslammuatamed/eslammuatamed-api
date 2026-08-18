@@ -98,7 +98,8 @@ section is historical narrative, fixed at the commit that wrote it, and may be s
 | Open-ended assessment | **THE PRODUCTIVE INSTRUMENT, BOTH RUNS.** Run 2 scored 16/16 *and* found a real prerequisite defect no question touched: the vocabulary table sat at §15 while §2 and §5 already relied on it. Verified, moved to the head of the guide, peer-reviewed |
 | Cold-reader Run 3 | **Gate 16/16; targeted regression FAILED on `Controller`** (used inside the vocabulary block before it was defined) **+ 5 open-ended findings, all confirmed**, two worse than reported. All repaired across two peer rounds (§11e) |
 | Cold-reader Run 4 | **Regression FAILED on the block's *inside*** — 3 sites reported, a 4th by sweep, a 5th by a mechanical check. **6 confirmed open-ended defects + 2 experiment artifacts.** Peer lane then ran **four rounds** on the repair — 7+1 → 5+2 → 0+1 → **CLEAN** — and four of round 2's five MAJORs were defects the *repair* introduced (§11f) |
-| Campaign exit gate | **NOT YET SATISFIED — one item.** A new uncoached reader, on a bundle from the current head: internal vocabulary ordering, each confirmed run-4 repair, a few unchanged controls, and an unscored open-ended pass |
+| Cold-reader Run 5 | **Vocabulary block PASSES** — read top-to-bottom, no row needing a later row. **Q3 not clean one level up:** `data-mapper`/`repository` used in the guide, defined only in a document read after it. **6 confirmed open-ended defects**, 0 artifacts; a 7th quantifier found by sweep (§11g) |
+| Campaign exit gate | **NOT YET SATISFIED — one item.** A new uncoached reader, on a bundle from the current head: the `data-mapper`/`repository` prerequisite, each confirmed run-5 repair, a few unchanged controls, and an unscored open-ended pass |
 | Open contract gap | `POST /admin/media` can return `400` undeclared in `openapi.json`. **Owner-facing**, needs the doc 16 §3 contract flow — not this branch (§11e) |
 | PR | **OPEN: #86**, base `dev` (never `main`), head `campaign/backend-learnability` — **all 6 checks pass, `MERGEABLE / CLEAN`** |
 
@@ -158,6 +159,7 @@ this table: `git log 9af1aac..HEAD --name-only` and drop the commits touching on
 | `87839d6` the fixes for those | §11f | **5 MAJOR + 2 MINOR** — four of the five were introduced *by* the fixes; one peer count pushed back on with an enumeration |
 | `483c9c5` · `d3455d5` the fixes for those | §11f | **0 MAJOR + 1 MINOR** |
 | `2fd62e2` the fix for that MINOR | §11f | **CLEAN** |
+| `d8f56c8` · `9163639` run-5 repairs | §11g | peer round in flight at time of writing — **not yet discharged** |
 | commits touching only `.campaign/` | — | not source-touching |
 
 **The campaign-wide finding total is NOT reconstructible from these records, so it is not stated.**
@@ -2503,6 +2505,84 @@ resolver's consumers as `projects`/`articles`/`testimonials`/`settings` with **n
 A→B and concluded about B→A** — the same inversion the direct round caught, found here by a reviewer
 that had been told the rule. *That is the strongest evidence in this ledger that the rule needs an
 instrument rather than a reminder.*
+
+## 11g. Run 5 — the block passed, and the layer above it failed the same way
+
+Fifth cold reader, new, uncoached, documentation-only, on a bundle verified blob-identical to
+`deedf75`.
+
+| Question | Result |
+| --- | --- |
+| Q1 — read the vocabulary block top-to-bottom; did any row need a later row? | **PASS**, HIGH — walked all fifteen rows and reported none |
+| Q2 — what did it equip you for? | **PASS**, HIGH |
+| Q3 — any term needed before it was introduced? | **NOT CLEAN** — `data-mapper` / `repository`, MEDIUM |
+
+**The repair worked and the defect moved up a level.** Four runs were spent ordering the vocabulary
+block; run 5 confirms it now reads linearly. Then `§4:117` calls `Prisma` *"the `data-mapper` (no
+`repository` layer)"* and `§5:148` builds an architectural decision on that contrast — while **both
+terms are defined only in `src/prisma/README.md:7`**, which the guide's own reading order places
+*after* the guide. *Same class, one layer up: a term used materially in the document a newcomer is
+told to finish first, defined only in a document they are told to read second.* Both are now defined
+in one bounded line at first use; the full argument stays where it was.
+
+### The six open-ended findings, each verified before it was touched
+
+- **`.service.ts` → `Prisma` was overclaimed twice, and the softer version was wrong too.** `§6.3`
+  said *"every service injects `PrismaService`"*; `src/prisma/README.md:21` softened it to *"almost
+  every"*. **Measured:** of **25** `*.service.ts` files (excluding `PrismaService` itself) **18**
+  inject it and **7** never touch the database. `18/25` is 72 % — *"almost every" is not supported
+  either, which is why the census had to come before the wording.* And the count was never the
+  lesson: the lesson is that **no repository layer sits between a service and `Prisma`**, and that
+  the suffix predicts nothing about database access — which the vocabulary block already says.
+- **The seam was described as `DI`.** `src/prisma/README.md:104` said the test seam is
+  `PrismaService` *"via DI"*, which reads as the container performing the substitution. It does not,
+  in most tests: they construct with `new` and pass the mock by hand, and three files boot a real
+  container. The **constructor** is the seam.
+- **The reading path claimed exactly three modules lie outside it.** `users` is a fourth: no numbered
+  step, mentioned only to say you needn't read it before `auth` — so a newcomer is told it exists and
+  never told when to read it, while `users/README.md` sits there. Four, named, with its reason.
+- **`projects/README:36`** said `ogImageId` *"remains a raw reference in this contract"*, which reads
+  as *and nothing else*. `openapi.json` carries **both** `ogImageId` and `ogImage` on
+  `PublicProjectDetailEntity` — the general rule applies with no exception here. *An incomplete true
+  sentence, which is the harder kind to catch than a false one.*
+- **`media/README`** listed résumé-`PDF` upload as the module's work at `:7` and then, under accepted
+  limitations at `:109`, said `PDF` upload is *"outside this module's scope"*. **The subject was
+  wrong** — it is outside the *e2e tests*, not the module. **Module scope and test scope must never
+  be interchangeable words.**
+- **`test/README:16`** read as an inventory while naming 11 of 34 `e2e` files. Labelled as examples.
+
+### Classified, not repaired
+
+The reader's `data-mapper`/`repository` item and its Part-3 restatement are **one defect**, counted
+once. Nothing in run 5 was an experiment artifact: the bundle carried every file each finding needed.
+
+### The sweep found a quantifier the reader never saw — and an instrument lied twice doing it
+
+Sweeping the quantifier family rather than the named sites: **step 4 of the reading path promised you
+would meet `locales` "in every `service` after it."** Seven of the twelve modules that follow inject
+`LocalesService`; `auth`, `access-control`, `mail`, `contact` and `preview` carry no language at all
+— and `contact/README` says so in as many words. Narrowed to the measured set.
+
+*Getting that measurement took two attempts.* The first per-module check globbed
+`src/modules/$m/*/*.service.ts`, which `zsh` fails loudly on when a module has no subdirectory — and
+the failure made **every one of the twelve** read `NO`, including the seven that are `YES`. A uniform
+negative across an entire sweep is not a result; it is a broken instrument. Rebuilt on `find`, and
+**positive-controlled against the `locales` module itself**, which must be a hit.
+
+### Self-review caught the count's own evidence
+
+The `18/25` repair listed the seven services that do not touch the database — and **listed six**.
+`auth.service.ts` was missing: it injects neither `Prisma` nor anything database-bound, because it
+delegates account lookup to `users` and token work to `refresh-token`. **A count is only as good as
+the enumeration offered as its evidence, and mine did not add up to its own number.** Caught before
+the peer round, which is the first time on this campaign that has happened.
+
+*One claim was checked and left alone:* `§15`'s *"`users` — 24 lines of code"* is **correct** under
+the guide's own measure (non-blank, non-comment, module-wide: `users.service.ts` 17 +
+`users.module.ts` 7 = 24). The `27` that had been sitting in the vocabulary row was `wc -l` of one
+file — two true numbers under two measures, in one document, about one module. The row now
+*describes* (`two lookups, by id and by email` — verified: `findByEmail`, `findById`, and nothing
+else) instead of counting.
 
 ## 8. Owner-decision blockers
 
