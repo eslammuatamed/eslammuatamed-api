@@ -3109,6 +3109,41 @@ The final cell carries both, because the split is stable rather than incidental:
 translations are query-filtered (`articles`, `projects`, `experiences`), related **media** alt text
 is always loaded whole and picked in memory, and `seo` selects by a unique key.
 
+### The run-8 bundle and prompt — built, validated, NOT run
+
+Built from the exact final head by `build-run8-bundle.sh`, which takes the `SHA` as its argument
+and refuses to run on a dirty tree or a mismatched `HEAD`.
+
+| Check | Result |
+| --- | --- |
+| corpus selection | `git ls-tree` at the head, `README`/`PROJECT_GUIDE` only, excluding `.github`/`.specify`/`.campaign` — **27 files** |
+| parity with the guard | `guard:docs` governs **27** code-adjacent docs; the builder selects **27**. Same set, independently derived |
+| corpus vs the peer-reviewed tree | **all 27 blobs byte-identical** to `55201e4`, the tree round 8 returned `CLEAN` on — the later commit touches `.campaign/` only |
+| positive control | 27/27 identical to the commit |
+| **negative control** | one file corrupted → the same check flagged **exactly 1**, and it was the corrupted one (`prisma/README.md`) |
+| restore | 27/27 identical again after reverting the probe |
+| `zip` round-trip | 27/27 identical after extract |
+| file count | 27 — the `SHA` marker is a **sidecar next to the zip**, deliberately not inside the bundle, so the count is not inflated |
+| retirement | run-7 bundle, zip and prompt all renamed `-SUPERSEDED` by the script, so it cannot be skipped |
+
+**Answerability was checked, and the check is weaker than it sounds — state it as what it is.** A
+term-presence probe over the corpus found supporting text for all thirteen questions, but presence
+is not reachability: it proves a phrase exists somewhere, not that a reader following the documented
+order arrives at it. Two of its rows were near-vacuous and were **spot-checked by hand** instead —
+the missing-translation outcome (`locales/README.md` ownership table and `PROJECT_GUIDE` §6.4) and
+the reading order (`PROJECT_GUIDE` §11's ordered list). *Recording this as "every question verified
+answerable" would overstate the instrument, which is the exact defect this campaign removes.*
+
+**The prompt is thirteen questions plus an unscored open pass, and it was leak-checked.** It names
+no finding, no run history, no expected answer, no pass criterion and no repair label. Two questions
+were rewritten because they presupposed their answers: one asked whether reading the schema file
+would give a complete answer (handing over the insight it was testing), and one asked the reader to
+explain why the documentation was written a certain way. Both are now neutral — a reader who has
+absorbed the material and one who has not give different answers, which is the only property that
+makes a question worth asking.
+
+**Neither Claude nor Codex may act as the reader, and neither ran it.**
+
 ### Bundle boundary for run 8 — record BEFORE the run, not after
 
 Run 8 asks where a reader would look to find the rules the database itself refuses. The correct
