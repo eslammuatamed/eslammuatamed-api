@@ -25,7 +25,7 @@
 | المصطلح | ما تعنيه هنا | المصدر الرسمي |
 |---|---|---|
 | decorator (`@…`) | دالّة تعمل **مرّة واحدة عند تعريف الصنف** (لا عند كلّ طلب)، وغالب ما تفعله هنا هو تسجيل ميتاداتا يقرأها `Nest` و`Swagger` والتحقّق لاحقًا. ولهذا `reflect-metadata` تبعيّة إنتاج | [Custom decorators](https://docs.nestjs.com/custom-decorators) |
-| `service` | الصنف الذي يُنفِّذ عمل الوحدة. **خدمات المجال** — `articles` و`projects` و`settings` وأخواتها — تملك **قواعد المجال**: منطق العمل، وحدود المعاملة على قاعدة البيانات (`transaction` — عدّة عمليّات تنجح أو تفشل معًا)، وتحليل اللغة؛ تفصيلها في القسم ٥. **والاسم لا يتنبّأ بالمحتوى، ولا الموضع:** منها الآليّ المحض (`users` في سبعة وعشرين سطرًا)، ومنها ما هو بنية تحتيّة بلا قواعد مجال (الإعداد، البريد)، ومنها ما يفرض قواعد رفعٍ خاصّة بالمستودع ويرفض بـ `422` (`media-processing`) | [Providers](https://docs.nestjs.com/providers) |
+| `service` | الصنف الذي يُنفِّذ عمل الوحدة. **خدمات المجال** — `articles` و`projects` و`settings` وأخواتها — تملك **قواعد المجال**: منطق العمل، وحدود المعاملة على قاعدة البيانات (`transaction` — عدّة عمليّات تنجح أو تفشل معًا)، وتحليل اللغة؛ تفصيلها في القسم ٥. **والاسم لا يتنبّأ بالمحتوى، ولا الموضع:** منها الآليّ المحض (`users`: بحثان بالمُعرّف والبريد، لا أكثر)، ومنها ما هو بنية تحتيّة بلا قواعد مجال (الإعداد، البريد)، ومنها ما يفرض قواعد رفعٍ خاصّة بالمستودع ويرفض بـ `422` (`media-processing`) | [Providers](https://docs.nestjs.com/providers) |
 | `provider` | أيّ شيء مُسجَّل تحت مُعرّف (token) ليُعطيه الإطار لمن يطلبه: صنف (`useClass` — وهو الشائع: كلّ ملفّات `*.service.ts`)، أو مصنع (`useFactory` — مثل `STORAGE_ADAPTER` و`MAIL_TRANSPORT`)، أو قيمة جاهزة (`useValue`) | [Providers](https://docs.nestjs.com/providers) |
 | `@Module` | صندوق تجميع: يُعلن ما يملكه (`providers`) وما يراه (`imports`) وما يُعيره لغيره (`exports`). التطبيق شجرة من هذه الصناديق جذرها `AppModule` | [Modules](https://docs.nestjs.com/modules) |
 | حقن التبعيّات (DI) · `@Injectable` | في شيفرة الإنتاج لا تُنشئ الخدمات بـ `new`؛ تُعلن تبعيّاتها في الـ constructor فيُمرّرها الإطار. والـ constructor نفسه هو **مقعد الاختبار**، ولهذا كثير من اختبارات الوحدة هنا **تتجاوز حاوية الإطار** وتُنشئ الصنف بـ `new` مُمرِّرةً بدائل مُموَّهة مباشرةً (العدد المقيس في [`test/README.md`](test/README.md)) | [Providers · DI](https://docs.nestjs.com/providers#dependency-injection) |
@@ -114,7 +114,7 @@ interceptor فيلفّ تنفيذه ويعمل **بعد** نجاحه، والـ 
 | `@nestjs/swagger` | توليد مستند `OpenAPI` — هو **العقد الرسمي** |
 | `@nestjs/throttler` | تحديد المعدّل (rate limiting) بطبقات لكل نوع مسار |
 | `@nestjs/schedule` | cron داخل العملية: نشر المقالات المجدولة كل دقيقة |
-| `@prisma/client` | عميل `Prisma` وقت التشغيل — هو الـ data-mapper (لا طبقة repository) |
+| `@prisma/client` | عميل `Prisma` وقت التشغيل. نمطه **data-mapper**: الاستعلام يبقى ظاهرًا عند نقطة ندائه (`this.prisma.article.findMany({ … })`)، لا يُخفى خلف **repository** — صنف وسيط يغلّفه بأسماء من لغة المجال (`ArticleRepository.findPublished()`). المستودع يختار الأوّل ويرفض الثاني، والحُجّة كاملةً في [`src/prisma/README.md`](src/prisma/README.md) |
 | `argon2` | تجزئة كلمات المرور بـ `argon2id` (`D19-1`) |
 | `class-transformer` · `class-validator` | تحقّق الـ DTO (عبر `ValidationPipe`) وتحقّق البيئة |
 | `cookie-parser` | قراءة كوكي refresh token httpOnly |
@@ -183,7 +183,7 @@ ThrottlerGuard → JwtAuthGuard → PermissionsGuard → (Controller)
 التفاصيل الكاملة في [`src/modules/auth/README.md`](src/modules/auth/README.md) و[`src/modules/access-control/README.md`](src/modules/access-control/README.md).
 
 ### 6.3 الوصول إلى قاعدة البيانات
-كل service يحقن `PrismaService` (نموذج data-mapper). الاتصال **كسول (lazy)**: لا `$connect` عند الإقلاع، فيفتح `Prisma` المجمّع عند أول استعلام — ما يتيح تصدير العقد وتشغيل الاختبارات دون قاعدة بيانات (`constitution rule 4`). التفاصيل في [`src/prisma/README.md`](src/prisma/README.md).
+الخدمات التي تمسّ قاعدة البيانات تحقن `PrismaService` **مباشرة**، بلا طبقة repository بينها وبين `Prisma`. **وليست كلّ خدمة كذلك:** من خمسٍ وعشرين ملفّ `*.service.ts` (عدا `PrismaService` نفسه) تحقنه **ثمانية عشر**، وسبعةٌ لا تمسّ القاعدة أصلًا — الإعداد، البريد ورسائله، تجزئة كلمات المرور، معالجة الصور، ورموز المعاينة. **اللاحقة `.service.ts` لا تعني وصولًا إلى قاعدة البيانات.** الاتصال **كسول (lazy)**: لا `$connect` عند الإقلاع، فيفتح `Prisma` المجمّع عند أول استعلام — ما يتيح تصدير العقد وتشغيل الاختبارات دون قاعدة بيانات (`constitution rule 4`). التفاصيل في [`src/prisma/README.md`](src/prisma/README.md).
 
 ### 6.4 تحليل اللغة (i18n)
 الترجمات في جداول ترجمة منفصلة لكل كيان (`D09-1`). طبقة الـ service تملك تحليل اللغة:
@@ -438,7 +438,7 @@ preflight  →  (verify  ∥  e2e)  →  deploy
 |---|---|---|---|
 | تحقّق مباشر من الـ JWT بـ `JwtService` (`Passport` بديل اختياري غير مستخدَم) | `common/guards/jwt-auth.guard.ts`, `modules/auth/*` | `Compatible` (مدعوم رسميًّا؛ ليس انحرافًا) | [NestJS Authentication](https://docs.nestjs.com/security/authentication) · القرار `D00-6` |
 | تجزئة `argon2id` (64 MiB/t=3/p=4) | `modules/auth/hashing/*` | `Compatible` (يفي/يفوق حدّ OWASP الأدنى لـ Argon2id) | [OWASP Password Storage](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html) · `D19-1` |
-| حقن `PrismaService` مباشرة، بلا repository | كل `*.service.ts` | `Compatible` (وصفة NestJS+Prisma الرسمية تحقنه مباشرة) | [NestJS Prisma recipe](https://docs.nestjs.com/recipes/prisma) · `D07-2`/`D00-3` |
+| حقن `PrismaService` مباشرة، بلا repository | الخدمات التي تمسّ القاعدة (١٨ من ٢٥) | `Compatible` (وصفة NestJS+Prisma الرسمية تحقنه مباشرة) | [NestJS Prisma recipe](https://docs.nestjs.com/recipes/prisma) · `D07-2`/`D00-3` |
 | اتصال `Prisma` كسول (بلا `$connect` عند الإقلاع) | `prisma/prisma.service.ts` | `Compatible` (`Prisma` يدعم الاتصال الكسول أصلًا؛ ويحقّق `constitution rule 4`، لا يخالفها) | [Prisma connection management](https://www.prisma.io/docs/orm/prisma-client/setup-and-configuration/databases-connections/connection-management) · `constitution rule 4` |
 | `ValidationPipe` عام (whitelist + forbid + transform) | `main.ts`, كل `dto/*` | `Compatible` | [NestJS Validation](https://docs.nestjs.com/techniques/validation) |
 | أخطاء `RFC 7807` عبر exception filter عام | `common/filters/*`, `common/http/*` | `Compatible` | [RFC 7807](https://datatracker.ietf.org/doc/html/rfc7807) · [NestJS Exception filters](https://docs.nestjs.com/exception-filters) |
@@ -483,8 +483,10 @@ preflight  →  (verify  ∥  e2e)  →  deploy
 > في الرسم — `mail` قبل `contact` — فهي مُدرَجة في مكانها أدناه.
 >
 > **والترتيب مسار تعلّم لا فهرسًا.** الفهرس الكامل للوحدات في
-> [`src/modules/README.md`](src/modules/README.md)، وفيه ثلاث وحدات لا يمرّ بها هذا المسار:
-> `testimonials` (لا فكرة خارج النموذج القانوني)، و`settings`/`seo` (صفّ مفرد singleton و`upsert`
+> [`src/modules/README.md`](src/modules/README.md)، وفيه **أربع** وحدات لا يمرّ بها هذا المسار:
+> `testimonials` (لا فكرة خارج النموذج القانوني)، و`users` (٢٤ سطر شيفرة، بلا `controller` وبلا
+> مسارات — حافة في الرسم لا مفهوم؛ اقرأ [`users/README.md`](src/modules/users/README.md) عند
+> `auth` إن احتجت)، و`settings`/`seo` (صفّ مفرد singleton و`upsert`
 > لكلّ مفتاح، مع تحليل لغة — فكرة حقيقيّة، لكن لا يتوقّف عليها فهم أيّ خطوة تالية). **المسار
 > يرتّب الأفكار التي يبني بعضُها على بعض؛ ما لا يدخل في ذلك البناء يُقرأ عند الحاجة إليه، لا
 > لإتمام قائمة.**
@@ -492,7 +494,7 @@ preflight  →  (verify  ∥  e2e)  →  deploy
 1. هذا الدليل (`PROJECT_GUIDE.md`) من أوّله — وجدول «مفردات `NestJS`» في صدره يسبق القسم ١، فإن قرأته من البداية فقد مررت به فعلًا.
 2. [`src/config/README.md`](src/config/README.md) → [`src/prisma/README.md`](src/prisma/README.md) → [`src/common/README.md`](src/common/README.md) (البنية العرضية).
 3. **[`src/modules/README.md`](src/modules/README.md) — إلزاميّ، وليس اختياريًّا.** وفيه تحديدًا قسم «أيّ طبقة ترفض أوّلًا» الذي يشرح لماذا تحصل على `422` هنا و`400` هناك بينما الـ `controller` لا يذكر أيًّا منهما. من دونه ستقرأ كل وحدة وأنت تفتقد نصف ما يجري فيها.
-4. [`locales`](src/modules/locales/README.md) — **٧٦ سطر شيفرة (غير فارغة وغير تعليق؛ `wc -l` الخام يعطي ٩٠)، وتعتمد عليها عشر وحدات.** أصغر وحدة حقيقية وأكثر مقطع مشترك في المستودع؛ ستراها في كل `service` بعدها.
+4. [`locales`](src/modules/locales/README.md) — **٧٦ سطر شيفرة (غير فارغة وغير تعليق؛ `wc -l` الخام يعطي ٩٠)، وتعتمد عليها عشر وحدات.** أصغر وحدة حقيقية وأكثر مقطع مشترك في المستودع؛ ستراها في كلّ وحدة تحمل نصًّا مترجَمًا بعدها — لا في `auth` و`access-control` و`mail` و`contact` و`preview`.
 5. `health` — *لا `README` مخصّص لها عمدًا؛ وصفها في [النموذج القانوني](src/modules/README.md)* — أصغر وحدة كاملة: فحص حياة + فحص جاهزية يفتح الاتصال الكسول فعليًّا.
 6. [`experiences`](src/modules/experiences/README.md) ثمّ [`skills`](src/modules/skills/README.md) — **النموذج القانوني وهو يعمل، بلا أيّ فكرة جديدة.** إن بدتا مكرّرتين فهذه هي الفائدة: التكرار هو النموذج.
 7. [`taxonomy`](src/modules/taxonomy/README.md) — أكبر سطح مسارات في المستودع (٤ `controllers` / ١٠ مسارات) بأبسط منطق، وفيها أوّل مفهوم قاعديّ حقيقي: حذف تمنعه علاقة أجنبيّة (`P2003` → `409`).

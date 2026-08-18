@@ -13,7 +13,7 @@
 | `utils/contract.ts`           | تحميل `openapi.json` لتأكيدات `jest-openapi`                                                                                                                           |
 | `utils/e2e-database.ts`       | قواعد عزل قاعدة البيانات (`D18-8`): توليد الاسم، اشتقاق الـ DSN، والحارس الذي **يرفض الإقلاع** خارج قاعدة الجولة                                                       |
 | `utils/e2e-database-admin.ts` | تنفيذ الإنشاء/الترحيل/البذر/الإسقاط لقاعدة الجولة                                                                                                                      |
-| `<domain>.e2e-spec.ts`        | مجموعة لكل مجال: `auth`, `articles`, `articles-related`, `projects`, `settings`, `experiences`, `skills`, `testimonials`, `access-control`, `list-envelopes`, `health` |
+| `<domain>.e2e-spec.ts`        | مجموعة لكل مجال — **أمثلة لا جردًا**: `auth`, `articles`, `projects`, `settings`, `experiences`, `skills`, `testimonials`, `access-control`, `health` … والعدد الكامل ٣٤ ملفًّا، فلا تُقرأ هذه القائمة على أنّها كلّها |
 
 ## ما تُثبته الاختبارات
 

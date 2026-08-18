@@ -18,7 +18,7 @@
 
 ## خريطة الاتصال
 
-- **وارد:** كل `*.service.ts` تقريبًا يحقن `PrismaService` مباشرة.
+- **وارد:** كلّ خدمة تمسّ قاعدة البيانات تحقن `PrismaService` مباشرة — **١٨** من **٢٥** ملفّ `*.service.ts` (عدا هذا الملفّ نفسه)؛ والسبع الباقية خدمات لا تمسّ القاعدة.
 - **صادر:** العميل المولَّد `src/generated/prisma` (`PrismaClient`) + `@prisma/adapter-pg` (`PrismaPg`) + `AppConfigService` (لقراءة الـ URL، لا `process.env`).
 
 ## المُشغِّل يحلّ المضيف الآن — لا محرّك `Rust` (`Prisma 7`)
@@ -101,7 +101,7 @@ service ← PrismaService ← PrismaClient (مولَّد) ← PrismaPg ← pg po
 
 ## نقطة تمديد آمنة: مقعد الاختبار (test seam)
 
-بما أنه لا repository، فمقعد الاختبار هو **حقن `PrismaService` نفسه** عبر DI. الاختبارات تستبدله بـ mock (انظر `jest-mock-extended` في `*.service.spec.ts`)، فتُختبَر كل service وحدها دون قاعدة بيانات (`principle 13`).
+بما أنه لا repository، فمقعد الاختبار هو **حقن `PrismaService` نفسه** — أي الـ constructor. والاختبارات تستبدله بـ mock (`jest-mock-extended`)، فتُختبَر كل service وحدها دون قاعدة بيانات (`principle 13`). **والاستبدال يدويّ في الغالب، لا تفعله حاوية `Nest`:** أغلب اختبارات الوحدة تُنشئ الصنف بـ `new` وتُمرّر المُموَّه في الـ constructor مباشرةً، وثلاثة ملفّات فقط تُقلع حاوية حقيقيّة — الأعداد المقيسة في [`test/README.md`](../../test/README.md).
 
 ## أخطاء شائعة
 
