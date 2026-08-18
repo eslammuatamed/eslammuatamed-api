@@ -97,67 +97,85 @@ section is historical narrative, fixed at the commit that wrote it, and may be s
 | Cold-reader gate (§11) | **RUN TWICE.** Run 1: 9 of 10 scoreable correct, Q2 unscored (defective question); produced 4 documentation defects — all fixed (§11c). **Run 2: 10/10 main + 6/6 §C = 16/16 — the scoring gate PASSES** (§11d) |
 | Open-ended assessment | **THE PRODUCTIVE INSTRUMENT, BOTH RUNS.** Run 2 scored 16/16 *and* found a real prerequisite defect no question touched: the vocabulary table sat at §15 while §2 and §5 already relied on it. Verified, moved to the head of the guide, peer-reviewed |
 | Cold-reader Run 3 | **Gate 16/16; targeted regression FAILED on `Controller`** (used inside the vocabulary block before it was defined) **+ 5 open-ended findings, all confirmed**, two worse than reported. All repaired across two peer rounds (§11e) |
-| Campaign exit gate | **NOT YET SATISFIED — one item.** A new uncoached reader, on a bundle from the current head: re-run the placement questions, test the six repaired findings, keep an unscored open-ended pass |
+| Cold-reader Run 4 | **Targeted regression FAILED again on internal ordering** — three sites inside the vocabulary block, a fourth found by sweep. **7 open-ended findings: 6 confirmed defects, 2 experiment artifacts** (one reader item split in two). All repaired (§11f) |
+| Campaign exit gate | **NOT YET SATISFIED — one item.** A new uncoached reader, on a bundle from the current head: internal vocabulary ordering, each confirmed run-4 repair, a few unchanged controls, and an unscored open-ended pass |
 | Open contract gap | `POST /admin/media` can return `400` undeclared in `openapi.json`. **Owner-facing**, needs the doc 16 §3 contract flow — not this branch (§11e) |
 | PR | **OPEN: #86**, base `dev` (never `main`), head `campaign/backend-learnability` — **all 6 checks pass, `MERGEABLE / CLEAN`** |
 
-**CI evidence at `2356fb6` — the last commit before this checkpoint.** *Stated this way on purpose:
-stamping "at the PR head" is false the instant the stamping commit lands, which is this ledger's
-own signature defect. Every commit after `2356fb6` touches `.campaign/` only — no source, no
-code-adjacent doc, no workflow — so this reading stays valid until one does not. Current head:
-`gh pr checks 86`.* Gated on `mergeStateStatus: CLEAN`, not on a check count — a check name appears
-twice per `SHA`, once for the push run and once for the PR run — **and on step arrays, not on the
-green tick**: `E2E (Postgres)` reports `steps=11, all success`, so it ran rather than being skipped
-at zero steps with a `success` conclusion:
+**CI state is READ, never stamped here.** The authority is `gh pr checks 86` together with the
+step arrays of its jobs (`gh api repos/:owner/:repo/actions/jobs/<id>`). Gate on `mergeStateStatus:
+CLEAN` **and** on `steps`, never on a check count and never on the green tick: a check name appears
+twice per `SHA` (once for the push run, once for the PR run), and a `success` conclusion over an
+**empty** step array is a job that never ran.
 
-| Check | Result |
-| --- | --- |
-| Lint · Typecheck · Unit · Contract | pass (1m5s) |
-| **E2E (Postgres)** | **pass (2m2s)** |
-| CodeQL · Analyze (actions) · Analyze (javascript-typescript) | pass |
-| Branch-policy guard (advisory) | pass |
+*Why nothing is stamped.* This entry twice carried a `SHA`-pinned CI reading whose stated validity
+depended on a prediction — "every later commit touches `.campaign/` only". Both times a later commit
+did not, and the sentence became false without anyone editing it. **A sentence whose truth depends on
+what future commits will do is this campaign's signature defect wearing a timestamp.** A CI reading
+measures a tree; it belongs to that tree, not to this file.
 
-**Local gates before the push:** `guard:docs:selftest` 43/43 → `guard:docs` GREEN (27 code-adjacent
-docs, 315 source files, exit 0); zero broken relative links in every changed Markdown file. No `.ts`
-changed in this round, so `lint`/`typecheck`/`unit` carry no new information locally — CI ran them
-anyway and they pass.
+**Local gates are re-run per round and recorded with the round**, not here: `guard:docs:selftest`
+(43/43) → `guard:docs` (GREEN) → the relative-link checker, which is only evidence *after* its
+negative control passes (§11e — this instrument has lied once already).
 
-**The E2E result is the one that adds information.** Every other check re-confirms something already
-run locally. The e2e suite needs a live PostgreSQL, which this worktree has no credentials for — so
-until CI ran it, **34 e2e suites had never been executed against any of this campaign's changes.**
-The campaign touched comments inside those very files (race barriers, transaction-semantics,
-prisma-error-mapping), and a comment edit cannot break a test — but "cannot" was an argument, not a
-measurement, and it is now a measurement.
+**One historical measurement is kept, because it is not reproducible from a later head.** At
+`2356fb6`, `E2E (Postgres)` ran with `steps=11, all success`. That is worth keeping independently of
+any later commit: the e2e suite needs a live PostgreSQL this worktree has no credentials for, so
+until that run, **34 e2e suites had never been executed against any of this campaign's changes.** The
+campaign edits comments inside those very files (race barriers, transaction-semantics,
+prisma-error-mapping), and "a comment edit cannot break a test" was an argument until that run made
+it a measurement. Later heads re-ran the same lane and also passed; the *first* run is the one that
+changed what was known.
 
 **Why base `dev` and not `main`.** `main` is the repository's default branch, so `gh pr create`
 would have targeted it by default. `dev → main` is the boundary that auto-deploys Production
 (D-10, §8), and no promotion or deploy is authorized by this campaign. Targeting `main` would have
 staged exactly the action the charter forbids — **the default was the wrong answer, and defaults
 are not authorization.**
-| `guard:docs` | GREEN; self-test 43/43 |
-| Tests | 61 suites / 1273 tests |
-| PR | none opened. Campaign ends at a PR; no promotion, no deploy |
 
-### Review debt — the one number that must never be optimistic
+### Review debt — commit-scoped, and deliberately not aggregated
 
-**Every source-touching commit on this branch is peer-reviewed, and every finding is resolved.**
+**A peer verdict covers the tree it was taken on and nothing after it.** This table records which
+source-touching commits have a peer round and *where that round is written down*, so a reader can
+check the record instead of trusting a summary. Derive the commit list mechanically — never from
+this table: `git log 9af1aac..HEAD --name-only` and drop the commits touching only `.campaign/`.
 
-| Commit | Verdict |
-| --- | --- |
-| Baseline → `eff70d3` (slices 1–5c) | reviewed; findings resolved |
-| `2aa031f` archetype status-code section | 1 MAJOR (pipe order) + 2 omissions → fixed |
-| `1fde962` the fix for that MAJOR | CLEAN |
-| `a799dd5` reading order | CLEAN (2 MINORs, both acted on) |
-| `29b389a` README template | CLEAN — every count independently re-derived |
-| `e9ea4f8` two MINOR wording fixes | 1 MINOR (unswept sibling number) → fixed |
-| `ea06eed` testing curriculum | 1 MAJOR (DI undercount) + 1 MINOR → fixed |
-| `e12bdfe` those fixes | CLEAN |
-| `d069828` flow trace | CLEAN |
-| Ledger-prose commits | not source-touching |
+| Source-touching commit(s) | Round recorded at | Verdict |
+| --- | --- | --- |
+| Baseline → `eff70d3` (slices 1–5c) | §5, §5b, §5c | reviewed; findings resolved |
+| `2aa031f` archetype status-code section | §5b | 1 MAJOR (pipe order) + 2 omissions → fixed |
+| `1fde962` the fix for that MAJOR | §5b | CLEAN |
+| `a799dd5` reading order | §10c | CLEAN (2 MINORs, both acted on) |
+| `29b389a` README template | §10b (the survey; the verdict itself is recorded only here) | CLEAN — every count independently re-derived |
+| `e9ea4f8` two MINOR wording fixes | — (verdict recorded only here) | 1 MINOR (unswept sibling number) → fixed |
+| `62e055a` pipe-order family sweep | §5c | itself the fix for a peer finding; **no separate round recorded on the fix** |
+| `ea06eed` testing curriculum | §10d | 1 MAJOR (DI undercount) + 1 MINOR → fixed |
+| `e12bdfe` those fixes | §10d | CLEAN |
+| `d069828` flow trace | §10e | CLEAN |
+| `0262e5b` · `846dc73` run-1/run-2 repairs | §11c, §11d | 9 findings / 3 MAJOR (§11c); first attempt **rejected** and redone (§11d) |
+| `4f7f10d` · `f3becd8` run-3 repairs | §11e | two rounds — 4 MAJOR, then 5 more |
+| `b6f17b0` run-4 repairs | §11f | see §11f |
+| commits touching only `.campaign/` | — | not source-touching |
 
-**Findings across the campaign: 4 MAJOR + 6 MINOR, all resolved.** Three of the four MAJORs were
-invisible to every gate — a comment naming the wrong class, an inverted causal mechanism, and a
-false count — because none of them are behaviour.
+**The campaign-wide finding total is NOT reconstructible from these records, so it is not stated.**
+A figure — "4 MAJOR + 6 MINOR, all resolved" — stood here for several rounds and was already
+contradicted by this same file: §11c alone records nine findings with three MAJOR, and §11e records
+four MAJOR and then five more whose severity split was never written down. Producing a precise total
+now would mean inventing the splits nobody recorded.
+
+What the durable records *do* support, and no more:
+
+| Quantity | Value | Basis |
+| --- | --- | --- |
+| MAJOR findings | **≥ 11** | 4 (slice range) + 3 (§11c) + 4 (§11e round 1) |
+| Findings, all severities | **≥ 28** | 10 (slice range) + 9 (§11c) + 9 (§11e, both rounds) |
+| §11d round | **UNRECORDED** | the section states the first attempt was rejected; it gives no count |
+| §11e round 2 severity split | **UNRECORDED** | "five more" — severities not written down |
+
+*The rule this encodes:* **an aggregate must never be more precise than the records beneath it.** A
+tidy total that cannot be traced to a round is worse than an explicit `≥`, because it reads as
+audited. Three of the MAJORs on record were invisible to every gate — a comment naming the wrong
+class, an inverted causal mechanism, and a false count — because none of them are behaviour.
 
 **Gates the PR, not phase 2.** Do not discharge by author verification (§5 records why that is
 strictly weaker).
@@ -2027,6 +2045,216 @@ in Runs 1 and 2 were not evidence; they were the instrument's blind spot.*
 covered by tests) and **`openapi.json` does not declare it.** A real contract gap — but declaring it
 *changes the contract*, and this branch is documentation-only. It needs the doc 16 §3 flow
 (export → version → `web` adopts) as its own change. **Queued, not silently absorbed.**
+
+## 11f. Run 4 — the regression failed on the block's *inside*, and the sweep found a fourth
+
+Fourth cold reader, new, uncoached, documentation-only, on a bundle verified blob-identical to
+`9c7ec640`.
+
+| Question | Result |
+| --- | --- |
+| Q1 — minimum vocabulary in place before first material use? | **YES**, HIGH |
+| Q2 — name the concepts prepared | HIGH, enumerated all fourteen rows of the block |
+| Q3 — any term needed before it was introduced? | **NOT CLEAN** — three sites, MEDIUM |
+
+**Run 3 moved the block to the head of the guide; run 4 shows it was never ordered *internally*.**
+The reader named three: `DI` used `PrismaService` (defined three rows down), `@Global` used "dynamic
+module" (one row down), and `controller` handed **قواعد المجال** to a `service` that had **no row at
+all** — its architectural meaning lived in `§5:143`. *The reader hedged at MEDIUM on whether an
+ordinary English word needs a definition. It does: `service` here is the layer that owns domain
+rules, and the controller row is unreadable without it.*
+
+**Sweeping all fourteen rows found a fourth the reader missed** (and a mechanical re-check later found
+a fifth — below)**:** the `PrismaService` row says the
+class enters "`DI` ودورة حياة `Nest`" while the lifecycle-hooks row sat **below** it. Reported: 3.
+Actual: 4. *Third round running in which the sweep beats the report — which is the argument for
+sweeping the invariant rather than the named sites.*
+
+### The repair, and the cycle that forced a wording change
+
+`DI` needs `PrismaService` as its example; `PrismaService` needs `DI`, `provider` and the lifecycle
+hooks to be defined. **That is a genuine cycle — no ordering breaks it**, which is why the previous
+round settled for *acknowledging* the forward references instead of removing them.
+
+Broken on the `DI` side, where the cost is lowest: the row's point is the **test seam**, and the seam
+is stated without naming the class (`يُمرَّر بديل مُموَّه بدل التبعيّة الحقيقيّة`). Final order:
+`decorator → service → provider → @Module → DI → dynamic module → @Global → lifecycle hooks →
+PrismaService`, then the request-layer table unchanged.
+
+### The claim was absolute, so it got an instrument — and the instrument beat the reading
+
+The ordering claim is exactly the shape this campaign keeps getting wrong, so it was checked
+mechanically rather than by re-reading: parse the fifteen rows, take each row's **first cell** as the
+definition site of its term, then search every other row's **description** for that term with
+word boundaries and flag any use above its definition.
+
+**It failed on the first run, on a row a careful read had already cleared.** The `provider` row said
+*"كلّ `*.service.ts`"* one row *above* the new `service` row. Reading it, that is plainly a filename
+and not a use of the concept — which is precisely the reasoning that lets a forward reference ship.
+**The published claim is an absolute and does not carry that nuance**, so the rows were swapped
+(`service` now precedes `provider`) rather than the matcher weakened. *Weakening a matcher to fit the
+corpus is how the link checker started lying.*
+
+| Control | Expected | Got |
+| --- | --- | --- |
+| Current block | PASS | `rows=15, forward_refs=0` |
+| Move the `PrismaService` row back above `DI` — the original run-4 defect | **FAIL** | FAIL, flagged `line 30 uses 'DI' defined at 31` |
+| Restore | PASS | PASS; file `sha256`-identical to pre-mutation |
+
+*The lesson is not "write more instruments". It is that **an absolute deserves a mechanical check even
+when — especially when — a careful human read has already cleared it**. Four rounds of this campaign
+have now been lost to a quantifier that survived a careful read.*
+
+**And the prose above the tables had to move with them.** It described the two forward references as
+deliberate — a sentence that was itself written as a *correction* to an earlier false absolute. Fix
+the rows and that sentence becomes false. **Fifth time a repair on this branch would have
+manufactured a falsehood elsewhere if the surrounding prose had not been re-read.**
+
+*The new claim is an absolute and is stated as one:* no row needs a row below it or a later numbered
+section. Backed by a row-by-row sweep of a finite, small set — fifteen rows — and the parenthesised
+section references were checked to be detail-only, not load-bearing.
+
+### The six confirmed open-ended findings, each verified before it was touched
+
+- **CI e2e mechanism — the guide was wrong and there were *three* copies.** `PROJECT_GUIDE` §11 said
+  the lane runs `migrate deploy` → `db:seed`. **Literal YAML** (`.github/workflows/ci.yml`, e2e job)
+  runs `checkout → setup-node → npm ci → prisma generate → test:e2e` and nothing else; the harness
+  owns its database (`D18-8`). `README.md` and `test/README.md` were both *correct* — which is the
+  actual problem: a volatile mechanism written three times independently. §11 now owns the step list;
+  `README.md` points at it; `test/README.md` keeps only the harness's own fact.
+- **`media/README` stated the descriptor rule with no exception.** Confirmed against the contract —
+  and the sweep *cleared* two neighbouring absolutes rather than condemning them. A script over every
+  schema in `openapi.json` found `PublicSiteSettingsEntity.resumeAsset` is the **only** descriptor
+  field with no sibling raw `*Id`, and `AdminSiteSettingsEntity.portrait` the **only** descriptor on
+  an admin entity. So `PROJECT_GUIDE` §6.5's "الاستثناء الوحيد" and "بقيّة الكيانات الإدارية خامّة"
+  are both **exhaustively true**, and only the media README was overbroad. *An absolute that survives
+  its sweep is worth as much as one that falls.*
+- **`projects/README` named the field `blurDataUrl`.** The contract declares `blurhash` (6
+  occurrences); `blurDataUrl` occurs **nowhere else in the repository** — a single stale site, not a
+  competing convention.
+- **The reading-order counterexample was right; the module READMEs were wrong.** The reader suspected
+  `PROJECT_GUIDE`'s "`articles` و`projects` تستوردان `media`". `articles.module.ts` and
+  `projects.module.ts` both declare `imports: [LocalesModule, MediaModule, RedirectsModule]` — a real
+  Nest module import **and** a provider injection (`MediaDescriptorResolver` in both constructors).
+  **The defect was the inverse of the report.** Sweeping the family found **four** wrong dependency
+  maps, not two: `testimonials` and `settings` inject `MediaDescriptorResolver` too. And
+  `articles/README` claimed *"لا وحدة أخرى تستورد `ArticlesService`"* while `preview.module.ts:13`
+  imports `ArticlesModule` — a false absolute the reader never asked about.
+- **§10 read as the validated set and was not one.** The schema validates **29** variables; §10 named
+  **20**. Missing: the whole `SMTP_*` group with `CONTACT_NOTIFICATION_TO` (the reader's finding) and
+  **`PUBLIC_WEB_URL`** (found by diffing the list against `env.validation.ts`). Repaired by *narrowing
+  the framing* — `.env.example` and the schema are named as the only binding list — plus one clause
+  naming the two absent groups. Completing the enumeration here would have created a second
+  configuration reference that drifts at the next variable.
+- **`test/README` counted six types above a table of seven.** Confirmed by counting rows.
+
+### One reported finding split, and two deliberately not actioned
+
+The reader's media-descriptor item and its `blurhash`/`blurDataUrl` item were reported as one
+contradiction each but resolve from different authorities, so they are recorded and repaired
+separately.
+
+- **`openapi.json` absent from the bundle** — an **experiment artifact**. The file exists at the repo
+  root (335 KB). The learning path points at a real artifact; the bundle simply did not carry it.
+- **The doc-09 prerequisite in the sibling repo** — an **experiment artifact**. `prisma/README.md`'s
+  `../../eslammuatamed-docs/docs/09-database-design.md` resolves correctly under the primary-checkout
+  convention (verified: the file exists there). It does not resolve from `~/worktrees` because the
+  sibling checkout is absent *there* — a property of the review environment, already settled in §11e.
+  The rebuilt link checker resolves depth from each file's own directory and passes it.
+- **Compatibility conclusions** the reader could not audit from prose alone — **not a defect**. Each
+  names its authority and the pinned version; a learning document may state a verified conclusion
+  without embedding the audit.
+
+### Found and deliberately DEFERRED — not fixed on this branch
+
+`.github/workflows/ci.yml:161` carries a job comment — *"Integration lane — spins up Postgres 16 and
+runs migrations, seed, and the e2e suite"* — that reads against the inline comment eight lines below
+it (*"No migrate/seed step…"*, `:208`) and against the job's own steps. It is a real clarity defect.
+**It is not repaired here:** `ci.yml` is outside the 27-file code-adjacent corpus and outside the
+315 source files the guard reads, no cold reader has ever seen it, and touching a workflow file
+widens this branch's declared surface for no learnability gain. Queued, not absorbed.
+
+### An open measurement, recorded rather than guessed
+
+`test/README.md`'s type table gives per-row file counts summing to **93**. The table was left alone,
+and the reason is worth more than the number.
+
+**First attempt, and it was wrong.** A census of `*.spec.ts` under `src/` and `test/` returned 90,
+so the residual "pointed at" the hedged `~٢٩` row being nearer **26**. That census was incomplete:
+`package.json`'s jest config declares **four** roots — `src`, `../prisma`, `../test/utils`,
+`../scripts` — and the last three hold six spec files that a `src`+`test` walk never sees. The real
+totals are **61 non-`e2e` + 34 `e2e` = 95**, confirmed independently by `npm test` reporting
+`61 passed, 61 total` suites. So the table does not over-count by 3; it **under-counts by 2**, and
+the residual now points at `~٢٩` being nearer **31** — *the opposite direction from the first
+derivation.*
+
+**Nothing was changed, and that decision survived being wrong.** Had the first residual been written
+into the file, the corpus would now carry `٢٦` where the evidence says `٣١`, stated without a hedge,
+justified by arithmetic over four categories nobody has classified per-file. What actually holds:
+the `31 + 3 = 34` e2e split is exact against a direct count, and `3` DI-booting files is exact
+against `@nestjs/testing`/`NestFactory` usage. The other four categories cannot be separated by
+filename or `grep` — "structural via reflection" and "unit with a mocked `Prisma`" both match
+ordinary controller specs — so settling `~٢٩` needs a per-file read of 95 specs. **Queued, and the
+`~` stays until then.**
+
+*The instrument lesson, which generalises past this table:* **a spec-file census must be taken from
+the runner's own roots, never from a directory list you thought of.** The guessed list was wrong by
+six files and produced a confident residual in the wrong direction — a clean-looking number from an
+instrument that could not see part of its own subject. Same failure shape as the guard's four blind
+spots and the link checker's, and the third time on this campaign that a count was derived rather
+than measured.
+
+### The dependency-map family, swept — and where the sweep stops being evidence
+
+Every module under `src/modules/` with a `README.md` was compared against its `*.module.ts`
+`imports:` array and its services' constructor parameters:
+
+| Module | Verdict |
+| --- | --- |
+| `articles` · `projects` · `testimonials` · `settings` | **were wrong — repaired this round** |
+| `seo` | **already correct** — it named `MediaDescriptorResolver` before this round. *The family had a
+member that was right, which is why "sweep the family" is not the same as "apply the fix everywhere".* |
+| `access-control` · `experiences` · `locales` · `redirects` · `skills` · `taxonomy` · `users` | consistent |
+| `media` | it is the owner of the descriptor, not a consumer |
+
+**Where this instrument stops:** it reads `src/modules/<m>/*.service.ts` and does **not** descend into
+subdirectories, so a module whose dependency lives in a nested service (`auth/tokens/…`) is invisible
+to it. `auth`, `contact` and `media` each show a difference under this coarse reading that may be the
+blind spot rather than a defect. **They are therefore NOT recorded as clean**, and they are not
+repaired on a reading the instrument cannot support. A per-module check that walks nested services is
+queued. *A sweep that names its blind spot is evidence; one that does not is a clean reading of
+nothing.*
+
+### The link checker, rebuilt again — and its rule written down this time
+
+§11e rebuilt this instrument after it was caught special-casing any path containing
+`eslammuatamed-docs` onto the primary checkout, which let **wrong-depth** links pass. That rebuild
+was not committed anywhere, so it had to be written a third time. **The resolution rule, in full, so
+the next session does not re-derive it:**
+
+> Every link resolves from **its own file's directory**, against a *virtual* repo root equal to the
+> primary-checkout path `…/Work/eslammuatamed/eslammuatamed-api`. If the resolved path stays inside
+> that root it is then checked inside the **worktree**; if it escapes (a sibling repo) it is checked
+> on the **real filesystem**. `http(s)`, `mailto:` and bare `#anchors` are skipped; a `#fragment` is
+> stripped before resolution. No path is matched by substring anywhere — that was the defect.
+
+Relocating the root preserves **depth**, which is the property the old instrument destroyed, and the
+negative control is what proves it:
+
+| Control | Expected | Got |
+| --- | --- | --- |
+| Mutate one sibling link `../` → `../../` | **FAIL** | FAIL — flagged that link only |
+| Append a dangling in-repo link | **FAIL** | FAIL — flagged that link only |
+| Restore both (`cp -p`, not `git checkout` — the tree was dirty) | **PASS** | PASS, and both files `sha256`-identical to their pre-mutation state |
+
+**Reading on the final tree: 61 Markdown files, 119 relative links, 0 broken** — the *wide* scope,
+including `.campaign/` and `.specify/`. *Stated because a narrower scope had passed first: excluding
+those two directories reads 30 files / 116 links and also passes, and a checker that skips part of
+the corpus reporting PASS is exactly the shape of the failure this instrument already had once.*
+
+### The peer round
+
+*Recorded below once Codex's verdict on `b6f17b0` returns.*
 
 ## 8. Owner-decision blockers
 

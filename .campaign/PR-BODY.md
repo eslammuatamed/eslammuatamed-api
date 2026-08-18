@@ -99,7 +99,8 @@ returns zero, with passing positive controls.
   Peer review rejected the first attempt: the carve-out excusing guards/pipes/interceptors/filters
   did not hold (§5 positions a pipe but never defines one; `DTO` and `ValidationPipe` appear in §4,
   *before* §5), so five bounded rows were added — one line each, with the official page that owns
-  the teaching. All thirteen terms now have their first occurrence inside the block.
+  the teaching. All fourteen terms then had their first occurrence inside the block — but the
+  block's own rows were still not in order, which run 4 found.
 - **Run 3 scored the gate 16/16 again, and its targeted regression FAILED** — correctly. The
   placement fix had moved the vocabulary block to the head of the guide and then reproduced the
   original defect *inside the block*: `Guard → Pipe → Controller` and "بين الطلب والـ controller"
@@ -125,8 +126,41 @@ returns zero, with passing positive controls.
 - **Open, owner-facing, deliberately not fixed here:** `POST /admin/media` can return `400`
   (missing `file` part) and `openapi.json` does not declare it. Declaring it changes the contract,
   which this documentation-only branch must not do — it needs the doc 16 §3 flow.
-- **One item remains:** a new uncoached reader on a bundle from the current head — placement
-  questions re-run, the six repaired findings tested, and an unscored open-ended pass kept.
+- **Run 4's regression failed too — on the block's *inside*.** Moving the vocabulary to the head
+  fixed where it sits; nobody had ordered the rows within it. `DI` used `PrismaService` three rows
+  before its definition, `@Global` used "dynamic module" one row before, and `controller` handed
+  **domain rules** to a `service` that had *no row at all* — its meaning lived in §5. Sweeping all
+  fourteen rows found a fourth the reader missed: `PrismaService` cites the lifecycle hooks defined
+  below it. Reordered topologically, with one bounded `service` row added; the genuine
+  `DI` ↔ `PrismaService` cycle is broken by stating the test seam without naming the class. The
+  prose above the tables *described those forward references as deliberate*, so it was false the
+  moment they were removed — it moved with them.
+- **Six more from run 4's unscored pass, every one verified against code or contract first.** §11
+  claimed the CI e2e lane runs `migrate deploy` → `db:seed`; the literal YAML runs neither, and
+  **three** independently-worded copies of that mechanism existed, so §11 now owns the step list
+  alone. `media/README` stated the descriptor rule with no exception — and here the sweep *cleared*
+  its neighbours: a script over every schema in `openapi.json` proves `resumeAsset` is the only
+  descriptor without a sibling raw id and `AdminSiteSettingsEntity.portrait` the only admin
+  descriptor, so §6.5's two absolutes are exhaustively true and only the media README was overbroad.
+  `projects/README` named the field `blurDataUrl`; the contract says `blurhash` and `blurDataUrl`
+  appears nowhere else in the repository. §10 read as the validated environment set while naming 20
+  of 29 variables. `test/README` counted six types above a table of seven.
+- **The reading-order finding inverted under verification.** The reader doubted that `articles` and
+  `projects` import `media`. They do — `imports: [LocalesModule, MediaModule, RedirectsModule]` in
+  both, plus `MediaDescriptorResolver` in both constructors. **The guide was right and the module
+  READMEs were wrong**, and sweeping the family found four bad dependency maps rather than two, plus
+  an `articles/README` absolute — "no other module imports `ArticlesService`" — that `PreviewModule`
+  falsifies. *Two reader findings were experiment artifacts and are recorded as such, not "fixed":
+  `openapi.json` is absent from the bundle but present in the repository, and the doc-09 pointer
+  resolves correctly under the real checkout layout.*
+- **A count was left alone on purpose, and that decision survived being wrong.** `test/README`'s
+  type table sums to 93 files. A first census said the true total was 90, implying one row should
+  read 26; that census had missed two of jest's four declared roots. The real total is 95, so the
+  residual points the *other* way. Had the first number been written in, the corpus would now carry
+  a confident falsehood. The row keeps its `~` until all 95 specs are classified per file.
+- **One item remains:** a new uncoached reader on a bundle from the current head — internal
+  vocabulary ordering, each confirmed run-4 repair, a few unchanged controls, and an unscored
+  open-ended pass kept.
 - The provenance guard has four known blind spots (pattern family, file selection, token boundary,
   alphabet). The corpus is clean by *independent sweep*, not because the guard says so. Widening it
   is queued and deliberately not required for this branch.
