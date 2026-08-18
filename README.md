@@ -30,7 +30,7 @@ npm run start:dev             # http://localhost:3001  (Swagger UI على /docs)
 
 > **لماذا `build:ops` أولًا؟** `db:seed` و`content:sync:*` تعمل الآن من `JavaScript` **مُصرَّف** في
 > `dist-ops/` بدل `ts-node`، لأنّ إصدار الإنتاج المُقلَّم (`npm prune --omit=dev`) لا يحوي `ts-node`
-> ولا مجلّد `src/` (‏`F9-13`/`F9-14`). لم نربط البناء داخل السكربتات نفسها لأنّ `tsc` غير موجود في
+> ولا مجلّد `src/`. لم نربط البناء داخل السكربتات نفسها لأنّ `tsc` غير موجود في
 > الإنتاج، فربطُه كان سيكسر الأمر حيث يهمّ فعلًا. `npm run build` الكامل يبنيه أيضًا.
 
 > ملاحظة إعداد: الدور بلا كلمة مرور قد يُفشِل أول `migrate deploy`/`db:seed` لأن `pg_hba.conf` الافتراضي يطلب `scram-sha-256` على `127.0.0.1`؛ أضِف سطر `trust` مُقيَّدًا على loopback (انظر تعليق `.env.example` و`runbooks/setup.md` في `../eslammuatamed-docs`).
@@ -64,11 +64,15 @@ npm run test:e2e              # Supertest + jest-openapi — يبني dist-ops �
 > `fail-closed` في `test/utils/e2e-setup.ts` يرفض إقلاع التطبيق أصلًا إن لم تُشِر `DATABASE_URL` إلى قاعدة
 > وَلَّدَتْها هذه الجولة. التفاصيل في [`test/README.md`](test/README.md).
 
-في الـ CI: مسار `e2e` في `.github/workflows/ci.yml` يشغّل خدمة `Postgres 16` ثم `npm ci` → `generate` → `test:e2e` فقط. **لا يوجد فيه `migrate deploy` ولا `db:seed`** — فمنذ `D18-8` يملك مِعمار الاختبارات قاعدةً خاصّة به لكلّ تشغيل: ينشئها ويُرحّلها ويبذرها ويُسقطها بنفسه، فلا يوجد سوى مالكٍ واحد للتهيئة. ولا توجد خطوات يدويّة مقابلة للتشغيل المحلّي: المسار المحلّي والـ CI يستعملان نفس الحزمة المالكة لقاعدتها.
+وفي الـ CI تعمل الحزمة نفسها المالكة لقاعدتها، فلا خطوات يدويّة مقابلة هناك أيضًا. خطوات مسار `e2e` يملكها [`PROJECT_GUIDE.md` §11](PROJECT_GUIDE.md) — **لا تُكرَّر هنا**.
 
 ## النشر
 
-الوسم `vX.Y.Z` على `main` يُشغّل البناء والنشر ويُرفِق `openapi.json` كأثر إصدار. النشر على `Contabo VPS` بلا `Docker`. التفاصيل في [الوثيقة 23 (Deployment)](../eslammuatamed-docs/docs/23-deployment.md) و[التوثيق الرسمي لنشر NestJS](https://docs.nestjs.com/deployment).
+**لا أوسمة (`tags`).** وصول commit إلى `main` — دفعًا أو دمجَ ترقية `dev → main` — يُشغّل `deploy.yml` على ذلك الـ `SHA` بعينه. وقد يُشغَّل **تشغيلان** لنفس الـ `SHA`: دفعة `main`، ويُضاف إليها احتياطيّ `deploy-fallback.yml` عند دمج PR (لأنّ حدث الدفع يسقط أحيانًا) فيُرسِل نفس الخطّ بـ `workflow_dispatch`. مجموعة التزامن الواحدة و`preflight` تجعلان الزوج مُتماثلًا (idempotent): **تشغيل واحد على الأكثر يبلغ الكتابة على الخادم**.
+
+ووظيفة التحويل هي **الوحيدة** التي تكتب على الخادم، وهي مربوطة ببيئة `production` في `GitHub`. أمّا وقوفها لموافقة المالك فمصدره قاعدة المراجِع المطلوب المضبوطة على تلك البيئة (`D23-16`, `D23-17`) — **إعداد خارج ملفّات سير العمل**، فلا تستنتجه من الـ `YAML` وحده. النشر على `Contabo VPS` بلا `Docker`.
+
+الآليّة بتفصيلها يملكها [`PROJECT_GUIDE.md` §11](PROJECT_GUIDE.md) و[الوثيقة 23 (Deployment)](../eslammuatamed-docs/docs/23-deployment.md) — **لا تُكرَّر هنا**، فنسختان من وصف خطّ النشر تفترقان عند أوّل تغيير. للمرجع: [التوثيق الرسمي لنشر NestJS](https://docs.nestjs.com/deployment).
 
 ## انضباط التغيير
 

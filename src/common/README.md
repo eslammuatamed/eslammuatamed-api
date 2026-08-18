@@ -14,7 +14,7 @@
 | `filters/all-exceptions.filter.ts` | `AllExceptionsFilter` العام: كل استثناء → `RFC 7807 problem+json` |
 | `http/problem-details.ts` | نوع `ProblemDetails` + `ProblemDetailsDto` (لـ Swagger) + `PROBLEM_TYPES` |
 | `http/validation-problem.exception.ts` | `ValidationProblemException` + `flattenValidationErrors` (مسارات حقول مُنقَّطة) |
-| `interceptors/response-envelope.interceptor.ts` | `ResponseEnvelopeInterceptor`: يغلّف كل رد 2xx في `{ data }` أو `{ data, meta }` |
+| `interceptors/response-envelope.interceptor.ts` | `ResponseEnvelopeInterceptor`: يغلّف كل رد 2xx **له جسم** في `{ data }` أو `{ data, meta }`؛ و`204` بلا جسم فلا غلاف له |
 | `pagination/page-meta.ts` | `PageMeta`, `buildPageMeta`, و`PaginatedResult<T>` (الحارس الذي يفكّه الـ interceptor إلى قائمة) |
 | `dto/pagination-query.dto.ts` | `PaginationQueryDto` — ترقيم offset (page/perPage مع getters skip/take) |
 | `dto/locale-query.dto.ts` | `LocaleQueryDto` — يتحقّق من صيغة `?locale=` |
@@ -38,7 +38,7 @@ providers: [
 
 الترتيب مقصود: throttle يطبَّق حتى على العامّ، ثم المصادقة تضع `request.user`، ثم التفويض يحلّ الصلاحيات. `PermissionsGuard` نفسه يعيش في وحدة `access-control` (لأنه يحتاج `PrismaService`)، لكنه يعمل في هذا الترتيب العالمي.
 
-- **وارد:** كل controller/DTO في `modules/` يستخدم `@Public()`, `PaginationQueryDto`, `LocaleQueryDto`, ومساعدات Swagger.
+- **وارد:** وحدات `modules/` هي المستهلِك — **لا كلُّ ملفّ فيها ولا كلُّ أداة هنا:** `@Public()` للمسارات غير المُصادَق عليها وحدها (والمحروسة تحمل `@RequirePermission` بدلًا منه)، و`PaginationQueryDto` لما يُصفَّح، و`LocaleQueryDto` لما يُحلَّ للّغة؛ ومساعدات `Swagger` وحدها عامّة الاستعمال تقريبًا. اقرأ الاستيرادات لا هذا السطر.
 - **صادر:** حزم `@nestjs/*` + `AppConfigService`. **لا استيراد من `modules/`.**
 
 ## التدفّقات الأساسية
@@ -62,10 +62,10 @@ providers: [
 | `Prisma` `P2025` (غير موجود) | → | 404 |
 | `Prisma` `P2003` (مفتاح أجنبي) | → | 409 |
 | `HttpException` | → | حالته مع نوع/عنوان مطابق |
-| `http-error` عميليّ (4xx مع `expose:true`) من middleware — جسم أكبر من الحدّ `413` (`doc 19 §5`) أو JSON مُشوَّه `400` | → | حالته 4xx بصيغة `RFC 7807` مع تفصيل **عامّ** (نصّ الخطأ الأصليّ لا يُفشى، إذ قد يحوي جزءًا من الجسم) — بدل وسمه خطأً خادميًّا 500 (`F005`/`AD-7`) |
+| `http-error` عميليّ (4xx مع `expose:true`) من middleware — جسم أكبر من الحدّ `413` (`doc 19 §5`) أو JSON مُشوَّه `400` | → | حالته 4xx بصيغة `RFC 7807` مع تفصيل **عامّ** (نصّ الخطأ الأصليّ لا يُفشى، إذ قد يحوي جزءًا من الجسم) — بدل وسمه خطأً خادميًّا 500 |
 | غير متوقّع (يشمل `http-error` من فئة 5xx) | → | 500 (بلا تفاصيل داخلية في الإنتاج؛ السبب يُسجَّل) |
 
-> **حدّ حجم الجسم (`doc 19 §5`، `AD-7`):** يُسجَّل مُحلِّلا `express.json`/`urlencoded` صراحةً في الإقلاع
+> **حدّ حجم الجسم (`doc 19 §5`):** يُسجَّل مُحلِّلا `express.json`/`urlencoded` صراحةً في الإقلاع
 > (`main.ts`، `bodyParser: false` ثم حدّ `1mb`) لأنّ الافتراضيّ (~100 kB) كان سيرفض مقالًا كبيرًا صحيحًا
 > (حقول Markdown حتى 256 KiB). الرفع متعدّد الأجزاء (multer، وسائط 10 MiB) مُحلِّل منفصل غير متأثّر.
 
@@ -74,12 +74,12 @@ providers: [
 القيمة instance من PaginatedResult ؟ → { data: value.data, meta: value.meta }
                                      → { data: value ?? null }
 ```
-شكل واحد بلا استثناء (`D10-3`)، فيبقى تحليل العميل موحّدًا. الأخطاء تتجاوز هذا المسار (الفلتر يملكها).
+شكل واحد لكلّ ردٍّ له جسم (`D10-3`)، فيبقى تحليل العميل موحّدًا. **والاستثناء ليس شكلًا ثالثًا بل غياب الجسم:** الحذف يُجيب `204` بلا محتوى، فلا `{ data }` فيه — لا تكتب عميلًا يفترض جسمًا على كلّ `2xx`. الأخطاء تتجاوز هذا المسار (الفلتر يملكها).
 
 ## العقود والثوابت
 
 - كل نقطة خاصّة افتراضيًا (default-deny)؛ الاستثناء صريح بـ `@Public()`.
-- فشل التحقّق = 422 (لا 400 الافتراضي لـ Nest)؛ 400 محجوز للطلب المُشوَّه.
+- فشل تحقّق الـ `DTO` في `ValidationPipe` = **422** (لا `400` الافتراضي لـ `Nest`). أمّا **`400` فليس محجوزًا لطبقة واحدة**، وهذه مصادره الخمسة: تحليل **معامل المسار** (`ParseUUIDPipe` — وهو على `@Param` في كلّ مواضعه الخمسة والثلاثين، لا على `@Query`)، ورفض صريح داخل `service` (`assertEnabled`)، ورفض صريح داخل `controller` (غياب جزء `file` في رفع الوسائط)، والفرع الافتراضي لأخطاء `Prisma` غير المعروفة في هذا الفلتر، و`JSON` مُشوَّه من middleware. الطبقة التي ترفض أوّلًا هي التي تقرّر — [`modules/README.md`](../modules/README.md).
 - الترقيم: `perPage` بحدّ أقصى 50، افتراضي page 1 / perPage 12.
 - `type` في الخطأ مرجع URI نسبي (`/problems/...`) — صالح وفق `RFC 7807 §3.1` مع تأجيل المضيف المطلق (`D10-5`).
 

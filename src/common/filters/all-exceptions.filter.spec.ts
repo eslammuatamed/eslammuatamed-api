@@ -81,11 +81,12 @@ describe('AllExceptionsFilter', () => {
     ]);
   });
 
-  // F9-9. This case previously constructed the v6-era `meta.target` shape and asserted it back,
-  // so it proved an assumption rather than any real behaviour — and survived the v7 major that
-  // broke it. The fixture below is the shape Prisma 7 + PrismaPg ACTUALLY produces, copied from a
-  // live probe; branch coverage for the translation lives in `prisma-error-metadata.spec.ts`, and
-  // the authoritative proof is the real-database test in `test/prisma-error-mapping.e2e-spec.ts`.
+  // The fixture below is the shape Prisma 7 + PrismaPg ACTUALLY produces, taken from a live
+  // probe — NOT a shape invented here. The distinction is the whole point: a test that builds its
+  // own error object and asserts that same value back proves an assumption about Prisma, not
+  // Prisma's behaviour, so it keeps passing through the major version that breaks it. Branch
+  // coverage for the translation lives in `prisma-error-metadata.spec.ts`, and the authoritative
+  // proof is the real-database test in `test/prisma-error-mapping.e2e-spec.ts`.
   it('maps Prisma P2002 to 422 with API field names, not database columns', () => {
     const exception = new Prisma.PrismaClientKnownRequestError(
       'Unique constraint failed',

@@ -17,7 +17,8 @@
 
 ## خريطة الاتصال
 
-- **يعتمد على:** `PrismaService`، `LocalesService`.
+- **وارد:** `PreviewModule` يستورد `ProjectsModule` ويحقن `ProjectsService` (فحص الوجود عند سكّ رمز المعاينة + `getPreviewById`).
+- **يعتمد على:** `PrismaService`، `LocalesService`، و`MediaDescriptorResolver` (من `MediaModule` — واصفات القراءة العامّة)، و`RedirectService` (من `RedirectsModule` — عمليّات التحويل تُدفَع داخل معاملة إعادة التسمية). الوحدة تستورد `LocalesModule` و`MediaModule` و`RedirectsModule`.
 - **علاقات:** `ProjectTechnology` (many-to-many مع `Skill`)، `ProjectGalleryItem` (صور + تعليق مُترجَم).
 
 ## ما يميّز هذه الوحدة عن النموذج
@@ -25,14 +26,15 @@
 - **البوابة العامّة `isPublished`** (لا حالة `ContentStatus` كالمقالات): القائمة والتفاصيل العامّة تُرجِع المنشور فقط؛ غير المنشور → 404.
 - **الترتيب:** `featured` تنازليًّا ثم `order` تصاعديًّا.
 - **الكتابة المركّبة:** `technologies` و`gallery` يُستبدَلان كليًّا عند تمريرهما (`deleteMany` ثم إعادة الإنشاء) داخل `$transaction`. تعليقات المعرض تُخزَّن كترجمات لكل عنصر.
-- **لا تعيين خطأ محلّي (B-2):** لم تعد الوحدة تلتقط `P2002` بنفسها. يصعد الخطأ إلى
+- **لا تعيين خطأ محلّي:** لا تلتقط الوحدة `P2002` بنفسها. يصعد الخطأ إلى
   `AllExceptionsFilter` — نقطة الترجمة الوحيدة (وثيقة 15 §3) — فيُجيب بـ 422 `problem+json` مع
   `errors[]` تحمل أسماء الحقول كما تنشرها الواجهة (`slug`, `locale`, `projectId`) لا أسماء أعمدة
   قاعدة البيانات. النتيجة: تصادم slug في مشروع ومثله في مقال يُرجِعان **العقد نفسه**، بعد أن كانا
   يختلفان.
 - **وسائط التفاصيل العامّة:** كل عنصر معرض يُرجِع `mediaAssetId` ومعه واصف `mediaAsset` العام
-  (`url`, `width`, `height`, `blurDataUrl`, `alt`, `variants`) والتعليق المترجم والترتيب. يبقى
-  `ogImageId` مرجعًا خامًا في هذا العقد.
+  (`url`, `width`, `height`, `blurhash`, `alt`, `variants`) والتعليق المترجم والترتيب. و`ogImageId` يبقى في
+  الرد **ومعه** واصف `ogImage` المُحلَّل بجانبه — القاعدة العامّة نفسها (القسم ٦.٥ من الدليل)، لا
+  استثناء لها هنا.
 
 ## العقود والثوابت
 
@@ -59,5 +61,5 @@
 - [Prisma nested writes](https://www.prisma.io/docs/orm/prisma-client/queries/relation-queries#nested-writes) · [Prisma transactions](https://www.prisma.io/docs/orm/prisma-client/queries/transactions).
 
 **حالة التوافق:** `Compatible`. الكتابة المتداخلة في `create` **ذرّية بذاتها** فلا تُغلَّف بـ
-`$transaction` (C-5)، بينما الاستبدال الكلّي للعلاقات في `update` يبقى داخل `$transaction` لأنه
+`$transaction`، بينما الاستبدال الكلّي للعلاقات في `update` يبقى داخل `$transaction` لأنه
 عمليات متعدّدة فعلًا. كلاهما نمط `Prisma` رسمي. **لا انحراف.**

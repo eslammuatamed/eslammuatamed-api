@@ -7,9 +7,9 @@ import { ProjectsController } from './projects.controller';
 import { ProjectsService } from './projects.service';
 
 // RedirectsModule exports RedirectService so update() can push buildRedirectOps into its rename
-// transaction (D04-6, T7); no cycle — redirects imports neither articles nor projects.
+// transaction (D04-6); no cycle — redirects imports neither articles nor projects.
 // ProjectsService is exported so PreviewModule can inject it for the mint existence check +
-// getPreviewById (T6, constitution rule 2 — cross-module use is via exported services only).
+// getPreviewById (constitution rule 2 — cross-module use is via exported services only).
 @Module({
   imports: [LocalesModule, MediaModule, RedirectsModule],
   controllers: [ProjectsController, ProjectsAdminController],

@@ -63,11 +63,12 @@ interface RenditionTarget {
   readonly budgetKey: number;
 }
 
-// Pure media processing (T5): untrusted bytes → sanitized, delivery-ready outputs. Deliberately
+// Pure media processing: untrusted bytes → sanitized, delivery-ready outputs. Deliberately
 // independent of controllers, Prisma, and storage — it takes buffers + client hints and returns
-// buffers + metadata, so the orchestration layer (T6) owns hashing, key generation, persistence,
-// uploads, and logging. It never persists or returns the raw upload (D07-6): everything derives from
-// the sanitized master.
+// buffers + metadata, so `MediaService` owns hashing, key generation, persistence,
+// uploads, and logging. For an IMAGE it never returns the raw upload (D07-6): every output derives
+// from the sanitized master. A validated PDF is different — processPdf returns its original bytes
+// unchanged, and those are what get stored.
 @Injectable()
 export class MediaProcessingService {
   // Lightweight IMAGE identity validation (doc 19 §5): magic-byte sniff + extension/declared-MIME
@@ -84,7 +85,7 @@ export class MediaProcessingService {
   }
 
   // IMAGE path (doc 07 §6, doc 19 §5, doc 20 §4). Rejections are UnprocessableEntity (→ 422) — a
-  // transport-agnostic signal the controller maps without T5 touching request/response objects.
+  // transport-agnostic signal the controller maps without this service touching request/response objects.
   async processImage(input: ProcessImageInput): Promise<ProcessedImage> {
     await this.validateImageInput(input);
     await this.assertWithinPixelCeiling(input.buffer);
@@ -154,7 +155,8 @@ export class MediaProcessingService {
   }
 
   // PDF path (doc 19 §5, D19-9): the single non-image asset, resume-only. Validated but never
-  // Sharp-processed and never given variants/blurhash. Attaching it to the resume slot is a T6 rule.
+  // Sharp-processed and never given variants/blurhash. Which asset may occupy the resume slot is
+  // `SettingsService`'s rule, not this service's.
   async processPdf(input: ProcessPdfInput): Promise<ProcessedPdf> {
     await this.validatePdfInput(input);
     return {

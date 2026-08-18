@@ -34,13 +34,13 @@ import {
 import { loadApiSpec } from './utils/contract';
 
 // End-to-end media pipeline against the real AppModule + a fresh migrated/seeded Postgres (doc 18
-// §2, feature 003 T10). Storage is the local adapter (STORAGE_DRIVER=local) — no R2 network call.
+// §2). Storage is the local adapter (STORAGE_DRIVER=local) — no R2 network call.
 // Contract assertions use the exported openapi.json as the oracle (jest-openapi).
 
 // A run-unique seed so re-runs never collide on contentHash (dedup would turn a 201 into a 200).
 const RUN = Date.now();
 
-// The C-6 race barrier (see the test for why a lock and not a sleep). Same mechanism as the 9C-6
+// The race barrier (see the test for why a lock and not a sleep). Same mechanism as the refresh
 // rotation barrier: `pg_blocking_pids` is the reliable signal, because a backend queued on a row
 // produces a mix of granted and waiting lock rows that counting `pg_locks` by type miscounts.
 const BARRIER_DEADLINE_MS = 5_000;
@@ -66,7 +66,7 @@ async function waitUntilBlocked(
       // assertions below would be decoration rather than proof.
       throw new Error(
         `Barrier never formed: the delete did not reach the row lock within ` +
-          `${BARRIER_DEADLINE_MS} ms. This run proves nothing about the C-6 race.`,
+          `${BARRIER_DEADLINE_MS} ms. This run proves nothing about the race.`,
       );
     }
     await new Promise((resolve) => setTimeout(resolve, BARRIER_POLL_MS));
@@ -373,7 +373,7 @@ describe('Media pipeline (e2e)', () => {
       .expect(204);
   });
 
-  // ── C-6 — the race the pre-check cannot win (D07-7) ────────────────────────────────────────
+  // ── The race the pre-check cannot win (D07-7) ──────────────────────────────────────────────
   //
   // The usage read at the top of `remove()` is stale the moment it returns. This proves the
   // RESTRICT foreign key — not that read — is what decides, and that the reordering keeps the
@@ -473,7 +473,7 @@ describe('Media pipeline (e2e)', () => {
       expect(serialized).not.toContain('23503');
       expect(serialized).not.toContain('_fkey');
 
-      // THE C-6 INVARIANT: the database refused, so storage was never touched.
+      // THE INVARIANT: the database refused, so storage was never touched.
       expect(onDisk()).toEqual(keys.map(() => true));
       expect(await prisma.mediaAsset.count({ where: { id: asset.id } })).toBe(
         1,
@@ -586,7 +586,7 @@ describe('Media pipeline (e2e)', () => {
     const publicList = await request(server)
       .get('/api/v1/testimonials?locale=en')
       .expect(200);
-    // The oracle now accepts BOTH a descriptor object and null for the nullable $ref (the T9→T10 fix).
+    // The oracle accepts BOTH a descriptor object and null for the nullable $ref.
     expect(publicList).toSatisfyApiSpec();
     const avatars = envelopeData<{ avatar: unknown }[]>(publicList).map(
       (t) => t.avatar,

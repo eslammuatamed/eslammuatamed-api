@@ -16,13 +16,13 @@
 
 ## خريطة الاتصال
 
-- **يعتمد على:** `PrismaService`، `LocalesService`.
+- **يعتمد على:** `PrismaService`، `LocalesService`، و`MediaDescriptorResolver` (من `MediaModule` — واصف `avatar` في القراءة العامّة).
 
 ## ما يميّز هذه الوحدة عن النموذج
 
 - **بوابة `isVisible`:** القائمة العامّة تُرجِع المرئيّة فقط (`where: { isVisible: true }`)؛ القائمة الإدارية تُرجِع الكلّ.
 - **الترتيب بـ `order` تصاعديًّا.**
-- **الوسائط بالمرجع:** `avatarId` يُرجَع خامًا (لا descriptor على هذا الأساس).
+- **الوسائط:** `avatarId` يُرجَع خامًا **ويُضاف بجانبه** `avatar` — descriptor مُحلَّل (`PublicMediaImageDescriptor`، قابل لـ `null`) في القراءة العامّة. المُعرّف الخام لا يختفي (القسم ٦.٥ من الدليل).
 - **قائمة بلا ترقيم.**
 
 ## العقود والثوابت

@@ -164,7 +164,7 @@ export class ContactReplyService {
   }
 
   // What a same-key request does about an attempt that already exists. The answer depends entirely
-  // on the status it finds, and the three answers are genuinely different (11B-α §6):
+  // on the status it finds, and the three answers are genuinely different:
   //
   //   SENT    return it. The logical attempt already succeeded; there is nothing to do.
   //   FAILED  return it, send NOTHING. A replay must not silently re-send — the client repeated a
@@ -317,11 +317,11 @@ function asRepliable(message: ContactMessage): RepliableContactMessage | null {
 }
 
 // The unique-constraint predicate, kept local and narrow. Deliberately NOT a general
-// `isPrismaCode` helper: B-2 removed one of those, and the repository's accepted shape is a
+// `isPrismaCode` helper: one of those was removed, and the repository's accepted shape is a
 // single-purpose predicate per call site (cf. `isUniqueViolationOnContentHash` in media.service.ts).
 //
 // The code alone is matched, never `meta.target`: Prisma 7 degraded that field's contents once
-// already (F9-9), and this insert has exactly one unique index, so the code is unambiguous.
+// already, and this insert has exactly one unique index, so the code is unambiguous.
 function isUniqueViolation(error: unknown): boolean {
   return (
     error instanceof Prisma.PrismaClientKnownRequestError &&

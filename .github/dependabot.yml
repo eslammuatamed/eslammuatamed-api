@@ -11,7 +11,7 @@ version: 2
 # confirmation is PRs #75 and #76, opened ~7.5 hours later and correctly targeting `dev`.
 #
 # Because the configuration is read from `main`, any edit here takes effect only after the next
-# gated release — this file does not justify a release of its own (owner decision OD-1).
+# gated release — this file does not justify a release of its own.
 #
 # `target-branch: dev` keeps every Dependabot pull request off `main`. `main` is the
 # deploy branch: a merge into it triggers `deploy.yml`, which is gated behind the
@@ -45,7 +45,7 @@ updates:
       # dependency's declared compatibility — so the PR would be reopened every Monday to fail the
       # same way. Independently, a TypeScript major on a decorator-heavy NestJS 11 + Prisma 7
       # codebase, adjacent to the deferred CommonJS -> ESM migration, is its own upgrade with its
-      # own verification rather than a dependency bump (OD-1).
+      # own verification rather than a dependency bump.
       #
       # REMOVE THIS when `jest-mock-extended` widens its peer range and the TypeScript upgrade is
       # scheduled deliberately. This suppresses noise; it is not a decision that TypeScript 7 is
@@ -55,5 +55,5 @@ updates:
 
     # No `groups:` block, deliberately. Grouping is the right answer to PR volume, but the only
     # evidence available is one week and two pull requests, which does not demonstrate noise worth
-    # trading per-dependency reviewability for. Revisit with real volume data (OD-1: conservative
-    # and evidence-based).
+    # trading per-dependency reviewability for. Revisit with real volume data: stay conservative
+    # until the evidence exists.

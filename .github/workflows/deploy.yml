@@ -10,7 +10,7 @@
 # No tag trigger and no scheduled reconciliation (cost + schedule reliability — owner
 # Option 4). Direct pushes to main are prohibited by policy.
 #
-# MANUAL APPROVAL GATE (Stage 2C): the `deploy` job below — the only job here that
+# MANUAL APPROVAL GATE: the `deploy` job below — the only job here that
 # mutates the server — is bound to the `production` environment, so every path pauses
 # for the owner's approval before the first remote write. See that job for the full
 # rationale and the environment's settings.
@@ -278,7 +278,7 @@ jobs:
     name: Build · Ship · Migrate · Cut over
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # PRODUCTION APPROVAL GATE (Stage 2C). This is the ONLY job in this workflow that
+    # PRODUCTION APPROVAL GATE. This is the ONLY job in this workflow that
     # mutates the server, and it is bound in full: a job that references an environment
     # does not start until every protection rule of that environment passes, so the
     # required-reviewer approval lands BEFORE the first remote write ("Ship the tarball",
@@ -333,17 +333,17 @@ jobs:
       # into `src/generated/prisma` and compiled by `nest build` into `dist/generated/prisma`
       # (CommonJS), so the artifact that ships already contains it — the tested build is the
       # build that runs. A post-prune regenerate wrote TS back into `src/`, which this tarball
-      # does not package, leaving `dist` byte-identical: proven dead work, removed (9D-7).
+      # does not package, leaving `dist` byte-identical: proven dead work, removed.
       #
       # `prisma.config.ts` IS packaged: Prisma 7 takes the datasource URL from the config file,
       # so `prisma migrate deploy` below exits 1 with "The datasource.url property is required
-      # in your Prisma config file" without it (9D-8). The pruned tree loads that .ts config
+      # in your Prisma config file" without it. The pruned tree loads that .ts config
       # unaided — @prisma/config bundles its own loader, so no ts-node is required.
       #
       # `dist-ops` IS packaged: it holds the COMPILED governed operator entrypoints — the
       # production seed (doc 09 §6) and the content-synchronization CLI (doc 09 §6.2, doc 23 §4).
       # Both used to run through `ts-node` against `prisma/*.ts` files that import `../src/…`;
-      # from a pruned release that is `ts-node` ENOENT and a missing `src/` (F9-13 / F9-14).
+      # from a pruned release that is `ts-node` ENOENT and a missing `src/`.
       # `npm run build` emits it, so it is the same code the gates tested.
       - name: Package release tarball
         run: tar -czf "eslammuatamed-api-${RELEASE}.tar.gz" dist dist-ops node_modules prisma prisma.config.ts package.json package-lock.json

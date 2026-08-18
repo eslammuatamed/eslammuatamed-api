@@ -3,15 +3,16 @@ import { join } from 'node:path';
 import { Prisma } from '../../generated/prisma/client';
 import { uniqueConstraintFields } from './prisma-error-metadata';
 
-// F9-9. The v6-era spec for this behaviour constructed its own error with `meta.target` and
-// asserted that value straight back, so it proved an implementation assumption rather than any
-// real Prisma behaviour — and passed unchanged through a major version that broke it. The
+// A unit test cannot prove how Prisma reports a unique-constraint violation: build the error
+// object here, assert that same value back, and all you have proved is your own assumption —
+// which is exactly why such a test survives the major version that changes the real shape. The
 // authoritative proof is therefore the real-database regression in
 // `test/prisma-error-mapping.e2e-spec.ts`; this file covers the translation logic's branches and
 // the schema invariant it rests on.
 //
-// The Prisma 7 fixtures below are copied from a LIVE probe against PostgreSQL (recorded in
-// prisma-7-migration-2026-08.md §17d), not invented.
+// The Prisma 7 fixtures below reproduce a shape observed against a real PostgreSQL, not an
+// invented one. `test/prisma-error-mapping.e2e-spec.ts` pins that same shape against a live
+// database, so if Prisma moves it again that test fails and names the new location.
 
 const known = (meta: unknown): Prisma.PrismaClientKnownRequestError =>
   new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
@@ -107,7 +108,8 @@ describe('uniqueConstraintFields', () => {
     });
 
     it('never returns the literal "unknown"', () => {
-      // The pre-F9-9 fallback. Asserted explicitly so it cannot quietly return.
+      // The original fallback, before field paths were extracted properly. Asserted
+      // explicitly so it cannot quietly return.
       for (const meta of [undefined, {}, { target: 'some_constraint' }]) {
         const fields = uniqueConstraintFields(known(meta));
         // null (omit `errors` entirely) is the contract — never an array carrying a placeholder.

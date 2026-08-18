@@ -13,7 +13,7 @@
 | `preview-token.service.ts` | `mint()`/`verify()` — HMAC عديم الحالة، `verify` لا يرمي أبدًا (`D19-7`) |
 | `preview.admin.controller.ts` | سكّ الرمز (`@RequirePermission('articles.update')` / `('projects.update')`) — 200 + `no-store` |
 | `preview.controller.ts` | استهلاك عام (`@Public`) — تحقّق الرمز ثمّ `getPreviewById` + `no-store` |
-| `dto/preview-consume.query.dto.ts` · `entities/preview-token.entity.ts` | استعلام `?token&locale` + ردّ `{ token, url, expiresAt }` |
+| `dto/preview-consume.query.dto.ts` · `entities/preview-token.entity.ts` | استعلام `?token&locale` + حمولة `{ token, url, expiresAt }` (داخل الغلاف المشترك) |
 
 ## خريطة الاتصال
 
@@ -30,7 +30,7 @@
 
 ## العقود والثوابت
 
-- تحقّق اللغة عبر `LocalesService.assertEnabled` داخل `getPreviewById` (لغة غير مُفعّلة → 400، لا رجوع صامت).
+- تحقّق اللغة عبر `LocalesService.assertEnabled` **داخل `getPreviewById` نفسها، لا هنا**: هذه الوحدة لا تستورد `LocalesModule` ولا تحقن `LocalesService`، والتحقّق يصلها بالتفويض (لغة غير مُفعّلة → 400، لا رجوع صامت).
 - `expiresAt` = وقت السكّ + ٣٠ دقيقة؛ الرمز يفشل مغلقًا عند الانتهاء بالضبط.
 - رمز نوع مختلف (مقال على مسار المشاريع أو العكس) ⇒ 404 (الـ MAC يربط النوع).
 - **بناء الرمز (`D19-7`):** النطاق المُوقَّع `entityType:entityId:exp` عبر `HMAC-SHA256`؛ الصيغة السلكيّة `base64url(exp).base64url(mac)`؛ عديم الحالة (لا تخزين ولا إبطال — الانتهاء يحدّ التسرّب)؛ و`verify` لا يرمي أبدًا (رمز مشوّه/طول خاطئ ⇒ `false` ⇒ 404، لا 500).

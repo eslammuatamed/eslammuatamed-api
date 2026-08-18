@@ -320,7 +320,7 @@ describe('canonical dataset invariants', () => {
   // `HR-8` was cited in three files as the authority for canonical content, and it resolves to
   // NOTHING — no `HR-` code has ever existed in any ref of the docs repository. It survived because
   // a comment citation is checked by no gate, which is the same mechanism that let this branch's
-  // parent (C-1) publish a never-public address behind a superseded `R5` citation.
+  // parent publish a never-public address behind a superseded `R5` citation.
   //
   // This is deliberately a denylist of the one phantom prefix, NOT a general "every cited decision
   // ID resolves" check. That stronger test would have to read the docs repository, which is a

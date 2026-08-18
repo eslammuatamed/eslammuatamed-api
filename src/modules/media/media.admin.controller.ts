@@ -56,7 +56,7 @@ import { RetryAfterInterceptor } from './retry-after.interceptor';
 // Admin media library (doc 10 §5). Thin controller (D07-1): the multipart boundary + the dynamic
 // 201/200 status live here; all orchestration is in MediaService. Every route is permission-guarded
 // (never @Public) via the global default-deny PermissionsGuard. POST carries the 10/min-per-user+IP
-// upload rate throttle (T8, UploadUserIpThrottlerGuard); the in-process 2-wide processing cap (Q3)
+// upload rate throttle (UploadUserIpThrottlerGuard); the in-process 2-wide processing cap (Q3)
 // lives in the service + RetryAfterInterceptor.
 @ApiTags('media')
 @ApiBearerAuth('access-token')

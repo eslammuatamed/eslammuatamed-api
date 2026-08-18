@@ -21,20 +21,21 @@ import {
 } from './utils/e2e-app';
 
 // Reply-by-email: the security, history and reliability matrix, through the REAL HTTP routes against
-// a real PostgreSQL (11B-β2 §§9–16).
+// a real PostgreSQL.
 //
-// THE SEAM IS β-1'S, REUSED RATHER THAN REBUILT. Exactly one provider is replaced — `MAIL_TRANSPORT`,
+// THE SEAM IS `reply-http-delivery.e2e-spec.ts`'S, REUSED RATHER THAN REBUILT. Exactly one
+// provider is replaced — `MAIL_TRANSPORT`,
 // the Nodemailer transport, the last object before the network — plus `MAIL_RETRY_BACKOFF_MS` to
 // collapse the retry schedule to a single attempt. Everything above the token is production code:
 // the guards, the pipes, the controller, `ContactReplyService`, `ContactMailService`, `MailService`,
-// the RFC 7807 filter and the envelope interceptor. Faking `ContactMailService` (α's domain seam)
+// the RFC 7807 filter and the envelope interceptor. Faking `ContactMailService` (the domain seam)
 // would bypass message construction, the recipient invariant and the provider header, which are
 // precisely what §16 exists to prove.
 //
 // NO MAIL IS SENT AND NO RELAY IS CONTACTED. An overridden provider's factory never runs, so
 // `mailTransportProvider` never calls `createTransport` and no SMTP client is ever constructed.
 //
-// WHAT THIS SUITE ADDS TO β-1'S CONFIGURATION, and why it needs it. β-1 ran with the SMTP group OFF,
+// WHAT THIS SUITE ADDS TO THAT CONFIGURATION, and why it needs it. That suite runs with the SMTP group OFF,
 // which is fine for delivery — `MailService.isEnabled` reads `transport !== null`, so a fake is
 // enough to make replies send. It is NOT enough for §§15–16: with the group off, `config.mail.from`
 // and `ownerNotificationTo` are both null, so `buildOwnerNotification` THROWS on the null destination
@@ -190,7 +191,7 @@ describe('Reply security, history and reliability over HTTP (e2e)', () => {
   let ownerToken: string;
 
   // FOUR distinct principals, because the permission matrix (§12) is exactly what a single
-  // all-permissions operator cannot prove. β-1's `createOperator` granted `messages.read` AND
+  // all-permissions operator cannot prove. The delivery suite's `createOperator` grants `messages.read` AND
   // `messages.reply` together, which passes every cell of the matrix vacuously.
   let replierToken: string; // messages.read + messages.reply — the ordinary operator
   let replierId: string;
@@ -478,10 +479,10 @@ describe('Reply security, history and reliability over HTTP (e2e)', () => {
 
     // The other side of the boundary, at the HTTP layer, and it is NOT ceremony.
     //
-    // α's `provider-idempotency.spec.ts` already pins the predicate to the millisecond on both
+    // `src/modules/contact/provider-idempotency.spec.ts` already pins the predicate to the millisecond on both
     // sides plus the backwards clock, and the stale test above proves the service honours a `false`
     // result end to end. What neither proves is that the service compares against the REAL window:
-    // β-1's recovery test used a freshly-created row (elapsed ≈ 0), so it would still pass if the
+    // The delivery suite's recovery test uses a freshly-created row (elapsed ≈ 0), so it would still pass if the
     // window were one second. A row 23 hours old that IS recovered is what discriminates — it fails
     // for any window shorter than a day, and the stale test fails for any window longer than one.
     // Together the three make an exact-boundary HTTP test redundant, which is why there isn't one.
@@ -736,8 +737,8 @@ describe('Reply security, history and reliability over HTTP (e2e)', () => {
     // `BadRequestException`; every admin route in this API takes its `:id` through the same pipe, so
     // 400-for-a-malformed-path-parameter is repository-wide behaviour rather than anything this
     // feature chose. D10-21(c) enumerates 404/409/422/401/403 and is silent on a malformed id, so
-    // there is no contract to contradict. Pinned here so β-3 freezes the observed answer rather
-    // than an assumed one, and recorded in the ledger as a β-3 note.
+    // there is no contract to contradict. Pinned here so the observed answer is frozen rather
+    // than an assumed one.
     it('400s a malformed id without touching the transport', async () => {
       await postReply(
         'not-a-uuid',
@@ -757,7 +758,7 @@ describe('Reply security, history and reliability over HTTP (e2e)', () => {
     // message; D10-21(f)'s "returns an empty list" is about a message that EXISTS but carries no
     // address. Code agrees — `list()` resolves the message before the query, precisely so that
     // "no replies" and "no such message" cannot share a response — and so does the controller's
-    // `@ApiProblemResponse(NOT_FOUND)`. No conflict to resolve; recorded because β-3 freezes this.
+    // `@ApiProblemResponse(NOT_FOUND)`. No conflict to resolve; pinned so it stays observed.
     it('404s for a message that does not exist', async () => {
       const absent = '3f1a5b6c-0000-4000-8000-0000000000bb';
 

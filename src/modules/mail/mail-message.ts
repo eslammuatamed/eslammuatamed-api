@@ -18,7 +18,7 @@ export interface MailMessage {
   // expresses that. The provider's name does not appear in any domain module.
   //
   // Absent on the notification path, and that absence is asserted rather than assumed: those sends
-  // are independent logical operations that must never be collapsed into one another (11B-α §25).
+  // are independent logical operations that must never be collapsed into one another.
   //
   // NOT the client's application `Idempotency-Key`. That value identifies the logical OPERATION and
   // lives forever in the database; this one identifies the external SEND and is honoured by the

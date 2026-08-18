@@ -1,5 +1,5 @@
 // Turns the SMTP config group ON for a suite that needs `AppConfigService.mail` to be populated —
-// today, the 11B-β2 security/history matrix, which asserts the configured sender and the owner
+// today, `reply-http-security.e2e-spec.ts`, which asserts the configured sender and the owner
 // notification destination and therefore cannot run against the disabled group.
 //
 // WHY A SIDE-EFFECTING MODULE RATHER THAN A `beforeAll` ASSIGNMENT. `ConfigModule.forRoot()` runs

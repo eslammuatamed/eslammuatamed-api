@@ -15,7 +15,7 @@ import {
   OWNER_PASSWORD,
 } from './utils/e2e-app';
 
-// Reply-by-email through the REAL HTTP route, against a real PostgreSQL (11B-β1 §§2–8).
+// Reply-by-email through the REAL HTTP route, against a real PostgreSQL.
 //
 // THE SEAM, and why it is this one. Every layer the request passes through is production code —
 // JwtAuthGuard, PermissionsGuard, ParseUUIDPipe, the ValidationPipe, MessagesAdminController,
@@ -139,7 +139,8 @@ class FakeSmtpTransport {
   }
 
   // Shaped as the sliver of Nodemailer's Transporter that MailService actually uses. Cast at the
-  // override site rather than implementing the full interface — the same approach the α suite takes
+  // override site rather than implementing the full interface — the same approach
+  // `reply-delivery.e2e-spec.ts` takes
   // for its own fake, and the cast is checked by the fact that a wrong shape fails at runtime here.
   sendMail(options: {
     to?: unknown;
@@ -451,7 +452,7 @@ describe('Reply delivery over HTTP (e2e)', () => {
   });
 
   // ===================================================================================
-  // §8/§9 — same-key CONCURRENT POSTs, the primary β1 test
+  // Same-key CONCURRENT POSTs — the primary idempotency test of this suite
   // ===================================================================================
   describe('two concurrent same-key POSTs', () => {
     it('produce one reply, one identity, one provider key and exactly one external email', async () => {
@@ -507,9 +508,9 @@ describe('Reply delivery over HTTP (e2e)', () => {
 
         // `.then()` is what DISPATCHES a supertest request — a `Test` object builds lazily and
         // issues no HTTP until subscribed to. Without it these are unsent request objects, the
-        // barrier below never sees two blocked backends, and the race never happens. (11A learned
-        // this the hard way: a lazy request object used as a barrier signal passes green and
-        // proves nothing.)
+        // barrier below never sees two blocked backends, and the race never happens. This was
+        // learned the hard way: a lazy request object used as a barrier signal passes green and
+        // proves nothing.
         const pendingA = postReply(
           messageId,
           key,
@@ -582,7 +583,7 @@ describe('Reply delivery over HTTP (e2e)', () => {
       expect(transport.invocations.length).toBeLessThanOrEqual(2);
 
       console.log(
-        `[β1 §9] concurrent same-key: transport invocations=${transport.invocations.length}, ` +
+        `[concurrent same-key] transport invocations=${transport.invocations.length}, ` +
           `external logical sends=${transport.externalSends}, statuses=${a.status}/${b.status}`,
       );
 
@@ -824,7 +825,8 @@ describe('Reply delivery over HTTP (e2e)', () => {
       const key = `key-stale-guard-${unique}`;
 
       // A PENDING attempt older than the 24h window, written directly: this is the fixture for the
-      // recovery BOUNDARY, not the boundary matrix itself, which belongs to β2.
+      // recovery BOUNDARY, not the boundary matrix itself, which lives in
+      // `reply-http-security.e2e-spec.ts`.
       const stale = await db.contactMessageReply.create({
         data: {
           contactMessageId: messageId,

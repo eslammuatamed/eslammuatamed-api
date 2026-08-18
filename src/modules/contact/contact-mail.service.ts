@@ -132,7 +132,7 @@ export class ContactMailService {
     };
   }
 
-  // Sends one reply and reports only what the reply domain persists (11B-α §3).
+  // Sends one reply and reports only what the reply domain persists.
   //
   // The reply path differs from the notification path in the one way that matters: an operator
   // explicitly asked for this email and is waiting on its outcome, so this IS awaited, and the

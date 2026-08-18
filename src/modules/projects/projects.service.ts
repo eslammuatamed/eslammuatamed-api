@@ -178,12 +178,12 @@ export class ProjectsService {
 
   async create(dto: CreateProjectDto): Promise<AdminProjectEntity> {
     await this.assertLocales(dto.translations, dto.gallery);
-    // C-5: a nested create is ALREADY atomic, so no `$transaction` wrapper — one operation in a
+    // A nested create is ALREADY atomic, so no `$transaction` wrapper — one operation in a
     // transaction implied a multi-write invariant that does not exist here, and `articles.service`
     // does the same create without one. Relation semantics are unchanged: `translations`,
     // `technologies` and `gallery` are still nested writes in this single statement.
     //
-    // B-2: no try/catch either. A P2002 propagates to `AllExceptionsFilter`, the single translation
+    // No try/catch either. A P2002 propagates to `AllExceptionsFilter`, the single translation
     // point (doc 15 §3), which answers it as a 422 problem+json WITH `errors[]` field paths. The
     // local translation this replaces emitted a bare 422 with no `errors[]`, so a project slug
     // collision and an article slug collision — the same failure — returned two different contracts.
@@ -307,7 +307,7 @@ export class ProjectsService {
     }
 
     // A genuine multi-write transaction (the rename + its D04-6 redirect ops must land together),
-    // kept. B-2: no catch — a P2002 reaches `AllExceptionsFilter` like every other module's.
+    // kept. No catch — a P2002 reaches `AllExceptionsFilter` like every other module's.
     if (operations.length > 0) await this.prisma.$transaction(operations);
     return this.getAdmin(id);
   }

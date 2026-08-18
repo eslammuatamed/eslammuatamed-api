@@ -218,7 +218,7 @@ describe('SettingsService', () => {
     });
   });
 
-  describe('getPublicSettings — résumé descriptor (T7, FR-PUB-023)', () => {
+  describe('getPublicSettings — résumé descriptor (FR-PUB-023)', () => {
     it('returns resumeAsset: null when no résumé is configured', async () => {
       prisma.siteSettings.findFirst.mockResolvedValue(settingsRow());
       const result = await service.getPublicSettings('en');

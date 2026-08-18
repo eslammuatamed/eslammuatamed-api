@@ -901,10 +901,10 @@ describe('published content reads back correctly in both locales', () => {
   });
 });
 
-// 9C-11 C. Everything above proves the sync CONVERGES and stays idempotent. None of it proves the
+// Everything above proves the sync CONVERGES and stays idempotent. None of it proves the
 // converged rows carry the canonical VALUES — a sync that wrote the right number of rows with the
 // wrong contents would satisfy every assertion in this file and every `count(*)` fingerprint taken
-// in 9C-α.
+// by the row-count fingerprints above.
 //
 // The comparison is coupled to the sync's own ownership rules BY CONSTRUCTION: `projectScalars`,
 // `experienceScalars` and `articleScalars` are the exact functions `build-plan` diffs and

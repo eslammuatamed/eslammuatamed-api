@@ -4,8 +4,9 @@ import { ProjectListQueryDto } from '../../projects/dto/project-query.dto';
 import { CreateSkillDto, UpdateSkillDto } from './skill.dto';
 
 // `slug` is a PUBLIC URL segment, so its format is part of the contract rather than a naming
-// convention. These assertions pin the rule at the validation boundary — the only place that can
-// keep a malformed slug out of the database in the first place.
+// convention. These assertions pin the rule at the validation boundary, which is where a caller
+// gets a 422 naming the field. It is not the last line of defence: the column has its own CHECK
+// (`skills_slug_format_check`), which is what covers the seed and raw SQL.
 const errorsFor = <T extends object>(
   cls: new () => T,
   payload: Record<string, unknown>,
@@ -53,8 +54,8 @@ describe('Skill slug contract', () => {
 
     // A uuid satisfies the kebab-case rule, so without an explicit refusal a slug could be created
     // that `?technology=` would route to the id column forever and answer with an empty page. This
-    // endpoint is the only place that can prevent it — the migration's mapping covers the rows that
-    // already exist, not the ones an admin creates later.
+    // endpoint refuses it where an admin creates one; the column's own CHECK
+    // (`skills_slug_format_check`) refuses it everywhere else, including the seed and raw SQL.
     it('refuses a uuid-shaped slug, which the kebab-case rule alone would allow', () => {
       const uuidShaped = '019fa4e9-2810-7f82-a537-6e3ea8ddcc67';
 

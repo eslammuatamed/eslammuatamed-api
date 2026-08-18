@@ -11,7 +11,7 @@ import {
 } from './utils/e2e-app';
 import { loadApiSpec } from './utils/contract';
 
-// 9C-9. `articles.service.ts:116-138` is one of only TWO executable raw-SQL sites in the
+// `articles.service.ts:116-138` is one of only TWO executable raw-SQL sites in the
 // application (the other is the health probe's `SELECT 1`), and the only one carrying user input.
 // It builds a `websearch_to_tsquery` search over the generated `search_vector` column out of
 // `Prisma.sql` fragments.

@@ -347,7 +347,7 @@ describe('ContactMailService', () => {
     });
   });
 
-  // 11B-α §3 — the provider-neutral delivery result the reply domain persists.
+  // The provider-neutral delivery result the reply domain persists.
   describe('reply delivery (dispatchReply)', () => {
     const repliable = (overrides: Partial<ContactMessage> = {}) =>
       message({ email: 'alex@example.com', ...overrides }) as ContactMessage & {

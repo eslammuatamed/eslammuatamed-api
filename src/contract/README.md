@@ -42,4 +42,4 @@ NestFactory.create(AppModule, { logger: false, abortOnError: false })
 
 - [NestJS OpenAPI (Swagger)](https://docs.nestjs.com/openapi/introduction) · [DocumentBuilder](https://docs.nestjs.com/openapi/introduction#bootstrap) · [OpenAPI Specification](https://spec.openapis.org/).
 
-**حالة التوافق:** `Compatible`. استخدام `SwaggerModule.createDocument` + `DocumentBuilder` هو النمط الرسمي؛ وكتابة المستند إلى ملفّ كأثر إصدار امتداد مشروع مشروع (project convention) لا يخالف الإطار.
+**حالة التوافق:** `Compatible`. استخدام `SwaggerModule.createDocument` + `DocumentBuilder` هو النمط الرسمي؛ وكتابة المستند إلى ملفّ مُلتزَم في المستودع (يرفعه الـ CI أثرًا لسير العمل) امتداد مشروع (project convention) لا يخالف الإطار. **وليس أثرَ إصدار (release artifact):** إرفاقه بإصدار عمل مؤجَّل، لا واقع قائم.

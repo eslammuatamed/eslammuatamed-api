@@ -32,7 +32,10 @@ export class CreateRoleDto {
   readonly description?: string | null;
 
   // Each grant must be a catalog key or the reserved "*" (D19-8); an unknown key is a 422 at
-  // the pipe, so the guarded surface can never reference a permission that does not exist.
+  // the pipe, so no HTTP caller can store a permission that does not exist. This pipe is the
+  // invariant's ONLY enforcement point: the service writes the array through unchecked and
+  // RolePermission.permission is free text with no enum or CHECK — so a writer that bypasses this
+  // DTO (prisma/seed.ts does) is unconstrained. See access-control/README.md.
   @ApiProperty({
     type: [String],
     example: ['articles.read', 'articles.create', 'articles.update'],
