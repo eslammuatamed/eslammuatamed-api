@@ -45,7 +45,7 @@ export class CategoriesAdminController {
   @Get()
   @RequirePermission('categories.read')
   @ApiOperation({ summary: 'List categories with full translation maps.' })
-  @ApiOkEnvelope(AdminCategoryEntity)
+  @ApiOkEnvelope(AdminCategoryEntity, { isArray: true })
   list(): Promise<AdminCategoryEntity[]> {
     return this.categories.listAdmin();
   }
