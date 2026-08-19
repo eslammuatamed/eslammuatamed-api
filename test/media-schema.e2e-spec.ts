@@ -1,7 +1,7 @@
 import { Prisma } from '../src/generated/prisma/client';
 import { createPrismaClient } from '../src/prisma/standalone-client';
 
-// Schema/migration tests (Feature 003, T3): exercise the database constraints added by the
+// Schema/migration tests: exercise the database constraints added by the
 // media migration directly against Postgres — unique keys, positive/format CHECKs, the
 // kind<->fields CHECK, CASCADE children, and RESTRICT usage. No Nest app or HTTP surface;
 // a plain PrismaClient against the test database (doc 18 §2). Requires a running Postgres.

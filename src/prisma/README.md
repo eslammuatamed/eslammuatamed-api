@@ -2,7 +2,9 @@
 
 ## المسؤولية
 
-تقديم `PrismaService` **العام (`@Global`)** كـ data-mapper الوحيد لكل الوحدات. `Prisma` هنا هو التجريد نفسه — **لا طبقة repository** فوقه (`D07-2`).
+تقديم `PrismaService` **العام (`@Global`)** كـ data-mapper الوحيد **المتاح لكلّ** الوحدات — و`@Global` يحكم **الإتاحة لا الاستعمال**: ليست كلّ وحدة تستعمله. `Prisma` هنا هو التجريد نفسه — **لا طبقة repository** فوقه (`D07-2`).
+
+> **المصطلحان، لأنّ القرار كلّه فيهما:** *data mapper* = عميل يترجم بين الجداول والكائنات وتبقى الاستعلامات ظاهرة عند نقطة الاستدعاء (`this.prisma.article.findMany({ … })`). *repository* = صنف وسيط تُخفى الاستعلامات خلف أسماء من لغة المجال (`ArticleRepository.findPublished()`). المستودع يختار الأوّل ويرفض الثاني: `Prisma` **هو** التجريد، ولفّه في repositories تمريرية طبقيّة احتفاليّة يمنعها `D00-3`.
 
 ## خريطة الملفّات
 
@@ -16,7 +18,7 @@
 
 ## خريطة الاتصال
 
-- **وارد:** كل `*.service.ts` تقريبًا يحقن `PrismaService` مباشرة.
+- **وارد:** **١٨** من **٢٥** ملفّ `*.service.ts` (عدا هذا الملفّ نفسه) تحقن `PrismaService` مباشرة، بلا وسيط. والسبع الباقية لا تحقنه: ستٌّ منها لا تمسّ القاعدة أصلًا، و`auth.service.ts` يصل إليها عبر `users` و`refresh-token`.
 - **صادر:** العميل المولَّد `src/generated/prisma` (`PrismaClient`) + `@prisma/adapter-pg` (`PrismaPg`) + `AppConfigService` (لقراءة الـ URL، لا `process.env`).
 
 ## المُشغِّل يحلّ المضيف الآن — لا محرّك `Rust` (`Prisma 7`)
@@ -39,9 +41,6 @@ Service → PrismaService → PrismaPg → node-postgres (pg) → PostgreSQL
 > يُحلّ إلى `::1` أوّلًا فيقع على قاعدة `scram-sha-256` — والدور بلا كلمة مرور يقدّمها، فيفشل
 > `SASL`. كان `Prisma 6` يُخفي هذا لأنّه يحلّ المضيف داخل محرّكه ويختار `IPv4`. التفاصيل في
 > [الوثيقة 23 §3](../../../eslammuatamed-docs/docs/23-deployment.md) و[الوثيقة 19 §7b](../../../eslammuatamed-docs/docs/19-security.md).
-
-**`Prisma 7` حيّ في الإنتاج** منذ الإصدار `20260814T203732Z-19ebbb4` على `@prisma/client`
-`7.9.1`، بعد محاولة أولى فشلت لهذا السبب بالذات ثمّ تُراجِع عنها.
 
 ## القرار المحوري: الاتصال الكسول (lazy)
 
@@ -81,7 +80,7 @@ service ← PrismaService ← PrismaClient (مولَّد) ← PrismaPg ← pg po
 
 - **`PrismaClient` المولَّد** يترجم استعلاماتك إلى `SQL`. مكانه `src/generated/prisma`، وهو **كود مولَّد** — مُتجاهَل في `git` ويُعاد توليده بـ `npm run db:generate`. لا تعدّله.
 - **`PrismaPg`** هو المُحوِّل (driver adapter): يملك مجمّع اتصالات `pg` ويُنفّذ الـ `SQL` فعليًّا. **هو** مَن يفتح الاتصال الآن.
-- لذلك صار إعداد المجمّع مسؤوليتنا. اخترنا `connectionTimeoutMillis: 5000` و`idleTimeoutMillis: 300000` للحفاظ على سلوك `v6`؛ أمّا `max` فتُرك على قيمة `pg` الافتراضية (`10`). التفاصيل والسبب في `docs/research/prisma-7-migration-2026-08.md` (القرار `P9-3`).
+- لذلك صار إعداد المجمّع مسؤوليتنا. اخترنا `connectionTimeoutMillis: 5000` و`idleTimeoutMillis: 300000` للحفاظ على سلوك `v6`؛ أمّا `max` فتُرك على قيمة `pg` الافتراضية (`10`). والسبب وراء كل قيمة مكتوب عند تعريفها في [`prisma.service.ts`](prisma.service.ts).
 
 ## `prisma.config.ts` مش إعدادات التطبيق
 
@@ -97,12 +96,12 @@ service ← PrismaService ← PrismaClient (مولَّد) ← PrismaPg ← pg po
 
 ملاحظتان عمليّتان:
 
-- **الـ `seed` صار صريحًا.** في `Prisma 7` أمر `prisma migrate reset` **لم يعد** يشغّل الـ `seed` تلقائيًّا. لازم تشغّل `npm run db:seed` بنفسك بعده — وقبلها **`npm run build:ops`** مرّة واحدة، لأنّ أمر الـ `seed` صار يشغّل `JavaScript` مُصرَّفًا من `dist-ops/` لا `ts-node` (‏`F9-13`).
+- **الـ `seed` صار صريحًا.** في `Prisma 7` أمر `prisma migrate reset` **لم يعد** يشغّل الـ `seed` تلقائيًّا. لازم تشغّل `npm run db:seed` بنفسك بعده — وقبلها **`npm run build:ops`** مرّة واحدة، لأنّ أمر الـ `seed` صار يشغّل `JavaScript` مُصرَّفًا من `dist-ops/` لا `ts-node`.
 - مكان أمر الـ `seed` واحد فقط: `migrations.seed` داخل `prisma.config.ts`. الحقل القديم `package.json#prisma` أُزيل حتى لا يوجد مصدران للحقيقة.
 
 ## نقطة تمديد آمنة: مقعد الاختبار (test seam)
 
-بما أنه لا repository، فمقعد الاختبار هو **حقن `PrismaService` نفسه** عبر DI. الاختبارات تستبدله بـ mock (انظر `jest-mock-extended` في `*.service.spec.ts`)، فتُختبَر كل service وحدها دون قاعدة بيانات (`principle 13`).
+بما أنه لا repository، فمقعد الاختبار هو **حقن `PrismaService` نفسه** — أي الـ constructor. والاختبارات تستبدله بـ mock (`jest-mock-extended`)، فتُختبَر الخدمة وحدها دون قاعدة بيانات (`principle 13`). **والاستبدال يدويّ، لا تفعله حاوية `Nest`:** في **٢٢** ملفّ اختبار وحدة يُنشَأ الصنف بـ `new` ويُمرَّر المُموَّه في الـ constructor مباشرةً، و**١٦** منها تُمرّر `PrismaService` مُموَّهًا؛ وثلاثة ملفّات فقط تُقلع حاوية `Nest` حقيقيّة. الأعداد وقاعدة عدّها في [`test/README.md`](../../test/README.md).
 
 ## أخطاء شائعة
 

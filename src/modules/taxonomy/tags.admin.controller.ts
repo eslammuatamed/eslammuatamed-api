@@ -43,7 +43,7 @@ export class TagsAdminController {
   @Get()
   @RequirePermission('tags.read')
   @ApiOperation({ summary: 'List tags with full translation maps.' })
-  @ApiOkEnvelope(AdminTagEntity)
+  @ApiOkEnvelope(AdminTagEntity, { isArray: true })
   list(): Promise<AdminTagEntity[]> {
     return this.tags.listAdmin();
   }

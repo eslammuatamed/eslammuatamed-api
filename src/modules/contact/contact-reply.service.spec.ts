@@ -267,7 +267,7 @@ describe('ContactReplyService', () => {
     });
   });
 
-  // The delivery state machine (11B-α §27). Every test here fixes one (starting state, provider
+  // The delivery state machine. Every test here fixes one (starting state, provider
   // outcome) pair and pins the state that results, because those pairs are the whole feature: what
   // a reply IS to an operator is the status this table produces.
   describe('delivery', () => {

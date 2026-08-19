@@ -1,7 +1,7 @@
-// Deterministic, storage-agnostic outputs of the media processing pipeline (T5). The service
+// Deterministic, storage-agnostic outputs of the media processing pipeline. The service
 // returns buffers + metadata only; generating storage keys, computing the content hash, persisting
-// rows, and uploading objects are the orchestration layer's job (T6). `kind` mirrors the Prisma
-// `MediaKind` string values so T6 persists it without a mapping, but this module never imports the
+// rows, and uploading objects are `MediaService`'s job. `kind` mirrors the Prisma
+// `MediaKind` string values so `MediaService` persists it without a mapping, but never imports the
 // Prisma client — processing stays independent of persistence.
 
 export type ImageVariantFormat = 'webp' | 'avif';
@@ -30,9 +30,9 @@ export interface ImageTypeRule {
   readonly extensions: readonly string[];
 }
 
-// One delivered rendition (a future MediaAssetVariant row). Carries everything T6 needs to persist
+// One delivered rendition (a future MediaAssetVariant row). Carries everything `MediaService` needs to persist
 // the row and, for an over-budget rendition, emit the doc 20 §4 structured log event (width, format,
-// bytes) — T5 deliberately does not log; it returns the facts.
+// bytes) — `MediaProcessingService` deliberately does not log; it returns the facts.
 export interface ProcessedImageVariant {
   readonly format: ImageVariantFormat;
   readonly mimeType: string;
@@ -67,7 +67,7 @@ export interface ProcessedImage {
 
 // A validated resume PDF (a future MediaAsset row for a PDF). Stored as-is — never Sharp-processed,
 // no variants, no blurhash. `originalFilename` is already sanitized for display/search + the
-// download header T6 writes as object metadata (doc 19 §5).
+// download header `MediaService` writes as object metadata (doc 19 §5).
 export interface ProcessedPdf {
   readonly kind: 'PDF';
   readonly buffer: Buffer;

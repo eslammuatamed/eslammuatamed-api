@@ -195,7 +195,8 @@ export class EnvironmentVariables {
   // The gate is an EXPLICIT flag rather than "SMTP_HOST is present". Presence-inference cannot tell
   // a deliberately-unconfigured environment from a half-configured one, so a typo'd host name would
   // read as "mail off" and fail silently — the one failure mode a notification path must not have.
-  // With the flag on, every field below is required and a missing one aborts boot loudly.
+  // With the flag on, every field below is required EXCEPT SMTP_SECURE, which stays optional and
+  // is read as true when omitted; a missing required one aborts boot loudly.
   //
   // Same shape as the S3_* group above (@ValidateIf on a single discriminator), for the same
   // reason: `npm run contract:export` and the test suite boot with none of this set.
@@ -258,7 +259,7 @@ export class EnvironmentVariables {
 // than being coerced. That matters because the permissive JS reading of a stray value is `true` —
 // `SMTP_ENABLED=no` must abort boot, not silently enable mail.
 //
-// Deliberately NOT the shared `common/dto/boolean-query` helper (C-3). This one trims and
+// Deliberately NOT the shared `common/dto/boolean-query` helper. This one trims and
 // lowercases first, because an operator types these by hand into a file or a secret store where
 // trailing whitespace is invisible; the query-string helper must stay strict so the API accepts
 // exactly what `openapi.json` publishes. Same shape, different tolerance, on purpose.

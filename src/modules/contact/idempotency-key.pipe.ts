@@ -16,9 +16,11 @@ export const IDEMPOTENCY_KEY_MAX_LENGTH = 200;
 
 // Printable ASCII, no whitespace. A UUID, a ULID and a base64url token all satisfy it. CR/LF are
 // excluded by construction — the same header-injection reasoning as `singleLine` in
-// contact-mail.service.ts, applied at the boundary instead of at the point of use, because in 11B
-// this value becomes a provider idempotency header and a newline in a header is the classic
-// injection vector (doc 19 §6).
+// contact-mail.service.ts, applied at the boundary instead of at the point of use. This value is
+// client-controlled and travels into log lines and into the database, and a newline in any of
+// those is the classic injection vector (doc 19 §6). Note it does NOT become the provider's
+// idempotency header — that key is derived from the persisted row id
+// (`provider-idempotency.ts`), deliberately never from this one.
 const OPAQUE_KEY = /^[\x21-\x7e]+$/;
 
 // Extracts the raw `Idempotency-Key` header.
@@ -74,9 +76,9 @@ export class IdempotencyKeyPipe implements PipeTransform<unknown, string> {
     return value;
   }
 
-  // The rejected value is never echoed back. It is client-chosen and travels into a log line and,
-  // in 11B, a provider header; reflecting it would put unvalidated input on a response for no
-  // diagnostic gain the message does not already give.
+  // The rejected value is never echoed back. It is client-chosen and travels into a log line;
+  // reflecting it would put unvalidated input on a response for no diagnostic gain the message
+  // does not already give.
   private reject(message: string): ValidationProblemException {
     return new ValidationProblemException([
       { field: IDEMPOTENCY_KEY_HEADER, message },

@@ -1,9 +1,58 @@
 # دليل المشروع — `eslammuatamed-api`
 
-> **الحالة:** أساس مستقرّ (Stable baseline) مُشتقّ من `origin/main` عند `4c6653e`.
-> **آخر مراجعة:** 2026-07-20 (لا تغيير في كود التطبيق منذ `284795e` — تغييرات workflows/توثيق فقط؛ راجع `CONTRIBUTING.md` لسياسة النشر والفروع).
 > **لمن هذا الدليل:** مهندس واجهات أمامية (Vue/Nuxt) يتعلّم الـ backend بـ `NestJS` و`Prisma`. الشرح بالعربية، وكل مُعرّف تقني يبقى بالإنجليزية كما في الكود.
-> **قاعدة الحالة:** هذا الدليل يصف **الكود المُسلَّم (Shipped) على `main` فقط**. أي شيء مُعلَّم `Planned` أو `Deferred` غير موجود في هذا الأساس. Feature 003 (`media`) **مدموجة ومُسلَّمة** على `main` (PR #7)، وتُوثَّق تفصيلًا في [`src/modules/media/README.md`](src/modules/media/README.md).
+> **ما الذي يصفه هذا الدليل:** الكود **الموجود في الشجرة التي تقرأها الآن**. لا يذكر ما هو
+> منشور وما ينتظر إصدارًا — تلك حالة تتغيّر بينما النصّ لا يتغيّر معها، فتصير كذبًا صامتًا على
+> القارئ. حالة الإصدار والنشر يملكها مستودع الوثائق الحاكمة وسجلّ الإصدارات.
+
+
+## مفردات `NestJS` — اقرأها قبل أيّ شيء آخر
+
+**بقيّة** هذا الدليل — ومن بعده `src/config/README.md` و`src/prisma/README.md` — تستعمل مفردات
+الإطار دون أن تُعيد تعريفها عند كلّ ورود، لأنّها تصف هذا المستودع ولا تشرح `NestJS`. وهذا الجدول هو الحدّ الأدنى الذي يجعل ما بعده
+مدخلًا مختصرًا لقادم من `Vue`/`Nuxt`: سطر لكلّ مصطلح، ثمّ **رابط التوثيق الرسمي** الذي يملك شرحه. **هذا
+المستودع لا يشرح الإطار** (`principle 16`, `D00-6`) — يشرح ما فعله بالإطار. إن كان `NestJS`
+معروفًا لديك أصلًا فتخطَّ الجدول إلى القسم ١ مباشرةً؛ لا شيء بعده يعتمد على قراءته سطرًا سطرًا.
+
+**الترتيب مقصود: لا يستعمل أيّ صفّ مصطلحًا من مصطلحات هذين الجدولين قبل الصفّ الذي يُعرِّفه** —
+وهذا فُحِص **آليًّا** لا بالقراءة، لأنّ القراءة أجازت صفًّا كان يخرقه. والإحالات بين قوسين تزيد
+تفصيلًا ولا يتوقّف عليها المعنى؛ وما ليس من مفردات الإطار (مثل `transaction`) مشروح في موضعه. *ولم يكن الأمر
+كذلك: كان صفّ `DI` يذكر `PrismaService` قبل تعريفه، وصفّ `@Global` يذكر الوحدة الديناميكيّة
+قبلها، وصفّ `PrismaService` يذكر دورة الحياة قبلها، وصفّ `controller` يترك «قواعد المجال» لـ
+`service` لم يكن له صفّ أصلًا — وجدها قارئ بارد، فأُعيد ترتيب الصفوف وأُضيف صفّ `service`.*
+الجدولان مدخل لا مرجع؛ ومتى نقص السطر فالرابط الرسمي بجانبه هو التتمّة.
+
+| المصطلح | ما تعنيه هنا | المصدر الرسمي |
+|---|---|---|
+| decorator (`@…`) | دالّة تعمل **مرّة واحدة عند تعريف الصنف** (لا عند كلّ طلب)، وغالب ما تفعله هنا هو تسجيل ميتاداتا يقرأها `Nest` و`Swagger` والتحقّق لاحقًا. ولهذا `reflect-metadata` تبعيّة إنتاج | [Custom decorators](https://docs.nestjs.com/custom-decorators) |
+| `service` | الصنف الذي يُنفِّذ عمل الوحدة. **خدمات المجال** — `articles` و`projects` و`settings` وأخواتها — تملك **قواعد المجال**: منطق العمل، وحدود المعاملة على قاعدة البيانات (`transaction` — عدّة عمليّات تنجح أو تفشل معًا)، وتحليل اللغة؛ تفصيلها في القسم ٥. **والاسم لا يتنبّأ بالمحتوى، ولا الموضع:** منها الآليّ المحض (`users`: بحثان بالمُعرّف والبريد، لا أكثر)، ومنها ما هو بنية تحتيّة بلا قواعد مجال (الإعداد، البريد)، ومنها ما يفرض قواعد رفعٍ خاصّة بالمستودع ويرفض بـ `422` (`media-processing`) | [Providers](https://docs.nestjs.com/providers) |
+| `provider` | أيّ شيء مُسجَّل تحت مُعرّف (token) ليُعطيه الإطار لمن يطلبه: صنف (`useClass` — وهو الشائع: كلّ ملفّات `*.service.ts`)، أو مصنع (`useFactory` — مثل `STORAGE_ADAPTER` و`MAIL_TRANSPORT`)، أو قيمة جاهزة (`useValue`) | [Providers](https://docs.nestjs.com/providers) |
+| `@Module` | صندوق تجميع: يُعلن ما يملكه (`providers`) وما يراه (`imports`) وما يُعيره لغيره (`exports`). التطبيق شجرة من هذه الصناديق جذرها `AppModule` | [Modules](https://docs.nestjs.com/modules) |
+| حقن التبعيّات (DI) · `@Injectable` | في شيفرة الإنتاج لا تُنشئ الخدمات بـ `new`؛ تُعلن تبعيّاتها في الـ constructor فيُمرّرها الإطار. والـ constructor نفسه هو **مقعد الاختبار**، ولهذا كثير من اختبارات الوحدة هنا **تتجاوز حاوية الإطار** وتُنشئ الصنف بـ `new` مُمرِّرةً بدائل مُموَّهة مباشرةً (العدد المقيس في [`test/README.md`](test/README.md)) | [Providers · DI](https://docs.nestjs.com/providers#dependency-injection) |
+| وحدة ديناميكيّة · `ConfigModule.forRoot({ … })` | وحدة تُبنى بمعاملات وقت التسجيل بدل أن تُستورَد ساكنة. الشكل `forRoot`/`registerAsync` الذي ستراه في `config` و`auth` | [Dynamic modules](https://docs.nestjs.com/fundamentals/dynamic-modules) |
+| `@Global` | وحدة تُسجَّل مرّة في الجذر فتراها كلّ الوحدات بلا `imports` متكرّر. الـ decorator نفسه على وحدتين فقط: `AppConfigModule` و`PrismaModule`. والوحدة الديناميكيّة تبلغ الأثر نفسه بالخيار `global: true` — وهو ما يفعله `JwtModule` في `auth`. استثناء مقصود ومحدود في الحالتين، لا أسلوب عامّ | [Global modules](https://docs.nestjs.com/modules#global-modules) |
+| خطّافات دورة الحياة (`onModuleInit` · `onModuleDestroy`) | دوالّ يستدعيها الإطار عند الإقلاع والإطفاء. هنا: فصل اتصال `Prisma`، وإلغاء مؤقّتات إعادة المحاولة في `mail` | [Lifecycle events](https://docs.nestjs.com/fundamentals/lifecycle-events) |
+| `class PrismaService extends PrismaClient` | لا نمط جديد: صنف عميل `Prisma` المولَّد نفسه، مُغلَّفًا كـ provider ليدخل في DI ودورة حياة `Nest` | [NestJS + Prisma](https://docs.nestjs.com/recipes/prisma) |
+
+**وطبقات دورة حياة الطلب** — وليست كلّها «قبل الوجهة»: الحارس والـ pipe يسبقان المعالج، أمّا الـ
+interceptor فيلفّ تنفيذه ويعمل **بعد** نجاحه، والـ exception filter لا يعمل إلا عند استثناء.
+الترتيب الكامل في القسم ٥ والقسم ٦.١ وفي `src/common/README.md`. هنا سطر واحد لكلٍّ، لا أكثر — والصفّ الأوّل
+هو الوجهة نفسها، لأنّ بقيّة الصفوف تُعرَّف بالنسبة إليه:
+
+| المصطلح | ما تعنيه هنا | المصدر الرسمي |
+|---|---|---|
+| `controller` | الصنف الذي يستقبل الطلب عند مساره (`@Get('site')`…) ويُرجِع الرد. **وجهة الطلب**، وهو هنا رفيع: يربط ويوجّه ويترك **قواعد المجال** للـ `service` — لا «بلا كود»، فالقرار ذو الشكل `HTTP` موضعه هنا (القسم ٥) | [Controllers](https://docs.nestjs.com/controllers) |
+| `DTO` | صنف يصف **شكل جسم الطلب** ويحمل قواعد التحقّق كـ decorators (`@IsString()`…). ليس كيان قاعدة بيانات ولا شكل الرد | [Validation](https://docs.nestjs.com/techniques/validation) |
+| `pipe` · `ValidationPipe` | يقف **بين الطلب والـ controller** فيحوّل القيمة الواردة أو يرفضها. `ValidationPipe` عامّ هنا ويفحص الـ `DTO`؛ و`ParseUUIDPipe` مثال على أنبوب مقصور على معامل واحد | [Pipes](https://docs.nestjs.com/pipes) |
+| `guard` | يقرّر **هل يُسمح للطلب بالمرور أصلًا** قبل أيّ تحقّق. هنا ثلاثة عالميّة بترتيب مُلزِم (القسم ٦.١) | [Guards](https://docs.nestjs.com/guards) |
+| `interceptor` | يلفّ تنفيذ المعالج فيقدر على تعديل **الرد** بعد نجاحه. هنا: `ResponseEnvelopeInterceptor` الذي يغلّف كلّ جسم `2xx` | [Interceptors](https://docs.nestjs.com/interceptors) |
+| `exception filter` | يلتقط أيّ استثناء ويحوّله إلى رد خطأ موحّد. هنا: `AllExceptionsFilter` ← `RFC 7807` | [Exception filters](https://docs.nestjs.com/exception-filters) |
+
+> **هذا القسم بلا رقم عمدًا،** ولا يُرقَّم لاحقًا: الترقيم `1`–`16` مُستشهَد به من خارج الملفّ —
+> `README.md` يحيل إلى **§11** بعينه — فإقحام رقم جديد في الصدر كان سيُزيح كلّ رقم بعده ويُبطل
+> تلك الإحالة بصمت. وموضعه في الصدر **ليس** تنسيقًا: كان الجدول في القسم ١٥، أي بعد ثلاثة عشر
+> قسمًا اعتمدت عليه فعلًا — أوّلها القسم ٢ وأصرحها القسم ٥. *وجدها قارئ بارد في التشغيلة
+> الثانية: الترتيب المُعلَن كان صحيحًا، والقراءة الخطّية لا.*
 
 ---
 
@@ -13,7 +62,7 @@
 
 الخدمة تقدّم سطحين:
 
-- **سطح عام (public)** غير مُصادَق عليه، للقراءة فقط، يُرجِع محتوى مُترجَمًا ومُحلّلًا للّغة المطلوبة (`?locale=`). تستهلكه واجهة الموقع العامة.
+- **سطح عام (public)** غير مُصادَق عليه. جوهره **قراءة المحتوى**: يُرجِع محتوى مُترجَمًا ومُحلّلًا للّغة المطلوبة (`?locale=`)، تستهلكه واجهة الموقع العامة — وهذا ما تعنيه عبارة «القراءة العامّة» حيث تَرِد في بقيّة هذا الملفّ. **لكنّ `@Public()` أوسع من «قراءة محتوًى»، فلا تقرأ السطر أعلاه حصرًا:** على السطح العام كتاباتٌ — `POST /api/v1/auth/{login,refresh,logout}` و`POST /api/v1/contact` — وقراءاتٌ ليست محتوًى مُترجَمًا — منها `GET /api/v1/health` و`/health/ready` و`GET /api/v1/locales` (بلا `?locale=` أصلًا) و`GET /api/v1/redirects/resolve` (يأخذ `?locale=` ويُرجِع وجهةً لا نصًّا). **وهذه أمثلة لا حصر** — الحصر في `@Public()` والعقد. و«عامّ» لا تعني «بلا حرس»: `contact` محروس بخنق لكلّ `IP`، و`preview` مساره عامّ ورمزه هو بوّابته. والفصل في «هل هذا المسار عامّ؟» لـ `@Public()` في الشيفرة و`openapi.json`، لا لهذا التصنيف.
 - **سطح إداري (`/admin`)** مُصادَق عليه بـ bearer access token، لعمليات CRUD الكاملة مع خرائط الترجمة الكاملة. تستهلكه لوحة التحكّم.
 
 المصطلح `resolved shape` يعني: الكيان بعد «تسطيح» ترجمته إلى لغة واحدة — أي بدلًا من إرجاع كل اللغات، تُرجِع القراءة العامة نصوص اللغة المطلوبة فقط، جاهزة للعرض المباشر.
@@ -32,28 +81,24 @@
 
 هذا المستودع «مصدر الحقيقة» للعقد: يُنفَّذ العقد في الكود بـ decorators من `@nestjs/swagger`، ثم يُصدَّر إلى `openapi.json` عبر `npm run contract:export`، ثم يتبنّاه `web`. تفاصيل التدفّق في القسم 7 (عقد الواجهة الأمامية ↔ الـ API) و[الوثيقة 16 §3](../eslammuatamed-docs/docs/16-development-conventions.md).
 
-## 3. حالة الميزات — `Shipped` / `In Progress` / `Planned` / `Deferred`
+## 3. ما الموجود في هذا المستودع
 
-> هذا التمييز جوهري. لا تعامل شيئًا خارج عمود `Shipped` كأنه موجود في هذا الأساس.
+البنية التحتية العرضية كاملة (`config`, `prisma`, `common`, `contract`, `main`)، بالإضافة إلى
+وحدات المجال. **فهرس الوحدات لا يُكرَّر هنا:** مصدره الوحيد
+[`src/modules/README.md`](src/modules/README.md)، ومنه تصل إلى `README.md` كلّ وحدة. أيّ قائمة
+ثانية هنا كانت ستفترق عن الأولى — وهذا ما حدث فعلًا قبل هذه المراجعة.
 
-**`Shipped` (على `main`):** البنية التحتية العرضية كاملة (`config`, `prisma`, `common`, `contract`, `main`) + الوحدات التالية:
-`health`, `locales`, `auth`, `users`, `access-control`, `settings`, `taxonomy` (categories + tags), `articles`, `projects`, `experiences`, `skills`, `testimonials`, و`media` (Feature 003 — مدموجة 2026-07-19، PR #7؛ راجع [`src/modules/media/README.md`](src/modules/media/README.md)).
+**ترقية `Prisma 7`:** `prisma` و`@prisma/client` و`@prisma/adapter-pg` و`@prisma/config` كلّها على `7.9.1`، عبر مولّد `prisma-client` الدائم ومحوّل التعريف `PrismaPg` — أي `Prisma Client → PrismaPg → pg → PostgreSQL` (`pg` تبعية غير مباشرة عبر المحوّل، لا مباشرة).
 
-**ترقية `Prisma 7` — مكتملة في الكود (`Shipped`):** `prisma` و`@prisma/client` و`@prisma/adapter-pg` و`@prisma/config` كلّها على `7.9.1`، عبر مولّد `prisma-client` الدائم ومحوّل التعريف `PrismaPg` — أي `Prisma Client → PrismaPg → pg → PostgreSQL` (`pg` تبعية غير مباشرة عبر المحوّل، لا مباشرة). القرار الحاكم `D16-13` ([الوثيقة 16](../eslammuatamed-docs/docs/16-development-conventions.md)) وهو يَنسَخ `D16-6` و`D16-10`؛ الدليل في `docs/research/prisma-7-migration-2026-08.md` (القرارات `P9-1`…`P9-9`).
-> **تنبيه حالة:** «مكتملة في الكود» **لا تعني** «منشورة على الإنتاج». `Prisma v7 Production deployed: NO` — النشر يخصّ إصدار الواجهة الخلفية المنسّق اللاحق.
-
-**`In Progress`:** — لا شيء حاليًّا. (Feature 003 `media` اكتملت — `T1`–`T11` — ودُمجت إلى `main`؛ انظر `Shipped` أعلاه.)
-
-**`Planned` (مجدولة، غير مكتوبة بعد):**
-- `redirects` + `contact` + preview tokens (Feature 004).
-- `seo` على مستوى الصفحات (جدول `page_seo` موجود، لا وحدة).
-- `api-hardening`: طبقات throttle كاملة + نسخ احتياطي (Feature 005).
-
-**`Deferred` (مؤجّلة بقرار):**
+**قرارات بتركِ شيء خارج المستودع عمدًا:**
 - طبقة cache للقراءة داخل الـ API (`Redis`) — فقط إذا خُرقت ميزانية الأداء `NFR-006` (الوثيقة 07 §11).
 - `TOTP 2FA` — عند وجود حساب مشغّل ثانٍ حقيقي.
 
-**ملاحظة مهمة عن `schema` مقابل الوحدات:** المخطّط سبق بعض الوحدات عمدًا. جداول `media_assets`/`media_asset_alts`/`media_asset_variants` صارت الآن مخدومة بوحدة `media` (`Shipped`)، أمّا `page_seo`, `slug_redirects`, `contact_messages` فما زالت جداول بلا وحدات (`Planned`). متغيّرات `STORAGE_*` تستخدمها وحدة `media` الآن (و`S3_*` في الإنتاج)، بينما `PREVIEW_TOKEN_SECRET` ما زال مُتحقَّقًا منه رغم أن وحدته `Planned`. تُبنى بقيّة الوحدات بالتدريج حسب [الوثيقة 24 (خارطة الطريق)](../eslammuatamed-docs/docs/24-roadmap.md).
+**ملاحظة عن `schema` مقابل الوحدات:** المخطّط يسبق الوحدة أحيانًا عمدًا — يُنشَأ الجدول أوّلًا
+ثمّ تُبنى الوحدة التي تكشفه عبر `HTTP` لاحقًا. للتحقّق من حالة جدول بعينه اقرأ الشجرة، لا هذه
+الفقرة: وجود مجلّد تحت `src/modules/` وتسجيله في `app.module.ts` هما الدليل القاطع على أنّ
+الجدول مخدوم. ترتيب ما يُبنى لاحقًا تملكه
+[الوثيقة 24 (خارطة الطريق)](../eslammuatamed-docs/docs/24-roadmap.md).
 
 ## 4. المكدّس والمكتبات المهمة (ولماذا كلٌّ منها)
 
@@ -69,16 +114,16 @@
 | `@nestjs/swagger` | توليد مستند `OpenAPI` — هو **العقد الرسمي** |
 | `@nestjs/throttler` | تحديد المعدّل (rate limiting) بطبقات لكل نوع مسار |
 | `@nestjs/schedule` | cron داخل العملية: نشر المقالات المجدولة كل دقيقة |
-| `@prisma/client` | عميل `Prisma` وقت التشغيل — هو الـ data-mapper (لا طبقة repository) |
+| `@prisma/client` | عميل `Prisma` وقت التشغيل. نمطه **data-mapper**: الاستعلام يبقى ظاهرًا عند نقطة ندائه (`this.prisma.article.findMany({ … })`)، لا يُخفى خلف **repository** — صنف وسيط يغلّفه بأسماء من لغة المجال (`ArticleRepository.findPublished()`). المستودع يختار الأوّل ويرفض الثاني، والحُجّة كاملةً في [`src/prisma/README.md`](src/prisma/README.md) |
 | `argon2` | تجزئة كلمات المرور بـ `argon2id` (`D19-1`) |
 | `class-transformer` · `class-validator` | تحقّق الـ DTO (عبر `ValidationPipe`) وتحقّق البيئة |
 | `cookie-parser` | قراءة كوكي refresh token httpOnly |
 | `helmet` | ترويسات أمان HTTP افتراضية |
 | `nestjs-pino` · `pino-http` | تسجيل مُهيكَل JSON مع تنقيح الحقول الحسّاسة (`D07-5`) |
 | `reflect-metadata` | polyfill الميتاداتا اللازم لـ decorators في `NestJS` |
-| `rxjs` | الأساس التفاعلي الذي تُبنى عليه الـ interceptors في `NestJS` |
+| `rxjs` | الأساس التفاعلي الذي تُبنى عليه الـ interceptors في `NestJS` (مكتبة تدفّقات — لا يلزمك إتقانها لقراءة هذا المستودع) |
 
-> ملاحظة: مكتبات خط الوسائط (`sharp`, `@aws-sdk/client-s3`, `blurhash`, `load-esm`) صارت **جزءًا من هذا الأساس** مع دمج Feature 003.
+> ملاحظة: مكتبات خط الوسائط (`sharp`, `@aws-sdk/client-s3`, `blurhash`, `load-esm`) هي **جزء من هذا الأساس**.
 
 **أهم تبعيات التطوير:** `@nestjs/testing` + `jest` + `ts-jest` (اختبارات الوحدة)، `supertest` + `jest-openapi` (اختبارات e2e مع تأكيد مطابقة العقد)، `jest-mock-extended` (mocking لـ `PrismaService`)، `prisma` CLI، `eslint` + `typescript-eslint` + `prettier` + `husky` + `lint-staged` (بوابات الجودة).
 
@@ -98,9 +143,9 @@ HTTP → Guard(s) → Pipe (ValidationPipe) → Controller → Service → Prism
                                          service فقط)        وتحليل اللغة)
 ```
 
-- **Controllers رفيعة:** توجيه، ربط DTO للتحقّق، decorators لـ Swagger. **لا منطق.**
+- **Controllers رفيعة:** توجيه، ربط DTO للتحقّق، decorators لـ Swagger. **لا قواعد مجال** — وهذا هو الحدّ، لا «لا كود». القرار ذو الشكل `HTTP` (ترجمة `null` إلى `404`، اختيار `200` بدل `201` عند التكرار، كتابة كوكي `refresh`) موضعه الصحيح هو الـ `controller`. الجدول الكامل لكلّ موضع من هذه المواضع، ولماذا `preview` أخصّها، في [`src/modules/README.md`](src/modules/README.md).
 - **Services تملك المنطق:** قواعد العمل، الـ transactions، تحليل اللغة. وهي وحدة الاختبار (`principle 13`).
-- **لا طبقة repository (`D07-2`):** الـ services تحقن `PrismaService` مباشرة. `Prisma` نفسه هو التجريد؛ ولفّه في repositories تمريرية هو الطبقية الاحتفالية التي يمنعها `D00-3`. مقعد الاختبار (seam) هو حقن `PrismaService` نفسه.
+- **لا طبقة repository (`D07-2`):** الـ services التي تصل إلى قاعدة البيانات **بنفسها** تحقن `PrismaService` مباشرة. `Prisma` نفسه هو التجريد؛ ولفّه في repositories تمريرية هو الطبقية الاحتفالية التي يمنعها `D00-3`. مقعد الاختبار (seam) هو حقن `PrismaService` نفسه.
 - **اتجاه التبعية أحادي:** `services` لا تستورد `controllers`؛ الوحدات تتفاعل عبر خدمات مُصدَّرة صراحةً، لا عبر نماذج `Prisma` لوحدة أخرى؛ و`common/` لا يستورد من `modules/` أبدًا.
 
 خريطة الطبقات على القرص في [`src/` — انظر الوثيقة 08](../eslammuatamed-docs/docs/08-folder-structure.md) وملفات `README.md` داخل كل مجلد:
@@ -138,22 +183,36 @@ ThrottlerGuard → JwtAuthGuard → PermissionsGuard → (Controller)
 التفاصيل الكاملة في [`src/modules/auth/README.md`](src/modules/auth/README.md) و[`src/modules/access-control/README.md`](src/modules/access-control/README.md).
 
 ### 6.3 الوصول إلى قاعدة البيانات
-كل service يحقن `PrismaService` (نموذج data-mapper). الاتصال **كسول (lazy)**: لا `$connect` عند الإقلاع، فيفتح `Prisma` المجمّع عند أول استعلام — ما يتيح تصدير العقد وتشغيل الاختبارات دون قاعدة بيانات (`constitution rule 4`). التفاصيل في [`src/prisma/README.md`](src/prisma/README.md).
+الخدمة التي تصل إلى قاعدة البيانات **بنفسها** تحقن `PrismaService` مباشرة، بلا طبقة repository بينها وبين `Prisma`. **والحقن المباشر ليس شاملًا:** من خمسٍ وعشرين ملفّ `*.service.ts` (عدا `PrismaService` نفسه) يحقنه **ثمانية عشر** ولا يحقنه **سبعة**: الإعداد، و`mail.service.ts` و`contact-mail.service.ts`، وتجزئة كلمات المرور، ومعالجة الصور، ورموز المعاينة — وهذه الستّة لا تمسّ القاعدة أصلًا — و`auth.service.ts`، وهو **يمسّها بالوساطة لا بالحقن**: يفوّض قراءة الحساب إلى `users` وحفظ الرموز إلى `refresh-token`، وكلتاهما تحقن `PrismaService`. **فاللاحقة `.service.ts` لا تَعِد بوصول إلى قاعدة البيانات، وغيابُ الحقن لا يَعني غياب القاعدة.** الاتصال **كسول (lazy)**: لا `$connect` عند الإقلاع، فيفتح `Prisma` المجمّع عند أول استعلام — ما يتيح تصدير العقد وتشغيل الاختبارات دون قاعدة بيانات (`constitution rule 4`). التفاصيل في [`src/prisma/README.md`](src/prisma/README.md).
 
 ### 6.4 تحليل اللغة (i18n)
 الترجمات في جداول ترجمة منفصلة لكل كيان (`D09-1`). طبقة الـ service تملك تحليل اللغة:
-- **قراءة عامة:** `?locale=` مُتحقَّق منه ضدّ اللغات المُفعّلة (`LocalesService.assertEnabled`) → شكل مُسطَّح للّغة الواحدة. **لا رجوع صامت** إلى لغة أخرى: ترجمة مفقودة تبقى مفقودة (404 عند الوصول المباشر).
+- **قراءة عامة:** `?locale=` مُتحقَّق منه ضدّ اللغات المُفعّلة (`LocalesService.assertEnabled`) → شكل مُسطَّح للّغة الواحدة. **لا رجوع صامت** إلى لغة أخرى: ترجمة مفقودة تبقى مفقودة. **أمّا ماذا يراه العميل فيختلف بالوحدة، ولا تتوقّع `404` دائمًا:** تفاصيل مقال/مشروع تُرجِع `404`، والقوائم تُسقِط الصفّ، بينما `settings` و`seo` تُرجِعان `200` بحقول `null`. المشترك هو غياب البديل، لا رمز الحالة.
 - **قراءة إدارية:** خريطة الترجمة الكاملة (لتحرير جنب-إلى-جنب).
 
-### 6.5 الوسائط: وحدة `media` (Feature 003، مدموجة)
-وحدة `media` تُدير الرفع والمعالجة والتخزين وحلّ الـ descriptors. القراءات العامة تُبقي حقول `*Id` الخامة (`Article.coverImageId`, `*.ogImageId`, gallery `mediaAssetId`, `Testimonial.avatarId`, `SiteSettings.resumeAssetId`) وتُضيف **بجانبها** descriptor مُحلّلًا (URL على أصل الوسائط + أبعاد + `blurhash` + نص بديل للّغة، قابل لـ `null`). التفاصيل الكاملة في [`src/modules/media/README.md`](src/modules/media/README.md).
+### 6.5 الوسائط: وحدة `media`
+وحدة `media` تُدير الرفع والمعالجة والتخزين وحلّ الـ descriptors.
+
+**القاعدة:** القراءة العامّة تُبقي حقل `*Id` الخام وتُضيف **بجانبه** descriptor مُحلَّلًا (URL على
+أصل الوسائط + أبعاد + `blurhash` + نصّ بديل للّغة، قابل لـ `null`). تسري على:
+`Article.coverImageId` → `coverImage` · `*.ogImageId` → `ogImage` · gallery `mediaAssetId` →
+`mediaAsset` · `Testimonial.avatarId` → `avatar` · `SiteSettings.portraitAssetId` → `portrait`.
+
+**والاستثناء الوحيد، وهو في العقد لا في الوصف:** `SiteSettings.resumeAssetId` **لا يظهر أصلًا** في
+`PublicSiteSettingsEntity`؛ القراءة العامّة تُرجِع `resumeAsset` (descriptor لملفّ `PDF`) **بدلًا
+منه** لا بجانبه. وهو أيضًا الحقل الوحيد الذي يُحلّ بـ `resolvePdf` لا `resolveImage`.
+
+**والسطح الإداريّ ليس «خامًّا دائمًا»:** `AdminSiteSettingsEntity` يحمل `portrait` مُحلَّلًا إلى
+جانب `portraitAssetId` و`resumeAssetId` الخامّين. أمّا بقيّة الكيانات الإدارية فخامّة فعلًا.
+*راجِع `openapi.json` عند الشكّ — هو العقد، وهذه الفقرة وصفٌ له.* التفاصيل الكاملة في
+[`src/modules/media/README.md`](src/modules/media/README.md).
 
 ### 6.6 النشر المجدول
-`@nestjs/schedule` يشغّل cron داخل العملية كل دقيقة يرفع المقالات `SCHEDULED` المستحقّة (`publishAt <= now`) إلى `PUBLISHED` باستعلام واحد idempotent (`D07-3`). صحيح لنسخة API واحدة؛ التوسّع الأفقي مستقبلًا يحتاج قفلًا موزّعًا (موثّق في الوثيقة 07 §5).
+`@nestjs/schedule` يشغّل cron داخل العملية كل دقيقة يرفع المقالات `SCHEDULED` المستحقّة (`publishAt <= now`) إلى `PUBLISHED` باستعلام واحد idempotent — أي أنّ تشغيله مرّتين لا يُحدِث أثرًا ثانيًا — (`D07-3`). صحيح لنسخة API واحدة؛ التوسّع الأفقي مستقبلًا يحتاج قفلًا موزّعًا (موثّق في الوثيقة 07 §5).
 
 ### 6.7 نموذج الخطأ والغلاف
 - **الخطأ:** `AllExceptionsFilter` يحوّل كل استثناء إلى `RFC 7807 problem+json`، ويعيّن أكواد `Prisma` المعروفة (`P2002`→422، `P2025`→404، `P2003`→409) لأكواد HTTP ذات معنى، ويُخفي التفاصيل الداخلية في الإنتاج.
-- **الغلاف:** `ResponseEnvelopeInterceptor` يوحّد كل رد ناجح: قائمة → `{ data, meta }`، وأي شيء آخر → `{ data }` (`D10-3`).
+- **الغلاف:** `ResponseEnvelopeInterceptor` يوحّد كل رد ناجح **له جسم**: قائمة → `{ data, meta }`، وأي شيء آخر → `{ data }` (`D10-3`). **و`204` ليس منها:** الحذف يُجيب بلا محتوى، فلا غلاف على السلك.
 
 ## 7. عقد الواجهة الأمامية ↔ الـ API
 
@@ -182,20 +241,34 @@ ThrottlerGuard → JwtAuthGuard → PermissionsGuard → (Controller)
 - **الـ ORM:** `Prisma 7.9` فوق `PostgreSQL 16` (المحرّك الأصلي أُزيل؛ المحوّل هو `@prisma/adapter-pg`). نماذج PascalCase / حقول camelCase؛ أسماء الجداول snake_case عبر `@map`/`@@map` (`D09-1`). مفاتيح `UUIDv7` (`D09-2`). كل جدول يحمل `createdAt`/`updatedAt`.
 - **الترجمة:** جداول ترجمة منفصلة لكل كيان؛ فرادة الـ slug لكل لغة (`@@unique([locale, slug])`).
 - **البحث النصّي الكامل (FTS):** عمود `tsvector` + فهرس `GIN` على `article_translations`، يُضاف بـ migration يدوي (`D09-6`) لأن `Prisma` لا يعبّر عن الأعمدة المولّدة.
-- **التخزين:** التخزين الفعلي وراء واجهة `StorageAdapter` (`D07-4`) صار مُسلَّمًا مع Feature 003: `LocalStorageAdapter` للتطوير/الاختبار و`R2StorageAdapter` المتوافق مع `S3` على `Cloudflare R2` للإنتاج، يُختاران بـ `STORAGE_DRIVER`. التفاصيل في [`src/modules/media/README.md`](src/modules/media/README.md).
+- **التخزين:** التخزين الفعلي وراء واجهة `StorageAdapter` (`D07-4`) قائم: `LocalStorageAdapter` للتطوير/الاختبار و`R2StorageAdapter` المتوافق مع `S3` على `Cloudflare R2` للإنتاج، يُختاران بـ `STORAGE_DRIVER`. التفاصيل في [`src/modules/media/README.md`](src/modules/media/README.md).
 - المخطّط الكامل موثّق في [الوثيقة 09 (Database Design)](../eslammuatamed-docs/docs/09-database-design.md) — لا نكرّره هنا.
 
 ## 10. البيئة والإعداد
 
-كل متغيّر **مُتحقَّق منه عند الإقلاع** في `src/config/env.validation.ts`؛ متغيّر مفقود أو غير صالح يُفشِل الإقلاع فورًا (لا خطأ 500 بعد ساعة). القالب الكامل في `.env.example` (عقد الإعداد). المجموعات على هذا الأساس:
+الإعداد **مُتحقَّق منه عند الإقلاع** في `src/config/env.validation.ts`: متغيّر **مطلوب في الوضع الجاري** إن غاب أو فسد أفشل الإقلاع فورًا (لا خطأ 500 بعد ساعة). وليس كلّ متغيّر مطلوبًا دائمًا، وأشكال الشرط عدّة — **وهذه أمثلة لا حصر:** `STORAGE_LOCAL_DIR` مطلوب للمحرّك المحلّي وحده، ومجموعة `S3_*` لمحرّك `s3`، ومجموعة البريد ساكنة ما لم تُفعَّل، و`COOKIE_DOMAIN` اختياريّ دائمًا، و`S3_REGION` و`SMTP_SECURE` اختياريّان **داخل** شرطيهما، و`PUBLIC_WEB_URL` له قيمة افتراضيّة خارج الإنتاج ويُطلَب فيه. وثمّة قيود إنتاج إضافيّة لا تحملها الـ decorators (تُفحَص في `validate()`). **القائمة الكاملة والمُلزِمة هي `.env.example` (عقد الإعداد) ومخطّط `env.validation.ts` وحدهما** — وما يلي عيّنة للتوجيه لا حصر، لأنّ سرد المتغيّرات في موضعين يفترق عند أوّل إضافة. المجموعات الأكبر:
 
 `NODE_ENV`, `PORT` · `DATABASE_URL` · `CORS_ORIGIN` · `JWT_ACCESS_SECRET`, `JWT_ACCESS_TTL`, `REFRESH_TOKEN_TTL_DAYS`, `REFRESH_TOKEN_PEPPER`, `PREVIEW_TOKEN_SECRET`, `COOKIE_DOMAIN` · `SEED_OWNER_EMAIL`, `SEED_OWNER_PASSWORD` · `STORAGE_DRIVER`, `STORAGE_LOCAL_DIR`, `PUBLIC_MEDIA_URL`.
 
-> `STORAGE_*` تستخدمها وحدة `media` الآن، و`S3_*` (`S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_REGION`) مطلوبة عند `STORAGE_DRIVER=s3` (الإنتاج). `PREVIEW_TOKEN_SECRET` ما زال مُتحقَّقًا منه رغم أن وحدته `Planned` — الإعداد يسبق الوحدات عمدًا. التفاصيل في [`src/config/README.md`](src/config/README.md).
+> ولا تظهر أعلاه مجموعتان. الأولى `PUBLIC_WEB_URL` وحده: أصل الموقع الذي يعرض صفحة المعاينة،
+> له قيمة افتراضيّة خارج الإنتاج و**مطلوب في الإنتاج** — ولا علاقة له بالبريد. والثانية مجموعة
+> البريد `SMTP_*` مع `CONTACT_NOTIFICATION_TO`: مُتحقَّق منها كغيرها، لكنّها **ساكنة** خلف
+> `SMTP_ENABLED` (تفصيلها في [`src/modules/mail/README.md`](src/modules/mail/README.md)).
+>
+> `STORAGE_*` تستخدمها وحدة `media` الآن، و`S3_*` (`S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`) مطلوبة عند `STORAGE_DRIVER=s3` (الإنتاج)، أمّا `S3_REGION` فاختياريّ حتّى هناك (`R2` يستعمل `auto`، وطبقة الإعداد تُكمِله). و`PREVIEW_TOKEN_SECRET` مُتحقَّق منه عند الإقلاع كغيره. **والقاعدة هنا بنيويّة لا حالة:** التحقّق يملكه
+`src/config` وحده، فهو لا يسأل أيّ وحدة تستهلك المتغيّر ولا متى بدأت — متغيّر مُعلَن يُتحقَّق منه، وانتهى.
+*(كان هذا الموضع يصنّف وحدة `preview` بحالة تسليم. صنف من الوصف يتعفّن بالتعريف، وقد تعفّن فعلًا —
+وهو ما وجده قارئ بارد. والمقصود بالتحديد **حالة الإصدار والنشر ودورة حياة الوحدة**، لا وصف ما
+يفعله الكود: «هذه الوحدة تُرسِل بريدًا» وصفٌ تتحقّق منه من الشجرة، أمّا «هذه الوحدة `Planned`» فحالةٌ
+تتعفّن. ودليلُ وجود أيّ وحدة هو مجلّدها تحت `src/modules/` وتسجيلها في `app.module.ts`، كما يقول
+القسم ٣ — اقرأ الشجرة، لا فقرةً عنها.)* التفاصيل في [`src/config/README.md`](src/config/README.md).
 
 لا `Docker` في المشروع (توجيه المالك، `D16-5`): `PostgreSQL` أصلي محليًّا، ودور `eslammuatamed` بلا كلمة مرور على المنفذ `5432`.
 
 > **في الإنتاج يجب أن يكون مضيف `DATABASE_URL` هو `127.0.0.1` حرفيًّا، لا `localhost` (`D23-24`).**
+> *(`pg_hba.conf` هو جدول `PostgreSQL` الذي يُطابق **عنوان مصدر الاتصال** بطريقة تحقّق: `trust`
+> تعني «ادخل بلا كلمة مرور»، و`scram-sha-256` تعني «قدّم كلمة مرور». هذا القدر يكفي لفهم القاعدة
+> أدناه؛ إدارة `PostgreSQL` نفسها ليست من عمل هذا المستودع.)*
 > قاعدة `trust` في `pg_hba.conf` على الخادم مقصورة على `IPv4` عند `127.0.0.1/32`، بينما
 > `PostgreSQL` يستمع على العائلتين. و`localhost` يُحلّ إلى `::1` أوّلًا، فيقع الاتصال على
 > `host all all ::1/128 scram-sha-256` — والدور بلا كلمة مرور يقدّمها، فيفشل `SASL`.
@@ -224,17 +297,22 @@ npm run test:e2e         # يحتاج PostgreSQL (Supertest + jest-openapi)
 
 **البوابات (بلا قاعدة بيانات — لأن الاتصال كسول):** `lint`, `tsc --noEmit`, `npm test`, `contract:export`.
 
-**CI** (`.github/workflows/ci.yml`) مساران:
+**CI** (`.github/workflows/ci.yml`) مساران **حاجبان**، ومعهما وظيفة `policy` **استشاريّة** لا تحجب،
+تعمل على الـ PR وحدها:
 - `verify`: lint · typecheck · unit · تصدير العقد (بلا DB) · `npm audit --audit-level=high`
   **حاجب** (بلا `continue-on-error`) · **`shellcheck` على `scripts/deploy/remote-cutover.sh`**.
-- `e2e`: يشغّل خدمة `postgres:16` → `migrate deploy` → `db:seed` → `test:e2e`.
+- `e2e`: خدمة `postgres:16`، وخطواته حرفيًّا `checkout` → `setup-node` → `npm ci` →
+  `npx prisma generate` → `npm run test:e2e`. **ولا خطوة `migrate deploy`
+  ولا `db:seed` في سير العمل:** مِعمار الاختبارات يملك قاعدة بياناته لكلّ تشغيل — يُنشئها ويُرحّلها
+  ويبذرها ويُسقطها بنفسه (`D18-8`)، فمالك التهيئة واحد لا اثنان. تفصيل المِعمار في
+  [`test/README.md`](test/README.md).
 
 > **بوابة `shellcheck` صريحة وتفشل بوضوح.** كانت قبل ذلك تُشغَّل انتهازيًّا داخل اختبار
 > انحدار: إن لم يكن الملفّ التنفيذي موجودًا **مرّت البوابة**. أداة قياس تُبلِّغ «نظيف» دون أن
 > تقيس شيئًا ليست بوابة. الخطوة الحالية تتحقّق من وجود `shellcheck` وتُنهي التشغيل بـ
 > `exit 1` مع تعليق `::error::` إن غاب، ثم تفحص سكربت التحويل فعليًّا.
 
-**خط الإصدار** (`.github/workflows/deploy.yml`) يعمل على `push: main` وحده، ورسمه الحالي:
+**خط الإصدار** (`.github/workflows/deploy.yml`) لا يعمل إلا على `main`: دفعًا إليه، أو `workflow_dispatch` على مرجعه — وهو ما يستعمله احتياطيّ الـ PR المدموج (انظر أدناه). ورسمه الحالي:
 
 ```
 preflight  →  (verify  ∥  e2e)  →  deploy
@@ -252,8 +330,8 @@ preflight  →  (verify  ∥  e2e)  →  deploy
 >
 > | التشغيل | الرسم | الزمن حتى بوّابة الموافقة |
 > | --- | --- | --- |
-> | `31837891096` (`19ebbb40`) | **متسلسل** — `e2e` بدأ بعد انتهاء `verify` بثلاث ثوانٍ | **`207` ثانية** |
-> | `31851564671` (`73843e31`) | **متوازٍ** — تداخل `84` ثانية | **`142` ثانية** |
+> | قبل | **متسلسل** — `e2e` بدأ بعد انتهاء `verify` بثلاث ثوانٍ | **`207` ثانية** |
+> | بعد | **متوازٍ** — تداخل `84` ثانية | **`142` ثانية** |
 >
 > **التوفير المحقَّق: `65` ثانية — `31.4 %`.** وبتعريف ثانٍ (من بدء أوّل وظيفة حتى انتهاء آخر
 > وظيفة قبل البوّابة) يقرأ التشغيلان نفسهما `203 → 139` ثانية = `64` ثانية (`31.5 %`) — والرقم
@@ -265,7 +343,8 @@ preflight  →  (verify  ∥  e2e)  →  deploy
 `verify` داخل `deploy.yml` هي **التحقّق الوحيد من `SHA` الإصدار بعينه**، وهي أقوى: تحمل حارس
 هجرات البحث `guard:fts`. الاحتفاظ بها قرار **سلامة مؤجَّل بالدليل**، لا تحسين لم يكتمل: إسقاطها
 يتطلّب برهانًا داخل خط التشغيل أنّ شجرة `main` تطابق شجرةً اجتازت `ci.yml` — وبما أنّ الترقية
-تتمّ بـ `squash` (`D17-4`) فلا بدّ أن يكون الرابط **بصمة شجرة** لا `SHA`.
+تُدمَج بـ **التزامة دمج** (`merge commit`) لا بـ `squash` (`D17-4`)، فرأس `main` التزامة جديدة لم
+يعمل عليها `ci.yml` قطّ، فلا بدّ أن يكون الرابط **بصمة شجرة** لا `SHA`.
 
 **تحليل أمنيّ ساكن — `CodeQL`** (`.github/workflows/codeql.yml`): يحلّل
 `javascript-typescript` (مصدر الـ `API`) و`actions` (ملفّات سير العمل نفسها، لأنّ تاريخ العلل
@@ -286,8 +365,12 @@ preflight  →  (verify  ∥  e2e)  →  deploy
 
 **تعريف الإنجاز (Definition of Done):** المطابقة للوثائق الحاكمة (أو تُنقَّح الوثيقة أولًا)، ونجاح lint/typecheck/tests، وتغطية اختبارية للسلوك الجديد. التفاصيل في [الوثيقة 16 §5](../eslammuatamed-docs/docs/16-development-conventions.md).
 
-**النشر:** لا أوسمة (`tags`). الدفع إلى `main` — أو دمج ترقية `dev → main` — يُشغّل خط نشرٍ
-واحدًا على الـ `SHA` المحدَّد بعينه، والنشر على `Contabo VPS` (لا `Docker`). وظيفة التحويل
+**النشر:** لا أوسمة (`tags`). دمج PR لترقية `dev → main` أو لإصلاح عاجل يولّد حدث `push: main`
+الذي يُشغّل `deploy.yml` على الـ `SHA` المحدَّد بعينه؛ أمّا الدفع المباشر فيرفضه الـ ruleset. والنشر
+على `Contabo VPS` (لا `Docker`). **وقد يُشغَّل تشغيلان لنفس
+الـ `SHA`:** حدث الدفع على `main` يسقط أحيانًا، فيلتقط `deploy-fallback.yml` دمج الـ PR ويُرسِل
+نفس الخطّ بـ `workflow_dispatch`. الزوج مُتماثل بالبناء — مجموعة تزامن واحدة، و`preflight` يُصدر
+`already-current` للتشغيل الثاني — فلا يبلغ الكتابةَ على الخادم إلا تشغيل واحد على الأكثر. وظيفة التحويل
 مربوطة ببيئة `production` في `GitHub`، فلا يقع أي تعديل على الخادم قبل موافقة المالك
 (`D23-16`, `D23-17`). إرفاق `openapi.json` كأثر إصدار **عمل مؤجَّل** بعد التخلّي عن الأوسمة.
 
@@ -318,8 +401,11 @@ preflight  →  (verify  ∥  e2e)  →  deploy
 
 **دلالات التراجع التلقائي.** عند فشل البوابة يُعيد النشر توجيه `current` إلى الإصدار السابق
 ويُعيد تشغيل الخدمة، ثمّ **يتحقّق من هدف التراجع بالفحوص الأربعة نفسها** — فـ«تراجَع بنجاح»
-تعني «سليم فعلًا»، لا «يستمع على المنفذ». وإن لم يوجد إصدار سابق سليم يتوقّف النشر معلنًا
-`MANUAL INTERVENTION REQUIRED` بدل ترك إصدارٍ معطوب حيًّا. الهجرات **تُصحَّح بالتقدّم لا
+تعني «سليم فعلًا»، لا «يستمع على المنفذ». وإن لم يوجد إصدار سابق يُتراجَع إليه فلا
+تراجع أصلًا: **لا يُرَدّ شيء، ويبقى الإصدار الجديد المعطوب هو `current`**. وإن وقع التراجع ثمّ فشل
+التحقّق من الإصدار السابق، صار `current` هو ذلك السابق — **وهو معطوب بدوره**. وفي الحالتين يخرج
+السكربت بالفشل معلنًا `MANUAL INTERVENTION REQUIRED` تاركًا إصدارًا معطوبًا مُحدَّدًا: يخدم خدمةً
+معطوبة أو لا يخدم أصلًا. فالنشر الأحمر هنا **انقطاع قائم** يستدعي تدخّلًا فوريًّا، لا حالة آمنة. الهجرات **تُصحَّح بالتقدّم لا
 بالتراجع** (الوثيقة 09 §6): إعادة الرابط الرمزي إلى الوراء لا تُرجِع المخطَّط.
 
 **تحذير التنظيف ليس فشل إصدار.** تقليم الإصدارات القديمة يجري **بعد** التحقّق من سلامة
@@ -329,19 +415,15 @@ preflight  →  (verify  ∥  e2e)  →  deploy
 `::warning::` وسطر `cleanup:` مستقلّ في ملخّص النشر. يُقبل التحذير فقط ما دام الإصدار الجديد
 سليمًا بذاته والرابط الرمزي صحيحًا والفحوص الأربعة ناجحة.
 
-المجلّد الوحيد الذي كان يُطلق هذا التحذير — `20260806T093803Z-572b0e3`، وهو أقدم من مستخدم
-`deploy` وكان `root:root` بمحتوًى `ubuntu:ubuntu` — **أُزيل بتاريخ `2026-08-15`** بصلاحية `root`
-خارج خطّ النشر تحت تفويض المالك `OD-2`. **والسبب الصحيح لاختفائه يجب ألّا يُختصر خطأً:** التقليم
+المجلّد الوحيد الذي كان يُطلق هذا التحذير كان أقدم من مستخدم `deploy`: مملوكًا لـ `root:root`
+بمحتوًى `ubuntu:ubuntu`، فتعذّر على خطّ النشر حذفه. أُزيل يدويًّا بصلاحية `root` خارج خطّ النشر.
+**والسبب الصحيح لاختفائه يجب ألّا يُختصر خطأً:** التقليم
 يعمل **بعد** إنشاء مجلّد الإصدار الجديد، فمنظومة `KEEP_RELEASES=5` يكون لديها عادةً مرشَّح
 للتقليم في النشرة التالية — مجموعة التقليم **ليست فارغة**. الاختفاء سببه **الملكيّة وقابليّة
 الكتابة**، لا بلوغ العدد حدّ `KEEP_RELEASES`. وبعد الإزالة جرى مسح لشجرة الإصدارات كاملةً فلم
 يُوجد مسار واحد خارج ملكيّة `deploy` أو خارج قابليّة الكتابة. **حالة الدليل:** الغياب المستقبليّ
 لـ `PRUNE_INCOMPLETE` **مُثبَت بالبناء**، لا مقيسًا في زمن التشغيل — النشرة الحقيقيّة التالية هي
 التي تقيسه.
-
-**حالة `Prisma 7` في الإنتاج: حيّ ومُتحقَّق منه.** الإصدار `20260814T203732Z-19ebbb4` يعمل على
-`@prisma/client` **`7.9.1`** ويخدم حركة معتمدة على قاعدة البيانات، و`readiness` يُرجع
-`database: up`، وجميع الهجرات الإحدى عشرة مُطبَّقة، و`NRestarts=0`، ولم يقع أي تراجع.
 
 التفاصيل الكاملة في [الوثيقة 23 (Deployment)](../eslammuatamed-docs/docs/23-deployment.md)
 و[الوثيقة 18 §4b](../eslammuatamed-docs/docs/18-testing-strategy.md).
@@ -361,7 +443,7 @@ preflight  →  (verify  ∥  e2e)  →  deploy
 |---|---|---|---|
 | تحقّق مباشر من الـ JWT بـ `JwtService` (`Passport` بديل اختياري غير مستخدَم) | `common/guards/jwt-auth.guard.ts`, `modules/auth/*` | `Compatible` (مدعوم رسميًّا؛ ليس انحرافًا) | [NestJS Authentication](https://docs.nestjs.com/security/authentication) · القرار `D00-6` |
 | تجزئة `argon2id` (64 MiB/t=3/p=4) | `modules/auth/hashing/*` | `Compatible` (يفي/يفوق حدّ OWASP الأدنى لـ Argon2id) | [OWASP Password Storage](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html) · `D19-1` |
-| حقن `PrismaService` مباشرة، بلا repository | كل `*.service.ts` | `Compatible` (وصفة NestJS+Prisma الرسمية تحقنه مباشرة) | [NestJS Prisma recipe](https://docs.nestjs.com/recipes/prisma) · `D07-2`/`D00-3` |
+| حقن `PrismaService` مباشرة، بلا repository | الخدمات التي تحقنه مباشرةً (١٨ من ٢٥) | `Compatible` (وصفة NestJS+Prisma الرسمية تحقنه مباشرة) | [NestJS Prisma recipe](https://docs.nestjs.com/recipes/prisma) · `D07-2`/`D00-3` |
 | اتصال `Prisma` كسول (بلا `$connect` عند الإقلاع) | `prisma/prisma.service.ts` | `Compatible` (`Prisma` يدعم الاتصال الكسول أصلًا؛ ويحقّق `constitution rule 4`، لا يخالفها) | [Prisma connection management](https://www.prisma.io/docs/orm/prisma-client/setup-and-configuration/databases-connections/connection-management) · `constitution rule 4` |
 | `ValidationPipe` عام (whitelist + forbid + transform) | `main.ts`, كل `dto/*` | `Compatible` | [NestJS Validation](https://docs.nestjs.com/techniques/validation) |
 | أخطاء `RFC 7807` عبر exception filter عام | `common/filters/*`, `common/http/*` | `Compatible` | [RFC 7807](https://datatracker.ietf.org/doc/html/rfc7807) · [NestJS Exception filters](https://docs.nestjs.com/exception-filters) |
@@ -377,9 +459,7 @@ preflight  →  (verify  ∥  e2e)  →  deploy
 
 ## 14. مخاطر معلومة وعمل مؤجَّل
 
-- **Feature 003 (`media`) مدموجة ومُسلَّمة على `main`** (`T1`–`T11`، PR #7). إن تأخّر `feature-map.md` في عكس ذلك فالحالة على `main` هي المرجع.
-- **الوسائط:** القراءات العامة تُرجِع `*Id` خامة **مع** descriptor مُحلّل بجانبها (وحدة `media`، مدموجة).
-- **`Prisma 7` لم تعد مؤجَّلة:** `D16-6` (ومعه `D16-10`) **مَنسوخ** بـ `D16-13`، والترقية مكتملة في الكود — انظر القسم 2 أعلاه. الباقي المفتوح هو **النشر** لا الترقية: `Prisma v7 Production deployed: NO`.
+- **الوسائط:** القراءات العامة تُرجِع `*Id` خامة **مع** descriptor مُحلّل بجانبها (وحدة `media`) — عدا `SiteSettings.resumeAssetId`، فيُستبدَل بـ `resumeAsset` ولا يظهر خامًّا (القسم ٦.٥).
 - **cron داخل العملية:** صحيح لنسخة واحدة فقط؛ التوسّع الأفقي يحتاج قفلًا.
 - **تحذير إعداد محلّي:** الدور بلا كلمة مرور يحتاج سطر `trust` في `pg_hba.conf` (انظر تعليق `.env.example`).
 
@@ -387,13 +467,56 @@ preflight  →  (verify  ∥  e2e)  →  deploy
 
 **عند التعديل:** (1) إن ناقض العمل وثيقة حاكمة، نقّح الوثيقة أولًا (`Documentation First`). (2) اكتب على فرع `feat/…`/`fix/…`. (3) شغّل البوابات الأربع بلا قاعدة بيانات + e2e إن مسّ السلوك. (4) إن تغيّر العقد، اتبع تدفّق القسم 7 (عقد الواجهة الأمامية ↔ الـ API). (5) commit ذرّي بصيغة Conventional Commits عبر PR ([الوثيقة 17](../eslammuatamed-docs/docs/17-git-workflow.md)).
 
-**ترتيب القراءة للمطوّر الجديد:**
-1. هذا الدليل (`PROJECT_GUIDE.md`).
+**المفردات أوّلًا إن كان `NestJS` جديدًا عليك.** جدول «مفردات `NestJS`» في **صدر هذا الدليل**،
+قبل القسم ١، هو الشرط المُسبَق للخطوة ٢ أدناه. **نسخة واحدة منه، في مكان واحد** — تكراره هنا كان
+سيصير نسختين تفترقان عند أوّل تعديل، وهو العيب الذي أُصلح في القسم ١١ بالضبط.
+
+**ترتيب القراءة للمطوّر الجديد.**
+
+> **لا تقرأ الوحدات بترتيب اعتماديّاتها.** رسم الاعتماديّات يقول ما **يمكنك** قراءته، لا ما أنت
+> **مستعدّ** له، والفرق بينهما ليس تفصيلًا: `contact` عمقها في الرسم **1** فقط (تعتمد على `mail`
+> وحدها)، فالرسم يسمح بها ثانيًا — وهي من أصعب خمس وحدات في المستودع (مفاتيح `idempotency` +
+> إرسال بعد الالتزام + مهمّة تطهير مجدولة). بينما `testimonials` عمقها **2** ولا تحمل فكرة واحدة
+> خارج النموذج القانوني.
+>
+> **الترتيب أدناه يتدرّج في كثافة المفاهيم، ويفارق الرسم عمدًا حين يُقدِّم الرسمُ وحدةً من الحافة
+> الصعبة.** قُل هذا صراحةً بدل «يحترم الاعتماديّات»، لأنّ الأخيرة **ليست صحيحة** هنا: `articles`
+> و`projects` (الخطوة ٩) تستوردان `media`، وهي لا تُقرأ إلا في الخطوة ١٠. المفارقة مقصودة —
+> `media` أثقل وحدة في المستودع، وتقديمها لأجل الرسم وحده يضع أصعب قراءة قبل أبسطها. وما تحتاجه
+> فعلًا عن `media` عند قراءة `articles`/`projects` مذكور في §6.5: القراءة العامّة تُبقي `*Id`
+> الخام وتُضيف بجانبه descriptor مُحلَّلًا. أمّا حيث تكون الاعتماديّة **مفهومًا** لا مجرّد حافة
+> في الرسم — `mail` قبل `contact` — فهي مُدرَجة في مكانها أدناه.
+>
+> **والترتيب مسار تعلّم لا فهرسًا.** الفهرس الكامل للوحدات في
+> [`src/modules/README.md`](src/modules/README.md)، وفيه **أربع** وحدات لا يمرّ بها هذا المسار:
+> `testimonials` (لا فكرة خارج النموذج القانوني)، و`users` (٢٤ سطر شيفرة، بلا `controller` وبلا
+> مسارات — حافة في الرسم لا مفهوم؛ اقرأ [`users/README.md`](src/modules/users/README.md) عند
+> `auth` إن احتجت)، و`settings`/`seo` (صفّ مفرد singleton و`upsert` — أنشِئ الصفّ أو حدّثه إن وُجد —
+> لكلّ مفتاح، مع تحليل لغة — فكرة حقيقيّة، لكن لا يتوقّف عليها فهم أيّ خطوة تالية). **المسار
+> يرتّب الأفكار التي يبني بعضُها على بعض؛ ما لا يدخل في ذلك البناء يُقرأ عند الحاجة إليه، لا
+> لإتمام قائمة.**
+
+1. هذا الدليل (`PROJECT_GUIDE.md`) من أوّله — وجدول «مفردات `NestJS`» في صدره يسبق القسم ١، فإن قرأته من البداية فقد مررت به فعلًا.
 2. [`src/config/README.md`](src/config/README.md) → [`src/prisma/README.md`](src/prisma/README.md) → [`src/common/README.md`](src/common/README.md) (البنية العرضية).
-3. [`src/modules/README.md`](src/modules/README.md) (الشكل القانوني للوحدة).
-4. [`src/modules/auth/README.md`](src/modules/auth/README.md) + [`src/modules/access-control/README.md`](src/modules/access-control/README.md) (الأمان).
-5. [`src/modules/articles/README.md`](src/modules/articles/README.md) (أغنى وحدة — النموذج المرجعي).
-6. باقي وحدات المحتوى + [`test/README.md`](test/README.md).
+3. **[`src/modules/README.md`](src/modules/README.md) — إلزاميّ، وليس اختياريًّا.** وفيه تحديدًا قسم «أيّ طبقة ترفض أوّلًا» الذي يشرح لماذا تحصل على `422` هنا و`400` هناك بينما الـ `controller` لا يذكر أيًّا منهما. من دونه ستقرأ كل وحدة وأنت تفتقد نصف ما يجري فيها.
+4. [`locales`](src/modules/locales/README.md) — **٧٦ سطر شيفرة (غير فارغة وغير تعليق؛ `wc -l` الخام يعطي ٩٠)، وتعتمد عليها عشر وحدات.** أصغر وحدة حقيقية وأكثر مقطع مشترك في المستودع؛ ستراها في كلّ وحدة تحمل نصًّا مترجَمًا بعدها. لا تحقنها `auth` و`access-control` و`mail` و`contact` — ولا `preview`، **غير أنّ طلبات `preview` تُتحقَّق لغتها رغم ذلك**: فهو يفوّض القراءة إلى `articles`/`projects`، و`assertEnabled` تعمل هناك. **الاعتماد المُفوَّض لا يظهر في قائمة `imports`؛ فغياب الوحدة من القائمة ليس غيابًا للسلوك.**
+5. `health` — *لا `README` مخصّص لها عمدًا؛ وصفها في [النموذج القانوني](src/modules/README.md)* — أصغر وحدة كاملة: فحص حياة + فحص جاهزية يفتح الاتصال الكسول فعليًّا.
+6. [`experiences`](src/modules/experiences/README.md) ثمّ [`skills`](src/modules/skills/README.md) — **النموذج القانوني وهو يعمل، بلا أيّ فكرة جديدة.** إن بدتا مكرّرتين فهذه هي الفائدة: التكرار هو النموذج.
+7. [`taxonomy`](src/modules/taxonomy/README.md) — أكبر سطح مسارات في المستودع (٤ `controllers` / ١٠ مسارات) بأبسط منطق، وفيها أوّل مفهوم قاعديّ حقيقي: حذف تمنعه علاقة أجنبيّة (`P2003` → `409`).
+8. [`redirects`](src/modules/redirects/README.md) — **١٤٧ سطر شيفرة (بالمقياس نفسه؛ `wc -l` الخام يعطي ١٩٥)، وأدقّ ممّا يوحي حجمها.** ولستَ تلقى `$transaction` هنا أوّل مرّة: رأيتَها في النموذج القانوني (الخطوة ٣، تدفّق الكتابة الإداريّة)، ثمّ في `experiences`/`skills` (٦) و`taxonomy` (٧) — وفي كلّها الـ `service` هو الذي يفتح المعاملة ويُغلقها. **الجديد هنا هو مِلكيّة حدود المعاملة، لا المعاملة نفسها:** `buildRedirectOps` **لا تُنفِّذ** شيئًا، بل تُعيد ثلاث عمليّات يدفعها **المُستدعي** في `$transaction` الخاصّ به، فتُلتزَم إعادةُ التسمية والتحويلُ ذرّيًّا معًا. أوّل درس في «مَن يملك حدود المعاملة» — وهو سؤال مختلف عن «ما المعاملة».
+9. [`articles`](src/modules/articles/README.md) ثمّ [`projects`](src/modules/projects/README.md) — التركيب: جدولة نشر + بحث نصّي بـ `SQL` خام، ثمّ معاملة واحدة تجمع إعادة التسمية والتحويل والوسائط.
+10. **الحافة الصعبة، أخيرًا وبهذا الترتيب:** [`media`](src/modules/media/README.md) → [`auth`](src/modules/auth/README.md) → [`access-control`](src/modules/access-control/README.md) → **[`mail`](src/modules/mail/README.md) →** [`contact`](src/modules/contact/README.md) → [`preview`](src/modules/preview/README.md). المفاهيم بالترتيب: خطّ معالجة وسائط بحدّ تزامن، تجزئة `argon2id` وتدوير `refresh`، صلاحيات تُحلّ من قاعدة البيانات مع ترتيب حرّاس عالميّ، ثمّ ناقل البريد، ثمّ `idempotency` وإرسال بعد الالتزام، وأخيرًا توقيع `HMAC` بنافذة صلاحية ومقارنة ثابتة الزمن. `preview` آخرًا لأنّها الأعمق في الرسم (عمق **3**).
+
+    - **`mail` قبل `contact`، وهذا شرط مُسبَق حقيقيّ لا ترتيب مجاملة.** آلة الحالة في `contact`
+      (`PENDING` → `SENT`/`FAILED`) غير مقروءة قبل ثلاث حقائق تعيش في `mail` وحدها: أنّ
+      `MailService.send` **لا ترمي أبدًا** بل تُرجِع `MailSendResult`، وأنّ إعادة المحاولة
+      **محدودة** (ثلاث محاولات ثمّ توقّف، ولا إعادة على رفض `5xx` دائم)، وأنّ المجموعة كلّها
+      **اختياريّة ومعطَّلة افتراضيًّا** خلف `SMTP_ENABLED`. من دونها ستقرأ `FAILED` على أنّها
+      استثناء مُلتقَط، و`PENDING` على أنّها عطل.
+    - **`auth` يستورد `UsersModule`، ولا تحتاج قراءته أوّلًا:** `users` ٢٤ سطر شيفرة، بلا
+      `controller` وبلا مسارات وبلا فكرة خارج النموذج القانوني — حافة في الرسم، لا مفهوم. وهذا
+      بالضبط الفرق الذي تحذّر منه المقدّمة أعلاه: حافةُ استيراد ليست شرطًا تعليميًّا بذاتها.
+11. [`test/README.md`](test/README.md) — بعد أن تعرف ما الذي يُختبَر.
 
 ## 16. روابط التوثيق الرسمي
 

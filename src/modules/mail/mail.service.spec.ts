@@ -199,7 +199,7 @@ describe('MailService', () => {
     });
   });
 
-  // 11B-α §18 — the STRUCTURAL proof, at the transport seam rather than the domain one.
+  // The STRUCTURAL proof, at the transport seam rather than the domain one.
   //
   // Everything else about reply idempotency is domain logic and is tested against a fake
   // MailService. This block is the only place that answers a different question: does the REAL

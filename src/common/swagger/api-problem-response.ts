@@ -66,12 +66,15 @@ export function ApiAdminErrorResponses(): MethodDecorator & ClassDecorator {
   );
 }
 
-// The 400 a route earns purely by parsing a UUID path parameter (Phase 12A).
+// The 400 a route earns purely by parsing a UUID path parameter.
 //
-// `ParseUUIDPipe` runs BEFORE the global `ValidationPipe` and answers a malformed `:id` with 400,
-// not the 422 the rest of the request surface uses — measured in Phase 11B-β2, frozen in β-3.
-// Every route carrying `@Param('…', ParseUUIDPipe)` can therefore return a 400 that no request
-// body or query can explain, and until now only the two reply routes said so.
+// A malformed `:id` answers 400, not the 422 the rest of the request surface uses. The mechanism
+// is not the obvious one: Nest puts GLOBAL pipes first (`pipes.concat(paramPipes)`) and applies
+// them left to right, so the global `ValidationPipe` runs BEFORE `ParseUUIDPipe` — it simply
+// no-ops on a primitive route parameter, because there is no DTO metatype to validate. The
+// decision therefore falls through to `ParseUUIDPipe`, which throws `BadRequestException`.
+// Every route carrying `@Param('…', ParseUUIDPipe)` can return a 400 that no request body or
+// query can explain.
 //
 // Deliberately NOT folded into `ApiAdminErrorResponses()`. That decorator is applied at the class
 // level, where it would also declare 400 on list and create routes that have no UUID parameter and

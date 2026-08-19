@@ -105,7 +105,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
   ): ProblemDetails {
     switch (exception.code) {
       // Unique constraint — a slug/email collision. 422, with the offending field paths when
-      // Prisma identifies them (F9-9: the shape moved in v7, so extraction lives behind
+      // Prisma identifies them (the shape moved in Prisma 7, so extraction lives behind
       // `uniqueConstraintFields`). When it cannot, the 422 is returned WITHOUT an `errors` member
       // rather than with a placeholder — `errors` is optional in the contract, and reporting a
       // field the API cannot identify would be a lie a client may act on.

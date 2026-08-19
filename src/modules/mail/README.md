@@ -31,7 +31,8 @@
 
 - `SMTP_ENABLED=false` أو غيابها ⇐ `MAIL_TRANSPORT = null`، و`isEnabled = false`، ولا يُبنى أيّ اتّصال.
   التطبيق يقلع كما كان تمامًا، ويعمل `npm run contract:export` بلا قاعدة بيانات وبلا بريد.
-- `SMTP_ENABLED=true` ⇐ كلّ حقول المجموعة مطلوبة، وأيّ نقص **يوقف الإقلاع** برسالة واضحة
+- `SMTP_ENABLED=true` ⇐ حقول المجموعة مطلوبة **إلّا `SMTP_SECURE`**: يبقى اختياريًّا، وغيابه يُقرأ
+  `true` (أيّ TLS ضمنيّ — القراءة الآمنة لإعداد غامض). وأيّ نقص فيما عداه **يوقف الإقلاع** برسالة واضحة
   (`src/config/env.validation.ts`) بدل أن يظهر كخطأ وقت التشغيل عند أوّل رسالة.
 
 المتغيّرات: `SMTP_ENABLED` · `SMTP_HOST` · `SMTP_PORT` · `SMTP_SECURE` · `SMTP_USER` ·

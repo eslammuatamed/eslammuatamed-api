@@ -1,5 +1,5 @@
 {
-  // Operator-command build (F9-13 / F9-14).
+  // Operator-command build.
   //
   // The application build (`nest build`, tsconfig.build.json) deliberately EXCLUDES `prisma/`,
   // and its output is flat over `src/` — `src/main.ts` becomes `dist/main.js`. Widening that
@@ -12,7 +12,7 @@
   //
   // `rootDir: "."` keeps the source layout in the output, so `prisma/seed.ts`'s
   // `../src/prisma/load-env` resolves to `dist-ops/src/prisma/load-env.js` — inside the
-  // artifact, never reaching back into a `src/` tree the tarball does not ship (F9-14's cause).
+  // artifact, never reaching back into a `src/` tree the tarball does not ship.
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "rootDir": ".",

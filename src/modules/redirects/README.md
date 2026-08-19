@@ -12,12 +12,12 @@
 |---|---|
 | `redirects.controller.ts` | `GET /api/v1/redirects/resolve?locale&path` عام (`@Public`) — `Cache-Control: no-store` |
 | `redirect.service.ts` | `resolve()` + `buildRedirectOps()` (مُصدَّرة للمقالات/المشاريع) |
-| `dto/*` · `entities/*` | استعلام `?locale&path` + ردّ `{ toPath }` |
+| `dto/*` · `entities/*` | استعلام `?locale&path` + حمولة `{ toPath }` (الجسم على السلك هو هذه الحمولة داخل الغلاف المشترك — انظر [`src/modules/README.md`](../README.md)) |
 
 ## خريطة الاتصال
 
 - **يعتمد على:** `PrismaService`، `LocalesService`.
-- **يُصدِّر:** `RedirectService` — `ArticlesModule`/`ProjectsModule` تستدعي `buildRedirectOps` داخل `update()` (`T7`). لا دورة: `redirects` لا يستورد أيًّا منهما.
+- **يُصدِّر:** `RedirectService` — `ArticlesModule`/`ProjectsModule` تستدعي `buildRedirectOps` داخل `update()`. لا دورة: `redirects` لا يستورد أيًّا منهما.
 
 ## ما يميّز هذه الوحدة عن النموذج
 
@@ -34,7 +34,7 @@
 
 ## القيود المقبولة والمؤجَّل
 
-- **لا CRUD يدويّ للتحويلات في F004** (قرار المالك): التعبئة تلقائيّة فقط عبر `buildRedirectOps`؛ لا وحدة `‎/admin/redirects‎`.
+- **لا CRUD يدويّ للتحويلات** (قرار المالك): التعبئة تلقائيّة فقط عبر `buildRedirectOps`؛ لا وحدة `‎/admin/redirects‎`.
 - الحلّ قفزة واحدة فقط؛ لا مشي عبر السلسلة — السلاسل تُطوى وقت الإنشاء لا وقت الحلّ.
 
 ## الاختبارات

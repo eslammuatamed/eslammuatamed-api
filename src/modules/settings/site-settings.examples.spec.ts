@@ -24,7 +24,7 @@ import { PUBLIC_SITE_SETTINGS_RESPONSE_EXAMPLES } from './site-settings.examples
  *    COUPLED TO THE CANONICAL DATASET HERE instead: jest's `roots` includes `<rootDir>/../prisma`,
  *    and a spec is excluded from the build, so this file may import what the module may not.
  *    Mutating either localized site name fails this spec — which is the guard the contract
- *    example otherwise would not have, and exactly the failure mode C-1 exposed (a stale literal
+ *    example otherwise would not have, and exactly the failure mode this guards (a stale literal
  *    nothing could notice).
  */
 

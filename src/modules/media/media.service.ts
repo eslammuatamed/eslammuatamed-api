@@ -46,7 +46,7 @@ import type {
 } from './storage/storage-adapter.interface';
 
 // The bytes + client hints a validated multipart upload hands the service. Neither hint is
-// trusted for type — the T5 processor sniffs magic bytes — but the declared MIME routes IMAGE vs
+// trusted for type — `MediaProcessingService` sniffs magic bytes — but the declared MIME routes IMAGE vs
 // PDF (a mis-declared file is then rejected by the processor, never mis-persisted).
 export interface MediaUploadInput {
   readonly buffer: Buffer;
@@ -89,10 +89,14 @@ const FORMAT_TO_PRISMA: Record<ImageVariantFormat, MediaVariantFormat> = {
   avif: MediaVariantFormat.AVIF,
 };
 
-// The reusable central media library (D02-7): upload orchestration, SHA-256 dedup, no-orphan
-// compensation, usages, and safe deletion. Objects are written before the DB row and compensated
-// on any failure (D07-6). Processing runs inside the 2-wide concurrency cap (Q3); the raw upload is
-// never persisted — everything comes from the T5 processor's sanitized outputs.
+// The reusable central media library (D02-7): upload orchestration, SHA-256 dedup, best-effort
+// compensation, usages, and safe deletion. Objects are written before the DB row and cleanup is
+// attempted for failures caught AFTER object persistence begins (D07-6) — validation, processing,
+// the dedup lookup and a limiter rejection all fail before any object is recorded, so none of them
+// compensates — that ordering narrows the orphan window without closing it; see
+// compensate(). Processing runs inside the 2-wide concurrency cap (Q3), which a dedup hit skips.
+// A raw IMAGE upload is never persisted — everything comes from `MediaProcessingService`'s
+// sanitized outputs — but a validated PDF is stored as its original bytes.
 @Injectable()
 export class MediaService {
   constructor(
@@ -143,7 +147,8 @@ export class MediaService {
     contentHash: string,
   ): Promise<MediaUploadOutcome> {
     // Every object for this asset lives under one random prefix, so a duplicate-race loser's keys
-    // are disjoint from the winner's and cleanup can never touch another asset's objects.
+    // are disjoint from the winner's and cleanup does not touch another asset's objects. The only
+    // separation is randomUUID() — negligible collision risk, not a formal guarantee.
     const prefix = randomUUID();
     return this.normalizeMime(input.declaredMimeType) === PDF_MIME_TYPE
       ? this.persistPdf(input, contentHash, prefix)
@@ -167,8 +172,11 @@ export class MediaService {
       key: this.variantKey(prefix, variant.width, variant.format),
     }));
 
-    // Every object this request uploads is tracked so a failure can delete exactly them (D07-6).
+    // Each object whose put() resolves is tracked so a failure can delete those keys (D07-6). Not
+    // "exactly the objects uploaded": a remote write whose response is lost rejects locally and is
+    // never recorded here — see cleanup() below.
     const uploaded: string[] = [];
+    let asset: AdminMediaAsset;
     try {
       await this.storage.put({
         key: masterKey,
@@ -189,7 +197,7 @@ export class MediaService {
       }
 
       // Objects are all written; the DB row is the commit point (D07-6).
-      const asset = await this.prisma.mediaAsset.create({
+      asset = await this.prisma.mediaAsset.create({
         data: {
           kind: MediaKind.IMAGE,
           storageKey: masterKey,
@@ -213,12 +221,12 @@ export class MediaService {
         },
         include: ADMIN_INCLUDE,
       });
-
-      this.logOverBudgetRenditions(asset.id, plannedVariants);
-      return { deduplicated: false, asset: this.toAdminEntity(asset) };
     } catch (error) {
       return this.compensate(error, contentHash, uploaded);
     }
+
+    this.logOverBudgetRenditions(asset.id, plannedVariants);
+    return { deduplicated: false, asset: this.toAdminEntity(asset) };
   }
 
   private async persistPdf(
@@ -234,6 +242,7 @@ export class MediaService {
 
     const key = this.pdfKey(prefix);
     const uploaded: string[] = [];
+    let asset: AdminMediaAsset;
     try {
       // Download headers are object metadata so R2 serves the PDF directly (D23-15, doc 19 §5).
       await this.storage.put({
@@ -246,7 +255,7 @@ export class MediaService {
       uploaded.push(key);
 
       // A PDF is never given variants, blurhash, or dimensions (service invariant, D09-11/12).
-      const asset = await this.prisma.mediaAsset.create({
+      asset = await this.prisma.mediaAsset.create({
         data: {
           kind: MediaKind.PDF,
           storageKey: key,
@@ -257,16 +266,24 @@ export class MediaService {
         },
         include: ADMIN_INCLUDE,
       });
-
-      return { deduplicated: false, asset: this.toAdminEntity(asset) };
     } catch (error) {
       return this.compensate(error, contentHash, uploaded);
     }
+
+    return { deduplicated: false, asset: this.toAdminEntity(asset) };
   }
 
-  // The single compensation path for both kinds (D07-6). A duplicate-content race is resolved to
-  // the winner; any other failure deletes every object this request uploaded and rethrows. No DB
-  // row exists at this point (the create is the commit point), so there is never a partial row.
+  // The single compensation path for both kinds (D07-6). A duplicate-content race resolves to the
+  // winner only when cleanup resolves, the reread resolves WITH a winner, and mapping succeeds. A
+  // cleanup rejection is logged and the original upload error is preserved; a reread rejection or
+  // mapping throw escapes with theirs; a null reread rethrows the original unique violation.
+  // Any other failure attempts cleanup and rethrows.
+  //
+  // Deliberately NOT a no-orphan guarantee, though it once claimed to be. Three things break it:
+  // cleanup() can reject and pre-empt the rethrow below (see its comment); the callers' try blocks
+  // extend past mediaAsset.create, so a post-commit throw lands here with the row already written;
+  // and a rejected create does not prove PostgreSQL did not commit. The ordering — objects first,
+  // row last — narrows the window; it does not close it.
   private async compensate(
     error: unknown,
     contentHash: string,
@@ -289,14 +306,40 @@ export class MediaService {
     throw error;
   }
 
-  // Deletes exactly the objects a failed/losing request uploaded. Partial failures are surfaced
+  // Deletes the keys this request recorded in `uploaded` — i.e. those whose put() resolved in this
+  // process. A remote write that succeeded but whose response was lost CAN reject locally (the SDK
+  // retries, so one lost response need not fail the call); when it does, its key is never pushed
+  // and cleanup cannot know it. Per-key failures are surfaced
   // structurally (never swallowed) — the doc-07-§6 model has no reconciliation job, so an operator
-  // sees the orphan in the log. Cleanup never throws: the caller must still rethrow / return.
+  // sees the orphan in the log.
+  //
+  // The LOCAL adapter catches per key, but the S3/R2 adapter can reject outright on a transport or
+  // credential failure. That failure is logged as an incomplete compensation, while the original
+  // upload error remains the one rethrown by compensate().
   private async cleanup(keys: string[], reason: string): Promise<void> {
     if (keys.length === 0) {
       return;
     }
-    const result = await this.storage.deleteMany(keys);
+    let result: Awaited<ReturnType<StorageAdapter['deleteMany']>>;
+    try {
+      result = await this.storage.deleteMany(keys);
+    } catch (cleanupError) {
+      this.logger.error(
+        {
+          event: 'media.compensation_incomplete',
+          reason,
+          failed: keys.map((key) => ({
+            key,
+            reason:
+              cleanupError instanceof Error
+                ? cleanupError.message
+                : 'unknown error',
+          })),
+        },
+        'Media object cleanup failed after a failed upload',
+      );
+      return;
+    }
     if (result.failed.length > 0) {
       this.logger.error(
         {
@@ -443,8 +486,10 @@ export class MediaService {
   }
 
   // The usages behind an FK rejection, read after the fact. An empty result is possible and is not
-  // an error: the blocking transaction may have rolled back in the moment between the rejection and
-  // this read. The response stays a 409 either way — the database already refused the delete, and
+  // an error: between the rejection and this read the blocking relation may be deleted or repointed
+  // at another asset — and every blocking FK is nullable and so also clearable, with one exception,
+  // ProjectGalleryItem.mediaAssetId, which is required — or the asset itself may be deleted once
+  // nothing blocks it any more. The response stays a 409 either way — the database already refused the delete, and
   // reporting anything else would contradict what actually happened.
   private async usagesAfterRejection(id: string): Promise<MediaUsageEntity[]> {
     const asset = await this.prisma.mediaAsset.findUnique({
@@ -456,8 +501,12 @@ export class MediaService {
 
   // Post-commit object cleanup. The row is already gone, so there is nothing to compensate and
   // nothing to roll back — deleting the row again is impossible and re-creating it would be a lie.
-  // A failure here leaves an orphaned object: wasted bytes no reader can observe, removable by
-  // hand. That is the recoverable side of D07-7, so it is logged for an operator and never thrown.
+  // A failure here leaves an orphaned object: no FUTURE db-backed response can discover it, since
+  // the row is gone. Not unobservable, though — a URL already returned or cached still names it, and
+  // in production those objects are written with year-long immutable cache metadata and served from
+  // the configured delivery origin (public access itself is bucket/domain configuration, and the
+  // local adapter sets neither serving nor cache headers). That is the recoverable side of D07-7, so it is
+  // logged for an operator and never thrown.
   // Throwing would tell the client the deletion failed after it had already succeeded, and invite a
   // retry of a request that has nothing left to delete.
   private async cleanupAfterDelete(
@@ -480,7 +529,8 @@ export class MediaService {
 
     if (failed.length > 0) {
       // Keys and the asset id only — enough to find and remove the objects by hand, and never the
-      // original filename, a signed URL or any credential. `failed` alone, never the full key list:
+      // original filename, a signed URL or any credential. `failed` alone, which on a total adapter
+      // rejection IS every input key, since none is known to have been deleted:
       // an object that WAS deleted must not be reported as an orphan.
       this.logger.error(
         {
@@ -549,7 +599,7 @@ export class MediaService {
           width: variant.width,
           format: variant.format,
           bytes: variant.sizeBytes,
-          // The tier is resolved by the canonical `budgetTierFor` (B-3) — the SAME rule the
+          // The tier is resolved by the canonical `budgetTierFor` — the SAME rule the
           // encoder measured against. A local re-implementation here previously rounded a
           // non-tier width DOWN to 640, so an over-budget 1086px rendition was measured against
           // the 1280 row but reported the 640 one: the operator saw a budget the encoder never used.
@@ -597,8 +647,10 @@ export class MediaService {
     };
   }
 
-  // The primary URL: for a PDF its download; for an image the WIDEST WebP rendition — never the
-  // large sanitized master (doc 07 §6, doc 10 §6). Every image has ≥ 1 WebP rendition.
+  // The primary URL: for a PDF its download; for an image the WIDEST WebP rendition — falling back
+  // to the master only if a row somehow has no WebP rendition, which the service never creates. The
+  // public descriptor refuses that case instead of falling back (doc 07 §6, doc 10 §6). Every image
+  // the service creates has ≥ 1 WebP rendition; no database constraint enforces it.
   private primaryUrl(asset: AdminMediaAsset): string {
     if (asset.kind === MediaKind.PDF) {
       return this.storage.publicUrl(asset.storageKey);
@@ -643,7 +695,7 @@ function isUniqueViolationOnContentHash(error: unknown): boolean {
 // `P2003`, and an already-deleted row arrives as `P2025` — which must NOT be caught here, or a
 // concurrent double delete would answer 409 with no usages instead of the governed 404. The code is
 // the whole test: `meta` carries the constraint name, but v7 has already moved that shape once
-// (F9-9, P2002's `meta.target`), and matching on it would buy nothing a delete on this model needs.
+// (P2002's `meta.target`), and matching on it would buy nothing a delete on this model needs.
 function isForeignKeyViolation(error: unknown): boolean {
   return (
     error instanceof Prisma.PrismaClientKnownRequestError &&

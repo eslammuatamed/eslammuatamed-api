@@ -86,7 +86,7 @@ function runPrismaCli(args: readonly string[], scratchUrl: string): void {
  * `package.json#prisma`, which no longer exists; the seed is also explicit now, because
  * `migrate reset` no longer runs it.)
  *
- * That entry now runs the COMPILED seed from `dist-ops/` (F9-13), which is why `npm run test:e2e`
+ * That entry runs the COMPILED seed from `dist-ops/`, which is why `npm run test:e2e`
  * builds it first. The gain is that this suite exercises the exact seed binary a production
  * release runs, instead of a `ts-node` path that only ever worked from a source checkout.
  */

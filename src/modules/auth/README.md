@@ -24,7 +24,7 @@
 
 - **وارد:** `common/guards/jwt-auth.guard.ts` يحقن `JwtService` (المُسجَّل عالميًّا هنا) للتحقّق من التوكن. `access-control` يستورد `AuthModule` لاستخدام `PasswordService` المُصدَّر (تجزئة حسابات جديدة).
 - **صادر:** `PasswordService` فقط.
-- **يعتمد على:** `UsersService` (بحث الحسابات)، `PrismaService` (جدول `RefreshToken`)، `AppConfigService` (الأسرار)، `JwtService`.
+- **يعتمد على:** `UsersService` (بحث الحسابات)، `AppConfigService` (الأسرار)، `JwtService` — و`PrismaService` **للوحدة لا للخدمة**: `AuthService` لا يحقنه، بل يحقنه `RefreshTokenService` (جدول `RefreshToken`) وحده. وهذا هو المثال الذي يبني عليه [الدليل](../../../PROJECT_GUIDE.md) قاعدة «اللاحقة `.service.ts` لا تَعِد بوصول إلى قاعدة البيانات»: `AuthService` يمسّ القاعدة **بالوساطة** (`users` و`refresh-token`) لا بالحقن.
 
 ## التدفّقات
 

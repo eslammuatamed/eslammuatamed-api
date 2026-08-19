@@ -27,7 +27,7 @@ import { ApiResponseExamples } from '@nestjs/swagger';
  * the build, restructure `dist/`, and break `start:prod`. The duplication is COUPLED BY A TEST
  * instead — `site-settings.examples.spec.ts` imports the canonical dataset (jest's `roots` covers
  * `prisma/`, and specs are excluded from the build) and fails if any governed value drifts. That
- * guard is the point: an uncoupled literal that silently goes stale is precisely the C-1 defect.
+ * guard is the point: an uncoupled literal that silently goes stale is precisely the defect.
  *
  * GENERATED ONCE from the canonical dataset to rule out transcription error in the Arabic strings,
  * then maintained by hand under the test above. Do not rewrite, normalise or "fix" the copy —

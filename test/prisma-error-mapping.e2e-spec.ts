@@ -13,7 +13,7 @@ import { loadApiSpec } from './utils/contract';
 
 // Proves the Prisma 7 + PrismaPg runtime still produces error objects that `AllExceptionsFilter`
 // recognizes, using REAL PostgreSQL failures rather than a mocked
-// `Prisma.PrismaClientKnownRequestError` (9C-8).
+// `Prisma.PrismaClientKnownRequestError`.
 //
 // WHY this is worth a dedicated spec: the filter dispatches on `exception instanceof
 // Prisma.PrismaClientKnownRequestError`, where `Prisma` is imported from the GENERATED client. A
@@ -22,9 +22,10 @@ import { loadApiSpec } from './utils/contract';
 // violation would then fall through to the sanitized 500 arm. Nothing in lint, typecheck or build
 // catches that: it is a pure runtime identity question, so only a real database can answer it.
 //
-// Phase 10 B-2 will delete the Project-local P2002 translation and rely on this global filter, so
-// the P2002 evidence below is deliberately taken from ARTICLES — a path that has no service-local
-// translation today and therefore already exercises the target architecture.
+// No module translates P2002 for itself any more — the global filter owns it everywhere. The
+// P2002 evidence below is taken from ARTICLES, and section B2 then runs the SAME path through
+// PROJECTS, which used to translate locally: two modules reaching one byte-identical response is
+// the actual claim, and one module alone could not carry it.
 
 // A syntactically valid uuid(7) that the seed cannot have issued.
 const ABSENT_ID = '00000000-0000-7000-8000-000000000000';
@@ -145,7 +146,7 @@ describe('Prisma 7 runtime errors through AllExceptionsFilter (e2e)', () => {
       expect(known.code).toBe('P2002');
       expect(known.constructor.name).toBe('PrismaClientKnownRequestError');
 
-      // F9-9 — the shape the fix is built on, pinned so a future Prisma change is loud.
+      // The shape the fix is built on, pinned so a future Prisma change is loud.
       //
       // Prisma 6 (Rust engine) put the conflicting fields in `meta.target`. Prisma 7 + PrismaPg
       // does NOT populate `meta.target` at all: the information lives at
@@ -154,7 +155,7 @@ describe('Prisma 7 runtime errors through AllExceptionsFilter (e2e)', () => {
       //
       // `uniqueConstraintFields` reads exactly this and normalizes it. If a future version moves
       // or renames it again, this assertion fails and names the new location — rather than the
-      // API silently losing its field paths, which is precisely how F9-9 shipped.
+      // API silently losing its field paths, which is precisely how the original defect shipped.
       expect(known.meta?.target).toBeUndefined();
       const adapterError = (
         known.meta as {
@@ -235,7 +236,7 @@ describe('Prisma 7 runtime errors through AllExceptionsFilter (e2e)', () => {
       // The P2002 arm is the only one that attaches `errors`; its presence proves the response
       // came from `fromPrisma`, not from the DTO ValidationPipe or the generic 500 arm.
       expect(Array.isArray(conflict.body.errors)).toBe(true);
-      // The F9-9 regression test, asserted by VALUE.
+      // The regression test, asserted by VALUE.
       //
       // `article_translations` maps `locale` and `slug` with no @map, so this pair alone could
       // pass without any normalization at all. The mapped snake_case case is covered by the
@@ -248,7 +249,7 @@ describe('Prisma 7 runtime errors through AllExceptionsFilter (e2e)', () => {
     });
 
     it('reports a MAPPED column under its API name, never its database name', async () => {
-      // The load-bearing F9-9 regression test.
+      // The load-bearing regression test.
       //
       // `locale` and `slug` above carry no `@map`, so that case would pass even with normalization
       // deleted. This one cannot: `article_translations` maps `articleId` to the column
@@ -286,9 +287,9 @@ describe('Prisma 7 runtime errors through AllExceptionsFilter (e2e)', () => {
     });
   });
 
-  // ── B2. The SAME path through PROJECTS, which used to translate P2002 itself (B-2) ──────────
+  // ── B2. The SAME path through PROJECTS, which used to translate P2002 itself ────────────────
   //
-  // Until Phase 10A, `ProjectsService` caught P2002 and threw a bare
+  // `ProjectsService` once caught P2002 and threw a bare
   // `UnprocessableEntityException('A project translation slug or relation value already exists.')`.
   // That took the `fromHttpException` branch: still a 422, but `title: 'Unprocessable Entity'`,
   // a project-specific `detail`, and NO `errors[]` — a different contract from Articles above for
@@ -385,7 +386,7 @@ describe('Prisma 7 runtime errors through AllExceptionsFilter (e2e)', () => {
     });
 
     // The architecture assertion, not just the shape one: projects and articles must now be
-    // byte-identical on everything except `instance`. This is what B-2 actually bought, and it
+    // byte-identical on everything except `instance`. This is what centralizing actually bought, and it
     // fails the moment either module reacquires a local translation.
     it('returns a body identical to the article collision apart from `instance`', async () => {
       const articleSlug = `e2e-parity-article-${unique}`;
@@ -440,9 +441,9 @@ describe('Prisma 7 runtime errors through AllExceptionsFilter (e2e)', () => {
 
   // ── B3. The SAME path through SKILLS, the last module that translated P2002 itself ─────────
   //
-  // Phase 12A. Until this phase `SkillsService.create` caught P2002 and threw
+  // `SkillsService.create` once caught P2002 and threw
   // `ConflictException('Skill slug "…" is already taken.')` — a **409**. That was not merely an
-  // inconsistency with B-2: `POST /api/v1/admin/skills` declares `201/401/403/422/429` and no
+  // contract inconsistency: `POST /api/v1/admin/skills` declares `201/401/403/422/429` and no
   // 409 at all, so the runtime answered a status its own published contract did not admit, on a
   // trivially reachable path. Every peer admin create (categories, tags, articles, roles, users,
   // experiences, testimonials, projects) declares 422 and returns it. The local arm is gone; the
@@ -607,7 +608,7 @@ describe('Prisma 7 runtime errors through AllExceptionsFilter (e2e)', () => {
     // Recorded rather than asserted-away: the filter HAS a P2025 arm (verified against a real
     // P2025 in section A and unit-tested in all-exceptions.filter.spec.ts), but every admin
     // mutation loads the row first and throws NotFoundException, so no HTTP path reaches it.
-    // This bounds the 9C-8 claim honestly instead of inventing an endpoint to reach the arm.
+    // This bounds the claim honestly instead of inventing an endpoint to reach the arm.
     it('answers an absent article with a 404 from the service, not the Prisma arm', async () => {
       const missing = await request(httpServer(app))
         .delete(`/api/v1/admin/articles/${ABSENT_ID}`)

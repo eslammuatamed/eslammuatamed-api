@@ -294,7 +294,7 @@ describe('MediaService', () => {
     });
   });
 
-  // T6 correction: identity validation (magic-byte + extension + declared-MIME consistency) must run
+  // Identity validation (magic-byte + extension + declared-MIME consistency) must run
   // on EVERY upload BEFORE the dedup lookup, so a duplicate carrying a forged filename/MIME is
   // rejected (422) rather than deduplicated. A real MediaProcessingService validates real bytes;
   // none of these cases reach Sharp (they either fail validation or hit dedup), so no real image
@@ -496,6 +496,43 @@ describe('MediaService', () => {
         expect.any(String),
       );
     });
+
+    it('preserves the original error when cleanup rejects outright', async () => {
+      prisma.mediaAsset.findUnique.mockResolvedValue(null);
+      processing.processImage.mockResolvedValue(processedImage());
+      const originalError = new Error('db exploded');
+      const cleanupError = new Error('R2 unreachable');
+      prisma.mediaAsset.create.mockRejectedValue(originalError);
+      storage.deleteMany.mockRejectedValue(cleanupError);
+
+      await expect(service.upload(imageUpload())).rejects.toBe(originalError);
+      expect(storage.deleteMany).toHaveBeenCalledWith(putKeys());
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: 'media.compensation_incomplete',
+          failed: expect.arrayContaining([
+            expect.objectContaining({
+              reason: 'R2 unreachable',
+            }),
+          ]),
+        }),
+        expect.any(String),
+      );
+    });
+
+    it('does not compensate when response mapping throws after persistence', async () => {
+      prisma.mediaAsset.findUnique.mockResolvedValue(null);
+      processing.processImage.mockResolvedValue(processedImage());
+      prisma.mediaAsset.create.mockResolvedValue(imageAssetRow());
+      const mappingError = new Error('media URL mapping failed');
+      storage.publicUrl.mockImplementation(() => {
+        throw mappingError;
+      });
+
+      await expect(service.upload(imageUpload())).rejects.toBe(mappingError);
+      expect(prisma.mediaAsset.create).toHaveBeenCalledTimes(1);
+      expect(storage.deleteMany).not.toHaveBeenCalled();
+    });
   });
 
   describe('upload — overBudget logging (doc 20 §4)', () => {
@@ -534,7 +571,7 @@ describe('MediaService', () => {
       );
     });
 
-    // B-3 regression. The reported `budget` must be the tier the ENCODER measured against — the
+    // Regression guard. The reported `budget` must be the tier the ENCODER measured against — the
     // canonical `budgetTierFor` rule (smallest tier ≥ width, D20-20). A local re-implementation
     // used to round every non-tier width DOWN to 640, so the operator was shown a budget the
     // encoder never applied. These widths are exactly the ones that discriminate the two rules:
@@ -773,7 +810,7 @@ describe('MediaService', () => {
       expect(prisma.mediaAsset.delete).not.toHaveBeenCalled();
     });
 
-    // The C-6 ordering invariant, asserted as an ORDER and not merely as two calls: the previous
+    // The delete-ordering invariant, asserted as an ORDER and not merely as two calls: the previous
     // implementation also called both of these, just the other way round, so a test that only
     // checked "was each called" passed against the defect. `invocationCallOrder` is what
     // discriminates. (D07-7)
@@ -800,7 +837,7 @@ describe('MediaService', () => {
       ]);
     });
 
-    // THE C-6 RACE (§11 at the service seam; the e2e proves it against a real FK). The pre-check
+    // THE REFERENCED-ASSET RACE (§11 at the service seam; the e2e proves it against a real FK). The pre-check
     // sees no usage, a reference appears, and the authoritative delete is rejected. Storage must
     // never be touched — that is the whole point of the reordering.
     it('leaves storage untouched and 409s when the FK rejects the delete after a clean pre-check', async () => {

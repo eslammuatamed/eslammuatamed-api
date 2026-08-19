@@ -10,13 +10,14 @@ import { AppConfigModule } from '../src/config/config.module';
 import { PrismaModule } from '../src/prisma/prisma.module';
 import { createPrismaClient } from '../src/prisma/standalone-client';
 
-// Reply delivery against a REAL PostgreSQL, at the service/database seam (11B-α §26).
+// Reply delivery against a REAL PostgreSQL, at the service/database seam.
 //
 // Deliberately not through HTTP. What needs a real database here is the persistence half of the
 // state machine — that one logical key yields exactly one row no matter how many callers race for
 // it, that the row's operator never moves, and that each status transition actually lands. None of
 // that involves the request pipeline, and going through HTTP would add auth, pipes and an envelope
-// between the assertion and the thing asserted. 11B-β owns the full HTTP matrix.
+// between the assertion and the thing asserted. The full HTTP matrix lives in the
+// `reply-http-*` suites.
 //
 // NO MAIL IS SENT. `ContactMailService` is replaced by a fake at the module boundary, so the real
 // MailService is never constructed and no transport exists to reach. The fake is also the only way

@@ -1699,7 +1699,10 @@
                   ],
                   "properties": {
                     "data": {
-                      "$ref": "#/components/schemas/AdminCategoryEntity"
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AdminCategoryEntity"
+                      }
                     }
                   }
                 }
@@ -2113,7 +2116,10 @@
                   ],
                   "properties": {
                     "data": {
-                      "$ref": "#/components/schemas/AdminTagEntity"
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AdminTagEntity"
+                      }
                     }
                   }
                 }

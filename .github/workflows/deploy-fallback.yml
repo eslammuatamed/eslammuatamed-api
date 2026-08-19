@@ -1,7 +1,7 @@
 # Deploy fallback — merged-PR event dispatcher (owner Option 4).
 #
 # WHY: the `push`→`main` event that should auto-trigger deploy.yml is empirically
-# unreliable in these private repos — GitHub intermittently creates NO workflow run for
+# unreliable in these repos — GitHub intermittently creates NO workflow run for
 # the merge push (proven: the ref updates but no check-suite is created for any app;
 # see the deploy runbook). The `pull_request: closed` event is delivered INDEPENDENTLY
 # of the push event, so it covers the normal promotion/hotfix flow (all main changes
@@ -11,7 +11,7 @@
 # runs PR-branch code. It only reads PR metadata + the current main SHA, validates the
 # exact merged SHA, and dispatches deploy.yml via workflow_dispatch (which a GITHUB_TOKEN
 # is permitted to do). deploy.yml re-verifies and deploys; concurrency + the
-# already-deployed check make a same-SHA push+fallback pair idempotent (one deploys, the
+# already-current check make a same-SHA push+fallback pair idempotent (one deploys, the
 # other no-ops).
 name: Deploy fallback (merged PR)
 

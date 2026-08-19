@@ -102,7 +102,7 @@ export class SettingsTranslationDto {
   @MaxLength(200)
   readonly tagline?: string | null;
 
-  // Per-locale from feature 007 (was a base scalar): localized like tagline so /ar renders Arabic.
+  // Per-locale, not a base scalar: localized like tagline so /ar renders Arabic.
   @ApiPropertyOptional({
     type: String,
     nullable: true,

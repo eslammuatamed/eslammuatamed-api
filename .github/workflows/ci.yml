@@ -23,16 +23,10 @@ permissions:
 jobs:
   # Advisory branch-policy guard. It REPORTS an unexpected promotion path; it does not block one.
   #
-  # The comment here used to say rulesets were "unavailable on this plan". That was true when
-  # written and is now FALSE: this repository became public on 2026-08-12 and carries active
-  # rulesets, including `main production promotion control` (allowed_merge_methods: ["merge"],
-  # required checks: `Lint · Typecheck · Unit · Contract` + `E2E (Postgres)`).
-  #
-  # So the guard stays advisory BY CHOICE, not by platform limitation: it is deliberately not a
-  # required check, because `dev` intentionally carries none — D17-4's post-release fast-forward
-  # of `dev` to the `main` merge commit is a DIRECT PUSH, and a required-check rule on `dev`
-  # would block the governed synchronization. Enforcement of the promotion path itself is now
-  # structural on `main` (GitHub refuses squash and rebase there); see the deployment runbook.
+  # This guard stays advisory by design, not by account-plan limitation. `dev` carries no
+  # required checks so D17-4's post-release direct fast-forward remains possible; `main` has
+  # structural ruleset enforcement. The live ruleset owns exact settings and check names;
+  # CONTRIBUTING.md owns the stable enforced/procedural split.
   policy:
     name: Branch-policy guard (advisory)
     if: github.event_name == 'pull_request'
@@ -60,7 +54,7 @@ jobs:
           if [ "$ok" -eq 0 ]; then
             echo "✅ Allowed promotion path: '$HEAD' -> '$BASE'." >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "::warning title=Branch policy::Unexpected promotion path '$HEAD' -> '$BASE'. Expected feature/*|fix/*|chore/* -> dev, and dev|hotfix/* -> main. ADVISORY only (branch protection is unavailable on the Free plan)."
+            echo "::warning title=Branch policy::Unexpected promotion path '$HEAD' -> '$BASE'. Expected feature/*|fix/*|chore/* -> dev, and dev|hotfix/* -> main. ADVISORY only — this guard never blocks a merge; enforcement on main is structural, via the repository ruleset."
             {
               echo "### ⚠️ Branch-policy advisory"
               echo "Unexpected promotion path: \`$HEAD\` -> \`$BASE\`."
@@ -68,7 +62,7 @@ jobs:
               echo "- PRs to \`dev\` should originate from \`feature/*\`, \`fix/*\`, \`chore/*\` (or \`hotfix/*\` back-merges / bot branches)."
               echo "- PRs to \`main\` should originate from \`dev\` or \`hotfix/*\`."
               echo ""
-              echo "_Advisory only — GitHub cannot enforce branch protection on this plan, so this does not block the merge._"
+              echo "_Advisory only — this guard never fails the build. Enforcement on main is structural (repository ruleset: PR required, merge-commit only, required checks); dev is procedural by design._"
             } >> "$GITHUB_STEP_SUMMARY"
           fi
           # Advisory: never fail the build on a policy mismatch.
@@ -146,7 +140,7 @@ jobs:
           path: openapi.json
 
       # Dependency-advisory gate (doc 19 §7). PROMOTED TO BLOCKING: the precondition this step's
-      # own comment set — "once the baseline is clean" — was met in Phase 9, which measured
+      # own comment set — "once the baseline is clean" — was met by the audit that measured
       # `npm audit` at 0 vulnerabilities in both scopes (and 0 with `--omit=dev`) from a fresh
       # `npm ci`. An advisory-only gate on a clean baseline reports nothing it would not also
       # report while blocking, so leaving it soft only preserved the ability to miss the first
