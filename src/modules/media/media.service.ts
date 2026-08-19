@@ -176,6 +176,7 @@ export class MediaService {
     // "exactly the objects uploaded": a remote write whose response is lost rejects locally and is
     // never recorded here — see cleanup() below.
     const uploaded: string[] = [];
+    let asset: AdminMediaAsset;
     try {
       await this.storage.put({
         key: masterKey,
@@ -196,7 +197,7 @@ export class MediaService {
       }
 
       // Objects are all written; the DB row is the commit point (D07-6).
-      const asset = await this.prisma.mediaAsset.create({
+      asset = await this.prisma.mediaAsset.create({
         data: {
           kind: MediaKind.IMAGE,
           storageKey: masterKey,
@@ -220,12 +221,12 @@ export class MediaService {
         },
         include: ADMIN_INCLUDE,
       });
-
-      this.logOverBudgetRenditions(asset.id, plannedVariants);
-      return { deduplicated: false, asset: this.toAdminEntity(asset) };
     } catch (error) {
       return this.compensate(error, contentHash, uploaded);
     }
+
+    this.logOverBudgetRenditions(asset.id, plannedVariants);
+    return { deduplicated: false, asset: this.toAdminEntity(asset) };
   }
 
   private async persistPdf(
@@ -241,6 +242,7 @@ export class MediaService {
 
     const key = this.pdfKey(prefix);
     const uploaded: string[] = [];
+    let asset: AdminMediaAsset;
     try {
       // Download headers are object metadata so R2 serves the PDF directly (D23-15, doc 19 §5).
       await this.storage.put({
@@ -253,7 +255,7 @@ export class MediaService {
       uploaded.push(key);
 
       // A PDF is never given variants, blurhash, or dimensions (service invariant, D09-11/12).
-      const asset = await this.prisma.mediaAsset.create({
+      asset = await this.prisma.mediaAsset.create({
         data: {
           kind: MediaKind.PDF,
           storageKey: key,
@@ -264,17 +266,17 @@ export class MediaService {
         },
         include: ADMIN_INCLUDE,
       });
-
-      return { deduplicated: false, asset: this.toAdminEntity(asset) };
     } catch (error) {
       return this.compensate(error, contentHash, uploaded);
     }
+
+    return { deduplicated: false, asset: this.toAdminEntity(asset) };
   }
 
   // The single compensation path for both kinds (D07-6). A duplicate-content race resolves to the
   // winner only when cleanup resolves, the reread resolves WITH a winner, and mapping succeeds. A
-  // cleanup rejection escapes with the cleanup error; a reread rejection or mapping throw escapes
-  // with theirs; a null reread rethrows the original unique violation.
+  // cleanup rejection is logged and the original upload error is preserved; a reread rejection or
+  // mapping throw escapes with theirs; a null reread rethrows the original unique violation.
   // Any other failure attempts cleanup and rethrows.
   //
   // Deliberately NOT a no-orphan guarantee, though it once claimed to be. Three things break it:
@@ -311,15 +313,33 @@ export class MediaService {
   // structurally (never swallowed) — the doc-07-§6 model has no reconciliation job, so an operator
   // sees the orphan in the log.
   //
-  // NOT total, unlike cleanupAfterDelete below: deleteMany is awaited bare. The LOCAL adapter
-  // catches per key and cannot reject, but the S3/R2 adapter can reject outright on a transport or
-  // credential failure — that rejection escapes here, replaces the original upload error at the
-  // `throw error` in compensate(), and logs neither the event nor the keys.
+  // The LOCAL adapter catches per key, but the S3/R2 adapter can reject outright on a transport or
+  // credential failure. That failure is logged as an incomplete compensation, while the original
+  // upload error remains the one rethrown by compensate().
   private async cleanup(keys: string[], reason: string): Promise<void> {
     if (keys.length === 0) {
       return;
     }
-    const result = await this.storage.deleteMany(keys);
+    let result: Awaited<ReturnType<StorageAdapter['deleteMany']>>;
+    try {
+      result = await this.storage.deleteMany(keys);
+    } catch (cleanupError) {
+      this.logger.error(
+        {
+          event: 'media.compensation_incomplete',
+          reason,
+          failed: keys.map((key) => ({
+            key,
+            reason:
+              cleanupError instanceof Error
+                ? cleanupError.message
+                : 'unknown error',
+          })),
+        },
+        'Media object cleanup failed after a failed upload',
+      );
+      return;
+    }
     if (result.failed.length > 0) {
       this.logger.error(
         {
