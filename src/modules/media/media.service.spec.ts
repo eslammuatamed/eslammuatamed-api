@@ -496,6 +496,43 @@ describe('MediaService', () => {
         expect.any(String),
       );
     });
+
+    it('preserves the original error when cleanup rejects outright', async () => {
+      prisma.mediaAsset.findUnique.mockResolvedValue(null);
+      processing.processImage.mockResolvedValue(processedImage());
+      const originalError = new Error('db exploded');
+      const cleanupError = new Error('R2 unreachable');
+      prisma.mediaAsset.create.mockRejectedValue(originalError);
+      storage.deleteMany.mockRejectedValue(cleanupError);
+
+      await expect(service.upload(imageUpload())).rejects.toBe(originalError);
+      expect(storage.deleteMany).toHaveBeenCalledWith(putKeys());
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: 'media.compensation_incomplete',
+          failed: expect.arrayContaining([
+            expect.objectContaining({
+              reason: 'R2 unreachable',
+            }),
+          ]),
+        }),
+        expect.any(String),
+      );
+    });
+
+    it('does not compensate when response mapping throws after persistence', async () => {
+      prisma.mediaAsset.findUnique.mockResolvedValue(null);
+      processing.processImage.mockResolvedValue(processedImage());
+      prisma.mediaAsset.create.mockResolvedValue(imageAssetRow());
+      const mappingError = new Error('media URL mapping failed');
+      storage.publicUrl.mockImplementation(() => {
+        throw mappingError;
+      });
+
+      await expect(service.upload(imageUpload())).rejects.toBe(mappingError);
+      expect(prisma.mediaAsset.create).toHaveBeenCalledTimes(1);
+      expect(storage.deleteMany).not.toHaveBeenCalled();
+    });
   });
 
   describe('upload — overBudget logging (doc 20 §4)', () => {
