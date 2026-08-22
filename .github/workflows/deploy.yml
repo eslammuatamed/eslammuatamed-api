@@ -400,6 +400,7 @@ jobs:
           fi
 
       - name: Ship the tarball
+        id: ship
         if: steps.gate.outputs.proceed == 'true'
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
@@ -445,33 +446,23 @@ jobs:
             echo "prune_incomplete=false" >> "$GITHUB_OUTPUT"
           fi
 
+      # Observability only — renders what the recorded outcomes can prove. The
+      # classification lives in scripts/deploy/deploy-summary.sh (covered by
+      # deploy-summary.spec.ts) because a heredoc here cannot be tested: absent step
+      # outputs are indistinguishable from steps that never ran, so the old inline
+      # logic misread pre-gate failures as "superseded" and every cutover failure as
+      # "auto-rollback attempted and re-verified" (2026-08-22 investigation, Concerns
+      # A/B). No deployment decision reads this summary.
       - name: Deploy summary (observability)
         if: always()
         env:
           TRIGGER: ${{ needs.preflight.outputs.trigger }}
           SHA: ${{ github.sha }}
+          RELEASE_ID: ${{ env.RELEASE }}
+          GATE_OUTCOME: ${{ steps.gate.outcome }}
           PROCEED: ${{ steps.gate.outputs.proceed }}
-          CUTOVER: ${{ steps.cutover.outcome }}
+          SHIP_OUTCOME: ${{ steps.ship.outcome }}
+          CUTOVER_OUTCOME: ${{ steps.cutover.outcome }}
           PRUNE_INCOMPLETE: ${{ steps.cutover.outputs.prune_incomplete }}
           PRUNE_DIRS: ${{ steps.cutover.outputs.prune_dirs }}
-        run: |
-          {
-            echo "### Deploy result"
-            echo "- trigger: \`$TRIGGER\`"
-            echo "- deployed SHA: \`$SHA\`"
-            echo "- release: \`${RELEASE:-<none>}\`"
-            if [ "${PROCEED:-}" != "true" ]; then
-              echo "- result: **superseded** (main moved during verify/e2e; no server mutation)"
-            elif [ "${CUTOVER:-}" = "success" ]; then
-              echo "- result: **released** (liveness + readiness + DB-backed smoke all passed; auto-rollback armed)"
-            else
-              echo "- result: **FAILED** (cutover/verification outcome: \`${CUTOVER:-unknown}\`; auto-rollback attempted and re-verified — check logs)"
-            fi
-            # Cleanup is reported separately from the release result, so an unremovable
-            # legacy directory can never be mistaken for a failed deployment — or hidden.
-            if [ "${PRUNE_INCOMPLETE:-}" = "true" ]; then
-              echo "- cleanup: ⚠️ **pruning incomplete** — could not remove:\`${PRUNE_DIRS:-unknown}\` (release itself is healthy)"
-            elif [ "${PRUNE_INCOMPLETE:-}" = "false" ]; then
-              echo "- cleanup: old releases pruned"
-            fi
-          } >> "$GITHUB_STEP_SUMMARY"
+        run: bash scripts/deploy/deploy-summary.sh >> "$GITHUB_STEP_SUMMARY"
