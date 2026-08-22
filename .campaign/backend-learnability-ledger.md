@@ -109,7 +109,7 @@ section is historical narrative, fixed at the commit that wrote it, and may be s
 | OD-A (`D16-13` cited as governing but absent from governance) | **STILL OPEN — owner decision.** The API corpus propagates zero citations (guard-controlled), and inventing the decision ID is forbidden; recording it in the governing docs is separate owner work outside this repository |
 | OD-B (governing API release-state record) | **RESOLVED 2026-08-19** — lifecycle and enforcement reconciled in governing docs 17/23; §8 keeps the analysis as history |
 | Documentation closeout | The two corpus-deferred prose defects — the `ci.yml` E2E ownership comment and the drifted hand-maintained inventory counts in `test/README.md` — were repaired by the backend documentation closeout change; neither is open |
-| PR | **#86 MERGED** into `dev` at `e87f427` (2026-08-18, base `dev`). Later maintenance (#88, #90, #97, #98) landed on `dev` directly and reopens no campaign scope |
+| PR | **#86 MERGED** into `dev` at `e87f427` (2026-08-18, base `dev`). Later maintenance (#88, #90, #97, #98) landed through their normal PRs into `dev` — none of it touched the campaign branch, and it reopens no campaign scope |
 
 **CI state is READ, never stamped here.** The authority is `gh pr checks <the current open PR>`
 together with the
