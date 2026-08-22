@@ -694,6 +694,16 @@
               }
             }
           },
+          "400": {
+            "description": "Missing or invalid multipart file part.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing or invalid access token.",
             "content": {
@@ -714,6 +724,16 @@
               }
             }
           },
+          "413": {
+            "description": "Upload exceeds the 10 MiB multipart file-size limit.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Unsupported type, spoofed content, oversized image, or malformed PDF.",
             "content": {
@@ -725,7 +745,18 @@
             }
           },
           "429": {
-            "description": "Processing capacity reached; retry after the Retry-After delay.",
+            "description": "Rate limited (10 uploads/min per user+IP, or the 300/min admin tier), or processing capacity reached.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying (delta-seconds, never an HTTP-date). Exposed via CORS so browser clients can read it.",
+                "schema": {
+                  "type": "integer",
+                  "format": "int32",
+                  "minimum": 1,
+                  "example": 3600
+                }
+              }
+            },
             "content": {
               "application/problem+json": {
                 "schema": {
