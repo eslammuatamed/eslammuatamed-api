@@ -305,6 +305,7 @@ jobs:
     if: needs.preflight.outputs.action == 'release'
     steps:
       - uses: actions/checkout@v4
+        id: checkout
 
       - name: Confirm checked-out HEAD == github.sha
         env:
@@ -400,6 +401,7 @@ jobs:
           fi
 
       - name: Ship the tarball
+        id: ship
         if: steps.gate.outputs.proceed == 'true'
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
@@ -445,33 +447,40 @@ jobs:
             echo "prune_incomplete=false" >> "$GITHUB_OUTPUT"
           fi
 
+      # Observability only — renders what the recorded outcomes can prove. The
+      # classification lives in scripts/deploy/deploy-summary.sh (covered by
+      # deploy-summary.spec.ts) because a heredoc here cannot be tested: an absent
+      # step output usually means the step never ran, so it is not evidence about
+      # what happened. No deployment decision reads this summary.
+      #
+      # Checkout is the FIRST repository-dependent step: if it failed there is no
+      # repository tree, so the classifier file itself may not exist. The fallback
+      # branch below therefore renders inline from recorded state alone — it must not
+      # reference scripts/ — and can state only what is provable then: the run failed
+      # before preparation completed, and no server mutation occurred (the first
+      # server write is scp, gated on a gate outcome that could never have succeeded).
       - name: Deploy summary (observability)
         if: always()
         env:
           TRIGGER: ${{ needs.preflight.outputs.trigger }}
           SHA: ${{ github.sha }}
+          RELEASE_ID: ${{ env.RELEASE }}
+          CHECKOUT_OUTCOME: ${{ steps.checkout.outcome }}
+          GATE_OUTCOME: ${{ steps.gate.outcome }}
           PROCEED: ${{ steps.gate.outputs.proceed }}
-          CUTOVER: ${{ steps.cutover.outcome }}
+          SHIP_OUTCOME: ${{ steps.ship.outcome }}
+          CUTOVER_OUTCOME: ${{ steps.cutover.outcome }}
           PRUNE_INCOMPLETE: ${{ steps.cutover.outputs.prune_incomplete }}
           PRUNE_DIRS: ${{ steps.cutover.outputs.prune_dirs }}
         run: |
-          {
-            echo "### Deploy result"
-            echo "- trigger: \`$TRIGGER\`"
-            echo "- deployed SHA: \`$SHA\`"
-            echo "- release: \`${RELEASE:-<none>}\`"
-            if [ "${PROCEED:-}" != "true" ]; then
-              echo "- result: **superseded** (main moved during verify/e2e; no server mutation)"
-            elif [ "${CUTOVER:-}" = "success" ]; then
-              echo "- result: **released** (liveness + readiness + DB-backed smoke all passed; auto-rollback armed)"
-            else
-              echo "- result: **FAILED** (cutover/verification outcome: \`${CUTOVER:-unknown}\`; auto-rollback attempted and re-verified — check logs)"
-            fi
-            # Cleanup is reported separately from the release result, so an unremovable
-            # legacy directory can never be mistaken for a failed deployment — or hidden.
-            if [ "${PRUNE_INCOMPLETE:-}" = "true" ]; then
-              echo "- cleanup: ⚠️ **pruning incomplete** — could not remove:\`${PRUNE_DIRS:-unknown}\` (release itself is healthy)"
-            elif [ "${PRUNE_INCOMPLETE:-}" = "false" ]; then
-              echo "- cleanup: old releases pruned"
-            fi
-          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "${CHECKOUT_OUTCOME:-}" != "success" ]; then
+            {
+              echo "### Deploy result"
+              echo "- trigger: \`${TRIGGER:-}\`"
+              echo "- target SHA: \`${SHA:-}\`"
+              echo "- release id: \`${RELEASE_ID:-<none>}\`"
+              echo "- result: **FAILED** before deployment preparation / exact-SHA decision completed (checkout outcome: \`${CHECKOUT_OUTCOME:-<unset>}\`); no server mutation"
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            bash scripts/deploy/deploy-summary.sh >> "$GITHUB_STEP_SUMMARY"
+          fi
