@@ -152,7 +152,8 @@ jobs:
       - name: Audit dependencies (high)
         run: npm audit --audit-level=high
 
-  # Integration lane — spins up Postgres 16 and runs migrations, seed, and the e2e suite.
+  # Integration lane — provides Postgres 16 only; the E2E harness owns per-run database
+  # creation, migration, seeding, teardown, and the suite itself (see the step comment below).
   e2e:
     name: E2E (Postgres)
     runs-on: ubuntu-latest
