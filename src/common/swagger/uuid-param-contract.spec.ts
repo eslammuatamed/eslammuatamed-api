@@ -4,12 +4,16 @@ import { ParseUUIDPipe, Type } from '@nestjs/common';
 import { RolesAdminController } from '../../modules/access-control/roles.admin.controller';
 import { UsersAdminController } from '../../modules/access-control/users.admin.controller';
 import { ArticlesAdminController } from '../../modules/articles/articles.admin.controller';
+import { ArticlesController } from '../../modules/articles/articles.controller';
 import { MessagesAdminController } from '../../modules/contact/messages.admin.controller';
 import { ExperiencesAdminController } from '../../modules/experiences/experiences.admin.controller';
 import { MediaAdminController } from '../../modules/media/media.admin.controller';
 import { PreviewAdminController } from '../../modules/preview/preview.admin.controller';
 import { PreviewController } from '../../modules/preview/preview.controller';
 import { ProjectsAdminController } from '../../modules/projects/projects.admin.controller';
+import { ProjectsController } from '../../modules/projects/projects.controller';
+import { SeoAdminController } from '../../modules/seo/seo.admin.controller';
+import { SeoController } from '../../modules/seo/seo.controller';
 import { SkillsAdminController } from '../../modules/skills/skills.admin.controller';
 import { CategoriesAdminController } from '../../modules/taxonomy/categories.admin.controller';
 import { TagsAdminController } from '../../modules/taxonomy/tags.admin.controller';
@@ -21,10 +25,15 @@ import { TestimonialsAdminController } from '../../modules/testimonials/testimon
  * (Nest orders global pipes ahead of param-bound ones) but no-ops on a primitive route parameter,
  * so `ParseUUIDPipe` is what decides. See `src/modules/README.md` for the full layer order.
  *
- * Owner policy: a route that can deterministically return 400 because its declared path parameter
- * is parsed by the standard `ParseUUIDPipe` SHOULD document that 400 — and a route that cannot
- * must NOT, which is why the declaration is per-handler rather than folded into the class-level
- * `ApiAdminErrorResponses()`.
+ * Owner policy, in both directions:
+ *
+ *   1. a route that can deterministically return 400 because its declared path parameter is parsed
+ *      by the standard `ParseUUIDPipe` MUST document that 400 (per-handler, not folded into the
+ *      class-level `ApiAdminErrorResponses()`);
+ *   2. the malformed-UUID declaration must appear ONLY where that pipe actually runs. A non-UUID
+ *      route may still legitimately document some OTHER 400 for an unrelated deterministic cause
+ *      (`PATCH /admin/seo/pages/{pageKey}` documents one for locale handling) — the invariant
+ *      forbids the UUID-specific cause, not the status.
  *
  * The two sides are read from independent places on purpose:
  *
@@ -37,10 +46,14 @@ import { TestimonialsAdminController } from '../../modules/testimonials/testimon
  * the test could not detect divergence in either direction.
  */
 
-// Every controller that declares at least one route parameter. `PreviewController` is included
-// even though it is `@Public()`: its 400 is a published contract like any other.
+// Every controller that declares at least one route parameter — verified by scanning
+// `src/**/*.controller.ts` for `@Param(`. Parameterized routes are exactly the ones whose contract
+// can carry the malformed-path-id 400, so the reverse invariant must see them all.
+// `PreviewController` is included even though it is `@Public()`: its 400 is a published contract
+// like any other.
 const CONTROLLERS: Type[] = [
   ArticlesAdminController,
+  ArticlesController,
   CategoriesAdminController,
   ExperiencesAdminController,
   MediaAdminController,
@@ -48,12 +61,21 @@ const CONTROLLERS: Type[] = [
   PreviewAdminController,
   PreviewController,
   ProjectsAdminController,
+  ProjectsController,
   RolesAdminController,
+  SeoAdminController,
+  SeoController,
   SkillsAdminController,
   TagsAdminController,
   TestimonialsAdminController,
   UsersAdminController,
 ];
+
+// The stable semantic marker of the UUID-specific 400: `ApiUuidParamBadRequest` renders every
+// variant as "The <noun> id in the path is not a well-formed UUID." Matching this phrase against
+// the GENERATED description is what keeps the reverse invariant cause-specific — a legitimate
+// locale/validation 400 on a non-UUID route does not contain it and is not touched.
+const UUID_400_DESCRIPTION_MARKER = 'not a well-formed UUID';
 
 // Nest internals used for reflection. Both are stable and already relied on by
 // `route-permissions.spec.ts`; `__routeArguments__` is additionally pinned by the
@@ -174,7 +196,9 @@ describe('every UUID-parsing route documents the 400 its pipe can produce', () =
     // testing nothing. The 35 is asserted, not merely recorded: adding or removing a
     // UUID-parsed route fails HERE first, which is the point.
     expect(uuidRoutes).toHaveLength(35);
-    for (const route of uuidRoutes) {
+    // Every scanned route — UUID or not — must resolve to a real operation in the generated
+    // document; otherwise the reverse invariant's lookups would silently read `undefined`.
+    for (const route of routes) {
       expect(contract.paths[route.path]?.[route.verb]).toBeDefined();
     }
   });
@@ -194,28 +218,43 @@ describe('every UUID-parsing route documents the 400 its pipe can produce', () =
     expect(undeclared).toEqual([]);
   });
 
-  it('does not declare 400 on routes that have no UUID parameter to reject', () => {
-    // The half that keeps the contract from becoming broader-and-vaguer. The public read routes
-    // are the one legitimate exception: `ApiPublicReadErrorResponses()` declares 400 for an
-    // unknown or disabled locale, which is a different and pre-existing cause.
-    //
-    // The exemption is stated as it is ACTUALLY scoped, not as it is motivated: it excuses every
-    // NON-ADMIN route, not only the ones that resolve a locale. Narrowing it to a locale test
-    // would mean asking the contract whether a route takes `?locale=`, which is a second and
-    // weaker guess at the same thing. The admin surface — where over-declaration was the real
-    // risk, because that is where a class-level decorator would have applied — is fully guarded.
-    const localeAware = (route: Route): boolean =>
-      contract.paths[route.path]?.[route.verb]?.responses?.['400'] !==
-        undefined && !route.path.startsWith(`${GLOBAL_PREFIX}/admin/`);
+  it('renders the malformed-UUID wording on exactly the UUID-parsing routes, pinning the marker', () => {
+    // Pins the coupling between `ApiUuidParamBadRequest`'s templated description and
+    // `UUID_400_DESCRIPTION_MARKER`. If the helper's wording ever changes, this fails and forces
+    // the marker to move in lockstep — the reverse guard cannot silently lose its teeth.
+    const drifted = uuidRoutes
+      .filter((route) => {
+        const response = contract.paths[route.path]?.[route.verb]?.responses?.[
+          '400'
+        ] as { description?: string } | undefined;
+        return !(response?.description ?? '').includes(
+          UUID_400_DESCRIPTION_MARKER,
+        );
+      })
+      .map((route) => `${route.verb.toUpperCase()} ${route.path}`);
 
+    expect(drifted).toEqual([]);
+  });
+
+  it('declares the malformed-UUID 400 ONLY on routes whose path parameter ParseUUIDPipe rejects', () => {
+    // Cause-specific by design. A blanket ban on ANY 400 across non-UUID routes would be a false
+    // invariant: a route can earn a 400 from a deterministic cause that has nothing to do with
+    // path parsing (`PATCH /admin/seo/pages/{pageKey}` documents one for locale handling). What
+    // must stay impossible is declaring `ApiUuidParamBadRequest` where no `ParseUUIDPipe` runs —
+    // the contract would then describe a rejection the runtime cannot produce. The helper's
+    // description is stable and self-describing ("not a well-formed UUID"), so the CONTRACT side
+    // matches that phrase in the generated document while the RUNTIME side stays the reflected
+    // pipe list. Unrelated 400s on non-UUID routes pass untouched.
     const overdeclared = routes
       .filter((route) => !route.parsesUuidParam)
-      .filter(
-        (route) =>
-          contract.paths[route.path]?.[route.verb]?.responses?.['400'] !==
-          undefined,
-      )
-      .filter((route) => !localeAware(route))
+      .filter((route) => {
+        const response = contract.paths[route.path]?.[route.verb]?.responses?.[
+          '400'
+        ] as { description?: string } | undefined;
+        return (response?.description ?? '').includes(
+          UUID_400_DESCRIPTION_MARKER,
+        );
+      })
       .map(
         (route) =>
           `${route.verb.toUpperCase()} ${route.path} (${route.handler})`,
