@@ -449,11 +449,9 @@ jobs:
 
       # Observability only — renders what the recorded outcomes can prove. The
       # classification lives in scripts/deploy/deploy-summary.sh (covered by
-      # deploy-summary.spec.ts) because a heredoc here cannot be tested: absent step
-      # outputs are indistinguishable from steps that never ran, so the old inline
-      # logic misread pre-gate failures as "superseded" and every cutover failure as
-      # "auto-rollback attempted and re-verified" (2026-08-22 investigation, Concerns
-      # A/B). No deployment decision reads this summary.
+      # deploy-summary.spec.ts) because a heredoc here cannot be tested: an absent
+      # step output usually means the step never ran, so it is not evidence about
+      # what happened. No deployment decision reads this summary.
       #
       # Checkout is the FIRST repository-dependent step: if it failed there is no
       # repository tree, so the classifier file itself may not exist. The fallback

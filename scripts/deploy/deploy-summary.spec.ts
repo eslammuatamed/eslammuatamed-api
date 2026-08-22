@@ -1,14 +1,17 @@
 import { spawnSync } from 'node:child_process';
 import * as path from 'node:path';
 
-// Regression cover for the 2026-08-22 investigation of the production deploy summary
-// (deploy.yml "Deploy summary" step).
+// Regression cover for the production deploy summary classifier invoked by the
+// deploy.yml "Deploy summary" step.
 //
-// The old inline logic inferred events from absence of evidence: an empty
-// `steps.gate.outputs.proceed` — which is what GitHub yields when the gate step never
-// ran — was reported as "**superseded**", and every non-success cutover outcome was
-// reported as "auto-rollback attempted and re-verified". Neither claim was provable
-// from the recorded state.
+// Invariants under test:
+//   - an absent `steps.gate.outputs.proceed` means the gate never ran and proves
+//     nothing about main — only a gate that succeeded with proceed=false proves
+//     supersession;
+//   - a failed remote cutover step does not prove that the remote rollback block
+//     executed, so no rollback claim may be printed;
+//   - any state the recorded outcomes cannot classify must fail truthful, not
+//     optimistic.
 //
 // These tests drive the REAL classifier the workflow invokes
 // (`scripts/deploy/deploy-summary.sh`) through the same environment contract, so a
@@ -83,7 +86,7 @@ describe('summary labels', () => {
   });
 });
 
-describe('pre-gate and gate failures (Concern A)', () => {
+describe('failures before or inside the exact-SHA gate', () => {
   it('does NOT report superseded when an earlier step failed and the gate never ran', () => {
     const result = run(PRE_GATE_FAILURE);
 
@@ -122,7 +125,7 @@ describe('pre-gate and gate failures (Concern A)', () => {
   });
 });
 
-describe('shipping and remote failures (Concern B)', () => {
+describe('shipping and remote cutover failures', () => {
   it('reports a shipping failure without any rollback claim', () => {
     const result = run({
       ...PRE_GATE_FAILURE,
@@ -157,7 +160,7 @@ describe('shipping and remote failures (Concern B)', () => {
     expect(result.stdout).toContain('inspect the cutover logs');
     // The workflow only knows the remote step exited nonzero: extraction, migration,
     // symlink, restart, verification or rollback could each be the failing phase.
-    // The two phrases below are exactly what the old summary asserted unconditionally.
+    // These phrases assert a recovery narrative the recorded outcomes cannot prove.
     expect(result.stdout).not.toContain('auto-rollback attempted');
     expect(result.stdout).not.toContain('re-verified');
   });

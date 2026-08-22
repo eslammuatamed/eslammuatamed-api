@@ -5,9 +5,9 @@
 #
 # REPORTING ONLY: this script reads environment variables and prints text. It performs
 # no network, SSH, or GitHub API calls and takes no part in any deployment decision.
-# Its one rule is the reason it exists (2026-08-22 investigation): the summary must
-# report only what the recorded outcomes can prove, because outputs of steps that never
-# ran are indistinguishable from outputs that were never written.
+# Its one rule: report only what the recorded outcomes can prove — an output of a step
+# that never ran is indistinguishable from one that was never written, so absence of
+# evidence must never be classified as an event.
 #
 # Inputs (all optional; absent means "that phase never produced a signal"):
 #   TRIGGER          preflight's event name
