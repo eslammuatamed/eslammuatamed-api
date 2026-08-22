@@ -35,6 +35,11 @@ import { TestimonialsAdminController } from '../../modules/testimonials/testimon
  *      (`PATCH /admin/seo/pages/{pageKey}` documents one for locale handling) — the invariant
  *      forbids the UUID-specific cause, not the status.
  *
+ * Direction 2 is enforced DOCUMENT-WIDE: every operation in the generated `openapi.json` is
+ * scanned for the UUID-specific wording, so a misapplied helper on a controller with no route
+ * parameters — outside the census below entirely — is still caught. Only direction 1 depends on
+ * the controller census.
+ *
  * The two sides are read from independent places on purpose:
  *
  *   - the RUNTIME side from Nest's `__routeArguments__` metadata — the pipe list the framework
@@ -47,8 +52,9 @@ import { TestimonialsAdminController } from '../../modules/testimonials/testimon
  */
 
 // Every controller that declares at least one route parameter — verified by scanning
-// `src/**/*.controller.ts` for `@Param(`. Parameterized routes are exactly the ones whose contract
-// can carry the malformed-path-id 400, so the reverse invariant must see them all.
+// `src/**/*.controller.ts` for `@Param(`. This census serves the RUNTIME side: discovering every
+// route that could carry `ParseUUIDPipe`, so the positive invariant cannot miss one. It does NOT
+// bound the reverse invariant, which reads the whole generated document.
 // `PreviewController` is included even though it is `@Public()`: its 400 is a published contract
 // like any other.
 const CONTROLLERS: Type[] = [
@@ -175,7 +181,7 @@ function routesOf(controller: Type): Route[] {
 interface OpenApiDocument {
   paths: Record<
     string,
-    Record<string, { responses?: Record<string, unknown> }>
+    Record<string, { responses?: Record<string, { description?: string }> }>
   >;
 }
 
@@ -183,6 +189,31 @@ function loadContract(): OpenApiDocument {
   return JSON.parse(
     readFileSync(join(__dirname, '..', '..', '..', 'openapi.json'), 'utf8'),
   ) as OpenApiDocument;
+}
+
+// Stable operation key shared by both sides of the equality (`GET /api/v1/locales`).
+function operationKey(route: Route): string {
+  return `${route.verb.toUpperCase()} ${route.path}`;
+}
+
+// Document-wide CONTRACT side: every operation in the generated document whose declared 400
+// carries the malformed-UUID marker, regardless of which controller produced it. This scan
+// deliberately never touches the controller census.
+function documentedUuid400Operations(document: OpenApiDocument): string[] {
+  const keys: string[] = [];
+  for (const [path, node] of Object.entries(document.paths)) {
+    for (const [verb, operation] of Object.entries(node)) {
+      if (verb === 'parameters') continue;
+      if (
+        (operation.responses?.['400']?.description ?? '').includes(
+          UUID_400_DESCRIPTION_MARKER,
+        )
+      ) {
+        keys.push(`${verb.toUpperCase()} ${path}`);
+      }
+    }
+  }
+  return keys;
 }
 
 describe('every UUID-parsing route documents the 400 its pipe can produce', () => {
@@ -203,63 +234,27 @@ describe('every UUID-parsing route documents the 400 its pipe can produce', () =
     }
   });
 
-  it('declares 400 on every route whose path parameter is parsed by ParseUUIDPipe', () => {
-    const undeclared = uuidRoutes
-      .filter(
-        (route) =>
-          contract.paths[route.path]?.[route.verb]?.responses?.['400'] ===
-          undefined,
-      )
-      .map(
-        (route) =>
-          `${route.verb.toUpperCase()} ${route.path} (${route.handler})`,
-      );
+  it('declares the malformed-UUID 400 on EXACTLY the ParseUUIDPipe routes — document-wide', () => {
+    // One exact set equality carries both directions of owner policy:
+    //
+    //   forward — every `ParseUUIDPipe` route publishes the malformed-UUID 400 (membership of
+    //             each runtime key in the contract set);
+    //   reverse — EVERY operation in the generated document carrying that 400 belongs to a
+    //             `ParseUUIDPipe` route. The contract side scans all paths and verbs directly,
+    //             so a misapplied helper on a controller with NO route parameters — outside the
+    //             census entirely, invisible to the runtime scan — still fails here.
+    //
+    // Cause-specific by design: equality forbids only the UUID-SPECIFIC wording. A blanket ban on
+    // ANY 400 off UUID routes would be a false invariant — a route can earn a 400 from an
+    // unrelated deterministic cause (`PATCH /admin/seo/pages/{pageKey}` documents one for locale
+    // handling) and those descriptions never carry the marker.
+    //
+    // The marker is also load-bearing here: if `ApiUuidParamBadRequest`'s templated description
+    // ever changes, the contract side empties and this assertion fails, forcing
+    // `UUID_400_DESCRIPTION_MARKER` to move in lockstep instead of silently losing its teeth.
+    const documented = documentedUuid400Operations(contract).sort();
+    const runtime = uuidRoutes.map(operationKey).sort();
 
-    expect(undeclared).toEqual([]);
-  });
-
-  it('renders the malformed-UUID wording on exactly the UUID-parsing routes, pinning the marker', () => {
-    // Pins the coupling between `ApiUuidParamBadRequest`'s templated description and
-    // `UUID_400_DESCRIPTION_MARKER`. If the helper's wording ever changes, this fails and forces
-    // the marker to move in lockstep — the reverse guard cannot silently lose its teeth.
-    const drifted = uuidRoutes
-      .filter((route) => {
-        const response = contract.paths[route.path]?.[route.verb]?.responses?.[
-          '400'
-        ] as { description?: string } | undefined;
-        return !(response?.description ?? '').includes(
-          UUID_400_DESCRIPTION_MARKER,
-        );
-      })
-      .map((route) => `${route.verb.toUpperCase()} ${route.path}`);
-
-    expect(drifted).toEqual([]);
-  });
-
-  it('declares the malformed-UUID 400 ONLY on routes whose path parameter ParseUUIDPipe rejects', () => {
-    // Cause-specific by design. A blanket ban on ANY 400 across non-UUID routes would be a false
-    // invariant: a route can earn a 400 from a deterministic cause that has nothing to do with
-    // path parsing (`PATCH /admin/seo/pages/{pageKey}` documents one for locale handling). What
-    // must stay impossible is declaring `ApiUuidParamBadRequest` where no `ParseUUIDPipe` runs —
-    // the contract would then describe a rejection the runtime cannot produce. The helper's
-    // description is stable and self-describing ("not a well-formed UUID"), so the CONTRACT side
-    // matches that phrase in the generated document while the RUNTIME side stays the reflected
-    // pipe list. Unrelated 400s on non-UUID routes pass untouched.
-    const overdeclared = routes
-      .filter((route) => !route.parsesUuidParam)
-      .filter((route) => {
-        const response = contract.paths[route.path]?.[route.verb]?.responses?.[
-          '400'
-        ] as { description?: string } | undefined;
-        return (response?.description ?? '').includes(
-          UUID_400_DESCRIPTION_MARKER,
-        );
-      })
-      .map(
-        (route) =>
-          `${route.verb.toUpperCase()} ${route.path} (${route.handler})`,
-      );
-
-    expect(overdeclared).toEqual([]);
+    expect(documented).toEqual(runtime);
   });
 });
