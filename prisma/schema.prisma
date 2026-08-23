@@ -673,7 +673,7 @@ model ContactMessageReply {
   // would let a key first used against another message replay into THAT message's reply row.
   idempotencyKey    String                    @map("idempotency_key")
   initiatedByUserId String                    @map("initiated_by_user_id")
-  // Transport's own id for the accepted message. Internal — never on a response (D10-21e).
+  // Transport's own id for the accepted message. Internal — never on a response.
   providerMessageId String?                   @map("provider_message_id")
 
   createdAt DateTime  @default(now()) @map("created_at")

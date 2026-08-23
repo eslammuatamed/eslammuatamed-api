@@ -72,7 +72,7 @@ const ROUTE_METADATA_KEY = 'path';
 // it catches an accidentally-undeclared route on any of them (its main value); a brand-new
 // controller is covered only once added to CONTROLLERS above.
 //
-// D19-11 makes the correspondence BIDIRECTIONAL. Note the consequence for CONTROLLERS: the
+// D09-7 makes the correspondence BIDIRECTIONAL. Note the consequence for CONTROLLERS: the
 // forward direction treats a missing controller as a silent gap, but the inverse direction
 // reads a missing controller as "these keys authorize nothing" — so an unregistered controller
 // can make live, guarded keys look like orphans. Never delete a catalog key on the strength of
@@ -150,7 +150,7 @@ describe('Route permission coverage', () => {
     expect(unknownKeys).toEqual([]);
   });
 
-  // Inverse direction (D19-11). Prevents the opposite drift: a catalog key that authorizes no
+  // Inverse direction (D09-7). Prevents the opposite drift: a catalog key that authorizes no
   // route. Such a key is grantable, so an operator can build a role around a capability the API
   // does not have and get silent powerlessness — no error ever reports it. Nine keys accumulated
   // this way before this assertion existed.
@@ -169,7 +169,7 @@ describe('Route permission coverage', () => {
     expect(orphanKeys).toEqual([]);
   });
 
-  // D19-11: publishing is conferred by articles.update, not by a separate key. Pinning the
+  // D19-8: publishing is conferred by articles.update, not by a separate key. Pinning the
   // update handler's declared permission keeps that model explicit — if someone later moves the
   // status transition behind a different key, this fails rather than silently changing who can
   // publish. The end-to-end proof (a role holding only articles.update can publish) lives in

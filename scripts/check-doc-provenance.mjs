@@ -85,7 +85,7 @@ const ROOT = process.cwd();
 
 // Normative pointers into ../eslammuatamed-docs. These EARN their place in a comment.
 const GOVERNANCE = [
-  /^D\d{2}-\d+[a-z]?$/, // decision log, e.g. D10-6, D07-1, D10-21c
+  /^D\d{2}-\d+[a-z]?$/, // decision log, e.g. D10-6, D07-1, D19-8
   /^FR-\d+$/, // functional requirement, e.g. FR-004
   /^(FR|NFR)-[A-Z]{2,4}-\d+$/, // scoped requirement, e.g. FR-DSH-051, FR-PUB-020
   /^NFR-\d+$/, // non-functional requirement
@@ -319,7 +319,7 @@ const SELF_TEST = [
   { input: 'decision P9-3 in the research note', expect: ['ARCHAEOLOGY'] },
   { input: 'the 1 MiB JSON limit (AD-7)', expect: ['ARCHAEOLOGY'] },
   { input: 'governing decision D10-6 applies', expect: ['GOVERNANCE'] },
-  { input: 'per D07-1 and D10-21c', expect: ['GOVERNANCE', 'GOVERNANCE'] },
+  { input: 'per D07-1 and D19-8', expect: ['GOVERNANCE', 'GOVERNANCE'] },
   { input: 'requirement FR-004 and NFR-006', expect: ['GOVERNANCE', 'GOVERNANCE'] },
   { input: 'FR-DSH-051 is served', expect: ['GOVERNANCE'] },
   { input: 'hashed with SHA-256', expect: [] },

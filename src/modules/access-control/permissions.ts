@@ -3,13 +3,13 @@
 // (RolePermission rows) referencing these keys.
 //
 // The catalog lists capabilities that really exist and are really guarded — nothing else
-// (D19-11). A key here is an offer to the operator: it is grantable, so listing a capability
+// (D09-7). A key here is an offer to the operator: it is grantable, so listing a capability
 // the API does not enforce hands out a role that silently does nothing. Both directions are
 // asserted in route-permissions.spec.ts, so a key with no route fails the build.
 //
 // Keys are `<resource>.<action>`, currently all CRUD verbs. A named action beyond CRUD (a
 // separate `articles.publish`, say) is admitted only once a route separately enforces it —
-// never ahead of the enforcement that gives it meaning (D19-11c). Publishing today rides on
+// never ahead of the enforcement that gives it meaning (D19-8). Publishing today rides on
 // `articles.update`, so no separate publish key exists.
 export const PERMISSIONS = [
   'articles.read',
@@ -46,10 +46,10 @@ export const PERMISSIONS = [
   'media.delete',
   'messages.read',
   'messages.update',
-  // A named action beyond CRUD, admitted under D19-11c because the route that enforces it ships in
-  // the same change: replying is not "updating a message", it is an outbound send visible to a
-  // third party (D19-12). Deliberately `messages.reply` and not `messages.send` / `mail.send` — a
-  // general send capability would authorize the next mail feature by accident.
+  // A named action beyond CRUD, admitted under the D19-8 model because the route that enforces it
+  // ships in the same change: replying is not "updating a message", it is an outbound send visible
+  // to a third party (D02-13). Deliberately `messages.reply` and not `messages.send` / `mail.send`
+  // — a general send capability would authorize the next mail feature by accident.
   'messages.reply',
   'settings.read',
   'settings.update',
@@ -59,7 +59,7 @@ export const PERMISSIONS = [
   // boundary follows the data rather than the screen the operator sees them on.
   //
   // Only read and update exist, matching the routes exactly — the page set is code-defined, so there
-  // is nothing to create or delete (D19-11c: no key ahead of the enforcement that gives it meaning).
+  // is nothing to create or delete (D09-7: no key ahead of the enforcement that gives it meaning).
   'seo.read',
   'seo.update',
   'roles.read',

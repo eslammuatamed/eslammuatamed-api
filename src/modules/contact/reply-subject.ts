@@ -1,14 +1,14 @@
 // Leading `Re:` in any case, with optional surrounding whitespace. Deliberately anchored and
 // deliberately NOT a general RFC 5322 subject parser: this recognises the one prefix this API
-// itself produces, so `Re: Re:` cannot accumulate across a thread of replies (D10-21d).
+// itself produces, so `Re: Re:` cannot accumulate across a thread of replies.
 //
 // It does not attempt localized prefixes (`Antw:`, `رد:`, `SV:`) or bracketed list tags. Those are
 // mail-client conventions, and matching them would mean guessing which of a dozen conventions a
 // visitor's client used — a parser whose failures are silent and whose only symptom is a slightly
-// wrong subject line. Not worth building; see doc 02 D02-13e (no threading infrastructure).
+// wrong subject line. Not worth building; there is no threading infrastructure (doc 02, D02-13).
 const REPLY_PREFIX = /^\s*re\s*:/i;
 
-// Derives the reply subject from the original message's subject (D10-21d).
+// Derives the reply subject from the original message's subject.
 //
 // Idempotent by construction: `deriveReplySubject(deriveReplySubject(s)) === deriveReplySubject(s)`,
 // which is the property that matters — the same original can be replied to many times, and each

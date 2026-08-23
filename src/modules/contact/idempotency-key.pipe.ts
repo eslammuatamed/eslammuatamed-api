@@ -7,7 +7,7 @@ import {
 import type { Request } from 'express';
 import { ValidationProblemException } from '../../common/http/validation-problem.exception';
 
-// The header's contract (D10-21b). Bounded and opaque: the API never parses this value, it only
+// The header's contract. Bounded and opaque: the API never parses this value, it only
 // stores and compares it, so the only properties worth enforcing are that it exists, that it cannot
 // be used to smuggle anything into a header or a log line, and that it cannot be unbounded.
 export const IDEMPOTENCY_KEY_HEADER = 'Idempotency-Key';
@@ -38,7 +38,7 @@ export const IdempotencyKey = createParamDecorator(
     ctx.switchToHttp().getRequest<Request>().headers['idempotency-key'],
 );
 
-// Validates the `Idempotency-Key` request header (D10-21b).
+// Validates the `Idempotency-Key` request header.
 //
 // A pipe rather than a check inside the service: the global ValidationPipe never sees a header, so
 // without this the header would be validated somewhere that already has a database connection and a
