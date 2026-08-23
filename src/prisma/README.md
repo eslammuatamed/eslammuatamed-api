@@ -40,7 +40,7 @@ Service → PrismaService → PrismaPg → node-postgres (pg) → PostgreSQL
 > لا `localhost` (`D23-24`). قاعدة `trust` في `pg_hba.conf` مقصورة على `IPv4`، و`localhost`
 > يُحلّ إلى `::1` أوّلًا فيقع على قاعدة `scram-sha-256` — والدور بلا كلمة مرور يقدّمها، فيفشل
 > `SASL`. كان `Prisma 6` يُخفي هذا لأنّه يحلّ المضيف داخل محرّكه ويختار `IPv4`. التفاصيل في
-> [الوثيقة 23 §3](../../../eslammuatamed-docs/docs/23-deployment.md)؛ وتسجيل وضع المصادقة هذا في الوثيقة 19 ما يزال مؤجَّلًا.
+> [الوثيقة 23 §3](../../../eslammuatamed-docs/docs/23-deployment.md) و[الوثيقة 19 §7b](../../../eslammuatamed-docs/docs/19-security.md) (`D19-12`).
 
 ## القرار المحوري: الاتصال الكسول (lazy)
 
