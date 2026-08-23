@@ -14,7 +14,7 @@ import {
   isWithinProviderIdempotencyWindow,
 } from './provider-idempotency';
 
-// What `create` concluded. The controller needs the distinction to answer 201 vs 200 (D10-21c) and
+// What `create` concluded. The controller needs the distinction to answer 201 vs 200 and
 // nothing else does, so it travels as a flag on the result rather than as two return types or a
 // thrown control-flow signal.
 export interface ReplyCreateOutcome {
@@ -30,7 +30,7 @@ export interface ReplyCreateOutcome {
 export type RepliableContactMessage = ContactMessage & { email: string };
 
 // The reply domain (D02-13). Owns the reply's persistence, its idempotency and its state — not its
-// delivery, which belongs to MailService through ContactMailService (D19-12).
+// delivery, which belongs to MailService through ContactMailService.
 //
 // THE STATE MACHINE, and what each state is allowed to claim:
 //
@@ -56,7 +56,7 @@ export class ContactReplyService {
     private readonly mail: ContactMailService,
   ) {}
 
-  // Reply history for one message, chronological (D10-21f).
+  // Reply history for one message, chronological.
   //
   // Available on EVERY message, including a phone-only one that can never be replied to, where it
   // returns an empty list. Repliability is a property of sending, not of reading: gating the history
@@ -81,7 +81,7 @@ export class ContactReplyService {
   // Creates — or replays — one logical reply attempt.
   //
   // The ordering of the three failure answers is part of the contract, not an implementation
-  // detail (D10-21c): an unknown message 404s before any key is examined, and an unrepliable
+  // detail: an unknown message 404s before any key is examined, and an unrepliable
   // message 409s before any key is CLAIMED. A client can therefore never burn an idempotency key
   // on a message it was never able to reply to.
   async create(
@@ -136,7 +136,7 @@ export class ContactReplyService {
           contactMessageId: messageId,
           body,
           idempotencyKey,
-          // Read from the verified JWT principal, never from the request body (D19-12). There is no
+          // Read from the verified JWT principal, never from the request body (D02-13). There is no
           // parameter on this path that could carry an operator id a client chose.
           initiatedByUserId,
           // status defaults to PENDING; stated by omission rather than written, so there is exactly
@@ -309,7 +309,7 @@ export class ContactReplyService {
 // A function returning the narrowed VALUE rather than an inline `if` guard, because TypeScript's
 // control-flow narrowing of `message.email` does not survive being handed to another method: the
 // parameter type `RepliableContactMessage` is what carries "this address exists" across the call
-// boundary, and constructing the value here is the one place that fact is established (D19-12).
+// boundary, and constructing the value here is the one place that fact is established (D02-13).
 function asRepliable(message: ContactMessage): RepliableContactMessage | null {
   return message.email !== null && message.email.length > 0
     ? { ...message, email: message.email }
@@ -341,6 +341,6 @@ function toEntity(row: ContactMessageReply): ContactMessageReplyEntity {
     failedAt: row.failedAt,
     // providerMessageId is read from the row and deliberately dropped here — the mapper is the one
     // place the internal/public boundary is drawn, so a field added to the model is not published
-    // by accident (D10-21e).
+    // by accident.
   };
 }

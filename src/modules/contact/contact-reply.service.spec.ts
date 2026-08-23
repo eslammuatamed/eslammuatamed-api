@@ -253,7 +253,7 @@ describe('ContactReplyService', () => {
       ).rejects.toBeInstanceOf(MessageNotRepliableException);
     });
 
-    // The ORDERING of the failure answers is contract (D10-21c): the key must not be claimed on a
+    // The ORDERING of the failure answers is contract: the key must not be claimed on a
     // message that can never be replied to, or a client burns a key it can never reuse.
     it('rejects an unrepliable message before claiming the idempotency key', async () => {
       prisma.contactMessage.findUnique.mockResolvedValue(

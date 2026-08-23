@@ -431,7 +431,7 @@ describe('Reply delivery (service/database seam, e2e)', () => {
   });
 
   // The recipient invariant, at the persistence layer: the address the provider is handed comes
-  // from the stored message and from nowhere else (D19-12).
+  // from the stored message and from nowhere else (D02-13).
   it('sends to the address on the stored message', async () => {
     const messageId = await messageWith('someone-specific@example.com');
 

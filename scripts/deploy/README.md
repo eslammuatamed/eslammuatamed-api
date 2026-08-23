@@ -119,6 +119,6 @@ curl -sS http://127.0.0.1:3001/api/v1/health/ready   # يجب أن يحوي {"st
 ## المرجع
 
 الوثيقة [23 (Deployment)](../../../eslammuatamed-docs/docs/23-deployment.md) هي الحاكمة
-(`D23-16`, `D23-17`, `D23-23`, `D23-24`)، و[18 §4b](../../../eslammuatamed-docs/docs/18-testing-strategy.md)
-تشرح لماذا يُعامَل التحقّق من النشر بوصفه اختبارًا، و[19 §7b](../../../eslammuatamed-docs/docs/19-security.md)
-تسجّل وضع مصادقة قاعدة بيانات الإنتاج المؤجَّل.
+(`D23-16`, `D23-17`, `D23-23`, `D23-24`).
+وضع مصادقة قاعدة بيانات الإنتاج المؤجَّل لم يُسجَّل بعد في الوثائق الحاكمة؛ بقي خارج نطاق
+حملة `.specify/specs/009-backend-final-hardening` المغلقة.

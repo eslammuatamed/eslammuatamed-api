@@ -10,7 +10,7 @@ import {
   OWNER_PASSWORD,
 } from './utils/e2e-app';
 
-// Reply-by-email, end to end against a real PostgreSQL (D02-13, D10-21, D19-12).
+// Reply-by-email, end to end against a real PostgreSQL (D02-13).
 //
 // Two things here genuinely need a database rather than a mock. The first is the idempotency
 // invariant: a mocked `create` can assert the loser BRANCH behaves, but only the database can
@@ -132,13 +132,13 @@ describe('Message replies (e2e)', () => {
       expect(reply.sentAt).toBeNull();
       expect(reply.failedAt).toEqual(expect.any(String));
       expect(reply.initiatedByUserId).toEqual(expect.any(String));
-      // Internal fields never reach a response (D10-21e).
+      // Internal fields never reach a response.
       expect(Object.keys(reply)).not.toContain('providerMessageId');
       expect(JSON.stringify(reply)).not.toContain('smtp');
     });
 
     // 201 vs 200 is contract, not cosmetics: a client must be able to tell a real second attempt
-    // from a retried first one (D10-21c).
+    // from a retried first one.
     it('replays the same attempt with 200, creating exactly one row', async () => {
       const messageId = await createMessage();
       const key = `key-replay-${unique}`;
@@ -191,7 +191,7 @@ describe('Message replies (e2e)', () => {
       ).resolves.toBe(2);
     });
 
-    // The uniqueness is scoped to the message (D09-23b). A key reused against a DIFFERENT message
+    // The uniqueness is scoped to the message (D09-23). A key reused against a DIFFERENT message
     // must create a fresh attempt there — never return the other message's row.
     it('scopes the key to its message rather than globally', async () => {
       const [first, second] = [await createMessage(), await createMessage()];
@@ -219,7 +219,7 @@ describe('Message replies (e2e)', () => {
   });
 
   describe('the recipient can never be chosen by the client', () => {
-    // D19-12b, at the HTTP boundary rather than at the DTO. The global pipe is fail-closed, so a
+    // D02-13, at the HTTP boundary rather than at the DTO. The global pipe is fail-closed, so a
     // recipient-shaped field is REJECTED — not stripped — and this asserts the guarantee this
     // repository actually makes rather than the weaker one that would also be safe.
     it.each([['to'], ['cc'], ['bcc'], ['from'], ['replyTo']])(
@@ -488,7 +488,7 @@ describe('Message replies (e2e)', () => {
     // Pins NON-IMPLICATION, not a usable role. Capabilities in this catalog are independent and
     // never hierarchical (D19-8), so messages.reply confers no read — which also means a role
     // holding only messages.reply is grantable but not useful: it can send, yet cannot open the
-    // inbox to compose against. That is deliberate (D19-12e); the alternative — reply silently
+    // inbox to compose against. That is deliberate; the alternative — reply silently
     // conferring read — would be a permission hierarchy this model does not have. In practice
     // messages.reply is granted ALONGSIDE messages.read, which the test above exercises.
     it('does not let messages.reply imply messages.read on any inbox route', async () => {

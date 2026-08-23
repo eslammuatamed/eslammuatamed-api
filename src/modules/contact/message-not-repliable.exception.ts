@@ -1,6 +1,6 @@
 import { ConflictException } from '@nestjs/common';
 
-// 409 raised when a reply is requested for a message that carries no email address (D10-21c).
+// 409 raised when a reply is requested for a message that carries no email address.
 //
 // This is not an edge case that slipped through — it is D02-10 working as designed: a visitor may
 // submit a phone number instead of an email, and the database CHECK constraint guarantees only that
@@ -13,7 +13,7 @@ import { ConflictException } from '@nestjs/common';
 // issuing the call, so this is the backstop rather than the expected path.
 //
 // Raised BEFORE the idempotency key is claimed, so a client cannot burn a key on a message it can
-// never reply to (D10-21c) — a later fix to the message's address, were one ever possible, must not
+// never reply to — a later fix to the message's address, were one ever possible, must not
 // find the key already spent.
 export class MessageNotRepliableException extends ConflictException {
   constructor() {

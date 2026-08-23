@@ -103,7 +103,7 @@ export class MessagesAdminController {
     return this.contact.update(id, dto);
   }
 
-  // Reply history (D10-21f). Guarded by `messages.read`, not `messages.reply`: reading who answered
+  // Reply history. Guarded by `messages.read`, not `messages.reply`: reading who answered
   // a message is an inspection of the inbox, and a role that may read the inbox but not send should
   // still see whether a message was answered. Available on every message, including a phone-only
   // one that can never be replied to, where it is an empty list.
@@ -130,15 +130,15 @@ export class MessagesAdminController {
     return this.replies.list(id);
   }
 
-  // Send one plain-text reply (D02-13, D10-21).
+  // Send one plain-text reply (D02-13).
   //
   // The recipient is NOT a parameter of this route. It is derived from `:id`'s stored row inside the
   // service, and `CreateMessageReplyDto` has no field that could carry one — so there is nothing on
-  // this signature an attacker could aim at (D19-12).
+  // this signature an attacker could aim at (D02-13).
   //
   // The status code varies with the outcome, which is why the response is injected: a first create
   // is 201, an idempotent replay is 200. `@HttpCode(OK)` sets the declared default and the create
-  // path raises it, so a replay can never claim it created a resource (D10-21c). `passthrough`
+  // path raises it, so a replay can never claim it created a resource. `passthrough`
   // keeps the body flowing through the ordinary envelope interceptor.
   @Post(':id/replies')
   @RequirePermission('messages.reply')

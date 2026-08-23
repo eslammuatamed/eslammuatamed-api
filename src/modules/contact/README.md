@@ -91,7 +91,7 @@
 
 - التحكّم بالمعدّل route-local عبر `ContactThrottlerGuard` (3/ساعة + 10/يوم لكلّ IP، `429` + `Retry-After`).
 - كلّ نقطة إدارية تُعلن `messages.read`/`messages.update`/`messages.reply`؛ **لا مفتاح `messages.create`**.
-- **المستقبِل لا يختاره العميل أبدًا** (`D19-12`): يُشتقّ خادميًّا من `ContactMessage.email` للرسالة المُعنونة،
+- **المستقبِل لا يختاره العميل أبدًا** (`D02-13`): يُشتقّ خادميًّا من `ContactMessage.email` للرسالة المُعنونة،
   و`CreateMessageReplyDto` لا يحمل أيّ حقل مستقبِل — فأيّ `to`/`cc`/`bcc` في الجسم يُرفَض بـ `422` (لا يُحذَف
   صامتًا)، لأنّ الأنبوب العامّ يعمل بـ `whitelist` + `forbidNonWhitelisted`.
 - **منع التكرار في قاعدة البيانات** عبر `@@unique([contactMessageId, idempotencyKey])`: مفتاح واحد ⇒ محاولة

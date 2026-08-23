@@ -91,12 +91,12 @@ describe('Articles (e2e)', () => {
     expect(detail.readingTimeMin).toBeGreaterThanOrEqual(1);
   });
 
-  // D19-11: there is no separate publish permission — articles.update confers publishing. This
+  // D19-8: there is no separate publish permission — articles.update confers publishing. This
   // proves it for a NON-owner role, which is the claim that matters: the removed articles.publish
   // key never gated this transition, so a role designed as "may edit but not publish" would not
   // have existed. Using the OWNER token here would prove nothing (the '*' wildcard matches
   // everything); the role below holds articles.update and nothing else.
-  it('lets a role holding only articles.update publish an article (D19-11)', async () => {
+  it('lets a role holding only articles.update publish an article (D19-8)', async () => {
     const roleRes = await request(httpServer(app))
       .post('/api/v1/admin/roles')
       .set(auth())
@@ -135,7 +135,7 @@ describe('Articles (e2e)', () => {
             locale: 'en',
             title: `Updater Fixture ${unique}`,
             slug: `updater-fixture-${unique}`,
-            excerpt: 'Fixture for the D19-11 publishing model.',
+            excerpt: 'Fixture for the D19-8 publishing model.',
             body: '# Heading\n\nBody content for the publishing-permission proof.',
           },
         ],

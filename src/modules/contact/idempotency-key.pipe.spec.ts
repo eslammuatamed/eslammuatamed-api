@@ -29,7 +29,7 @@ describe('IdempotencyKeyPipe', () => {
     expect(pipe.transform(key)).toBe(key);
   });
 
-  // Required, not optional (D10-21b): an optional idempotency guarantee is not a guarantee, and the
+  // Required, not optional: an optional idempotency guarantee is not a guarantee, and the
   // client most likely to double-send is the one whose request omitted the header.
   it.each([
     ['absent', undefined],

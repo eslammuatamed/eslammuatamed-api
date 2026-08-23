@@ -111,7 +111,7 @@ describe('Access control (e2e)', () => {
       .expect(422);
   });
 
-  // D19-11, operator-facing half: the removed keys are not merely absent from the catalog
+  // D09-7, operator-facing half: the removed keys are not merely absent from the catalog
   // listing, they are no longer grantable. Before the removal this request returned 201 and
   // handed back a role that silently conferred nothing.
   it('refuses to grant a capability that authorizes no route (422)', async () => {
@@ -134,7 +134,7 @@ describe('Access control (e2e)', () => {
     }
   });
 
-  // The other half of D19-11 at the operator boundary: a key whose route exists must be grantable,
+  // The other half of D09-7 at the operator boundary: a key whose route exists must be grantable,
   // or the guard on that route is unreachable by any custom role.
   it('grants the static-page SEO capabilities now that routes enforce them (201)', async () => {
     const res = await request(httpServer(app))
@@ -148,7 +148,7 @@ describe('Access control (e2e)', () => {
     expect(res).toSatisfyApiSpec();
   });
 
-  // The wildcard is unchanged by D19-11: it is a grant that matches every capability, not a
+  // The wildcard is unchanged by D19-8: it is a grant that matches every capability, not a
   // capability a route declares, so it stays grantable while never appearing in the catalog.
   it('still accepts the "*" wildcard grant', async () => {
     const res = await request(httpServer(app))

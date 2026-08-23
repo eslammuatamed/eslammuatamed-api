@@ -225,7 +225,7 @@ describe('ContactMailService', () => {
     });
   });
 
-  // D19-12: the recipient invariant, asserted at the one function that produces the outbound
+  // D02-13: the recipient invariant, asserted at the one function that produces the outbound
   // message. `buildReply` is pure and takes no address, so these tests can prove the property
   // directly rather than inferring it from an endpoint that would also have to be authenticated,
   // permitted and persisted first.

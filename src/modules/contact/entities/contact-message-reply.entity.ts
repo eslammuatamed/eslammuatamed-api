@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { ContactMessageReplyStatus } from '../../../generated/prisma/enums';
 
-// One operator reply attempt, as the admin dashboard sees it (D10-21e).
+// One operator reply attempt, as the admin dashboard sees it.
 //
 // What is deliberately ABSENT is the substance of this contract: `providerMessageId`, the transport
 // name, the SMTP response code, the relay's failure text and any stack are all internal. A client
