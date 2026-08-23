@@ -41,6 +41,7 @@ import {
   ApiAdminErrorResponses,
   ApiProblemResponse,
   ApiUuidParamBadRequest,
+  RETRY_AFTER_HEADER,
 } from '../../common/swagger/api-problem-response';
 import { THROTTLE_TIERS } from '../../common/throttling/throttle-tiers';
 import { UploadUserIpThrottlerGuard } from '../../common/throttling/upload-user-ip-throttler.guard';
@@ -115,13 +116,29 @@ export class MediaAdminController {
       },
     },
   })
+  // Both 400 causes share one ProblemDetails body: Multer maps an unexpected file field to
+  // BadRequestException, and a request without the required part reaches the !file guard below —
+  // both rejected before MediaService, storage, or Prisma are ever touched.
+  @ApiProblemResponse(
+    HttpStatus.BAD_REQUEST,
+    'Missing or invalid multipart file part.',
+  )
+  @ApiProblemResponse(
+    HttpStatus.PAYLOAD_TOO_LARGE,
+    'Upload exceeds the 10 MiB multipart file-size limit.',
+  )
   @ApiProblemResponse(
     HttpStatus.UNPROCESSABLE_ENTITY,
     'Unsupported type, spoofed content, oversized image, or malformed PDF.',
   )
+  // Every reachable 429 on this route emits the standard delta-seconds Retry-After: the global
+  // default-named tier is unsuffixed by @nestjs/throttler, the upload guard replaces its
+  // name-suffixed header with the plain one, and RetryAfterInterceptor sets it on capacity
+  // rejection — so the header is part of this operation's contract, not just one cause's.
   @ApiProblemResponse(
     HttpStatus.TOO_MANY_REQUESTS,
-    'Processing capacity reached; retry after the Retry-After delay.',
+    'Rate limited (10 uploads/min per user+IP, or the 300/min admin tier), or processing capacity reached.',
+    RETRY_AFTER_HEADER,
   )
   async upload(
     @UploadedFile() file: Express.Multer.File | undefined,

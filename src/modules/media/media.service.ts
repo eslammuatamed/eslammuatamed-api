@@ -279,11 +279,20 @@ export class MediaService {
   // mapping throw escapes with theirs; a null reread rethrows the original unique violation.
   // Any other failure attempts cleanup and rethrows.
   //
-  // Deliberately NOT a no-orphan guarantee, though it once claimed to be. Three things break it:
-  // cleanup() can reject and pre-empt the rethrow below (see its comment); the callers' try blocks
-  // extend past mediaAsset.create, so a post-commit throw lands here with the row already written;
-  // and a rejected create does not prove PostgreSQL did not commit. The ordering — objects first,
-  // row last — narrows the window; it does not close it.
+  // Deliberately NOT a no-orphan guarantee — compensation is best-effort, not cross-system
+  // atomicity. Four limits remain, by design:
+  // - An object put() can succeed remotely while the local call ultimately rejects (the SDK
+  //   retries, so one lost response need not fail the call); its key is never pushed to
+  //   `uploaded`, and cleanup cannot name what it was never told about.
+  // - Deletion during compensation can itself fail; cleanup logs `media.compensation_incomplete`
+  //   and returns, so the original upload/persistence error stays the one rethrown here.
+  // - A rejected mediaAsset.create does not prove PostgreSQL did not commit. Compensation then
+  //   deletes objects a possibly-committed row references — the commit/network ambiguity is left
+  //   unresolved on purpose.
+  // - Once create RESOLVES, this method is out of the picture: mapping/logging throws propagate
+  //   untouched, because the row now references those stored objects and they must survive.
+  // The ordering — objects first, row last — narrows the window; it does not close it, and no
+  // reconciliation job exists to sweep up the remainder.
   private async compensate(
     error: unknown,
     contentHash: string,
