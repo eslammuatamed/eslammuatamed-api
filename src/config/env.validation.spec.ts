@@ -57,7 +57,7 @@ describe('validate (environment schema)', () => {
         'postgresql://eslammuatamed:eslammuatamed@localhost:5432/eslammuatamed_test',
       ],
       [
-        'e2e harness generated (D18-8)',
+        'e2e harness generated',
         'postgresql://eslammuatamed@localhost:5432/eslammuatamed_e2e_0123456789abcdef01234567',
       ],
       [

@@ -1,4 +1,4 @@
-// The I/O half of the per-run e2e database (doc 18 §2, D18-8). The rules live in
+// The I/O half of the per-run e2e database (doc 18 §2). The rules live in
 // `e2e-database.ts`; this file only performs them.
 import { execFileSync } from 'node:child_process';
 import { PrismaClient } from '../../src/generated/prisma/client';

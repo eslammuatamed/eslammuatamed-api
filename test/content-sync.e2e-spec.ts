@@ -7,7 +7,7 @@
 // It creates, mutates and deletes governed content wholesale, so sharing a database with the other
 // e2e specs would couple them to this suite's execution order. `DATABASE_URL` is never read from a
 // `.env`: by the time this file runs, the harness has already replaced it with this run's scratch
-// database (D18-8), and `SCRATCH_DB` is derived from that name rather than fixed — a fixed name
+// database, and `SCRATCH_DB` is derived from that name rather than fixed — a fixed name
 // would let a second e2e invocation's `DROP DATABASE` destroy this one's database mid-test.
 import { execFileSync } from 'node:child_process';
 import {
