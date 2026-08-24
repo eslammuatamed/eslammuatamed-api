@@ -31,7 +31,7 @@ export class ProjectsController {
   })
   @ApiOkPaginated(PublicProjectListItemEntity, {
     description:
-      'Featured-first paginated published projects, plus the technology facets the filter should offer (D10-19).',
+      'Featured-first paginated published projects, plus the technology facets the filter should offer.',
     meta: ProjectListMeta,
   })
   @ApiPublicReadErrorResponses()

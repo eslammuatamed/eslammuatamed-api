@@ -288,10 +288,10 @@ describe('Articles (e2e)', () => {
     );
   });
 
-  // D10-20 through the real query. The unit tests cover the mapper, but only a real read can
+  // The rule through the real query. The unit tests cover the mapper, but only a real read can
   // prove there is no cross-locale fallback: the EN category name genuinely exists in the
   // database here, and the AR response still must not contain it.
-  describe('untranslated taxonomy (D10-20)', () => {
+  describe('untranslated taxonomy', () => {
     // EN-only taxonomy plus a bilingual article: the article resolves in AR, its category
     // does not. This is the exact production shape — an editor publishes a translation before
     // the taxonomy label is translated.
@@ -359,7 +359,7 @@ describe('Articles (e2e)', () => {
           translations: [
             {
               locale: 'en',
-              title: `D10-20 ${unique}`,
+              title: `UntranslatedTaxonomy ${unique}`,
               slug: enArticleSlug,
               excerpt: 'EN excerpt.',
               body: 'EN body.',
