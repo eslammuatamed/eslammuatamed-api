@@ -36,10 +36,12 @@ const contract = JSON.parse(
   readFileSync(join(process.cwd(), 'openapi.json'), 'utf8'),
 ) as OpenApiDocument;
 
-describe('admin taxonomy list envelopes', () => {
+describe('admin list envelopes', () => {
   it.each([
     ['/api/v1/admin/categories', '#/components/schemas/AdminCategoryEntity'],
     ['/api/v1/admin/tags', '#/components/schemas/AdminTagEntity'],
+    ['/api/v1/admin/users', '#/components/schemas/UserEntity'],
+    ['/api/v1/admin/roles', '#/components/schemas/RoleEntity'],
   ])('documents %s data as an array', (path, itemRef) => {
     const data =
       contract.paths[path]?.get?.responses?.['200']?.content?.[

@@ -56,7 +56,7 @@ export class RolesAdminController {
   @Get('roles')
   @RequirePermission('roles.read')
   @ApiOperation({ summary: 'List roles with their granted permission keys.' })
-  @ApiOkEnvelope(RoleEntity)
+  @ApiOkEnvelope(RoleEntity, { isArray: true })
   listRoles(): Promise<RoleEntity[]> {
     return this.accessControl.listRoles();
   }

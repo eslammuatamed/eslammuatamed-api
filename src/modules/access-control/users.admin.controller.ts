@@ -38,7 +38,7 @@ export class UsersAdminController {
   @ApiOperation({
     summary: 'List operator accounts with their role and active status.',
   })
-  @ApiOkEnvelope(UserEntity)
+  @ApiOkEnvelope(UserEntity, { isArray: true })
   list(): Promise<UserEntity[]> {
     return this.accessControl.listUsers();
   }
