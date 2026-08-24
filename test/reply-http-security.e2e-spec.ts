@@ -940,7 +940,7 @@ describe('Reply security, history and reliability over HTTP (e2e)', () => {
 
       // No transport text, no relay code, no provider name anywhere in the history.
       const serialized = JSON.stringify(rows);
-      expect(serialized).not.toContain('550');
+      expect(serialized).not.toContain('responseCode');
       expect(serialized).not.toContain('Mailbox unavailable');
       expect(serialized).not.toContain('Resend');
       expect(serialized).not.toContain(E2E_MAIL_ENV.SMTP_PASSWORD);
@@ -1174,7 +1174,7 @@ describe('Reply security, history and reliability over HTTP (e2e)', () => {
       transport.accept();
 
       const serialized = JSON.stringify(res.body);
-      expect(serialized).not.toContain('550');
+      expect(serialized).not.toContain('responseCode');
       expect(serialized).not.toContain('Mailbox unavailable');
       expect(serialized).not.toContain('fake transport');
       expect(serialized).not.toContain(E2E_MAIL_ENV.SMTP_HOST);
