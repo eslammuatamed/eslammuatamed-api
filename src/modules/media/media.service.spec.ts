@@ -813,7 +813,7 @@ describe('MediaService', () => {
     // The delete-ordering invariant, asserted as an ORDER and not merely as two calls: the previous
     // implementation also called both of these, just the other way round, so a test that only
     // checked "was each called" passed against the defect. `invocationCallOrder` is what
-    // discriminates. (D07-7)
+    // discriminates.
     it('deletes the row FIRST and the objects only after it commits', async () => {
       prisma.mediaAsset.findUnique.mockResolvedValue(unreferenced());
 
