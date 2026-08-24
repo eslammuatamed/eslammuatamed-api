@@ -1,4 +1,4 @@
-// Per-run e2e database isolation (doc 18 §2).
+// Per-run e2e database isolation.
 //
 // THE INVARIANT: `npm run test:e2e` must never write into `eslammuatamed_dev`, whatever the
 // developer's `.env` says. Historically the suite simply used the configured `DATABASE_URL`, so a
