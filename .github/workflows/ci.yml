@@ -201,7 +201,7 @@ jobs:
         run: npx prisma generate
 
       # No migrate/seed step: the e2e harness creates, migrates, seeds and drops its own database
-      # per run (D18-8). DATABASE_URL above still matters — the harness derives the SERVER from it
+      # per run. DATABASE_URL above still matters — the harness derives the SERVER from it
       # and discards its database pathname — but nothing here provisions `eslammuatamed_test`, so
       # there is exactly one setup owner.
       - name: E2E tests

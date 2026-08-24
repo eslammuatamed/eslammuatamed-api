@@ -50,8 +50,8 @@ export class EnvironmentVariables {
   // PostgreSQL already defines, and every field it checked would be one more way to wrongly reject
   // a legitimate production URL. This asserts only what is unambiguous — a supported scheme and no
   // whitespace — and deliberately says NOTHING about the database name: pointing at the wrong
-  // database is D18-8's fail-closed assertion in the e2e harness, while this gate must accept any
-  // legitimate production name.
+  // database is caught by the e2e harness's fail-closed assertion instead, while this gate must
+  // accept any legitimate production name.
   @IsString()
   @Matches(/^postgres(ql)?:\/\/\S+$/, {
     message:

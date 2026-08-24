@@ -274,7 +274,7 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
-      # No migrate/seed step: the e2e harness owns its own per-run database (D18-8). See the same
+      # No migrate/seed step: the e2e harness owns its own per-run database. See the same
       # note in ci.yml — one setup owner, not two competing ones.
       - name: E2E tests
         run: npm run test:e2e

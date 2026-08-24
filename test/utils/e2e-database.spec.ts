@@ -1,4 +1,4 @@
-// Unit tests for the e2e database isolation rules (doc 18 §2, D18-8). These run in the UNIT lane,
+// Unit tests for the e2e database isolation rules. These run in the UNIT lane,
 // not the e2e lane: the properties below are exactly the ones that must hold before a database is
 // ever contacted, so proving them from a passing e2e run would be circular.
 import {
