@@ -360,7 +360,17 @@ function isScannedSource(f) {
 
 function walk(dir, out = []) {
   for (const entry of readdirSync(dir)) {
-    if (entry === 'node_modules' || entry === 'dist' || entry === 'dist-ops' || entry === '.git')
+    // `.governance-docs` is CI's deterministic checkout path for the governing docs
+    // repository. A checked-out GOVERNING repo is not an API authored surface: its files
+    // never match the root-anchored scan patterns anyway, so skipping it here is pure
+    // defense-in-depth plus avoids traversing ~a hundred foreign files every run.
+    if (
+      entry === 'node_modules' ||
+      entry === 'dist' ||
+      entry === 'dist-ops' ||
+      entry === '.git' ||
+      entry === '.governance-docs'
+    )
       continue;
     const full = join(dir, entry);
     if (statSync(full).isDirectory()) walk(full, out);
@@ -821,6 +831,8 @@ function buildResolutionFixture() {
     '.campaign/ledger.md': '# campaign\nfinding D99-888 lives in history\n',
     '.specify/specs/001-x/spec.md': '# spec\nuses D99-777 as evidence\n',
     'src/generated/prisma/client.ts': '// upstream comment citing D99-666\n',
+    // Simulates CI's nested governing-docs checkout (see RESOLUTION_EXCLUSION_SELF_TEST).
+    '.governance-docs/docs/10-api-design.md': fixtureGoverningDoc(['D10-6', 'D99-222']),
     '.github/workflows/ci.yml': ['name: CI', 'jobs:', '  verify:', '    steps:', '      # FTS gate (D10-6) must stay green', '      - run: npm run guard:fts # phantom D99-555 must be caught here'].join('\n'),
     'scripts/tool.mjs': '// operational tooling governed by D10-11\n',
     'prisma/schema.prisma': '// model Foo — retention basis D99-444\nmodel Foo { id String @id }\n',
@@ -920,6 +932,13 @@ const RESOLUTION_EXCLUSION_SELF_TEST = [
   { file: '.campaign/ledger.md', token: 'D99-888' },
   { file: '.specify/specs/001-x/spec.md', token: 'D99-777' },
   { file: 'src/generated/prisma/client.ts', token: 'D99-666' },
+  {
+    // CI checks the governing docs repo out at this exact path. A checked-out GOVERNING
+    // repo is not an API authored surface; its own decision corpus (or any phantom inside
+    // it) must never enter THIS repository's resolution scan.
+    file: '.governance-docs/docs/10-api-design.md',
+    token: 'D99-222',
+  },
 ];
 
 function resolutionPipelineSelfTest() {
@@ -1152,12 +1171,12 @@ function guard(opts = {}) {
   if (arch.length === 0 && rot.length === 0 && unresolved.length === 0) {
     console.log(
       `✓ provenance guard: ${docs.length} code-adjacent doc(s), ${src.length} source file(s), ` +
-        `${resolvedCount} governance citation(s) — no campaign archaeology, no fast-rotting ` +
-        'state claims, every D-decision resolves.',
+        'no campaign archaeology, no fast-rotting state claims.',
     );
     console.log(
-      `  decision existence proven against ${corpus.repoPath} @ ${corpus.ref} ` +
-        `(${corpus.sha.slice(0, 12)}, ${corpus.ids.size} decisions / ${corpus.fileCount} docs).`,
+      `  decision existence: ${resolvedCount}/${govHits.length} citation(s) resolved, ` +
+        `${unresolved.length} unresolved — against ${corpus.repoPath} @ ${corpus.ref} ` +
+        `(${corpus.sha}, ${corpus.ids.size} decisions / ${corpus.fileCount} docs).`,
     );
     return;
   }
