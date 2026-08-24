@@ -40,7 +40,7 @@ export class EnvironmentVariables {
   @Max(65535)
   PORT!: number;
 
-  // Structural, not merely present (D16-12). `@IsNotEmpty()` alone was a fail-open gate: it
+  // Structural, not merely present. `@IsNotEmpty()` alone was a fail-open gate: it
   // accepted a whitespace-only value, a bare database name, `mysql://`, and a newline-injected
   // second assignment — including the exact historical value that created a URL-encoded 63-byte
   // database instead of aborting. The malformed string reached Prisma and became runtime behavior
