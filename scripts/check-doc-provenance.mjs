@@ -197,6 +197,17 @@ const DOC_PATTERNS = [
 // which are historical-evidence artifacts by design and MUST keep their campaign identifiers.
 const SOURCE_DIRS = ['src', 'test'];
 
+// Generated output is not repository-authored source. `src/generated/prisma/**` is produced by
+// `prisma generate` and gitignored (.gitignore), and its comments carry upstream research
+// identifiers that this repository cannot rewrite — an archaeology token there is not a finding
+// about OUR comments, so the scanner must never see the directory. Authored `src/**` and
+// `test/**` are unaffected.
+const GENERATED_PREFIXES = ['src/generated/prisma/'];
+
+function isScannedSource(f) {
+  return f.endsWith('.ts') && !GENERATED_PREFIXES.some((p) => f.startsWith(p));
+}
+
 function walk(dir, out = []) {
   for (const entry of readdirSync(dir)) {
     if (entry === 'node_modules' || entry === 'dist' || entry === 'dist-ops') continue;
@@ -217,7 +228,7 @@ function docFiles() {
 function sourceFiles() {
   return SOURCE_DIRS.flatMap((d) => walk(join(ROOT, d)))
     .map((f) => relative(ROOT, f))
-    .filter((f) => f.endsWith('.ts'))
+    .filter(isScannedSource)
     .sort();
 }
 
@@ -395,6 +406,38 @@ function phraseSelfTest() {
   return failed;
 }
 
+// Controls for the file-selection boundary. Excluding generated output must not silently stop
+// the scanner from seeing authored source, and the exclusion must hold for whatever token the
+// generator happens to emit. The guard flags a token in a file exactly when the file is scanned
+// AND the token classifies as archaeology — so each case asserts that whole decision through the
+// REAL `isScannedSource` + `classify` pair, never a re-typed rule.
+const SELECTION_SELF_TEST = [
+  // Positive controls: authored source is still scanned; its P9-1 is flagged.
+  { file: 'src/modules/contact/anti-spam.ts', token: 'P9-1', expect: true },
+  { file: 'test/reply-http-security.e2e-spec.ts', token: 'C-5', expect: true },
+  // Negative controls: the same tokens under generated prisma output are ignored.
+  { file: 'src/generated/prisma/internal/class.ts', token: 'P9-1', expect: false },
+  { file: 'src/generated/prisma/client.ts', token: 'P9-3', expect: false },
+];
+
+function selectionSelfTest() {
+  let failed = 0;
+  for (const testCase of SELECTION_SELF_TEST) {
+    const got =
+      isScannedSource(testCase.file) && classify(testCase.token) === 'ARCHAEOLOGY';
+    if (got !== testCase.expect) {
+      failed += 1;
+      console.error(
+        `✖ selection self-test: ${testCase.file} carrying ${testCase.token}\n` +
+          `    expected ${testCase.expect ? 'flagged' : 'ignored'}  got ${
+            got ? 'flagged' : 'ignored'
+          }`,
+      );
+    }
+  }
+  return failed;
+}
+
 function rotSelfTest() {
   let failed = 0;
   for (const testCase of ROT_SELF_TEST) {
@@ -412,7 +455,7 @@ function rotSelfTest() {
 }
 
 function selfTest() {
-  let failed = rotSelfTest() + phraseSelfTest();
+  let failed = rotSelfTest() + phraseSelfTest() + selectionSelfTest();
   for (const testCase of SELF_TEST) {
     const got = [...testCase.input.matchAll(TOKEN_RE)]
       .map((m) => classify(m[1]))
@@ -427,14 +470,15 @@ function selfTest() {
       );
     }
   }
-  const total = SELF_TEST.length + ROT_SELF_TEST.length + PHRASE_SELF_TEST.length;
+  const total =
+    SELF_TEST.length + ROT_SELF_TEST.length + PHRASE_SELF_TEST.length + SELECTION_SELF_TEST.length;
   if (failed > 0) {
     console.error(`\n✖ provenance guard self-test: ${failed}/${total} case(s) failed.`);
     process.exit(1);
   }
   console.log(`✓ provenance guard self-test: ${total}/${total} cases pass.`);
   console.log(
-    '  (flags archaeology · keeps governance · ignores real vocabulary · stable in Arabic prose)',
+    '  (flags archaeology · keeps governance · ignores real vocabulary · stable in Arabic prose · skips generated prisma output)',
   );
 }
 
