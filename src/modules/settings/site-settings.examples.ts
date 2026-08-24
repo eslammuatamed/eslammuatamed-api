@@ -65,7 +65,7 @@ export const PUBLIC_SITE_SETTINGS_RESPONSE_EXAMPLES: Record<
           },
         ],
         availabilityStatus: 'Open to frontend opportunities',
-        careerStartYear: 2023,
+        careerStartYear: '2023',
         careerStartMonth: 11,
         googleSiteVerification: 'google-abc123',
         bingSiteVerification: 'bing-def456',
