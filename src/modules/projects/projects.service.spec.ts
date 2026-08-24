@@ -226,7 +226,7 @@ describe('ProjectsService', () => {
       prisma.$transaction.mockResolvedValue([
         [projectPayload(true)],
         1,
-        [], // facet rows — listPublic now reads facets in the SAME transaction (D10-19)
+        [], // facet rows — listPublic reads facets in the SAME transaction as the page
       ] as never);
 
       const result = await service.listPublic({
@@ -245,7 +245,7 @@ describe('ProjectsService', () => {
       expect(result.data).toHaveLength(1);
     });
 
-    // Facets (D10-19). The e2e suite proves the BEHAVIOUR against a real database; this pins the
+    // Facets. The e2e suite proves the BEHAVIOUR against a real database; this pins the
     // QUERY, so a filter cannot be dropped and then re-hidden by some downstream mapping.
     describe('technology facets', () => {
       const facetArgs = (): Record<string, unknown> => {
@@ -451,7 +451,7 @@ describe('ProjectsService', () => {
       prisma.$transaction.mockResolvedValue([
         [projectPayload(true)],
         1,
-        [], // facet rows — listPublic now reads facets in the SAME transaction (D10-19)
+        [], // facet rows — listPublic reads facets in the SAME transaction as the page
       ] as never);
 
       const result = await service.listPublic({

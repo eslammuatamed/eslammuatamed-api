@@ -16,7 +16,7 @@ export class ProjectTechnologyEntity {
   readonly label!: string;
 }
 
-// One selectable option in the `/projects` technology filter (D10-19).
+// One selectable option in the `/projects` technology filter.
 //
 // A FACET, not a skill: it exists only because at least one published project in the requested
 // locale actually uses it. That is the whole point of the type — the filter used to be built from
@@ -49,7 +49,7 @@ export class ProjectTechnologyFacetEntity {
   readonly count!: number;
 }
 
-// `/projects` list meta: pagination plus the facet list (D10-19).
+// `/projects` list meta: pagination plus the facet list.
 export class ProjectListMeta extends PageMeta {
   @ApiProperty({
     type: [ProjectTechnologyFacetEntity],

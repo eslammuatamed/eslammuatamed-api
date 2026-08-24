@@ -241,10 +241,10 @@ describe('ArticlesService', () => {
     });
   });
 
-  // D10-20: the article's own translation governs its visibility, so an article whose category
+  // The article's own translation governs its visibility, so an article whose category
   // (or tag) has no translation in the requested locale stays readable. The include already
   // scopes taxonomy translations to that locale, so "absent here" means "absent in this locale".
-  describe('taxonomy resolution (D10-20)', () => {
+  describe('taxonomy resolution', () => {
     // The payload the include produces when the category row exists but its translation for the
     // requested locale does not: the relation is loaded, its filtered translations array is empty.
     function untranslatedCategoryPayload() {
@@ -313,7 +313,7 @@ describe('ArticlesService', () => {
 
       const result = await service.getPublicBySlug('slug-en', 'en');
 
-      // Omission, not a null entry and not a blank label (D10-20 §6).
+      // Omission, not a null entry and not a blank label.
       expect(result.tags).toEqual([
         { id: 'tag-translated', name: 'NestJS', slug: 'nestjs' },
       ]);

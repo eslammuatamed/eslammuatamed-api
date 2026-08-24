@@ -35,7 +35,7 @@ export function buildPageMeta(
 // into `{ data, meta }`; every other return value becomes `{ data }`.
 //
 // `M` lets a list endpoint widen its meta with list-scoped information that is genuinely NOT
-// per-item — `/projects` carries the technology facets there (D10-19), because a facet describes
+// per-item — `/projects` carries the technology facets there, because a facet describes
 // the whole published set and so cannot live on a page of items. It defaults to `PageMeta`, so
 // every existing call site is unchanged, and the bound keeps pagination non-negotiable: a widened
 // meta ADDS to `page`/`perPage`/`total`/`totalPages`, it can never replace them.

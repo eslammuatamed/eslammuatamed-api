@@ -490,7 +490,7 @@ export class ArticlesService {
       coverImage: article.coverImage
         ? this.mediaDescriptors.resolveImage(article.coverImage, locale)
         : null,
-      // Absence is asymmetric by contract (D10-20): an untranslated category is `null` on the
+      // Absence is asymmetric by contract: an untranslated category is `null` on the
       // article, an untranslated tag drops out of the list instead of appearing blank.
       category: taxonomyRef(article.category.id, article.category.translations),
       tags: article.tags
@@ -621,7 +621,7 @@ function computeReadingTime(body: string): number {
 
 // The article's translation exists, but its category/tag translation may not — the include
 // already scoped these to the requested locale, so this array is empty when there is none.
-// Returning `null` rather than `{ name: '', slug: '' }` is D10-20: a blank placeholder is a real
+// Returning `null` rather than `{ name: '', slug: '' }` is deliberate: a blank placeholder is a real
 // object the client renders and links to, which hides the locale gap behind an empty label
 // pointing at an empty filter. Callers decide what absence means for them (doc 10 §6).
 function taxonomyRef(

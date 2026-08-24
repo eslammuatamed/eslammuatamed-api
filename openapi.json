@@ -5640,7 +5640,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Featured-first paginated published projects, plus the technology facets the filter should offer (D10-19).",
+            "description": "Featured-first paginated published projects, plus the technology facets the filter should offer.",
             "content": {
               "application/json": {
                 "schema": {
