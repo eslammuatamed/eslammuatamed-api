@@ -373,7 +373,7 @@ describe('Media pipeline (e2e)', () => {
       .expect(204);
   });
 
-  // ── The race the pre-check cannot win (D07-7) ──────────────────────────────────────────────
+  // ── The race the pre-check cannot win ──────────────────────────────────────────────────────
   //
   // The usage read at the top of `remove()` is stale the moment it returns. This proves the
   // RESTRICT foreign key — not that read — is what decides, and that the reordering keeps the

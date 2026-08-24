@@ -445,7 +445,7 @@ export class MediaService {
   }
 
   // ── Delete (DELETE /admin/media/:id) ─────────────────────────────────────────────────────────
-  // Row first, objects only after it commits (D07-7). PostgreSQL and object storage cannot share a
+  // Row first, objects only after it commits. PostgreSQL and object storage cannot share a
   // transaction, so one of the two must be able to fail alone; this ordering chooses which. The
   // usage read below is a UX affordance that produces the rich `usages` body — it is NOT the
   // correctness boundary, because it is already stale by the time the delete runs. The RESTRICT
@@ -478,7 +478,7 @@ export class MediaService {
       await this.prisma.mediaAsset.delete({ where: { id } });
     } catch (error) {
       if (isForeignKeyViolation(error)) {
-        // The race D07-7 exists for: a reference appeared between the read above and this delete.
+        // The race this ordering exists for: a reference appeared between the read above and this delete.
         // The FK rejected it, so the row and every object are still intact — storage is never
         // reached on this path. Re-read the usages so the answer keeps the established 409 + usages
         // contract instead of the filter's generic P2003 → 409, which carries no `usages`.
@@ -514,7 +514,8 @@ export class MediaService {
   // the row is gone. Not unobservable, though — a URL already returned or cached still names it, and
   // in production those objects are written with year-long immutable cache metadata and served from
   // the configured delivery origin (public access itself is bucket/domain configuration, and the
-  // local adapter sets neither serving nor cache headers). That is the recoverable side of D07-7, so it is
+  // local adapter sets neither serving nor cache headers). That is the recoverable side of this
+  // ordering, so it is
   // logged for an operator and never thrown.
   // Throwing would tell the client the deletion failed after it had already succeeded, and invite a
   // retry of a request that has nothing left to delete.
@@ -696,7 +697,7 @@ function isUniqueViolationOnContentHash(error: unknown): boolean {
   return asText.includes('content_hash') || asText.includes('contentHash');
 }
 
-// A referential rejection of the authoritative delete (D07-7). This is NOT a second Prisma error
+// A referential rejection of the authoritative delete. This is NOT a second Prisma error
 // translator: `AllExceptionsFilter` still owns every mapping, including its generic P2003 → 409.
 // This predicate only decides whether THIS delete has earned the richer 409 that carries `usages`,
 // which is domain knowledge the global filter cannot have. Verified against a real database under
