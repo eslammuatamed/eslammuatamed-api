@@ -120,7 +120,8 @@ export class PublicSiteSettingsEntity {
   readonly customMetas!: CustomMetaEntity[];
 
   // Nullable $ref: an explicit `allOf` with a sibling `nullable` (and NO `type: object`, which
-  // @nestjs/swagger would otherwise add and which makes strict jest-openapi/AJV reject `null`).
+  // @nestjs/swagger would otherwise add and which makes strict OpenAPI response validation
+  // reject `null`).
   @ApiProperty({
     nullable: true,
     allOf: [{ $ref: getSchemaPath(PublicMediaPdfDescriptor) }],

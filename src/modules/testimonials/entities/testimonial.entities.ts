@@ -5,7 +5,8 @@ export class PublicTestimonialEntity {
   @ApiProperty({ format: 'uuid' }) readonly id!: string;
   @ApiProperty({ type: String, nullable: true, format: 'uuid' })
   readonly avatarId!: string | null;
-  // Nullable $ref: explicit allOf + sibling nullable, no `type: object` (jest-openapi/AJV null fix).
+  // Nullable $ref: explicit allOf + sibling nullable, no `type: object` — strict OpenAPI response
+  // validation rejects `null` against a plain `$ref` schema.
   @ApiProperty({
     nullable: true,
     allOf: [{ $ref: getSchemaPath(PublicMediaImageDescriptor) }],

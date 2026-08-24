@@ -85,7 +85,7 @@ providers: [
 
 ## الاختبارات وما تُثبته
 
-`all-exceptions.filter.spec.ts` (تعيينات `RFC 7807` — يشمل تعقيم 500 دون إفشاء، وتعيين `http-error` العميليّ 413/جسم كبير و400/JSON مُشوَّه مع منع تسرّب الرسالة، وبقاء 5xx مُعقَّمًا)، `response-envelope.interceptor.spec.ts` (شكلا الغلاف)، `validation-problem.exception.spec.ts` (تسطيح مسارات الحقول). مساعدات Swagger تجعل تأكيدات `jest-openapi` تغطّي مسارات الخطأ أيضًا.
+`all-exceptions.filter.spec.ts` (تعيينات `RFC 7807` — يشمل تعقيم 500 دون إفشاء، وتعيين `http-error` العميليّ 413/جسم كبير و400/JSON مُشوَّه مع منع تسرّب الرسالة، وبقاء 5xx مُعقَّمًا)، `response-envelope.interceptor.spec.ts` (شكلا الغلاف)، `validation-problem.exception.spec.ts` (تسطيح مسارات الحقول). مساعدات Swagger تجعل تأكيدات مطابقة العقد تغطّي مسارات الخطأ أيضًا.
 
 ## أخطاء شائعة
 

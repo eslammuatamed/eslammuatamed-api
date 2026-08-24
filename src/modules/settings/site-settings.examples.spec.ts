@@ -1,4 +1,4 @@
-import jestOpenAPI from 'jest-openapi';
+import jestOpenAPI from '@ehuelsmann/jest-openapi';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
@@ -16,7 +16,8 @@ import { PUBLIC_SITE_SETTINGS_RESPONSE_EXAMPLES } from './site-settings.examples
  * 1. THE EXAMPLES MUST BE COMPLETE AND VALID. Prism replays an example verbatim, so a missing or
  *    mistyped field is served to every gate that runs against the contract — it does not fail at
  *    export time. They are validated here against the exported document with the SAME oracle the
- *    e2e contract suite uses (`jest-openapi`), rather than a hand-rolled shape check.
+ *    e2e contract suite registers in `test/utils/contract.ts`, rather than a hand-rolled shape
+ *    check.
  *
  * 2. THE GOVERNED VALUES MUST BE THE CANONICAL ONES. `src/` cannot import the canonical dataset —
  *    `tsconfig.build.json` excludes `prisma/`, so a runtime import would restructure `dist/` and
