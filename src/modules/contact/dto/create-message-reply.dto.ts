@@ -26,7 +26,7 @@ const TrimIfString = (): PropertyDecorator =>
 export class CreateMessageReplyDto {
   @ApiProperty({
     description:
-      'The plain-text reply body. Plain text only — no HTML representation exists (D02-13e).',
+      'The plain-text reply body. Plain text only — no HTML representation exists (D02-13).',
     minLength: 1,
     maxLength: 5000,
     example: 'Thanks for reaching out — I can take a look at this next week.',
