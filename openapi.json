@@ -3402,7 +3402,10 @@
                   ],
                   "properties": {
                     "data": {
-                      "$ref": "#/components/schemas/RoleEntity"
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/RoleEntity"
+                      }
                     }
                   }
                 }
@@ -3843,7 +3846,10 @@
                   ],
                   "properties": {
                     "data": {
-                      "$ref": "#/components/schemas/UserEntity"
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/UserEntity"
+                      }
                     }
                   }
                 }
