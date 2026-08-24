@@ -11554,7 +11554,7 @@
         "properties": {
           "body": {
             "type": "string",
-            "description": "The plain-text reply body. Plain text only — no HTML representation exists (D02-13e).",
+            "description": "The plain-text reply body. Plain text only — no HTML representation exists (D02-13).",
             "minLength": 1,
             "maxLength": 5000,
             "example": "Thanks for reaching out — I can take a look at this next week."
