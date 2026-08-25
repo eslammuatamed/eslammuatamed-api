@@ -152,10 +152,15 @@ contains valid `.d.ts` files — verify by checking that `dist/index.d.ts` exist
 tarball and `npm run typecheck` passes, then move to a caret range if desired. 0.18.x itself is not
 permanently unsupported; only its current packaging blocks it.
 
-**Known validation limitation (pre-existing, preserved by design):** `toSatisfyApiSpec()` enforces
-structure — path/method/status documentation, required properties, types, enums, `$ref`,
-`nullable`/`allOf` — but does **not** enforce OpenAPI `format` keywords such as `uuid`,
-`date-time`, or `email`. This gap predates the validator migration; the migration intentionally
-preserves behavior rather than fixing it. Do not rely on format constraints being checked by the
-contract suite; a future dedicated task may replace or extend the matcher engine if enforcing
-formats becomes worth owning that code.
+**Response format enforcement:** on top of the structural rules above, `toSatisfyApiSpec()`
+enforces the response-relevant standard string formats declared in `openapi.json` —
+`uuid`, `date-time`, `email`, `uri`, and `date`. Format semantics come from
+`ajv-formats`; a violating response fails with diagnostics like
+`` /data/portraitAssetId must match format "uuid" ``. Two OpenAPI format hints are
+deliberately not enforced as body rules: `binary` (request-serialization metadata for the
+media upload) and `int32` (appears only on 429 `Retry-After` headers, which this body
+validator does not read). The enforcement layer is repository-owned glue in
+`test/utils/format-enforcement.ts`: structural validation stays authoritative in
+`@ehuelsmann/openapi-validator`'s public API, and only after it passes is the resolved
+response schema re-validated once through `openapi-response-validator`'s public
+`customFormats` option.
