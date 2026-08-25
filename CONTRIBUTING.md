@@ -134,11 +134,21 @@ passed), no `Map`/`Set` appears in the input, and `deepmerge-ts` 7.1.5 and 8.0.1
 output** on that real input — so 8.x's breaking changes (recursive `Map` merging, `deepmergeInto`
 leak-mutation, two type renames) are structurally unreachable here.
 
-### Contract-test validator: exact pin and known limitation
+### Contract-test validator: exact pin and repo-owned evaluator
 
-The OpenAPI contract matchers (`expect(res).toSatisfyApiSpec()`, registered once in
-`test/utils/contract.ts`) come from `@ehuelsmann/jest-openapi`, which is **exact-pinned**
-(`"0.17.3"`, no caret) on purpose:
+The response matcher `expect(res).toSatisfyApiSpec()` is **repository-owned**: its evaluator
+lives in `test/utils/format-enforcement.ts` and is registered — alongside the base
+`@ehuelsmann/jest-openapi` registration it overrides — only in `test/utils/contract.ts`, which
+is the single place in the tree allowed to touch that package directly. Delegation:
+
+- structural validation (route/method/status documentation, required properties, types, enums,
+  `$ref`, `nullable`/`allOf`) → `@ehuelsmann/openapi-validator`'s public `validateResponse()`,
+  which stays the first gate;
+- format validation (below) → `openapi-response-validator`'s public `customFormats` option,
+  with semantics supplied by `ajv-formats`.
+
+`@ehuelsmann/jest-openapi` itself contributes the Jest integration, the global matcher typings,
+and `toSatisfySchemaInApiSpec`; it is **exact-pinned** (`"0.17.3"`, no caret) on purpose:
 
 - 0.17.3 is verified against this repo's toolchain (Node 24, Jest 30, strict TypeScript with
   NodeNext resolution) and preserves the previous validator's behavior exactly.
@@ -154,13 +164,8 @@ permanently unsupported; only its current packaging blocks it.
 
 **Response format enforcement:** on top of the structural rules above, `toSatisfyApiSpec()`
 enforces the response-relevant standard string formats declared in `openapi.json` —
-`uuid`, `date-time`, `email`, `uri`, and `date`. Format semantics come from
-`ajv-formats`; a violating response fails with diagnostics like
-`` /data/portraitAssetId must match format "uuid" ``. Two OpenAPI format hints are
+`uuid`, `date-time`, `email`, `uri`, and `date`. A violating response fails with diagnostics
+like `` /data/portraitAssetId must match format "uuid" ``. Two OpenAPI format hints are
 deliberately not enforced as body rules: `binary` (request-serialization metadata for the
 media upload) and `int32` (appears only on 429 `Retry-After` headers, which this body
-validator does not read). The enforcement layer is repository-owned glue in
-`test/utils/format-enforcement.ts`: structural validation stays authoritative in
-`@ehuelsmann/openapi-validator`'s public API, and only after it passes is the resolved
-response schema re-validated once through `openapi-response-validator`'s public
-`customFormats` option.
+validator does not read).
