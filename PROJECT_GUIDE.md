@@ -125,7 +125,7 @@ interceptor فيلفّ تنفيذه ويعمل **بعد** نجاحه، والـ 
 
 > ملاحظة: مكتبات خط الوسائط (`sharp`, `@aws-sdk/client-s3`, `blurhash`, `load-esm`) هي **جزء من هذا الأساس**.
 
-**أهم تبعيات التطوير:** `@nestjs/testing` + `jest` + `ts-jest` (اختبارات الوحدة)، `supertest` + `jest-openapi` (اختبارات e2e مع تأكيد مطابقة العقد)، `jest-mock-extended` (mocking لـ `PrismaService`)، `prisma` CLI، `eslint` + `typescript-eslint` + `prettier` + `husky` + `lint-staged` (بوابات الجودة).
+**أهم تبعيات التطوير:** `@nestjs/testing` + `jest` + `ts-jest` (اختبارات الوحدة)، `supertest` + `@ehuelsmann/jest-openapi` (اختبارات e2e مع تأكيد مطابقة العقد)، `jest-mock-extended` (mocking لـ `PrismaService`)، `prisma` CLI، `eslint` + `typescript-eslint` + `prettier` + `husky` + `lint-staged` (بوابات الجودة).
 
 سياسة إضافة أي تبعية جديدة صارمة (`principle 14`، [الوثيقة 16 §4](../eslammuatamed-docs/docs/16-development-conventions.md)): إطار مدمج ← تبعية قائمة ← وحدة من نظام الإطار ← ثم طرف ثالث بمبرّر مكتوب.
 
@@ -292,7 +292,7 @@ npx tsc --noEmit         # فحص الأنواع
 npm test                 # اختبارات الوحدة (jest) — بلا قاعدة بيانات
 npm run contract:export  # → openapi.json (بلا قاعدة بيانات)
 npx prisma migrate deploy && npm run db:seed   # تهيئة قاعدة البيانات المحلّية
-npm run test:e2e         # يحتاج PostgreSQL (Supertest + jest-openapi)
+npm run test:e2e         # يحتاج PostgreSQL (Supertest + تأكيدات مطابقة العقد)
 ```
 
 **البوابات (بلا قاعدة بيانات — لأن الاتصال كسول):** `lint`, `tsc --noEmit`, `npm test`, `contract:export`.

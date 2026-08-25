@@ -53,7 +53,7 @@ npm run contract:export       # → openapi.json (العقد الرسمي)
 ثم تُسقطه في النهاية.
 
 ```bash
-npm run test:e2e              # Supertest + jest-openapi — يبني dist-ops تلقائيًّا
+npm run test:e2e              # Supertest + تأكيدات مطابقة العقد — يبني dist-ops تلقائيًّا
 ```
 
 > **ليه مفيش خطوة `migrate`/`seed` يدويّة؟** لأنّ للتهيئة **مالكًا واحدًا** هو الحزمة نفسها؛ مالكان

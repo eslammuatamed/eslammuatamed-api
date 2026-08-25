@@ -153,7 +153,8 @@ export class PublicProjectDetailEntity extends PublicProjectListItemEntity {
   @ApiProperty({ type: String, nullable: true, format: 'uuid' })
   readonly ogImageId!: string | null;
 
-  // Nullable $ref: explicit allOf + sibling nullable, no `type: object` (jest-openapi/AJV null fix).
+  // Nullable $ref: explicit allOf + sibling nullable, no `type: object` — strict OpenAPI response
+  // validation rejects `null` against a plain `$ref` schema.
   @ApiProperty({
     nullable: true,
     allOf: [{ $ref: getSchemaPath(PublicMediaImageDescriptor) }],

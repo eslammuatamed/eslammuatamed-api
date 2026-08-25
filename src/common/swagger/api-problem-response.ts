@@ -7,7 +7,7 @@ import {
 
 // Documents an RFC 7807 error response (doc 10 §3) with the shared ProblemDetails schema under
 // the `application/problem+json` media type — exactly what the global exception filter emits, so
-// jest-openapi contract assertions cover error paths too. @ApiExtraModels forces ProblemDetailsDto
+// contract assertions cover error paths too. @ApiExtraModels forces ProblemDetailsDto
 // (and its nested FieldErrorDto) into components.schemas even though no body/param references it.
 export function ApiProblemResponse(
   status: number,

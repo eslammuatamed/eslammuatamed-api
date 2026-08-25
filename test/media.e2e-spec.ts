@@ -35,7 +35,8 @@ import { loadApiSpec } from './utils/contract';
 
 // End-to-end media pipeline against the real AppModule + a fresh migrated/seeded Postgres (doc 18
 // §2). Storage is the local adapter (STORAGE_DRIVER=local) — no R2 network call.
-// Contract assertions use the exported openapi.json as the oracle (jest-openapi).
+// Contract assertions use the exported openapi.json as the oracle (registered in
+// test/utils/contract.ts).
 
 // A run-unique seed so re-runs never collide on contentHash (dedup would turn a 201 into a 200).
 const RUN = Date.now();

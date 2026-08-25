@@ -118,8 +118,6 @@ a bare `"child": "…"` entry rewrites the version for _every_ consumer in the t
 
 | Override                                  | Reason                                                                                                                                                                                                                           | Retire when                                                                                                                                                                                                                                                                      |
 | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `openapi-validator` → `axios`             | pre-existing                                                                                                                                                                                                                     | upstream ships a non-vulnerable `axios` range                                                                                                                                                                                                                                    |
-| `@nestjs/swagger` → `js-yaml`             | pre-existing                                                                                                                                                                                                                     | upstream ships a non-vulnerable `js-yaml` range                                                                                                                                                                                                                                  |
 | `@prisma/config` → `deepmerge-ts: ^8.0.1` | **CVE-2026-40345 / GHSA-ggr8-5vv4-36mx** (high, CWE-674). `@prisma/config@7.9.1` **exact-pins** `deepmerge-ts@7.1.5`, so no package manager can dedupe to the patched 8.0.0+ and `npm audit --audit-level=high` blocks every PR. | **Prisma publishes a `@prisma/config` that depends on `deepmerge-ts >= 8.0.0`** — tracked upstream at [prisma/prisma#30052](https://github.com/prisma/prisma/issues/30052). Then delete this entry, `npm install`, and confirm `npm ls deepmerge-ts` shows the upstream version. |
 
 ### On the `deepmerge-ts` override specifically (added 2026-08-17)
@@ -135,3 +133,29 @@ only 1 is defined** (`extend`/`rcFile`/`giget`/`packageJson`/`dotenv` are all `f
 passed), no `Map`/`Set` appears in the input, and `deepmerge-ts` 7.1.5 and 8.0.1 produce **byte-identical
 output** on that real input — so 8.x's breaking changes (recursive `Map` merging, `deepmergeInto`
 leak-mutation, two type renames) are structurally unreachable here.
+
+### Contract-test validator: exact pin and known limitation
+
+The OpenAPI contract matchers (`expect(res).toSatisfyApiSpec()`, registered once in
+`test/utils/contract.ts`) come from `@ehuelsmann/jest-openapi`, which is **exact-pinned**
+(`"0.17.3"`, no caret) on purpose:
+
+- 0.17.3 is verified against this repo's toolchain (Node 24, Jest 30, strict TypeScript with
+  NodeNext resolution) and preserves the previous validator's behavior exactly.
+- The published 0.18.x artifacts reference TypeScript declaration files that are absent from the
+  npm package, so installing them breaks `tsc --noEmit` at every matcher call site.
+- An exact pin means an upgrade to a fixed release line is always a deliberate reviewed change,
+  never an automatic drift within a broken range.
+
+**Exit condition:** bump off 0.17.3 as soon as upstream publishes a release whose artifact actually
+contains valid `.d.ts` files — verify by checking that `dist/index.d.ts` exists inside the published
+tarball and `npm run typecheck` passes, then move to a caret range if desired. 0.18.x itself is not
+permanently unsupported; only its current packaging blocks it.
+
+**Known validation limitation (pre-existing, preserved by design):** `toSatisfyApiSpec()` enforces
+structure — path/method/status documentation, required properties, types, enums, `$ref`,
+`nullable`/`allOf` — but does **not** enforce OpenAPI `format` keywords such as `uuid`,
+`date-time`, or `email`. This gap predates the validator migration; the migration intentionally
+preserves behavior rather than fixing it. Do not rely on format constraints being checked by the
+contract suite; a future dedicated task may replace or extend the matcher engine if enforcing
+formats becomes worth owning that code.
