@@ -166,9 +166,9 @@ jobs:
     needs: preflight
     if: needs.preflight.outputs.action == 'release'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -262,9 +262,9 @@ jobs:
       STORAGE_LOCAL_DIR: ./storage
       PUBLIC_MEDIA_URL: http://localhost:3001/media
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -304,7 +304,7 @@ jobs:
     needs: [preflight, verify, e2e]
     if: needs.preflight.outputs.action == 'release'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         id: checkout
 
       - name: Confirm checked-out HEAD == github.sha
@@ -316,7 +316,7 @@ jobs:
           [ "$HEAD_SHA" = "$SHA" ] || { echo "::error::HEAD ($HEAD_SHA) != github.sha ($SHA)"; exit 1; }
           echo "Building exact SHA $SHA."
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
