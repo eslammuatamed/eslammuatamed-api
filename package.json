@@ -142,5 +142,12 @@
       "<rootDir>/../test/utils",
       "<rootDir>/../scripts"
     ]
+  },
+  "allowScripts": {
+    "prisma@7.9.1": true,
+    "@prisma/engines@7.9.1": true,
+    "argon2@0.45.1": true,
+    "unrs-resolver@1.12.2": true,
+    "@scarf/scarf": false
   }
 }
