@@ -74,9 +74,9 @@ jobs:
     name: Lint · Typecheck · Unit · Contract
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -94,7 +94,7 @@ jobs:
       # documented pattern for workflows triggered by both actors), so Dependabot PRs run
       # this identical gate with no skip condition.
       - name: Checkout governing docs (read-only)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: eslammuatamed/eslammuatamed-docs
           ref: main
@@ -171,7 +171,7 @@ jobs:
           fi
 
       - name: Upload OpenAPI artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: openapi
           path: openapi.json
@@ -225,9 +225,9 @@ jobs:
       STORAGE_LOCAL_DIR: ./storage
       PUBLIC_MEDIA_URL: http://localhost:3001/media
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
