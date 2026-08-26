@@ -169,3 +169,39 @@ like `` /data/portraitAssetId must match format "uuid" ``. Two OpenAPI format hi
 deliberately not enforced as body rules: `binary` (request-serialization metadata for the
 media upload) and `int32` (appears only on 429 `Retry-After` headers, which this body
 validator does not read).
+
+## npm lifecycle-script trust
+
+This repository explicitly reviews every package whose install runs lifecycle scripts
+(`preinstall` / `install` / `postinstall`). The reviewed decisions live in the
+[`allowScripts`](package.json) field, maintained with `npm approve-scripts` / `npm deny-scripts`
+(npm 11.17). Approvals are pinned to an exact version (`pkg@x.y.z: true`); denials are
+name-scoped (`pkg: false`).
+
+**Approved** (script purpose; why it is allowed to run):
+
+| Entry | Script | Reason |
+| ----- | ------ | ------ |
+| `prisma@7.9.1` | preinstall | Node/runtime compatibility check only — but denying it currently breaks npm's Prisma CLI bin-link path (`npx prisma` fails), so it stays approved. |
+| `@prisma/engines@7.9.1` | postinstall | Downloads the Prisma schema-engine binary into `node_modules`. Keeping it approved keeps the engine inside CI-installed trees and therefore inside the packaged release tarball — production `prisma migrate deploy` must not depend on outbound recovery downloads. |
+| `argon2@0.45.1` | install | Native-module fallback builder (`node-gyp-build`). The current Linux/Node 24 package already ships a usable prebuild, but the lifecycle script is explicitly reviewed rather than silently trusted. |
+| `unrs-resolver@1.12.2` | postinstall | Native-binding fallback installer. The current Linux binding is supplied by its optional dependency (`@unrs/resolver-binding-linux-x64-gnu`), so the script is a verified no-op here — still explicitly reviewed. |
+
+**Denied:**
+
+| Entry | Script | Reason |
+| ----- | ------ | ------ |
+| `@scarf/scarf` | postinstall | Telemetry-only install report to scarf.sh (pulled in via `@nestjs/swagger` → `swagger-ui-dist`). Not required for Swagger or any runtime functionality; install-time telemetry is intentionally disabled. |
+
+**Current limitation — read before bumping dependencies.** On npm 11.x, `allowScripts` is
+advisory for **unlisted** packages: an uncovered lifecycle script still executes, and npm only
+warns about it (a future npm major flips this to block-by-default). Explicit `false` entries,
+by contrast, already take effect and skip the script. Therefore:
+
+- Every dependency bump that changes one of the version-pinned approved entries requires
+  re-review: inspect the new version's scripts, side effects, and network behavior, then
+  re-run `npm approve-scripts <pkg>` (which pins the new version).
+- A package newly reported as "not yet covered by allowScripts" must **not** be automatically
+  approved — inspect what its script does first.
+- Explicit `false` entries are intentional denials, not oversights; do not flip them without
+  the same review.
