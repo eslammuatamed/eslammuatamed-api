@@ -1,0 +1,56 @@
+name: Private offsite database backup
+
+on:
+  schedule:
+    - cron: '17 6 * * 0'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: private-offsite-database-backup
+  cancel-in-progress: false
+
+jobs:
+  trigger-vps-backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Materialize the dedicated backup SSH identity
+        env:
+          BACKUP_SSH_KEY: ${{ secrets.BACKUP_SSH_KEY }}
+          BACKUP_KNOWN_HOSTS: ${{ secrets.BACKUP_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p "$RUNNER_TEMP/offsite-backup-ssh"
+          printf '%s\n' "$BACKUP_SSH_KEY" > "$RUNNER_TEMP/offsite-backup-ssh/id_ed25519"
+          printf '%s\n' "$BACKUP_KNOWN_HOSTS" > "$RUNNER_TEMP/offsite-backup-ssh/known_hosts"
+          chmod 600 "$RUNNER_TEMP/offsite-backup-ssh/id_ed25519"
+          chmod 600 "$RUNNER_TEMP/offsite-backup-ssh/known_hosts"
+
+      - name: Invoke the restricted VPS backup command
+        env:
+          BACKUP_SSH_HOST: ${{ vars.BACKUP_SSH_HOST }}
+          BACKUP_SSH_USER: ${{ vars.BACKUP_SSH_USER }}
+          BACKUP_SSH_PORT: ${{ vars.BACKUP_SSH_PORT }}
+        run: |
+          set -euo pipefail
+          : "${BACKUP_SSH_HOST:?BACKUP_SSH_HOST is required}"
+          : "${BACKUP_SSH_USER:?BACKUP_SSH_USER is required}"
+          : "${BACKUP_SSH_PORT:?BACKUP_SSH_PORT is required}"
+          ssh -T \
+            -i "$RUNNER_TEMP/offsite-backup-ssh/id_ed25519" \
+            -o BatchMode=yes \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/offsite-backup-ssh/known_hosts" \
+            -o ConnectTimeout=15 \
+            -o ServerAliveInterval=15 \
+            -o ServerAliveCountMax=2 \
+            -p "$BACKUP_SSH_PORT" \
+            "$BACKUP_SSH_USER@$BACKUP_SSH_HOST"
+
+      - name: Remove dedicated backup SSH material
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/offsite-backup-ssh"
