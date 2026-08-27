@@ -251,11 +251,39 @@ describe('remote integrity and idempotency', () => {
 
     expect(run().status).toBe(0);
     expect(fs.existsSync(path.join(remoteDir, `${key}.manifest`))).toBe(true);
+    expect(fs.readFileSync(target)).toEqual(fs.readFileSync(backup));
     expect(
       operations().filter(
         (line) => line.startsWith('copyto ') && line.includes('.sql.gz '),
       ),
     ).toHaveLength(0);
+    expect(
+      operations().findIndex(
+        (line) => line === `cat test-r2:private-db-backups/${key}`,
+      ),
+    ).toBeLessThan(
+      operations().findIndex(
+        (line) =>
+          line.startsWith('copyto ') && line.includes(`${key}.manifest`),
+      ),
+    );
+  });
+
+  it('fails closed on mismatched unmanifested data without creating a manifest', () => {
+    const backup = makeBackup('20260826T031500Z', 7_200);
+    const key = remoteKeyFor(backup);
+    const target = path.join(remoteDir, key);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, 'different remote backup bytes');
+
+    const result = run();
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain(
+      'existing unmanifested remote backup SHA-256 conflicts with local backup',
+    );
+    expect(fs.existsSync(path.join(remoteDir, `${key}.manifest`))).toBe(false);
+    expect(operations()).not.toContainEqual(expect.stringContaining('copyto'));
   });
 
   it('fails closed on a conflicting manifest', () => {
