@@ -59,9 +59,10 @@ ETag هو MD5. [توافق S3 في R2](https://developers.cloudflare.com/r2/api/
 ## مفتاح SSH المخصّص
 
 الخيار الموصى به هو **مفتاح مستقل على حساب `deploy` القائم**، لا مستخدم Unix جديد: إدخال
-`authorized_keys` مقيّد بـ`command="/usr/local/lib/eslammuatamed/offsite-backup.sh"` وبـ
-`no-pty,no-port-forwarding,no-agent-forwarding,no-X11-forwarding`, ولا يقبل أمر العميل. بذلك تظل
-صلاحيات الملف واضحة وأقل من حساب جديد، مع حد ثقة مستقل عن مفتاح النشر. Phase B/C وحدها تضيف ذلك.
+`authorized_keys` مقيّد بـ`restrict,command="/usr/local/lib/eslammuatamed/offsite-backup.sh"`،
+ولا يقبل أمر العميل. `restrict` هو primitive OpenSSH المخصص: يمنع PTY وport/agent/X11 forwarding
+وتنفيذ `~/.ssh/rc`، ويضم أي قيود مستقبلية يضيفها OpenSSH. بذلك تظل صلاحيات الملف واضحة وأقل من
+حساب جديد، مع حد ثقة مستقل عن مفتاح النشر. Phase B/C وحدها تضيف ذلك.
 
 تستخدم workflow مستقبلًا `BACKUP_SSH_KEY`, `BACKUP_KNOWN_HOSTS`, و`BACKUP_SSH_HOST`,
 `BACKUP_SSH_USER`, `BACKUP_SSH_PORT`; لا تعيد استخدام أسرار `DEPLOY_*`. الاتصال `ssh -T` فقط،

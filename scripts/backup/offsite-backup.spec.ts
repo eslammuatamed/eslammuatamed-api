@@ -35,18 +35,25 @@ to_local() { local target="$1"; printf '%s/%s' "$FAKE_RCLONE_REMOTE" "\${target#
 case "$cmd" in
   lsf)
     [[ "\${FAKE_RCLONE_SLEEP_LSF:-0}" == 1 ]] && sleep 1
+    recursive=0
+    if [[ "$1" == -R || "$1" == --recursive ]]; then recursive=1; shift; fi
     [[ "$1" == "$root" ]]; shift
     include=''
     while (($#)); do
       if [[ "$1" == --include ]]; then include="$2"; shift 2; else shift; fi
     done
-    [[ -f "$FAKE_RCLONE_REMOTE/$include" ]] && printf '%s\n' "$include"
+    if ((recursive)) || [[ "$include" != */* ]]; then
+      [[ -f "$FAKE_RCLONE_REMOTE/$include" ]] && printf '%s\n' "$include"
+    fi
     ;;
   copyto)
     ignore=0
     [[ "\${1:-}" == --ignore-existing ]] && { ignore=1; shift; }
     from="$1"; to="$2"; local_to="$(to_local "$to")"
     mkdir -p "$(dirname "$local_to")"
+    if [[ "\${FAKE_RCLONE_INJECT_CONFLICTING_MANIFEST:-0}" == 1 && "$to" == *.sql.gz ]]; then
+      printf 'version=1\nsource_filename=concurrent.sql.gz\nsize_bytes=1\nsha256=0\ncompleted_at_utc=20260826T060000Z\n' > "\${local_to}.manifest"
+    fi
     if ((ignore)) && [[ -e "$local_to" ]]; then exit 0; fi
     cp -- "$from" "$local_to"
     ;;
@@ -257,15 +264,52 @@ describe('remote integrity and idempotency', () => {
     const target = path.join(remoteDir, key);
     fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.copyFileSync(backup, target);
+    const conflictingManifest =
+      'version=1\nsource_filename=wrong.sql.gz\nsize_bytes=1\nsha256=0\ncompleted_at_utc=20260826T060000Z\n';
     fs.writeFileSync(
       path.join(remoteDir, `${key}.manifest`),
-      'version=1\nsource_filename=wrong.sql.gz\nsize_bytes=1\nsha256=0\ncompleted_at_utc=20260826T060000Z\n',
+      conflictingManifest,
     );
 
     const result = run();
 
     expect(result.status).not.toBe(0);
     expect(result.stderr).toContain('existing completion manifest conflicts');
+    expect(
+      fs.readFileSync(path.join(remoteDir, `${key}.manifest`), 'utf8'),
+    ).toBe(conflictingManifest);
+    expect(operations()).not.toContainEqual(expect.stringContaining('copyto'));
+  });
+
+  it('fails closed when a manifest exists without its data object', () => {
+    const backup = makeBackup('20260826T031500Z', 7_200);
+    const key = remoteKeyFor(backup);
+    const manifest = path.join(remoteDir, `${key}.manifest`);
+    fs.mkdirSync(path.dirname(manifest), { recursive: true });
+    fs.writeFileSync(manifest, 'incomplete marker');
+
+    const result = run();
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain(
+      'completion manifest exists without its data object',
+    );
+    expect(fs.readFileSync(manifest, 'utf8')).toBe('incomplete marker');
+    expect(operations()).not.toContainEqual(expect.stringContaining('copyto'));
+  });
+
+  it('fails closed without overwriting a manifest that appears during a retry', () => {
+    const backup = makeBackup('20260826T031500Z', 7_200);
+    const key = remoteKeyFor(backup);
+    const manifest = path.join(remoteDir, `${key}.manifest`);
+
+    const result = run({ FAKE_RCLONE_INJECT_CONFLICTING_MANIFEST: '1' });
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('completion manifest verification failed');
+    expect(fs.readFileSync(manifest, 'utf8')).toContain(
+      'source_filename=concurrent.sql.gz',
+    );
   });
 });
 

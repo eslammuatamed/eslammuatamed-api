@@ -81,7 +81,7 @@ remote_path() {
 remote_has_file() {
   local key="$1"
   local listing
-  listing="$($RCLONE_BIN --config "$RCLONE_CONFIG_FILE" lsf "$RCLONE_ROOT" \
+  listing="$($RCLONE_BIN --config "$RCLONE_CONFIG_FILE" lsf -R "$RCLONE_ROOT" \
     --files-only --format p --include "$key")"
   [[ -n "$listing" ]]
 }
@@ -130,7 +130,7 @@ write_manifest() {
   TEMPORARY_MANIFEST="$(mktemp)"
   printf 'version=1\nsource_filename=%s\nsize_bytes=%s\nsha256=%s\ncompleted_at_utc=%s\n' \
     "$filename" "$size" "$sha256" "$(date -u +%Y%m%dT%H%M%SZ)" > "$TEMPORARY_MANIFEST"
-  "$RCLONE_BIN" --config "$RCLONE_CONFIG_FILE" copyto "$TEMPORARY_MANIFEST" "$(remote_path "$key")"
+  "$RCLONE_BIN" --config "$RCLONE_CONFIG_FILE" copyto --ignore-existing "$TEMPORARY_MANIFEST" "$(remote_path "$key")"
   rm -f -- "$TEMPORARY_MANIFEST"
   TEMPORARY_MANIFEST=""
 }
