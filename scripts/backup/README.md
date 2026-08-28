@@ -29,13 +29,15 @@ SHA-256، ووقت الإتمام UTC. إعادة المحاولة آمنة: ك�
 
 ## عقد Phase B/C (لا تثبيت في هذه المرحلة)
 
-| المسار                                           | المالك/الوضع المقترح    | الغرض                                              |
-| ------------------------------------------------ | ----------------------- | -------------------------------------------------- |
-| `/usr/local/lib/eslammuatamed/offsite-backup.sh` | `deploy:deploy`, `0750` | نسخة السكربت من هذه الشجرة                         |
-| `/srv/backups/offsite/offsite.env`               | `deploy:deploy`, `0600` | `OFFSITE_RCLONE_CONFIG` و`OFFSITE_RCLONE_ROOT` فقط |
-| `/srv/backups/offsite/rclone.conf`               | `deploy:deploy`, `0600` | إعداد S3/R2 والاعتماد ذو النطاق المحدود            |
-| `/srv/backups/offsite/offsite.lock`              | `deploy:deploy`, `0600` | قفل `flock` لمنع التداخل                           |
-| `/srv/backups/postgres/`                         | موجود مسبقًا            | مصدر النسخ الليلية؛ لا يعدّله هذا السكربت          |
+| المسار                                           | المالك/الوضع المقترح    | الغرض                                                           |
+| ------------------------------------------------ | ----------------------- | --------------------------------------------------------------- |
+| `/usr/local/lib/eslammuatamed/offsite-backup.sh` | `root:deploy`, `0750`   | نسخة السكربت من هذه الشجرة؛ تنفّذها مجموعة `deploy` ولا تعدّلها |
+| `/srv/backups/offsite/offsite.env`               | `deploy:deploy`, `0600` | `OFFSITE_RCLONE_CONFIG` و`OFFSITE_RCLONE_ROOT` فقط              |
+| `/srv/backups/offsite/rclone.conf`               | `deploy:deploy`, `0600` | إعداد S3/R2 والاعتماد ذو النطاق المحدود                         |
+| `/srv/backups/offsite/offsite.lock`              | `deploy:deploy`, `0600` | قفل `flock` لمنع التداخل                                        |
+| `/srv/backups/postgres/`                         | موجود مسبقًا            | مصدر النسخ الليلية؛ لا يعدّله هذا السكربت                       |
+
+ملكية `root:deploy` ووضع `0750` مقصودان: يستطيع حساب `deploy` تنفيذ الملف عبر صلاحية المجموعة، لكنه لا يستطيع تعديل برنامج الأمر الإجباري نفسه.
 
 تُثبت Phase B/C نسخة `rclone` **v1.75.0** المطابقة حرفيًا لعقد السكربت، من أرشيف Linux الرسمي
 للإصدار المحدد مع تحقق توقيع/مجموع تحقق منشور قبل النقل إلى `/usr/local/bin/rclone`. لا تستخدم
