@@ -67,3 +67,7 @@ ETag هو MD5. [توافق S3 في R2](https://developers.cloudflare.com/r2/api/
 تستخدم workflow مستقبلًا `BACKUP_SSH_KEY`, `BACKUP_KNOWN_HOSTS`, و`BACKUP_SSH_HOST`,
 `BACKUP_SSH_USER`, `BACKUP_SSH_PORT`; لا تعيد استخدام أسرار `DEPLOY_*`. الاتصال `ssh -T` فقط،
 بـ`StrictHostKeyChecking=yes` وknown_hosts مثبّت مسبقًا.
+
+متغير GitHub غير السرّي `BACKUP_OFFSITE_ENABLED` هو بوابة التفعيل الصريحة: لا ينفّذ job
+`trigger-vps-backup` ولا ينشئ أي ملف SSH عندما تكون القيمة غائبة أو فارغة أو `false`. يجب أن يبقى
+`false` إلى أن يصرّح المالك بأول تشغيل متحكّم به بعد اكتمال تهيئة البنية التحتية.

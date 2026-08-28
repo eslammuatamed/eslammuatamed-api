@@ -16,7 +16,7 @@ interface Workflow {
   concurrency?: { group?: string; ['cancel-in-progress']?: boolean };
   jobs?: Record<
     string,
-    { ['timeout-minutes']?: number; steps?: WorkflowStep[] }
+    { ['if']?: string; ['timeout-minutes']?: number; steps?: WorkflowStep[] }
   >;
 }
 
@@ -35,6 +35,14 @@ function workflow(): Workflow {
   return yaml.load(fs.readFileSync(WORKFLOW_PATH, 'utf8'));
 }
 
+function operationalJobRuns(activationValue?: string): boolean {
+  return (
+    workflow().jobs?.['trigger-vps-backup']?.['if'] ===
+      "${{ vars.BACKUP_OFFSITE_ENABLED == 'true' }}" &&
+    activationValue === 'true'
+  );
+}
+
 describe('backup-offsite workflow contract', () => {
   const doc = workflow();
   const job = doc.jobs?.['trigger-vps-backup'];
@@ -48,6 +56,14 @@ describe('backup-offsite workflow contract', () => {
     expect(source).not.toMatch(
       /^\s*(?:push|pull_request|pull_request_target|workflow_run):/m,
     );
+  });
+
+  it('does not materialize SSH material unless offsite backup is explicitly enabled', () => {
+    expect(job?.['if']).toBe("${{ vars.BACKUP_OFFSITE_ENABLED == 'true' }}");
+    expect(operationalJobRuns()).toBe(false);
+    expect(operationalJobRuns('')).toBe(false);
+    expect(operationalJobRuns('false')).toBe(false);
+    expect(operationalJobRuns('true')).toBe(true);
   });
 
   it('has no token capability, source checkout, or deployment action', () => {
