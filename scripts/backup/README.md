@@ -1,7 +1,9 @@
 # `scripts/backup` — النسخة المصدرية للنسخ الاحتياطي الخارجي الخاص
 
-> **مُنفَّذ في المستودع فقط.** لا يعني وجود هذه الملفات أنّ النسخ إلى R2 مُجهَّز أو مُفعَّل في
-> Production. التثبيت، المفتاح، إعدادات R2، وتهيئة GitHub Actions جميعها أعمال Phase B/C منفصلة.
+> **مُجهَّز لكنه غير مُفعَّل.** البنية الخاصة بالنسخ الخارجي جاهزة: bucket R2 خاص، Lifecycle وBucket
+> Lock، اعتماد `rclone` محصور بالخادم، الرافع، هوية SSH المقيّدة، وإعداد GitHub. مع ذلك تبقى
+> `BACKUP_OFFSITE_ENABLED=false`: لم يحدث رفع حقيقي لنسخة قاعدة بيانات أو تشغيل مجدول، وP1-1 ليس
+> مكتملًا بعد ولا يمنح هذا التجهيز أي تفويض لنشر Production.
 
 ## ما يفعله السكربت وما لا يفعله
 
@@ -27,35 +29,35 @@ postgres/eslammuatamed_prod-<UTC-mtime>-<sha256-prefix>.sql.gz.manifest
 SHA-256، ووقت الإتمام UTC. إعادة المحاولة آمنة: كائن + manifest مطابقان ينجحان دون رفع جديد؛
 كائن بلا manifest يُعاد فحصه ثم يُستكمل manifest؛ وأي اختلاف يفشل مغلقًا.
 
-## عقد Phase B/C (لا تثبيت في هذه المرحلة)
+## حالة تجهيز Phase B/C (غير نشطة)
 
-| المسار                                           | المالك/الوضع المقترح    | الغرض                                                           |
-| ------------------------------------------------ | ----------------------- | --------------------------------------------------------------- |
-| `/usr/local/lib/eslammuatamed/offsite-backup.sh` | `root:deploy`, `0750`   | نسخة السكربت من هذه الشجرة؛ تنفّذها مجموعة `deploy` ولا تعدّلها |
-| `/srv/backups/offsite/offsite.env`               | `deploy:deploy`, `0600` | `OFFSITE_RCLONE_CONFIG` و`OFFSITE_RCLONE_ROOT` فقط              |
-| `/srv/backups/offsite/rclone.conf`               | `deploy:deploy`, `0600` | إعداد S3/R2 والاعتماد ذو النطاق المحدود                         |
-| `/srv/backups/offsite/offsite.lock`              | `deploy:deploy`, `0600` | قفل `flock` لمنع التداخل                                        |
-| `/srv/backups/postgres/`                         | موجود مسبقًا            | مصدر النسخ الليلية؛ لا يعدّله هذا السكربت                       |
+| المسار                                           | المالك/الوضع المقترح    | الغرض                                                   |
+| ------------------------------------------------ | ----------------------- | ------------------------------------------------------- |
+| `/usr/local/lib/eslammuatamed/offsite-backup.sh` | `root:deploy`, `0750`   | الرافع المثبّت؛ تنفّذه مجموعة `deploy` ولا تعدّله       |
+| `/usr/local/bin/rclone`                          | مثبّت للخادم فقط        | `rclone` v1.75.0 المتعاقد عليه                          |
+| `/srv/backups/offsite/offsite.env`               | `deploy:deploy`, `0600` | `OFFSITE_RCLONE_CONFIG` و`OFFSITE_RCLONE_ROOT` فقط      |
+| `/srv/backups/offsite/rclone.conf`               | `deploy:deploy`, `0600` | إعداد S3/R2 والاعتماد ذو النطاق المحدود، على الخادم فقط |
+| `/srv/backups/offsite/offsite.lock`              | `deploy:deploy`, `0600` | قفل `flock` لمنع التداخل                                |
+| `/srv/backups/postgres/`                         | موجود مسبقًا            | مصدر النسخ الليلية؛ لا يعدّله هذا السكربت               |
 
 ملكية `root:deploy` ووضع `0750` مقصودان: يستطيع حساب `deploy` تنفيذ الملف عبر صلاحية المجموعة، لكنه لا يستطيع تعديل برنامج الأمر الإجباري نفسه.
 
-تُثبت Phase B/C نسخة `rclone` **v1.75.0** المطابقة حرفيًا لعقد السكربت، من أرشيف Linux الرسمي
-للإصدار المحدد مع تحقق توقيع/مجموع تحقق منشور قبل النقل إلى `/usr/local/bin/rclone`. لا تستخدم
+ثُبِّتت نسخة `rclone` **v1.75.0** المطابقة حرفيًا لعقد السكربت، من أرشيف Linux الرسمي للإصدار
+المحدد مع تحقق توقيع/مجموع تحقق منشور قبل النقل إلى `/usr/local/bin/rclone`. لا تستخدم
 `apt` غير المثبّت، ولا `curl | bash`. صفحة rclone الرسمية تسجل v1.75.0 كالإصدار المستقر الحالي
 وتوفر آلية التحقق من التوقيع. [التنزيلات](https://rclone.org/downloads/) ·
 [التوقيعات](https://rclone.org/install/#verify-the-download).
 
-ينشئ `rclone.conf` remote باسم محلي مثل `backup-r2` يشير إلى **bucket R2 خاص مستقل لقاعدة
-البيانات**، وباعتماد S3 Object Read & Write مقصور على ذلك الـbucket. لا يوضع حساب Cloudflare
+الـremote المحلي `backup-r2` في `rclone.conf` يشير إلى **bucket R2 خاص مستقل لقاعدة البيانات**،
+وباعتماد S3 Object Read & Write مقصور على ذلك الـbucket. لا يوضع حساب Cloudflare
 إداري، ولا حساب R2 أو مفاتيحه في GitHub أو هذا المستودع، ولا CORS أو public domain أو `r2.dev`.
 R2 يدعم `PutObject` و`GetObject`؛ فحص البايتات هنا متعمد عبر `cat | sha256sum` بدل افتراض أن
 ETag هو MD5. [توافق S3 في R2](https://developers.cloudflare.com/r2/api/s3/api/).
 
-للاحتفاظ: أنشئ Lifecycle مستقلًا للبادئة `postgres/` بعمر 56 يومًا. Cloudflare يذكر أن الإزالة
-تكون عادةً خلال 24 ساعة من وقت الانتهاء، لذلك لا تعِد «56 يومًا بالثانية». Bucket Lock متاح الآن،
-لكن إذا قُفل الكائن 56 يومًا فقد تؤخره الـLifecycle حين تقع نافذة التنفيذ؛ التوصية هي **Lifecycle
-56 يومًا وBucket Lock 55 يومًا** (إن فعّله المالك) حتى لا يمنع القفل حذف lifecycle المقصود. لا
-تغيّر هذه المرحلة إعداد R2. [Lifecycle](https://developers.cloudflare.com/r2/buckets/object-lifecycles/)
+للاحتفاظ، أُعدّ Lifecycle مستقل للبادئة `postgres/` بعمر 56 يومًا وBucket Lock لمدة 55 يومًا.
+Cloudflare يذكر أن الإزالة تكون عادةً خلال 24 ساعة من وقت الانتهاء، لذلك لا تعِد «56 يومًا
+بالثانية»؛ كما يبقى القفل أقصر من lifecycle حتى لا يؤخر الحذف المقصود. لا تغيّر هذه المرحلة إعداد
+R2. [Lifecycle](https://developers.cloudflare.com/r2/buckets/object-lifecycles/)
 · [Bucket Lock](https://developers.cloudflare.com/r2/buckets/bucket-locks/).
 
 ## مفتاح SSH المخصّص
@@ -63,11 +65,11 @@ ETag هو MD5. [توافق S3 في R2](https://developers.cloudflare.com/r2/api/
 الخيار الموصى به هو **مفتاح مستقل على حساب `deploy` القائم**، لا مستخدم Unix جديد: إدخال
 `authorized_keys` مقيّد بـ`restrict,command="/usr/local/lib/eslammuatamed/offsite-backup.sh"`،
 ولا يقبل أمر العميل. `restrict` هو primitive OpenSSH المخصص: يمنع PTY وport/agent/X11 forwarding
-وتنفيذ `~/.ssh/rc`، ويضم أي قيود مستقبلية يضيفها OpenSSH. بذلك تظل صلاحيات الملف واضحة وأقل من
-حساب جديد، مع حد ثقة مستقل عن مفتاح النشر. Phase B/C وحدها تضيف ذلك.
+وتنفيذ `~/.ssh/rc`، ويضم أي قيود مستقبلية يضيفها OpenSSH. أُضيف هذا الإدخال المقيّد بالفعل،
+فتظل صلاحيات الملف واضحة وأقل من حساب جديد، مع حد ثقة مستقل عن مفتاح النشر.
 
-تستخدم workflow مستقبلًا `BACKUP_SSH_KEY`, `BACKUP_KNOWN_HOSTS`, و`BACKUP_SSH_HOST`,
-`BACKUP_SSH_USER`, `BACKUP_SSH_PORT`; لا تعيد استخدام أسرار `DEPLOY_*`. الاتصال `ssh -T` فقط،
+تهيئة GitHub تستخدم `BACKUP_SSH_KEY`, `BACKUP_KNOWN_HOSTS`, و`BACKUP_SSH_HOST`,
+`BACKUP_SSH_USER`, `BACKUP_SSH_PORT`; ولا تعيد استخدام أسرار `DEPLOY_*`. الاتصال `ssh -T` فقط،
 بـ`StrictHostKeyChecking=yes` وknown_hosts مثبّت مسبقًا.
 
 متغير GitHub غير السرّي `BACKUP_OFFSITE_ENABLED` هو بوابة التفعيل الصريحة: لا ينفّذ job
