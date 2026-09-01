@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
+import { PaginationQueryDto } from '../../../common/dto/pagination-query.dto';
 import { Type } from 'class-transformer';
 import {
   ArrayMinSize,
@@ -67,3 +68,7 @@ export class CreateTestimonialDto {
 }
 
 export class UpdateTestimonialDto extends PartialType(CreateTestimonialDto) {}
+
+// Admin reads return full translation maps and never accept `locale`; pagination is the only
+// collection query surface for this endpoint.
+export class AdminTestimonialListQueryDto extends PaginationQueryDto {}
