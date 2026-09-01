@@ -4249,7 +4249,46 @@
     "/api/v1/admin/skills": {
       "get": {
         "operationId": "SkillsAdminController_list_v1",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "perPage",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "default": 12,
+              "example": 12,
+              "type": "number"
+            }
+          },
+          {
+            "name": "group",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "FRONTEND",
+              "type": "string",
+              "enum": [
+                "LANGUAGE",
+                "FRONTEND",
+                "BACKEND",
+                "DELIVERY"
+              ]
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
@@ -4258,7 +4297,8 @@
                 "schema": {
                   "type": "object",
                   "required": [
-                    "data"
+                    "data",
+                    "meta"
                   ],
                   "properties": {
                     "data": {
@@ -4266,6 +4306,9 @@
                       "items": {
                         "$ref": "#/components/schemas/AdminSkillEntity"
                       }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMeta"
                     }
                   }
                 }
@@ -4284,6 +4327,16 @@
           },
           "403": {
             "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Malformed Skills list query parameters: page must be at least 1, perPage must be 1 through 50, group must be a valid SkillGroup, and unknown fields are rejected.",
             "content": {
               "application/problem+json": {
                 "schema": {

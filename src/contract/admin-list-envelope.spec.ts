@@ -20,6 +20,7 @@ type Parameter = {
     maximum?: number;
     default?: number;
     example?: number | string;
+    enum?: string[];
   };
 };
 
@@ -65,6 +66,53 @@ describe('admin list envelopes', () => {
     expect(data).toEqual({
       type: 'array',
       items: { $ref: itemRef },
+    });
+  });
+
+  it('documents canonical pagination and the SkillGroup filter for admin Skills', () => {
+    const operation = contract.paths['/api/v1/admin/skills']?.get;
+    const parameters = operation?.parameters?.filter(
+      (parameter) => parameter.in === 'query',
+    );
+    const schema =
+      operation?.responses?.['200']?.content?.['application/json']?.schema;
+
+    expect(parameters).toEqual([
+      {
+        name: 'page',
+        required: false,
+        in: 'query',
+        schema: { minimum: 1, default: 1, example: 1, type: 'number' },
+      },
+      {
+        name: 'perPage',
+        required: false,
+        in: 'query',
+        schema: {
+          minimum: 1,
+          maximum: 50,
+          default: 12,
+          example: 12,
+          type: 'number',
+        },
+      },
+      {
+        name: 'group',
+        required: false,
+        in: 'query',
+        schema: {
+          example: 'FRONTEND',
+          enum: ['LANGUAGE', 'FRONTEND', 'BACKEND', 'DELIVERY'],
+          type: 'string',
+        },
+      },
+    ]);
+    expect(schema?.properties).toEqual({
+      data: {
+        type: 'array',
+        items: { $ref: '#/components/schemas/AdminSkillEntity' },
+      },
+      meta: { $ref: '#/components/schemas/PageMeta' },
     });
   });
 
