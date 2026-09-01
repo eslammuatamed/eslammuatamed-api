@@ -47,11 +47,22 @@ export class ArticleListQueryDto extends PaginationQueryDto {
   readonly q?: string;
 }
 
-// Admin listing: pagination + optional status filter (D10-2). No locale resolution — admin
-// reads return the full translation map.
+// Admin listing: pagination plus optional status and cross-translation title filters. No locale
+// resolution — admin reads return the full translation map.
 export class AdminArticleListQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional({ enum: ContentStatus })
   @IsOptional()
   @IsEnum(ContentStatus)
   readonly status?: ContentStatus;
+
+  @ApiPropertyOptional({
+    example: 'modular monolith',
+    description:
+      'Case-insensitive substring match on title across all authored translations. Blank or whitespace-only values are ignored.',
+    maxLength: 120,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  readonly q?: string;
 }

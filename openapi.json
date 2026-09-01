@@ -2803,6 +2803,17 @@
                 "ARCHIVED"
               ]
             }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Case-insensitive substring match on title across all authored translations. Blank or whitespace-only values are ignored.",
+            "schema": {
+              "maxLength": 120,
+              "example": "modular monolith",
+              "type": "string"
+            }
           }
         ],
         "responses": {
