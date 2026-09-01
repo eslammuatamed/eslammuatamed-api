@@ -244,6 +244,179 @@ describe('Articles (e2e)', () => {
     expect(denseIdx).toBeLessThan(sparseIdx);
   });
 
+  describe('admin title search', () => {
+    const createArticle = async (options: {
+      readonly tag: string;
+      readonly status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+      readonly enTitle: string;
+      readonly arTitle?: string;
+      readonly excerpt?: string;
+      readonly enSlug?: string;
+    }): Promise<string> => {
+      const created = await request(httpServer(app))
+        .post('/api/v1/admin/articles')
+        .set(auth())
+        .send({
+          categoryId,
+          status: options.status,
+          translations: [
+            {
+              locale: 'en',
+              title: options.enTitle,
+              slug:
+                options.enSlug ?? `admin-search-${options.tag}-en-${unique}`,
+              excerpt: options.excerpt ?? 'An unrelated excerpt.',
+              body: 'Admin title-search fixture body.',
+            },
+            ...(options.arTitle
+              ? [
+                  {
+                    locale: 'ar',
+                    title: options.arTitle,
+                    slug: `admin-search-${options.tag}-ar-${unique}`,
+                    excerpt: 'مقتطف غير مرتبط.',
+                    body: 'محتوى اختبار بحث العنوان الإداري.',
+                  },
+                ]
+              : []),
+          ],
+        })
+        .expect(201);
+      return envelopeData<{ id: string }>(created).id;
+    };
+
+    it('matches partial English and Arabic titles across all authored locales, not excerpt or slug text', async () => {
+      const enTerm = `EnglishTitleNeedle${unique}`;
+      const arTerm = `عنوانإداري${unique}`;
+      const excerptOnly = `ExcerptOnlyNeedle${unique}`;
+      const slugOnly = `slug-only-${unique}`;
+      const id = await createArticle({
+        tag: 'bilingual',
+        status: 'PUBLISHED',
+        enTitle: `Prefix ${enTerm} suffix`,
+        arTitle: `بادئة ${arTerm} لاحقة`,
+      });
+      await createArticle({
+        tag: 'excerpt-only',
+        status: 'PUBLISHED',
+        enTitle: `Unrelated title ${unique}`,
+        excerpt: excerptOnly,
+      });
+      await createArticle({
+        tag: 'slug-only',
+        status: 'PUBLISHED',
+        enTitle: `Another unrelated title ${unique}`,
+        enSlug: slugOnly,
+      });
+
+      for (const term of [enTerm.slice(0, -2), arTerm.slice(0, -2)]) {
+        const res = await request(httpServer(app))
+          .get(`/api/v1/admin/articles?q=${encodeURIComponent(term)}`)
+          .set(auth())
+          .expect(200);
+        expect(res).toSatisfyApiSpec();
+        expect(
+          envelopeData<{ id: string }[]>(res).map((article) => article.id),
+        ).toContain(id);
+      }
+
+      for (const term of [excerptOnly, slugOnly]) {
+        const res = await request(httpServer(app))
+          .get(`/api/v1/admin/articles?q=${encodeURIComponent(term)}`)
+          .set(auth())
+          .expect(200);
+        expect(envelopeData<{ id: string }[]>(res)).toEqual([]);
+        expect(res.body.meta).toMatchObject({ total: 0, totalPages: 0 });
+      }
+    });
+
+    it('combines q with status, paginates the filtered set, and treats whitespace q as absent', async () => {
+      const term = `StatusAndPageNeedle${unique}`;
+      const publishedId = await createArticle({
+        tag: 'published',
+        status: 'PUBLISHED',
+        enTitle: `${term} published`,
+      });
+      await createArticle({
+        tag: 'draft',
+        status: 'DRAFT',
+        enTitle: `${term} draft`,
+      });
+
+      const filtered = await request(httpServer(app))
+        .get(
+          `/api/v1/admin/articles?q=${term}&status=PUBLISHED&page=1&perPage=1`,
+        )
+        .set(auth())
+        .expect(200);
+      expect(filtered).toSatisfyApiSpec();
+      expect(envelopeData<{ id: string }[]>(filtered)).toEqual([
+        expect.objectContaining({ id: publishedId }),
+      ]);
+      expect(filtered.body.meta).toEqual({
+        page: 1,
+        perPage: 1,
+        total: 1,
+        totalPages: 1,
+      });
+
+      const blank = await request(httpServer(app))
+        .get(
+          '/api/v1/admin/articles?q=%20%20%20&status=DRAFT&page=1&perPage=50',
+        )
+        .set(auth())
+        .expect(200);
+      expect(
+        envelopeData<{ status: string }[]>(blank).some(
+          (article) => article.status === 'DRAFT',
+        ),
+      ).toBe(true);
+      expect(blank.body.meta.total).toBeGreaterThan(0);
+    });
+
+    it('rejects oversized q and retains authentication plus articles.read authorization', async () => {
+      await request(httpServer(app))
+        .get(`/api/v1/admin/articles?q=${'x'.repeat(121)}`)
+        .set(auth())
+        .expect(422);
+
+      await request(httpServer(app))
+        .get('/api/v1/admin/articles?q=anything')
+        .expect(401);
+
+      const role = await request(httpServer(app))
+        .post('/api/v1/admin/roles')
+        .set(auth())
+        .send({
+          name: `ArticleSearchDenied ${unique}`,
+          permissions: ['articles.update'],
+        })
+        .expect(201);
+      const email = `article-search-denied-${unique}@example.com`;
+      const password = 'change-me-minimum-12';
+      await request(httpServer(app))
+        .post('/api/v1/admin/users')
+        .set(auth())
+        .send({
+          email,
+          password,
+          roleId: envelopeData<{ id: string }>(role).id,
+        })
+        .expect(201);
+      const login = await request(httpServer(app))
+        .post('/api/v1/auth/login')
+        .send({ email, password })
+        .expect(200);
+
+      await request(httpServer(app))
+        .get('/api/v1/admin/articles?q=anything')
+        .set({
+          Authorization: `Bearer ${envelopeData<{ accessToken: string }>(login).accessToken}`,
+        })
+        .expect(403);
+    });
+  });
+
   it('exposes a per-locale slug map on the detail response for locale switching (doc 10 §6)', async () => {
     const enSlug = `bilingual-en-${unique}`;
     const arSlug = `bilingual-ar-${unique}`;

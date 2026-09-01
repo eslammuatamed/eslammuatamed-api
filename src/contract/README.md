@@ -38,6 +38,18 @@ NestFactory.create(AppModule, { logger: false, abortOnError: false })
 
 انظر [الوثيقة 16 §3](../../../eslammuatamed-docs/docs/16-development-conventions.md): عدِّل decorators في الـ controllers/DTOs ← `contract:export` ← يتبنّى `web` الملف عبر commit ذرّي.
 
+## الملكية والمراجعة
+
+`openapi.json` المُصدَّر والملتزَم هنا هو مصدر الحقيقة الوحيد لعقد الـ API ↔ الويب. مصدر تغييره هو
+سلوك التطبيق وdecorators وDTOs؛ لا يُحرَّر ناتج JSON يدويًّا. كما أنّه يصف سلوك API فقط، وليس مكانًا
+لـ fixtures أو mock data أو أمثلة اختبار يملكها مستهلك frontend. يزامن مستهلكو الواجهة هذا الناتج
+كما هو ثم يولّدون أنواعهم منه.
+
+في مراجعة تغيير العقد: راجع التغيير في المصدر أولًا، شغّل `npm run contract:export`، والتزم بالناتج
+المتولد مع التغيير المقصود. تتحقق CI أيضًا من أن `openapi.json` الملتزم نقطة ثابتة للتصدير؛ فرق واسع
+غير متوقع عند التبنّي يجب أن يوقف المزامنة لدى المستهلك للتحقيق في provenance، لا أن يدفعه لتعديل
+الأثر أو انتقاء أجزاء منه.
+
 ## المرجع الرسمي وحالة التوافق
 
 - [NestJS OpenAPI (Swagger)](https://docs.nestjs.com/openapi/introduction) · [DocumentBuilder](https://docs.nestjs.com/openapi/introduction#bootstrap) · [OpenAPI Specification](https://spec.openapis.org/).

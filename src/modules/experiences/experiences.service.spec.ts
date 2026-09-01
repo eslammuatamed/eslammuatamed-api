@@ -7,6 +7,7 @@ import {
 import { DeepMockProxy, mockDeep } from 'jest-mock-extended';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocalesService } from '../locales/locales.service';
+import { AdminExperienceListQueryDto } from './dto/experience.dto';
 import { ExperiencesService } from './experiences.service';
 
 // Shaped as the public include loads it: each link carries its skill with the locale-filtered
@@ -146,6 +147,61 @@ describe('ExperiencesService', () => {
       'aaa',
       'bbb',
     ]);
+  });
+
+  describe('listAdmin pagination', () => {
+    const query = (
+      overrides: Partial<AdminExperienceListQueryDto> = {},
+    ): AdminExperienceListQueryDto =>
+      Object.assign(new AdminExperienceListQueryDto(), overrides);
+
+    it('uses one predicate for rows and total, and orders fully in Prisma before slicing', async () => {
+      const first = { ...row('2026-01-01', 7, 'aaa'), isCurrent: true };
+      const second = { ...row('2026-01-01', 7, 'bbb'), isCurrent: true };
+      prisma.$transaction.mockResolvedValue([[first, second], 4] as never);
+
+      const result = await service.listAdmin(query({ page: 2, perPage: 2 }));
+
+      expect(prisma.experience.findMany).toHaveBeenCalledWith({
+        where: {},
+        include: { translations: true, technologies: true },
+        orderBy: [
+          { isCurrent: 'desc' },
+          { startDate: 'desc' },
+          { order: 'asc' },
+          { id: 'asc' },
+        ],
+        skip: 2,
+        take: 2,
+      });
+      expect(prisma.experience.count).toHaveBeenCalledWith({ where: {} });
+      expect(result.data.map((item) => item.id)).toEqual(['aaa', 'bbb']);
+      expect(result.meta).toEqual({
+        page: 2,
+        perPage: 2,
+        total: 4,
+        totalPages: 2,
+      });
+    });
+
+    it('keeps the public query and public array response path unpaginated', async () => {
+      prisma.experience.findMany.mockResolvedValue([row('2024-01-01', 0)]);
+
+      await service.listPublic('en');
+
+      expect(prisma.experience.findMany).toHaveBeenCalledWith({
+        include: {
+          translations: true,
+          technologies: {
+            include: {
+              skill: { include: { translations: { where: { locale: 'en' } } } },
+            },
+          },
+        },
+        orderBy: [{ startDate: 'desc' }, { order: 'asc' }],
+      });
+      expect(prisma.experience.count).not.toHaveBeenCalled();
+    });
   });
 
   it('rejects an invalid employment type with 422', async () => {

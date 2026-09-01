@@ -5,6 +5,7 @@ import {
   PartialType,
 } from '@nestjs/swagger';
 import { SkillGroup } from '../../../generated/prisma/client';
+import { PaginationQueryDto } from '../../../common/dto/pagination-query.dto';
 import { Type } from 'class-transformer';
 import {
   ArrayMinSize,
@@ -100,4 +101,13 @@ export class SkillQueryDto {
   @IsOptional()
   @Matches(/^[a-z]{2}$/)
   readonly locale: string = 'en';
+}
+
+// Admin reads return full translation maps and never accept `locale`; the optional group filter
+// and inherited pagination fields are the complete collection query surface for this endpoint.
+export class AdminSkillListQueryDto extends PaginationQueryDto {
+  @ApiPropertyOptional({ enum: SkillGroup, example: SkillGroup.FRONTEND })
+  @IsOptional()
+  @IsEnum(SkillGroup)
+  readonly group?: SkillGroup;
 }

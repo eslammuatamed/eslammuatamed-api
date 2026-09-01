@@ -9,6 +9,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -20,7 +21,9 @@ import { Throttle } from '@nestjs/throttler';
 import {
   ApiCreatedEnvelope,
   ApiOkEnvelope,
+  ApiOkPaginated,
 } from '../../common/swagger/api-envelope';
+import { PaginatedResult } from '../../common/pagination/page-meta';
 import {
   ApiAdminErrorResponses,
   ApiProblemResponse,
@@ -28,7 +31,11 @@ import {
 } from '../../common/swagger/api-problem-response';
 import { THROTTLE_TIERS } from '../../common/throttling/throttle-tiers';
 import { RequirePermission } from '../access-control/decorators/require-permission.decorator';
-import { CreateTagDto, UpdateTagDto } from './dto/tag.dto';
+import {
+  AdminTagListQueryDto,
+  CreateTagDto,
+  UpdateTagDto,
+} from './dto/tag.dto';
 import { AdminTagEntity } from './entities/tag.entities';
 import { TagsService } from './tags.service';
 
@@ -43,9 +50,15 @@ export class TagsAdminController {
   @Get()
   @RequirePermission('tags.read')
   @ApiOperation({ summary: 'List tags with full translation maps.' })
-  @ApiOkEnvelope(AdminTagEntity, { isArray: true })
-  list(): Promise<AdminTagEntity[]> {
-    return this.tags.listAdmin();
+  @ApiOkPaginated(AdminTagEntity)
+  @ApiProblemResponse(
+    HttpStatus.UNPROCESSABLE_ENTITY,
+    'Malformed pagination query parameters: page must be at least 1, perPage must be 1 through 50, and unknown fields are rejected.',
+  )
+  list(
+    @Query() query: AdminTagListQueryDto,
+  ): Promise<PaginatedResult<AdminTagEntity>> {
+    return this.tags.listAdmin(query);
   }
 
   @Post()

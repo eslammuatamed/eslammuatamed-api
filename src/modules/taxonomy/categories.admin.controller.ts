@@ -9,6 +9,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -20,7 +21,9 @@ import { Throttle } from '@nestjs/throttler';
 import {
   ApiCreatedEnvelope,
   ApiOkEnvelope,
+  ApiOkPaginated,
 } from '../../common/swagger/api-envelope';
+import { PaginatedResult } from '../../common/pagination/page-meta';
 import {
   ApiAdminErrorResponses,
   ApiProblemResponse,
@@ -29,7 +32,11 @@ import {
 import { THROTTLE_TIERS } from '../../common/throttling/throttle-tiers';
 import { RequirePermission } from '../access-control/decorators/require-permission.decorator';
 import { CategoriesService } from './categories.service';
-import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
+import {
+  AdminCategoryListQueryDto,
+  CreateCategoryDto,
+  UpdateCategoryDto,
+} from './dto/category.dto';
 import { AdminCategoryEntity } from './entities/category.entities';
 
 // Each method declares its categories.* permission (doc 19 §3, D19-8); a role granted those
@@ -45,9 +52,15 @@ export class CategoriesAdminController {
   @Get()
   @RequirePermission('categories.read')
   @ApiOperation({ summary: 'List categories with full translation maps.' })
-  @ApiOkEnvelope(AdminCategoryEntity, { isArray: true })
-  list(): Promise<AdminCategoryEntity[]> {
-    return this.categories.listAdmin();
+  @ApiOkPaginated(AdminCategoryEntity)
+  @ApiProblemResponse(
+    HttpStatus.UNPROCESSABLE_ENTITY,
+    'Malformed pagination query parameters: page must be at least 1, perPage must be 1 through 50, and unknown fields are rejected.',
+  )
+  list(
+    @Query() query: AdminCategoryListQueryDto,
+  ): Promise<PaginatedResult<AdminCategoryEntity>> {
+    return this.categories.listAdmin(query);
   }
 
   @Post()

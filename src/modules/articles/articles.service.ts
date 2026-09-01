@@ -287,14 +287,31 @@ export class ArticlesService {
   async listAdmin(
     query: AdminArticleListQueryDto,
   ): Promise<PaginatedResult<AdminArticleEntity>> {
-    const where: Prisma.ArticleWhereInput = query.status
-      ? { status: query.status }
-      : {};
+    const term = query.q?.trim();
+    const where: Prisma.ArticleWhereInput = {
+      ...(query.status ? { status: query.status } : {}),
+      ...(term
+        ? {
+            // Admin search is intentionally distinct from public FTS: it is a bounded,
+            // cross-locale title lookup for operators, never an excerpt/body/slug search.
+            translations: {
+              some: {
+                title: {
+                  contains: term,
+                  mode: Prisma.QueryMode.insensitive,
+                },
+              },
+            },
+          }
+        : {}),
+    };
     const [rows, total] = await this.prisma.$transaction([
       this.prisma.article.findMany({
         where,
         include: ADMIN_INCLUDE,
-        orderBy: { createdAt: 'desc' },
+        // `createdAt` alone is not total: tied rows can move between pages. The immutable id
+        // retains the established newest-first order while making every page boundary stable.
+        orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
         skip: query.skip,
         take: query.take,
       }),
