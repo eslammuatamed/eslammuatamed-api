@@ -3,6 +3,7 @@ import { Category, CategoryTranslation } from '../../generated/prisma/client';
 import { DeepMockProxy, mockDeep } from 'jest-mock-extended';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocalesService } from '../locales/locales.service';
+import { AdminCategoryListQueryDto } from './dto/category.dto';
 import { CategoriesService } from './categories.service';
 
 type CategoryRow = Category & { translations: CategoryTranslation[] };
@@ -20,9 +21,12 @@ function translation(locale: string, slug: string): CategoryTranslation {
   };
 }
 
-function categoryRow(translations: CategoryTranslation[]): CategoryRow {
+function categoryRow(
+  translations: CategoryTranslation[],
+  id = 'c1',
+): CategoryRow {
   return {
-    id: 'c1',
+    id,
     createdAt: new Date(),
     updatedAt: new Date(),
     translations,
@@ -74,5 +78,66 @@ describe('CategoriesService', () => {
     await expect(
       service.update('missing', { translations: [] }),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  describe('listAdmin pagination', () => {
+    const query = (
+      overrides: Partial<AdminCategoryListQueryDto> = {},
+    ): AdminCategoryListQueryDto =>
+      Object.assign(new AdminCategoryListQueryDto(), overrides);
+
+    it('orders before pagination with an id tie-breaker and shares one predicate with total', async () => {
+      const first = categoryRow([translation('en', 'first')], 'aaa');
+      const second = categoryRow([translation('en', 'second')], 'bbb');
+      prisma.$transaction.mockResolvedValue([[first, second], 4] as never);
+
+      const result = await service.listAdmin(query({ page: 2, perPage: 2 }));
+
+      expect(prisma.category.findMany).toHaveBeenCalledWith({
+        where: {},
+        include: { translations: true },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        skip: 2,
+        take: 2,
+      });
+      expect(prisma.category.count).toHaveBeenCalledWith({ where: {} });
+      expect(result.data.map((item) => item.id)).toEqual(['aaa', 'bbb']);
+      expect(result.meta).toEqual({
+        page: 2,
+        perPage: 2,
+        total: 4,
+        totalPages: 2,
+      });
+    });
+
+    it('uses PaginationQueryDto defaults for the first admin page', async () => {
+      prisma.$transaction.mockResolvedValue([[], 0] as never);
+
+      const result = await service.listAdmin(query());
+
+      expect(prisma.category.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ skip: 0, take: 12 }),
+      );
+      expect(result.meta).toEqual({
+        page: 1,
+        perPage: 12,
+        total: 0,
+        totalPages: 0,
+      });
+    });
+
+    it('keeps the public locale-resolved unpaginated query path unchanged', async () => {
+      prisma.category.findMany.mockResolvedValue([
+        categoryRow([translation('en', 'engineering')]),
+      ]);
+
+      await service.listPublic('en');
+
+      expect(prisma.category.findMany).toHaveBeenCalledWith({
+        include: { translations: true },
+        orderBy: { createdAt: 'asc' },
+      });
+      expect(prisma.category.count).not.toHaveBeenCalled();
+    });
   });
 });

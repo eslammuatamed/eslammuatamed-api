@@ -1,8 +1,16 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Tag, TagTranslation } from '../../generated/prisma/client';
+import { Prisma, Tag, TagTranslation } from '../../generated/prisma/client';
+import {
+  buildPageMeta,
+  PaginatedResult,
+} from '../../common/pagination/page-meta';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocalesService } from '../locales/locales.service';
-import { CreateTagDto, UpdateTagDto } from './dto/tag.dto';
+import {
+  AdminTagListQueryDto,
+  CreateTagDto,
+  UpdateTagDto,
+} from './dto/tag.dto';
 import {
   AdminTagEntity,
   PublicTagEntity,
@@ -29,12 +37,25 @@ export class TagsService {
       .filter((tag): tag is PublicTagEntity => tag !== null);
   }
 
-  async listAdmin(): Promise<AdminTagEntity[]> {
-    const tags = await this.prisma.tag.findMany({
-      include: { translations: true },
-      orderBy: { createdAt: 'asc' },
-    });
-    return tags.map((tag) => toAdminEntity(tag));
+  async listAdmin(
+    query: AdminTagListQueryDto,
+  ): Promise<PaginatedResult<AdminTagEntity>> {
+    const where: Prisma.TagWhereInput = {};
+    const [rows, total] = await this.prisma.$transaction([
+      this.prisma.tag.findMany({
+        where,
+        include: { translations: true },
+        // Apply the full collection order before pagination. UUIDs make equal timestamps stable.
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        skip: query.skip,
+        take: query.take,
+      }),
+      this.prisma.tag.count({ where }),
+    ]);
+    return new PaginatedResult(
+      rows.map((tag) => toAdminEntity(tag)),
+      buildPageMeta(query.page, query.perPage, total),
+    );
   }
 
   async create(dto: CreateTagDto): Promise<AdminTagEntity> {

@@ -1,8 +1,20 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Category, CategoryTranslation } from '../../generated/prisma/client';
+import {
+  Category,
+  CategoryTranslation,
+  Prisma,
+} from '../../generated/prisma/client';
+import {
+  buildPageMeta,
+  PaginatedResult,
+} from '../../common/pagination/page-meta';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocalesService } from '../locales/locales.service';
-import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
+import {
+  AdminCategoryListQueryDto,
+  CreateCategoryDto,
+  UpdateCategoryDto,
+} from './dto/category.dto';
 import {
   AdminCategoryEntity,
   CategoryTranslationEntity,
@@ -35,12 +47,25 @@ export class CategoriesService {
       );
   }
 
-  async listAdmin(): Promise<AdminCategoryEntity[]> {
-    const categories = await this.prisma.category.findMany({
-      include: { translations: true },
-      orderBy: { createdAt: 'asc' },
-    });
-    return categories.map((category) => toAdminEntity(category));
+  async listAdmin(
+    query: AdminCategoryListQueryDto,
+  ): Promise<PaginatedResult<AdminCategoryEntity>> {
+    const where: Prisma.CategoryWhereInput = {};
+    const [rows, total] = await this.prisma.$transaction([
+      this.prisma.category.findMany({
+        where,
+        include: { translations: true },
+        // Apply the full collection order before pagination. UUIDs make equal timestamps stable.
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        skip: query.skip,
+        take: query.take,
+      }),
+      this.prisma.category.count({ where }),
+    ]);
+    return new PaginatedResult(
+      rows.map((category) => toAdminEntity(category)),
+      buildPageMeta(query.page, query.perPage, total),
+    );
   }
 
   async create(dto: CreateCategoryDto): Promise<AdminCategoryEntity> {

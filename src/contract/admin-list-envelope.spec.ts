@@ -54,8 +54,6 @@ const contract = JSON.parse(
 
 describe('admin list envelopes', () => {
   it.each([
-    ['/api/v1/admin/categories', '#/components/schemas/AdminCategoryEntity'],
-    ['/api/v1/admin/tags', '#/components/schemas/AdminTagEntity'],
     ['/api/v1/admin/users', '#/components/schemas/UserEntity'],
     ['/api/v1/admin/roles', '#/components/schemas/RoleEntity'],
   ])('documents %s data as an array', (path, itemRef) => {
@@ -67,6 +65,43 @@ describe('admin list envelopes', () => {
     expect(data).toEqual({
       type: 'array',
       items: { $ref: itemRef },
+    });
+  });
+
+  it.each([
+    ['/api/v1/admin/categories', '#/components/schemas/AdminCategoryEntity'],
+    ['/api/v1/admin/tags', '#/components/schemas/AdminTagEntity'],
+  ])('documents canonical pagination for %s', (path, itemRef) => {
+    const operation = contract.paths[path]?.get;
+    const parameters = operation?.parameters?.filter(
+      (parameter) => parameter.in === 'query',
+    );
+    const schema =
+      operation?.responses?.['200']?.content?.['application/json']?.schema;
+
+    expect(parameters).toEqual([
+      {
+        name: 'page',
+        required: false,
+        in: 'query',
+        schema: { minimum: 1, default: 1, example: 1, type: 'number' },
+      },
+      {
+        name: 'perPage',
+        required: false,
+        in: 'query',
+        schema: {
+          minimum: 1,
+          maximum: 50,
+          default: 12,
+          example: 12,
+          type: 'number',
+        },
+      },
+    ]);
+    expect(schema?.properties).toEqual({
+      data: { type: 'array', items: { $ref: itemRef } },
+      meta: { $ref: '#/components/schemas/PageMeta' },
     });
   });
 
