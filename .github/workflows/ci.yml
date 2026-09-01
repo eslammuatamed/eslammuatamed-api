@@ -74,9 +74,9 @@ jobs:
     name: Lint · Typecheck · Unit · Contract
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -85,6 +85,43 @@ jobs:
 
       - name: Generate Prisma client
         run: npx prisma generate
+
+      # Governance-provenance gate. The guard itself never touches the network and fails
+      # closed when the authoritative corpus is unavailable, so CI owns obtaining a fresh
+      # copy of the governing docs repo: checked out at an explicit `ref: main` into a
+      # deterministic path, with a fine-grained PAT that has Contents:Read on THAT repo
+      # only. The same secret name exists in the Dependabot secret store (GitHub's
+      # documented pattern for workflows triggered by both actors), so Dependabot PRs run
+      # this identical gate with no skip condition.
+      - name: Checkout governing docs (read-only)
+        uses: actions/checkout@v7
+        with:
+          repository: eslammuatamed/eslammuatamed-docs
+          ref: main
+          token: ${{ secrets.DOCS_CONTENT_READ }}
+          path: .governance-docs
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Resolve governing docs commit
+        run: |
+          set -euo pipefail
+          git -C .governance-docs rev-parse --verify refs/remotes/origin/main
+          [ "$(git -C .governance-docs rev-parse refs/remotes/origin/main)" = "$(git -C .governance-docs rev-parse HEAD)" ]
+          echo "Governing docs: eslammuatamed/eslammuatamed-docs@main = $(git -C .governance-docs rev-parse HEAD)"
+
+      - name: Provenance guard self-test
+        run: npm run guard:docs:selftest
+
+      - name: Governance provenance gate
+        # Pass the exact resolved commit SHA as the authoritative ref: it provably exists
+        # in this checkout regardless of action-version ref behavior, and every run logs
+        # precisely which docs state decided existence.
+        run: |
+          set -euo pipefail
+          DOCS_SHA="$(git -C .governance-docs rev-parse HEAD)"
+          echo "Authoritative ref: .governance-docs @ ${DOCS_SHA}"
+          node scripts/check-doc-provenance.mjs --governance-repo .governance-docs --governance-ref "$DOCS_SHA"
 
       - name: Lint
         run: npm run lint
@@ -134,7 +171,7 @@ jobs:
           fi
 
       - name: Upload OpenAPI artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: openapi
           path: openapi.json
@@ -188,9 +225,9 @@ jobs:
       STORAGE_LOCAL_DIR: ./storage
       PUBLIC_MEDIA_URL: http://localhost:3001/media
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -201,7 +238,7 @@ jobs:
         run: npx prisma generate
 
       # No migrate/seed step: the e2e harness creates, migrates, seeds and drops its own database
-      # per run (D18-8). DATABASE_URL above still matters — the harness derives the SERVER from it
+      # per run. DATABASE_URL above still matters — the harness derives the SERVER from it
       # and discards its database pathname — but nothing here provisions `eslammuatamed_test`, so
       # there is exactly one setup owner.
       - name: E2E tests

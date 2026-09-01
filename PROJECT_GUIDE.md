@@ -125,7 +125,7 @@ interceptor فيلفّ تنفيذه ويعمل **بعد** نجاحه، والـ 
 
 > ملاحظة: مكتبات خط الوسائط (`sharp`, `@aws-sdk/client-s3`, `blurhash`, `load-esm`) هي **جزء من هذا الأساس**.
 
-**أهم تبعيات التطوير:** `@nestjs/testing` + `jest` + `ts-jest` (اختبارات الوحدة)، `supertest` + `jest-openapi` (اختبارات e2e مع تأكيد مطابقة العقد)، `jest-mock-extended` (mocking لـ `PrismaService`)، `prisma` CLI، `eslint` + `typescript-eslint` + `prettier` + `husky` + `lint-staged` (بوابات الجودة).
+**أهم تبعيات التطوير:** `@nestjs/testing` + `jest` + `ts-jest` (اختبارات الوحدة)، `supertest` + `@ehuelsmann/jest-openapi` (اختبارات e2e مع تأكيد مطابقة العقد)، `jest-mock-extended` (mocking لـ `PrismaService`)، `prisma` CLI، `eslint` + `typescript-eslint` + `prettier` + `husky` + `lint-staged` (بوابات الجودة).
 
 سياسة إضافة أي تبعية جديدة صارمة (`principle 14`، [الوثيقة 16 §4](../eslammuatamed-docs/docs/16-development-conventions.md)): إطار مدمج ← تبعية قائمة ← وحدة من نظام الإطار ← ثم طرف ثالث بمبرّر مكتوب.
 
@@ -265,7 +265,7 @@ ThrottlerGuard → JwtAuthGuard → PermissionsGuard → (Controller)
 
 لا `Docker` في المشروع (توجيه المالك، `D16-5`): `PostgreSQL` أصلي محليًّا، ودور `eslammuatamed` بلا كلمة مرور على المنفذ `5432`.
 
-> **في الإنتاج يجب أن يكون مضيف `DATABASE_URL` هو `127.0.0.1` حرفيًّا، لا `localhost` (`D23-24`).**
+> **في الإنتاج يجب أن يكون مضيف `DATABASE_URL` هو `127.0.0.1` حرفيًّا، لا `localhost` (`D19-12`).**
 > *(`pg_hba.conf` هو جدول `PostgreSQL` الذي يُطابق **عنوان مصدر الاتصال** بطريقة تحقّق: `trust`
 > تعني «ادخل بلا كلمة مرور»، و`scram-sha-256` تعني «قدّم كلمة مرور». هذا القدر يكفي لفهم القاعدة
 > أدناه؛ إدارة `PostgreSQL` نفسها ليست من عمل هذا المستودع.)*
@@ -274,7 +274,7 @@ ThrottlerGuard → JwtAuthGuard → PermissionsGuard → (Controller)
 > `host all all ::1/128 scram-sha-256` — والدور بلا كلمة مرور يقدّمها، فيفشل `SASL`.
 >
 > **لماذا لم يظهر هذا من قبل:** `Prisma 6` كان يحلّ المضيف داخل محرّكه المكتوب بـ `Rust`
-> فيختار `IPv4`. أمّا `Prisma 7` فيمرّ عبر `PrismaPg` ثم `node-postgres`، وهو يأخذ `::1`.
+> فيختار `IPv4`. أمّا `Prisma 7` فيمرّ عبر `PrismaPg` ثم `node-postgres`، وهو يأخذ `::1` (`D16-12`).
 > فالعطل اقتران بنيةٍ تحتية كشفه تبديل المُشغِّل، لا خطأ في الإعداد أو في الكود — وقد أوقف
 > الإنتاج فعليًّا بتاريخ `2026-08-14`.
 >
@@ -292,7 +292,7 @@ npx tsc --noEmit         # فحص الأنواع
 npm test                 # اختبارات الوحدة (jest) — بلا قاعدة بيانات
 npm run contract:export  # → openapi.json (بلا قاعدة بيانات)
 npx prisma migrate deploy && npm run db:seed   # تهيئة قاعدة البيانات المحلّية
-npm run test:e2e         # يحتاج PostgreSQL (Supertest + jest-openapi)
+npm run test:e2e         # يحتاج PostgreSQL (Supertest + تأكيدات مطابقة العقد)
 ```
 
 **البوابات (بلا قاعدة بيانات — لأن الاتصال كسول):** `lint`, `tsc --noEmit`, `npm test`, `contract:export`.
@@ -304,7 +304,7 @@ npm run test:e2e         # يحتاج PostgreSQL (Supertest + jest-openapi)
 - `e2e`: خدمة `postgres:16`، وخطواته حرفيًّا `checkout` → `setup-node` → `npm ci` →
   `npx prisma generate` → `npm run test:e2e`. **ولا خطوة `migrate deploy`
   ولا `db:seed` في سير العمل:** مِعمار الاختبارات يملك قاعدة بياناته لكلّ تشغيل — يُنشئها ويُرحّلها
-  ويبذرها ويُسقطها بنفسه (`D18-8`)، فمالك التهيئة واحد لا اثنان. تفصيل المِعمار في
+  ويبذرها ويُسقطها بنفسه، فمالك التهيئة واحد لا اثنان. تفصيل المِعمار في
   [`test/README.md`](test/README.md).
 
 > **بوابة `shellcheck` صريحة وتفشل بوضوح.** كانت قبل ذلك تُشغَّل انتهازيًّا داخل اختبار
@@ -374,7 +374,7 @@ preflight  →  (verify  ∥  e2e)  →  deploy
 مربوطة ببيئة `production` في `GitHub`، فلا يقع أي تعديل على الخادم قبل موافقة المالك
 (`D23-16`, `D23-17`). إرفاق `openapi.json` كأثر إصدار **عمل مؤجَّل** بعد التخلّي عن الأوسمة.
 
-**بوابة التحويل (`cutover`) لا تعتمد على `liveness` وحدها (`D23-23`).** كانت البوابة حتى
+**بوابة التحويل (`cutover`) لا تعتمد على `liveness` وحدها.** كانت البوابة حتى
 `2026-08-14` استدعاءً واحدًا لـ `/api/v1/health`، وهو فحص **حياة**: يُرجع `200` من عملية تستمع
 على المنفذ ولو كانت قاعدة البيانات غير متاحة أصلًا. وبما أنّ **التراجع التلقائي معلَّق على
 البوابة نفسها**، فإنّ بوابةً تمرّ زورًا تُبطِل التراجع في اللحظة التي يُحتاج فيها بالضبط — وهذا

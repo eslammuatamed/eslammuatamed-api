@@ -12,7 +12,7 @@ const TrimIfString = (): PropertyDecorator =>
     typeof value === 'string' ? value.trim() : value,
   );
 
-// The reply request body — one field, and that is the security property, not an economy (D19-12).
+// The reply request body — one field, and that is the security property, not an economy (D02-13).
 //
 // There is deliberately NO `to`, `cc`, `bcc`, `from` or `replyTo` here. The recipient is resolved
 // server-side from the addressed `ContactMessage`, so this endpoint can only ever reach an address
@@ -26,7 +26,7 @@ const TrimIfString = (): PropertyDecorator =>
 export class CreateMessageReplyDto {
   @ApiProperty({
     description:
-      'The plain-text reply body. Plain text only — no HTML representation exists (D02-13e).',
+      'The plain-text reply body. Plain text only — no HTML representation exists (D02-13).',
     minLength: 1,
     maxLength: 5000,
     example: 'Thanks for reaching out — I can take a look at this next week.',

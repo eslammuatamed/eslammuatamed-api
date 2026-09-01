@@ -47,7 +47,7 @@ describe('CreateMessageReplyDto', () => {
     );
   });
 
-  // THE SECURITY TEST (D19-12b). The DTO has no recipient property, and the repository's global
+  // THE SECURITY TEST (D02-13). The DTO has no recipient property, and the repository's global
   // policy is whitelist + forbidNonWhitelisted — so a recipient-shaped field must be REJECTED, not
   // silently stripped. Stripping would also be safe here, but rejecting is what this repo
   // guarantees, and asserting the guarantee is what makes a future relaxation of the global pipe

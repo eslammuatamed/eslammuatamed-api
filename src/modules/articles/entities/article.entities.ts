@@ -47,7 +47,7 @@ export class PublicArticleListItemEntity {
   readonly coverImageId!: string | null;
 
   // Nullable $ref: explicit allOf + sibling nullable, no `type: object` (which @nestjs/swagger adds
-  // and which makes strict jest-openapi/AJV reject `null`).
+  // and which makes strict OpenAPI response validation reject `null`).
   @ApiProperty({
     nullable: true,
     allOf: [{ $ref: getSchemaPath(PublicMediaImageDescriptor) }],
@@ -55,8 +55,9 @@ export class PublicArticleListItemEntity {
   })
   readonly coverImage!: PublicMediaImageDescriptor | null;
 
-  // Nullable $ref: explicit allOf + sibling nullable, no `type: object` (jest-openapi/AJV null fix).
-  // Null when the category exists but has no translation in the requested locale (D10-20): the
+  // Nullable $ref: explicit allOf + sibling nullable, no `type: object` — strict OpenAPI response
+  // validation rejects `null` against a plain `$ref` schema.
+  // Null when the category exists but has no translation in the requested locale: the
   // article's own translation governs its visibility, so it stays readable while the label is absent.
   @ApiProperty({
     nullable: true,
@@ -66,7 +67,7 @@ export class PublicArticleListItemEntity {
   })
   readonly category!: ArticleTaxonomyRefEntity | null;
 
-  // Tags follow the same rule by omission (D10-20): an untranslated tag is absent from the array
+  // Tags follow the same rule by omission: an untranslated tag is absent from the array
   // rather than present-and-blank, so this is never a list of empty labels.
   @ApiProperty({ type: [ArticleTaxonomyRefEntity] })
   readonly tags!: ArticleTaxonomyRefEntity[];
@@ -102,7 +103,8 @@ export class PublicArticleDetailEntity extends PublicArticleListItemEntity {
   @ApiProperty({ type: String, nullable: true, format: 'uuid' })
   readonly ogImageId!: string | null;
 
-  // Nullable $ref: explicit allOf + sibling nullable, no `type: object` (jest-openapi/AJV null fix).
+  // Nullable $ref: explicit allOf + sibling nullable, no `type: object` — strict OpenAPI response
+  // validation rejects `null` against a plain `$ref` schema.
   @ApiProperty({
     nullable: true,
     allOf: [{ $ref: getSchemaPath(PublicMediaImageDescriptor) }],

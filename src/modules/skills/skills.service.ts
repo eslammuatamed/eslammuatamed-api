@@ -10,9 +10,17 @@ import {
   SkillGroup,
   SkillTranslation,
 } from '../../generated/prisma/client';
+import {
+  buildPageMeta,
+  PaginatedResult,
+} from '../../common/pagination/page-meta';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocalesService } from '../locales/locales.service';
-import { CreateSkillDto, UpdateSkillDto } from './dto/skill.dto';
+import {
+  AdminSkillListQueryDto,
+  CreateSkillDto,
+  UpdateSkillDto,
+} from './dto/skill.dto';
 import { AdminSkillEntity, PublicSkillEntity } from './entities/skill.entities';
 
 type SkillWithTranslations = Skill & { translations: SkillTranslation[] };
@@ -39,12 +47,28 @@ export class SkillsService {
       .filter((row): row is PublicSkillEntity => row !== null);
   }
 
-  async listAdmin(): Promise<AdminSkillEntity[]> {
-    const rows = await this.prisma.skill.findMany({
-      include: { translations: true },
-      orderBy: [{ group: 'asc' }, { order: 'asc' }],
-    });
-    return rows.sort(compareSkills).map(toAdminEntity);
+  async listAdmin(
+    query: AdminSkillListQueryDto,
+  ): Promise<PaginatedResult<AdminSkillEntity>> {
+    const where: Prisma.SkillWhereInput = query.group
+      ? { group: query.group }
+      : {};
+    const [rows, total] = await this.prisma.$transaction([
+      this.prisma.skill.findMany({
+        where,
+        include: { translations: true },
+        // PostgreSQL orders native enum values by declaration order; `id` stabilizes equal groups
+        // and dashboard order values before the requested page is taken.
+        orderBy: [{ group: 'asc' }, { order: 'asc' }, { id: 'asc' }],
+        skip: query.skip,
+        take: query.take,
+      }),
+      this.prisma.skill.count({ where }),
+    ]);
+    return new PaginatedResult(
+      rows.map(toAdminEntity),
+      buildPageMeta(query.page, query.perPage, total),
+    );
   }
 
   async getAdmin(id: string): Promise<AdminSkillEntity> {

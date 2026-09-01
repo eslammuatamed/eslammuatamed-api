@@ -37,9 +37,9 @@ describe('validate (environment schema)', () => {
     expect(() => validate(env)).toThrow(/DATABASE_URL/);
   });
 
-  // D16-12. Every case below runs the REAL exported `validate()`, because the defect being closed
+  // Every case below runs the REAL exported `validate()`, because the defect being closed
   // was that this exact function accepted six of six malformed values and let the process boot.
-  describe('DATABASE_URL is validated structurally (D16-12)', () => {
+  describe('DATABASE_URL is validated structurally', () => {
     const withDatabaseUrl = (value: string): Record<string, string> => ({
       ...validEnv(),
       DATABASE_URL: value,
@@ -57,7 +57,7 @@ describe('validate (environment schema)', () => {
         'postgresql://eslammuatamed:eslammuatamed@localhost:5432/eslammuatamed_test',
       ],
       [
-        'e2e harness generated (D18-8)',
+        'e2e harness generated',
         'postgresql://eslammuatamed@localhost:5432/eslammuatamed_e2e_0123456789abcdef01234567',
       ],
       [

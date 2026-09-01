@@ -77,7 +77,7 @@ Each release is a self-contained `releases/<UTC-ts>-<short-sha>` behind the `cur
 
 **A failed deploy is not automatically a safe state.** Rollback needs somewhere to roll back *to*. With no previous release, nothing is reverted and the failed new release is still `current`. If the rollback does happen but the previous release fails verification too, `current` is that older release — also unhealthy. Either way the run goes red announcing `MANUAL INTERVENTION REQUIRED` and leaves an unhealthy release selected, serving badly or not serving at all. Treat that outcome as an **ongoing outage**, not a safe abort.
 
-**The acceptance gate is not `/api/v1/health`.** That endpoint is **liveness** — it answers `200` from a process that is merely listening, even when the database is unreachable. Liveness cannot accept a release of a database-backed application, and because automatic rollback is driven by this same gate, **a gate that cannot fail cannot roll back**: on 2026-08-14 a release whose every database-backed endpoint was failing passed a liveness-only gate, was cut over, and left the rollback disarmed (`D23-23`). Acceptance therefore requires liveness **and** readiness **and** real database-backed reads, together — and so does the re-verification of a rollback target. **Never re-point rollback at a liveness-only signal.** The probe list itself belongs to the code that runs it, `scripts/deploy/remote-cutover.sh`, and is documented in [`scripts/deploy/README.md`](scripts/deploy/README.md) and [`PROJECT_GUIDE.md` §11](PROJECT_GUIDE.md) — deliberately not duplicated here, because a second copy is what let this section rot.
+**The acceptance gate is not `/api/v1/health`.** That endpoint is **liveness** — it answers `200` from a process that is merely listening, even when the database is unreachable. Liveness cannot accept a release of a database-backed application, and because automatic rollback is driven by this same gate, **a gate that cannot fail cannot roll back**: on 2026-08-14 a release whose every database-backed endpoint was failing passed a liveness-only gate, was cut over, and left the rollback disarmed. Acceptance therefore requires liveness **and** readiness **and** real database-backed reads, together — and so does the re-verification of a rollback target. **Never re-point rollback at a liveness-only signal.** The probe list itself belongs to the code that runs it, `scripts/deploy/remote-cutover.sh`, and is documented in [`scripts/deploy/README.md`](scripts/deploy/README.md) and [`PROJECT_GUIDE.md` §11](PROJECT_GUIDE.md) — deliberately not duplicated here, because a second copy is what let this section rot.
 
 ## Coordinated API + Web releases
 
@@ -118,9 +118,8 @@ a bare `"child": "…"` entry rewrites the version for _every_ consumer in the t
 
 | Override                                  | Reason                                                                                                                                                                                                                           | Retire when                                                                                                                                                                                                                                                                      |
 | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `openapi-validator` → `axios`             | pre-existing                                                                                                                                                                                                                     | upstream ships a non-vulnerable `axios` range                                                                                                                                                                                                                                    |
-| `@nestjs/swagger` → `js-yaml`             | pre-existing                                                                                                                                                                                                                     | upstream ships a non-vulnerable `js-yaml` range                                                                                                                                                                                                                                  |
 | `@prisma/config` → `deepmerge-ts: ^8.0.1` | **CVE-2026-40345 / GHSA-ggr8-5vv4-36mx** (high, CWE-674). `@prisma/config@7.9.1` **exact-pins** `deepmerge-ts@7.1.5`, so no package manager can dedupe to the patched 8.0.0+ and `npm audit --audit-level=high` blocks every PR. | **Prisma publishes a `@prisma/config` that depends on `deepmerge-ts >= 8.0.0`** — tracked upstream at [prisma/prisma#30052](https://github.com/prisma/prisma/issues/30052). Then delete this entry, `npm install`, and confirm `npm ls deepmerge-ts` shows the upstream version. |
+| `prisma` → `mysql2: 3.22.0`               | **GHSA-3f6p-5ww8-9rcr** (high). `prisma@7.9.1` **exact-pins** vulnerable `mysql2@3.15.3`; supported Prisma 7 releases investigated do not yet remediate it, and `npm audit --audit-level=high` blocks every PR. The application uses PostgreSQL through `PrismaPg`/`pg`; this is a temporary security workaround, not a permanent ownership change. | With the **first supported Prisma update that naturally depends on or resolves `mysql2 >= 3.22.0`**. Update Prisma normally, remove this override, regenerate the lockfile, and rerun security and Prisma validation. |
 
 ### On the `deepmerge-ts` override specifically (added 2026-08-17)
 
@@ -135,3 +134,75 @@ only 1 is defined** (`extend`/`rcFile`/`giget`/`packageJson`/`dotenv` are all `f
 passed), no `Map`/`Set` appears in the input, and `deepmerge-ts` 7.1.5 and 8.0.1 produce **byte-identical
 output** on that real input — so 8.x's breaking changes (recursive `Map` merging, `deepmergeInto`
 leak-mutation, two type renames) are structurally unreachable here.
+
+### Contract-test validator: exact pin and repo-owned evaluator
+
+The response matcher `expect(res).toSatisfyApiSpec()` is **repository-owned**: its evaluator
+lives in `test/utils/format-enforcement.ts` and is registered — alongside the base
+`@ehuelsmann/jest-openapi` registration it overrides — only in `test/utils/contract.ts`, which
+is the single place in the tree allowed to touch that package directly. Delegation:
+
+- structural validation (route/method/status documentation, required properties, types, enums,
+  `$ref`, `nullable`/`allOf`) → `@ehuelsmann/openapi-validator`'s public `validateResponse()`,
+  which stays the first gate;
+- format validation (below) → `openapi-response-validator`'s public `customFormats` option,
+  with semantics supplied by `ajv-formats`.
+
+`@ehuelsmann/jest-openapi` itself contributes the Jest integration, the global matcher typings,
+and `toSatisfySchemaInApiSpec`; it is **exact-pinned** (`"0.17.3"`, no caret) on purpose:
+
+- 0.17.3 is verified against this repo's toolchain (Node 24, Jest 30, strict TypeScript with
+  NodeNext resolution) and preserves the previous validator's behavior exactly.
+- The published 0.18.x artifacts reference TypeScript declaration files that are absent from the
+  npm package, so installing them breaks `tsc --noEmit` at every matcher call site.
+- An exact pin means an upgrade to a fixed release line is always a deliberate reviewed change,
+  never an automatic drift within a broken range.
+
+**Exit condition:** bump off 0.17.3 as soon as upstream publishes a release whose artifact actually
+contains valid `.d.ts` files — verify by checking that `dist/index.d.ts` exists inside the published
+tarball and `npm run typecheck` passes, then move to a caret range if desired. 0.18.x itself is not
+permanently unsupported; only its current packaging blocks it.
+
+**Response format enforcement:** on top of the structural rules above, `toSatisfyApiSpec()`
+enforces the response-relevant standard string formats declared in `openapi.json` —
+`uuid`, `date-time`, `email`, `uri`, and `date`. A violating response fails with diagnostics
+like `` /data/portraitAssetId must match format "uuid" ``. Two OpenAPI format hints are
+deliberately not enforced as body rules: `binary` (request-serialization metadata for the
+media upload) and `int32` (appears only on 429 `Retry-After` headers, which this body
+validator does not read).
+
+## npm lifecycle-script trust
+
+This repository explicitly reviews every package whose install runs lifecycle scripts
+(`preinstall` / `install` / `postinstall`). The reviewed decisions live in the
+[`allowScripts`](package.json) field, maintained with `npm approve-scripts` / `npm deny-scripts`
+(npm 11.17). Approvals are pinned to an exact version (`pkg@x.y.z: true`); denials are
+name-scoped (`pkg: false`).
+
+**Approved** (script purpose; why it is allowed to run):
+
+| Entry | Script | Reason |
+| ----- | ------ | ------ |
+| `prisma@7.9.1` | preinstall | Node/runtime compatibility check only — but denying it currently breaks npm's Prisma CLI bin-link path (`npx prisma` fails), so it stays approved. |
+| `@prisma/engines@7.9.1` | postinstall | Downloads the Prisma schema-engine binary into `node_modules`. Keeping it approved keeps the engine inside CI-installed trees and therefore inside the packaged release tarball — production `prisma migrate deploy` must not depend on outbound recovery downloads. |
+| `argon2@0.45.1` | install | Native-module fallback builder (`node-gyp-build`). The current Linux/Node 24 package already ships a usable prebuild, but the lifecycle script is explicitly reviewed rather than silently trusted. |
+| `unrs-resolver@1.12.2` | postinstall | Native-binding fallback installer. The current Linux binding is supplied by its optional dependency (`@unrs/resolver-binding-linux-x64-gnu`), so the script is a verified no-op here — still explicitly reviewed. |
+
+**Denied:**
+
+| Entry | Script | Reason |
+| ----- | ------ | ------ |
+| `@scarf/scarf` | postinstall | Telemetry-only install report to scarf.sh (pulled in via `@nestjs/swagger` → `swagger-ui-dist`). Not required for Swagger or any runtime functionality; install-time telemetry is intentionally disabled. |
+
+**Current limitation — read before bumping dependencies.** On npm 11.x, `allowScripts` is
+advisory for **unlisted** packages: an uncovered lifecycle script still executes, and npm only
+warns about it (a future npm major flips this to block-by-default). Explicit `false` entries,
+by contrast, already take effect and skip the script. Therefore:
+
+- Every dependency bump that changes one of the version-pinned approved entries requires
+  re-review: inspect the new version's scripts, side effects, and network behavior, then
+  re-run `npm approve-scripts <pkg>` (which pins the new version).
+- A package newly reported as "not yet covered by allowScripts" must **not** be automatically
+  approved — inspect what its script does first.
+- Explicit `false` entries are intentional denials, not oversights; do not flip them without
+  the same review.

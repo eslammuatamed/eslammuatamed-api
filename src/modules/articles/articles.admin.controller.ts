@@ -38,7 +38,7 @@ import { AdminArticleEntity } from './entities/article.entities';
 
 // Each method declares its articles.* permission (doc 19 §3, D19-8). Status transitions
 // (including publish) ride on articles.update — there is no separate publish permission, so
-// articles.update confers publishing (D19-11). A distinct publish capability would need a route
+// articles.update confers publishing (D19-8). A distinct publish capability would need a route
 // that separately enforces it; until then the catalog does not advertise one.
 @ApiTags('articles')
 @ApiBearerAuth('access-token')

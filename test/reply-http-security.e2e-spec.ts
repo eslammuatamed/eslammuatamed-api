@@ -736,9 +736,9 @@ describe('Reply security, history and reliability over HTTP (e2e)', () => {
     // MEASURED, NOT ASSUMED, AND NOT A DEFECT. `ParseUUIDPipe` is Nest's built-in and throws
     // `BadRequestException`; every admin route in this API takes its `:id` through the same pipe, so
     // 400-for-a-malformed-path-parameter is repository-wide behaviour rather than anything this
-    // feature chose. D10-21(c) enumerates 404/409/422/401/403 and is silent on a malformed id, so
-    // there is no contract to contradict. Pinned here so the observed answer is frozen rather
-    // than an assumed one.
+    // feature chose. This feature's own contract enumerates 404/409/422/401/403 and is silent on a
+    // malformed id, so there is no contract to contradict. Pinned here so the observed answer is
+    // frozen rather than an assumed one.
     it('400s a malformed id without touching the transport', async () => {
       await postReply(
         'not-a-uuid',
@@ -754,8 +754,8 @@ describe('Reply security, history and reliability over HTTP (e2e)', () => {
   // §14 — GET history: unknown message, and the empty case it must NOT be confused with
   // ===================================================================================
   describe('GET history', () => {
-    // The governed answer, and it is 404 rather than `[]`. D10-21(c) states 404 for an unknown
-    // message; D10-21(f)'s "returns an empty list" is about a message that EXISTS but carries no
+    // The governed answer, and it is 404 rather than `[]`. The contract gives 404 for an unknown
+    // message; an empty history list is about a message that EXISTS but carries no
     // address. Code agrees — `list()` resolves the message before the query, precisely so that
     // "no replies" and "no such message" cannot share a response — and so does the controller's
     // `@ApiProblemResponse(NOT_FOUND)`. No conflict to resolve; pinned so it stays observed.
@@ -793,8 +793,8 @@ describe('Reply security, history and reliability over HTTP (e2e)', () => {
       const messageB = await createMessage({ subject: 'Message B' });
 
       // Three replies on A with explicit, separated timestamps, INSERTED OUT OF ORDER so a
-      // response that merely echoed insertion order would fail. `createdAt` ascending is what
-      // D10-21(f) means by chronological, and `id` breaks a same-millisecond tie.
+      // response that merely echoed insertion order would fail. `createdAt` ascending is the
+      // chronological order, and `id` breaks a same-millisecond tie.
       const base = Date.now() - 60 * 60 * 1000;
       const second = await db.contactMessageReply.create({
         data: {
@@ -902,7 +902,7 @@ describe('Reply security, history and reliability over HTTP (e2e)', () => {
         'SENT',
       ]);
 
-      // The published shape, asserted as the EXACT key set (D10-21(e)). An `expect(...).toBeDefined`
+      // The published shape, asserted as the EXACT key set. An `expect(...).toBeDefined`
       // per field would not catch an added one, and an added transport field is the failure mode
       // this assertion exists for.
       for (const row of rows) {
@@ -930,7 +930,7 @@ describe('Reply security, history and reliability over HTTP (e2e)', () => {
       expect(pending.sentAt).toBeNull();
       expect(pending.failedAt).toBeNull();
 
-      // `providerMessageId` is internal (D10-21(e)) — and it is asserted in BOTH directions, so the
+      // `providerMessageId` is internal — and it is asserted in BOTH directions, so the
       // absence cannot pass merely because the column was never written.
       const stored = await db.contactMessageReply.findUniqueOrThrow({
         where: { id: sent.id },
@@ -940,7 +940,7 @@ describe('Reply security, history and reliability over HTTP (e2e)', () => {
 
       // No transport text, no relay code, no provider name anywhere in the history.
       const serialized = JSON.stringify(rows);
-      expect(serialized).not.toContain('550');
+      expect(serialized).not.toContain('responseCode');
       expect(serialized).not.toContain('Mailbox unavailable');
       expect(serialized).not.toContain('Resend');
       expect(serialized).not.toContain(E2E_MAIL_ENV.SMTP_PASSWORD);
@@ -1109,7 +1109,7 @@ describe('Reply security, history and reliability over HTTP (e2e)', () => {
       expect(sent.providerKey).toBe(`contact-reply/${reply.id}`);
       expect(sent.headerNames).toEqual([PROVIDER_IDEMPOTENCY_HEADER]);
 
-      // No HTML representation exists (D02-13e), no CC/BCC, and no reply-to override on this path.
+      // No HTML representation exists (D02-13), no CC/BCC, and no reply-to override on this path.
       expect(sent.replyTo).toBeUndefined();
       expect(Object.keys(sent)).not.toContain('cc');
       expect(Object.keys(sent)).not.toContain('bcc');
@@ -1174,7 +1174,7 @@ describe('Reply security, history and reliability over HTTP (e2e)', () => {
       transport.accept();
 
       const serialized = JSON.stringify(res.body);
-      expect(serialized).not.toContain('550');
+      expect(serialized).not.toContain('responseCode');
       expect(serialized).not.toContain('Mailbox unavailable');
       expect(serialized).not.toContain('fake transport');
       expect(serialized).not.toContain(E2E_MAIL_ENV.SMTP_HOST);

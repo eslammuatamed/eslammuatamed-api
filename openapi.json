@@ -1717,7 +1717,31 @@
     "/api/v1/admin/categories": {
       "get": {
         "operationId": "CategoriesAdminController_list_v1",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "perPage",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "default": 12,
+              "example": 12,
+              "type": "number"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
@@ -1726,7 +1750,8 @@
                 "schema": {
                   "type": "object",
                   "required": [
-                    "data"
+                    "data",
+                    "meta"
                   ],
                   "properties": {
                     "data": {
@@ -1734,6 +1759,9 @@
                       "items": {
                         "$ref": "#/components/schemas/AdminCategoryEntity"
                       }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMeta"
                     }
                   }
                 }
@@ -1752,6 +1780,16 @@
           },
           "403": {
             "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Malformed pagination query parameters: page must be at least 1, perPage must be 1 through 50, and unknown fields are rejected.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2134,7 +2172,31 @@
     "/api/v1/admin/tags": {
       "get": {
         "operationId": "TagsAdminController_list_v1",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "perPage",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "default": 12,
+              "example": 12,
+              "type": "number"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
@@ -2143,7 +2205,8 @@
                 "schema": {
                   "type": "object",
                   "required": [
-                    "data"
+                    "data",
+                    "meta"
                   ],
                   "properties": {
                     "data": {
@@ -2151,6 +2214,9 @@
                       "items": {
                         "$ref": "#/components/schemas/AdminTagEntity"
                       }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMeta"
                     }
                   }
                 }
@@ -2169,6 +2235,16 @@
           },
           "403": {
             "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Malformed pagination query parameters: page must be at least 1, perPage must be 1 through 50, and unknown fields are rejected.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2803,6 +2879,17 @@
                 "ARCHIVED"
               ]
             }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Case-insensitive substring match on title across all authored translations. Blank or whitespace-only values are ignored.",
+            "schema": {
+              "maxLength": 120,
+              "example": "modular monolith",
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -3402,7 +3489,10 @@
                   ],
                   "properties": {
                     "data": {
-                      "$ref": "#/components/schemas/RoleEntity"
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/RoleEntity"
+                      }
                     }
                   }
                 }
@@ -3843,7 +3933,10 @@
                   ],
                   "properties": {
                     "data": {
-                      "$ref": "#/components/schemas/UserEntity"
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/UserEntity"
+                      }
                     }
                   }
                 }
@@ -4156,7 +4249,46 @@
     "/api/v1/admin/skills": {
       "get": {
         "operationId": "SkillsAdminController_list_v1",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "perPage",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "default": 12,
+              "example": 12,
+              "type": "number"
+            }
+          },
+          {
+            "name": "group",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "FRONTEND",
+              "type": "string",
+              "enum": [
+                "LANGUAGE",
+                "FRONTEND",
+                "BACKEND",
+                "DELIVERY"
+              ]
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
@@ -4165,7 +4297,8 @@
                 "schema": {
                   "type": "object",
                   "required": [
-                    "data"
+                    "data",
+                    "meta"
                   ],
                   "properties": {
                     "data": {
@@ -4173,6 +4306,9 @@
                       "items": {
                         "$ref": "#/components/schemas/AdminSkillEntity"
                       }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMeta"
                     }
                   }
                 }
@@ -4191,6 +4327,16 @@
           },
           "403": {
             "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Malformed Skills list query parameters: page must be at least 1, perPage must be 1 through 50, group must be a valid SkillGroup, and unknown fields are rejected.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -4660,7 +4806,31 @@
     "/api/v1/admin/experiences": {
       "get": {
         "operationId": "ExperiencesAdminController_list_v1",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "perPage",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "default": 12,
+              "example": 12,
+              "type": "number"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
@@ -4669,7 +4839,8 @@
                 "schema": {
                   "type": "object",
                   "required": [
-                    "data"
+                    "data",
+                    "meta"
                   ],
                   "properties": {
                     "data": {
@@ -4677,6 +4848,9 @@
                       "items": {
                         "$ref": "#/components/schemas/AdminExperienceEntity"
                       }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMeta"
                     }
                   }
                 }
@@ -4695,6 +4869,16 @@
           },
           "403": {
             "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Malformed pagination query parameters: page must be at least 1, perPage must be 1 through 50, and unknown fields are rejected.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -5155,7 +5339,31 @@
     "/api/v1/admin/testimonials": {
       "get": {
         "operationId": "TestimonialsAdminController_list_v1",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "perPage",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "default": 12,
+              "example": 12,
+              "type": "number"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
@@ -5164,7 +5372,8 @@
                 "schema": {
                   "type": "object",
                   "required": [
-                    "data"
+                    "data",
+                    "meta"
                   ],
                   "properties": {
                     "data": {
@@ -5172,6 +5381,9 @@
                       "items": {
                         "$ref": "#/components/schemas/AdminTestimonialEntity"
                       }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMeta"
                     }
                   }
                 }
@@ -5190,6 +5402,16 @@
           },
           "403": {
             "description": "Missing the required permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailsDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Malformed pagination query parameters: page must be at least 1, perPage must be 1 through 50, and unknown fields are rejected.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -5634,7 +5856,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Featured-first paginated published projects, plus the technology facets the filter should offer (D10-19).",
+            "description": "Featured-first paginated published projects, plus the technology facets the filter should offer.",
             "content": {
               "application/json": {
                 "schema": {
@@ -11548,7 +11770,7 @@
         "properties": {
           "body": {
             "type": "string",
-            "description": "The plain-text reply body. Plain text only — no HTML representation exists (D02-13e).",
+            "description": "The plain-text reply body. Plain text only — no HTML representation exists (D02-13).",
             "minLength": 1,
             "maxLength": 5000,
             "example": "Thanks for reaching out — I can take a look at this next week."

@@ -716,7 +716,7 @@ describe('Projects (e2e)', () => {
     });
   });
 
-  // Technology facets (D10-19) — the live defect this fixes: the filter was built from the GLOBAL
+  // Technology facets — the live defect this fixes: the filter was built from the GLOBAL
   // Skills registry, so it offered options no published project uses and options that are not
   // technologies at all.
   //

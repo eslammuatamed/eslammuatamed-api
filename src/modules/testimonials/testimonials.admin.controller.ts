@@ -9,6 +9,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -20,7 +21,9 @@ import { Throttle } from '@nestjs/throttler';
 import {
   ApiCreatedEnvelope,
   ApiOkEnvelope,
+  ApiOkPaginated,
 } from '../../common/swagger/api-envelope';
+import { PaginatedResult } from '../../common/pagination/page-meta';
 import {
   ApiAdminErrorResponses,
   ApiProblemResponse,
@@ -29,6 +32,7 @@ import {
 import { THROTTLE_TIERS } from '../../common/throttling/throttle-tiers';
 import { RequirePermission } from '../access-control/decorators/require-permission.decorator';
 import {
+  AdminTestimonialListQueryDto,
   CreateTestimonialDto,
   UpdateTestimonialDto,
 } from './dto/testimonial.dto';
@@ -45,9 +49,15 @@ export class TestimonialsAdminController {
   @Get()
   @RequirePermission('testimonials.read')
   @ApiOperation({ summary: 'List testimonials including hidden entries.' })
-  @ApiOkEnvelope(AdminTestimonialEntity, { isArray: true })
-  list(): Promise<AdminTestimonialEntity[]> {
-    return this.testimonials.listAdmin();
+  @ApiOkPaginated(AdminTestimonialEntity)
+  @ApiProblemResponse(
+    HttpStatus.UNPROCESSABLE_ENTITY,
+    'Malformed pagination query parameters: page must be at least 1, perPage must be 1 through 50, and unknown fields are rejected.',
+  )
+  list(
+    @Query() query: AdminTestimonialListQueryDto,
+  ): Promise<PaginatedResult<AdminTestimonialEntity>> {
+    return this.testimonials.listAdmin(query);
   }
   @Get(':id')
   @RequirePermission('testimonials.read')

@@ -10,14 +10,14 @@
 | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `jest-e2e.json`               | إعداد `jest` لمسار الـ e2e (منفصل عن إعداد الوحدة في `package.json`)                                                                                                   |
 | `utils/e2e-app.ts`            | تهيئة تطبيق `Nest` كامل للاختبار (نفس الـ pipes/filters/guards)                                                                                                        |
-| `utils/contract.ts`           | تحميل `openapi.json` لتأكيدات `jest-openapi`                                                                                                                           |
-| `utils/e2e-database.ts`       | قواعد عزل قاعدة البيانات (`D18-8`): توليد الاسم، اشتقاق الـ DSN، والحارس الذي **يرفض الإقلاع** خارج قاعدة الجولة                                                       |
+| `utils/contract.ts`           | تحميل `openapi.json` لتأكيدات مطابقة العقد (`toSatisfyApiSpec`)                                                                                                        |
+| `utils/e2e-database.ts`       | قواعد عزل قاعدة البيانات: توليد الاسم، اشتقاق الـ DSN، والحارس الذي **يرفض الإقلاع** خارج قاعدة الجولة                                                       |
 | `utils/e2e-database-admin.ts` | تنفيذ الإنشاء/الترحيل/البذر/الإسقاط لقاعدة الجولة                                                                                                                      |
 | `<domain>.e2e-spec.ts`        | مجموعة لكل مجال — **أمثلة لا جردًا**: `auth`, `articles`, `projects`, `settings`, `experiences`, `skills`, `testimonials`, `access-control`, `health` … فلا تُقرأ هذه القائمة على أنّها كلّها، والجرد الفعلي من إعداد `jest` لا من هنا |
 
 ## ما تُثبته الاختبارات
 
-- **مطابقة العقد:** `jest-openapi` يؤكّد أن كل استجابة (نجاح **وخطأ**) تطابق مخطّط `openapi.json` — فلا ينحرف التنفيذ عن العقد بصمت.
+- **مطابقة العقد:** مُقيِّم `toSatisfyApiSpec` المملوك للمستودع (`utils/format-enforcement.ts`، المسجَّل حصرًا عبر `utils/contract.ts`) يؤكّد أن كل استجابة (نجاح **وخطأ**) تطابق مخطّط `openapi.json` — فلا ينحرف التنفيذ عن العقد بصمت. يفوّض التحقق البنيوي إلى `@ehuelsmann/openapi-validator`، وفوقه تُفرَض صيغ `uuid` و`date-time` و`email` و`uri` و`date` بدلالاتٍ من `ajv-formats` عبر `openapi-response-validator` (التفاصيل في `CONTRIBUTING.md`)؛ أما `binary` و`int32` فليسا قواعد تحقُّق على جسم الاستجابة.
 - **السلوك عبر الحرّاس الحقيقيين:** الدخول/التجديد/الخروج، default-deny، إنفاذ الصلاحيات، إخفاء المسودّات (404)، أغلفة القوائم، تحليل اللغة.
 
 ## كيف يختبر هذا المستودع — سبعة أنواع، ولكلٍّ منها ما لا يستطيع غيره إثباته
@@ -91,7 +91,7 @@
 npm run test:e2e            # --runInBand
 ```
 
-لا ترحيل ولا بذر يدويًّا: الحزمة **تملك قاعدة بياناتها** (`D18-8`). في كل تشغيل تُنشئ قاعدة جديدة باسم `eslammuatamed_e2e_<run-id>`، تُرحّلها وتبذرها، ثم تُسقطها في النهاية. من `DATABASE_URL` المُهيَّأ تُشتقّ **بيانات الخادم فقط** (المضيف، المنفذ، الاعتماد) ويُهمَل اسم قاعدته — فتشغيل `npm run test:e2e` بملف `.env` تطويري **لا يمكن** أن يكتب في `eslammuatamed_dev`. وحارس `fail-closed` في `utils/e2e-setup.ts` يرفض إقلاع التطبيق أصلًا إن لم تُشِر `DATABASE_URL` إلى قاعدة وَلَّدَتْها هذه الجولة.
+لا ترحيل ولا بذر يدويًّا: الحزمة **تملك قاعدة بياناتها**. في كل تشغيل تُنشئ قاعدة جديدة باسم `eslammuatamed_e2e_<run-id>`، تُرحّلها وتبذرها، ثم تُسقطها في النهاية. من `DATABASE_URL` المُهيَّأ تُشتقّ **بيانات الخادم فقط** (المضيف، المنفذ، الاعتماد) ويُهمَل اسم قاعدته — فتشغيل `npm run test:e2e` بملف `.env` تطويري **لا يمكن** أن يكتب في `eslammuatamed_dev`. وحارس `fail-closed` في `utils/e2e-setup.ts` يرفض إقلاع التطبيق أصلًا إن لم تُشِر `DATABASE_URL` إلى قاعدة وَلَّدَتْها هذه الجولة.
 
 الـ CI يشغّلها في مسار `e2e` بخدمة `postgres:16` (انظر `.github/workflows/ci.yml`)؛ وهو أيضًا لا يُرحّل ولا يبذر — مالك التهيئة واحد.
 
@@ -106,6 +106,6 @@ npm run test:e2e            # --runInBand
 
 ## المرجع الرسمي وحالة التوافق
 
-- [NestJS Testing (e2e)](https://docs.nestjs.com/fundamentals/testing#end-to-end-testing) · [Supertest](https://github.com/ladjs/supertest) · [jest-openapi](https://github.com/openapi-library/OpenAPIValidators/tree/master/packages/jest-openapi).
+- [NestJS Testing (e2e)](https://docs.nestjs.com/fundamentals/testing#end-to-end-testing) · [Supertest](https://github.com/ladjs/supertest) · [@ehuelsmann/jest-openapi](https://www.npmjs.com/package/@ehuelsmann/jest-openapi).
 
-**حالة التوافق:** `Compatible`. اختبار e2e بـ `Supertest` على تطبيق `Nest` كامل هو النمط الرسمي؛ وتأكيد العقد بـ `jest-openapi` امتداد يخدم `principle 3`. **لا انحراف.**
+**حالة التوافق:** `Compatible`. اختبار e2e بـ `Supertest` على تطبيق `Nest` كامل هو النمط الرسمي؛ وتأكيد العقد عبر مطابِق `toSatisfyApiSpec` امتداد يخدم `principle 3`. **لا انحراف.**

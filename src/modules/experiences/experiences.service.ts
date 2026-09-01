@@ -11,7 +11,15 @@ import {
 } from '../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocalesService } from '../locales/locales.service';
-import { CreateExperienceDto, UpdateExperienceDto } from './dto/experience.dto';
+import {
+  buildPageMeta,
+  PaginatedResult,
+} from '../../common/pagination/page-meta';
+import {
+  AdminExperienceListQueryDto,
+  CreateExperienceDto,
+  UpdateExperienceDto,
+} from './dto/experience.dto';
 import {
   AdminExperienceEntity,
   PublicExperienceEntity,
@@ -61,12 +69,31 @@ export class ExperiencesService {
       .map((row) => this.resolvePublic(row, locale))
       .filter((row): row is PublicExperienceEntity => row !== null);
   }
-  async listAdmin(): Promise<AdminExperienceEntity[]> {
-    const rows = await this.prisma.experience.findMany({
-      include: ADMIN_INCLUDE,
-      orderBy: [{ startDate: 'desc' }, { order: 'asc' }],
-    });
-    return rows.sort(compareExperiences).map(toAdminEntity);
+  async listAdmin(
+    query: AdminExperienceListQueryDto,
+  ): Promise<PaginatedResult<AdminExperienceEntity>> {
+    const where: Prisma.ExperienceWhereInput = {};
+    const [rows, total] = await this.prisma.$transaction([
+      this.prisma.experience.findMany({
+        where,
+        include: ADMIN_INCLUDE,
+        // Pagination must happen after the complete public ordering semantics. The immutable id
+        // makes page boundaries stable when current roles share dates and explicit order values.
+        orderBy: [
+          { isCurrent: 'desc' },
+          { startDate: 'desc' },
+          { order: 'asc' },
+          { id: 'asc' },
+        ],
+        skip: query.skip,
+        take: query.take,
+      }),
+      this.prisma.experience.count({ where }),
+    ]);
+    return new PaginatedResult(
+      rows.map(toAdminEntity),
+      buildPageMeta(query.page, query.perPage, total),
+    );
   }
   async getAdmin(id: string): Promise<AdminExperienceEntity> {
     return toAdminEntity(await this.getOrThrow(id));

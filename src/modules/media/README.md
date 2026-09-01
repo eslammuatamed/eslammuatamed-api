@@ -11,7 +11,7 @@
 | الملف                                                                  | الدور                                                                                                               |
 | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | `media.admin.controller.ts`                                            | مسارات محروسة تحت `/admin/media` (كل نقطة تُعلن `media.*`)؛ حدّ الرفع + حالة `201/200` الديناميكية                  |
-| `media.service.ts`                                                     | التنسيق: إزالة التكرار، الترقيم (`persistImage`/`persistPdf`)، `usages`، الحذف الآمن (`D07-7`: الصفّ أوّلًا)، تعويض الرفع `D07-6`                 |
+| `media.service.ts`                                                     | التنسيق: إزالة التكرار، الترقيم (`persistImage`/`persistPdf`)، `usages`، الحذف الآمن: الصفّ أوّلًا، تعويض الرفع `D07-6`                 |
 | `media-processing.service.ts`                                          | خطّ `Sharp`: تعقيم الأصل → `master` → البدائل ضمن الميزانية → `BlurHash`؛ **ومسار الـ `PDF`** (`validatePdfInput`/`processPdf`): تحقّق الهويّة ثمّ تمرير البايتات كما هي — والتحقّق البنيوي نفسه في `media-processing.util.ts`                                            |
 | `media-processing.util.ts`                                             | منطق قابل للاختبار بلا `Sharp`: سُلّم الجودة، التحقّق من الامتداد، والتحقّق البنيوي للـ `PDF`                       |
 | `media-descriptor.resolver.ts` · `entities/media-descriptor.entity.ts` | حلّ الواصفات (`descriptors`) العامّة المُضافة على قراءات الوحدات الأخرى                                             |
@@ -71,7 +71,7 @@ sniff (file-type) → نوع مكتشَف من البايتات (مرجعي) →
 - `GET /admin/media/:id/usages` (`media.read`): يعدّد كل مفتاح خارجي يشير إلى الأصل، في استعلام واحد (لا `N+1`).
 - `DELETE /admin/media/:id` (`media.delete`): إن كان مُشارًا إليه → **`409`** مع تعداد `usages` في الجسم، دون لمس أي صفّ أو كائن؛ وإلّا يحذف الصفّ والسجلّات المتتالية، **ثمّ يحاول** حذف الكائنات، ويُعيد **`204`** (فشل التنظيف لا يغيّر الرد — انظر أدناه).
 
-#### ترتيب الحذف: قاعدة البيانات أوّلًا (`D07-7`)
+#### ترتيب الحذف: قاعدة البيانات أوّلًا
 
 الفحص المسبق للاستخدامات **ليس** حدّ الصحّة — فهو قراءة قديمة لحظةَ تنفيذ الحذف. الحدّ الحقيقي هو
 مفتاح `RESTRICT` الأجنبي، ولا يستطيع حماية الأصل إلّا **ما دامت كائناته موجودة**. لذلك الترتيب:
@@ -103,7 +103,7 @@ sniff (file-type) → نوع مكتشَف من البايتات (مرجعي) →
 
 ### التعويض عند فشل **الرفع**، وحدوده (`D07-6`)
 
-> يحكم هذا القسم مسار **الرفع** وحده، ولا يُعمَّم على الحذف. مسار الحذف محكوم بـ `D07-7` أعلاه،
+> يحكم هذا القسم مسار **الرفع** وحده، ولا يُعمَّم على الحذف. مسار الحذف له قاعدته المذكورة أعلاه،
 > وترتيبه معاكس **عمدًا**: الخطوة غير القابلة للتراجع تأتي أخيرًا في الاتجاهين — الكائنات قبل الصفّ
 > عند الدخول، وبعده عند الخروج.
 
@@ -133,7 +133,7 @@ sniff (file-type) → نوع مكتشَف من البايتات (مرجعي) →
 - **الجداول:** `media_assets` (`MediaAsset`: `kind`, `originalFilename`, `sizeBytes`, `contentHash` فريد، `width?`/`height?`/`blurhash?`)، `media_asset_variants` (`format`, `width`, `height`, `sizeBytes`, `overBudget`؛ `@@unique([mediaAssetId, format, width])`)، `media_asset_alts` (`locale`, `alt`). اتّساق `kind↔الحقول` (صورة ⇒ `width/height/blurhash` + `image/webp`؛ `PDF` ⇒ الكل `null` + `application/pdf`) قيد `CHECK` في `DB`.
 - **الميزانيات:** عرض البدائل `640/1280/1920` (`RENDITION_WIDTHS`) بميزانية بايت لكل عرض×صيغة (`RENDITION_BUDGETS` في `media-processing.constants.ts`؛ القيم نفسها محكومة بجدول الوثيقة 20 §4 عبر `D20-6`، **فلا تُنسَخ أرقامها هنا** — نسخةٌ ثانيةٌ تفترق عند أوّل تعديل، والميزانيةُ المُطبَّقة فعلًا هي ما يقرأه `encodeWithinBudget`). والصفُّ الذي تُقاس عليه البديلة هو أصغر صفٍّ مُهيَّأ ‎≥ عرضها (`budgetTierFor`)، وسُلّم جودة (`webp` من `78` إلى `55`، `avif` من `55` إلى `40`، خطوة `8`)؛ يُرفع `overBudget` إن بقي عند الأرضية فوق الميزانية.
 - **الواصفات العامّة (`descriptors`):** تُضاف على القراءات العامّة **بجانب** حقول `*Id` المحفوظة — **باستثناء واحد مُثبَت في العقد: `SiteSettings.resumeAssetId`، فالواصف `resumeAsset` يحلّ محلّه ولا يظهر الـ `*Id` الخام في `PublicSiteSettingsEntity`** (القسم ٦.٥ من الدليل؛ و`openapi.json` هو الفصل عند الشكّ). وهي أضيق من كيان الإدارة (بلا `overBudget`، بلا مفاتيح تخزين، بلا `contentHash`، بلا رابط `master`). كل `url` مطلق على أصل الوسائط (لا أصل الـ `API`). `PublicMediaImageDescriptor.url` = أوسع بديل `WebP`؛ و`blurhash`/`alt` قابلان لـ `null` (`null` = لا ترجمة/لا رجوع، `""` = زخرفيّ). `PublicMediaPdfDescriptor` يحمل `filename` + `sizeBytes`.
-- **عقد `OpenAPI` القابل لـ `null`:** الحقول القابلة لـ `null` من نوع `$ref` تُصدَّر كـ `{ nullable: true, allOf: [$ref] }` (دون `type: object`)، وهو التمثيل الوحيد الذي يقبله `jest-openapi`/`AJV` الصارم للقيمة `null`.
+- **عقد `OpenAPI` القابل لـ `null`:** الحقول القابلة لـ `null` من نوع `$ref` تُصدَّر كـ `{ nullable: true, allOf: [$ref] }` (دون `type: object`)، وهو التمثيل الوحيد الذي يقبله تحقّق استجابات `OpenAPI` الصارم عبر `AJV` للقيمة `null`.
 - **التخزين:** `LocalStorageAdapter` للتطوير/الاختبار (`STORAGE_DRIVER=local`، `STORAGE_LOCAL_DIR`، يُخدَم عند `PUBLIC_MEDIA_URL`)؛ و`R2StorageAdapter` المتوافق مع `S3` للإنتاج على `Cloudflare R2` (`STORAGE_DRIVER=s3`، `S3_ENDPOINT`/`S3_BUCKET`/`S3_ACCESS_KEY_ID`/`S3_SECRET_ACCESS_KEY`/`S3_REGION`). المقبس `STORAGE_ADAPTER` (`D07-4`)؛ لا كود أعمال يمسّ `SDK` تخزين. **وميتاداتا الكائن: الوحدة تختارها والمحوّل يقرّر مصيرها.** `media.service.ts` هو الذي يمرّر `contentType` و`cacheControl` (`IMMUTABLE_CACHE_CONTROL` للصور **وللـ `PDF` معًا**) ويزيد للـ `PDF` `contentDisposition: attachment`. ثمّ `R2StorageAdapter` يمرّرها كما هي إلى `PutObject` فتُكتب على الكائن، بينما `LocalStorageAdapter` يكتب البايتات فقط ويُهمِلها كلّها. **فالقيمة قرار الوحدة، وحضورها على الكائن قرار المحوّل** — فلا تتوقّع هذه الترويسات في التطوير/الاختبار ولا تختبرها هناك.
 
 ## الترحيل وقاعدة الإنتاج
@@ -160,7 +160,7 @@ sniff (file-type) → نوع مكتشَف من البايتات (مرجعي) →
 
 - **`StorageAdapter` عبر رمز حقن + `@aws-sdk/client-s3`:** `Compatible` — المقبس النظيف يُبقي كود الأعمال بلا `SDK`، و`R2` يُستهلَك عبر واجهة `S3` الرسمية.
 - **كشف النوع بـ `file-type` (`ESM`) + `Sharp`:** `Compatible` — البايتات السحرية مرجعيّة، لا الامتداد/الترويسة؛ يتطلّب `--experimental-vm-modules` لتحميل `ESM` من `Jest`.
-- **`nullable $ref` بـ `allOf` بلا `type: object`:** `Compatible` — التمثيل الوحيد المقبول في `OpenAPI 3.0` لدى `jest-openapi`/`AJV` الصارم للقيمة `null`.
+- **`nullable $ref` بـ `allOf` بلا `type: object`:** `Compatible` — التمثيل الوحيد المقبول في `OpenAPI 3.0` لدى تحقّق الاستجابات الصارم عبر `AJV` للقيمة `null`.
 
 **لم يُرصَد انحراف غير مُفسَّر في هذه الوحدة.**
 

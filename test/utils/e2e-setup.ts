@@ -7,7 +7,7 @@ import { E2E_STORAGE_DIR_ENV } from './e2e-storage';
 //
 // FAIL-CLOSED: an unset `DATABASE_URL` throws here instead of being ignored. Ignoring it would let
 // `ConfigModule` fall back to the developer's `.env` and put the suite on `eslammuatamed_dev`, the
-// exact defect D18-8 exists to prevent.
+// exact defect this assertion exists to prevent.
 assertE2eDatabase(process.env.DATABASE_URL);
 
 // The directory itself is created in globalSetup.

@@ -11,6 +11,7 @@ import {
 import { DeepMockProxy, mockDeep } from 'jest-mock-extended';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocalesService } from '../locales/locales.service';
+import { AdminSkillListQueryDto } from './dto/skill.dto';
 import { SkillsService } from './skills.service';
 
 type SkillRow = Skill & { translations: SkillTranslation[] };
@@ -66,14 +67,63 @@ describe('SkillsService', () => {
     expect(locales.assertEnabled).toHaveBeenCalledWith('en');
   });
 
-  it('leaves the admin list unfiltered so hidden skills stay manageable', async () => {
-    prisma.skill.findMany.mockResolvedValue([row(SkillGroup.LANGUAGE, 0)]);
+  describe('listAdmin pagination and group filtering', () => {
+    const query = (
+      overrides: Partial<AdminSkillListQueryDto> = {},
+    ): AdminSkillListQueryDto =>
+      Object.assign(new AdminSkillListQueryDto(), overrides);
 
-    await service.listAdmin();
+    it('leaves the admin list unfiltered so hidden skills stay manageable', async () => {
+      const hidden = { ...row(SkillGroup.LANGUAGE, 0), isPublic: false };
+      prisma.$transaction.mockResolvedValue([[hidden], 1] as never);
 
-    expect(prisma.skill.findMany).toHaveBeenCalledWith({
-      include: { translations: true },
-      orderBy: [{ group: 'asc' }, { order: 'asc' }],
+      const result = await service.listAdmin(query());
+
+      expect(prisma.skill.findMany).toHaveBeenCalledWith({
+        where: {},
+        include: { translations: true },
+        orderBy: [{ group: 'asc' }, { order: 'asc' }, { id: 'asc' }],
+        skip: 0,
+        take: 12,
+      });
+      expect(prisma.skill.count).toHaveBeenCalledWith({ where: {} });
+      expect(result.data[0]).toEqual(
+        expect.objectContaining({ id: hidden.id, isPublic: false }),
+      );
+      expect(result.meta).toEqual({
+        page: 1,
+        perPage: 12,
+        total: 1,
+        totalPages: 1,
+      });
+    });
+
+    it('filters before pagination and shares the group predicate with total', async () => {
+      const first = row(SkillGroup.BACKEND, 0, 'aaa');
+      const second = row(SkillGroup.BACKEND, 0, 'bbb');
+      prisma.$transaction.mockResolvedValue([[first, second], 3] as never);
+
+      const result = await service.listAdmin(
+        query({ group: SkillGroup.BACKEND, page: 2, perPage: 2 }),
+      );
+
+      expect(prisma.skill.findMany).toHaveBeenCalledWith({
+        where: { group: SkillGroup.BACKEND },
+        include: { translations: true },
+        orderBy: [{ group: 'asc' }, { order: 'asc' }, { id: 'asc' }],
+        skip: 2,
+        take: 2,
+      });
+      expect(prisma.skill.count).toHaveBeenCalledWith({
+        where: { group: SkillGroup.BACKEND },
+      });
+      expect(result.data.map((item) => item.id)).toEqual(['aaa', 'bbb']);
+      expect(result.meta).toEqual({
+        page: 2,
+        perPage: 2,
+        total: 3,
+        totalPages: 2,
+      });
     });
   });
 
@@ -105,11 +155,14 @@ describe('SkillsService', () => {
   });
 
   it('exposes the slug on admin skills', async () => {
-    prisma.skill.findMany.mockResolvedValue([row(SkillGroup.LANGUAGE, 0)]);
+    prisma.$transaction.mockResolvedValue([
+      [row(SkillGroup.LANGUAGE, 0)],
+      1,
+    ] as never);
 
-    const result = await service.listAdmin();
+    const result = await service.listAdmin(new AdminSkillListQueryDto());
 
-    expect(result[0]).toEqual(expect.objectContaining({ slug: 's1' }));
+    expect(result.data[0]).toEqual(expect.objectContaining({ slug: 's1' }));
   });
 
   it('persists the requested slug when creating a skill', async () => {

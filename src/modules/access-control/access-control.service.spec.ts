@@ -35,7 +35,7 @@ describe('AccessControlService', () => {
     expect(catalog.permissions).not.toContain('*');
   });
 
-  // D19-11: the catalog must not offer a capability no route enforces. Publishing rides on
+  // D09-7: the catalog must not offer a capability no route enforces. Publishing rides on
   // articles.update, so a separate articles.publish would confer nothing while implying a
   // draft/publish separation the API does not have.
   it('does not offer capabilities that authorize no route', () => {
@@ -52,7 +52,7 @@ describe('AccessControlService', () => {
     expect(catalog.permissions).not.toContain('seo.delete');
   });
 
-  // The other half of D19-11: a capability whose route DOES exist must be offered, or the operator
+  // The other half of D09-7: a capability whose route DOES exist must be offered, or the operator
   // cannot grant it and the guard on that route is unreachable by any custom role.
   it('offers the static-page SEO capabilities now that routes enforce them', () => {
     const catalog = service.getPermissionCatalog();

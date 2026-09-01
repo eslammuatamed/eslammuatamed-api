@@ -35,7 +35,8 @@ import { loadApiSpec } from './utils/contract';
 
 // End-to-end media pipeline against the real AppModule + a fresh migrated/seeded Postgres (doc 18
 // §2). Storage is the local adapter (STORAGE_DRIVER=local) — no R2 network call.
-// Contract assertions use the exported openapi.json as the oracle (jest-openapi).
+// Contract assertions use the exported openapi.json as the oracle (registered in
+// test/utils/contract.ts).
 
 // A run-unique seed so re-runs never collide on contentHash (dedup would turn a 201 into a 200).
 const RUN = Date.now();
@@ -133,6 +134,7 @@ describe('Media pipeline (e2e)', () => {
   let app: INestApplication;
   let server: App;
   let ownerToken: string;
+  const createdTestimonialIds: string[] = [];
   const owner = (): Record<string, string> => ({
     Authorization: `Bearer ${ownerToken}`,
   });
@@ -148,8 +150,24 @@ describe('Media pipeline (e2e)', () => {
   });
 
   afterAll(async () => {
+    for (const id of createdTestimonialIds) {
+      const removed = await request(server)
+        .delete(`/api/v1/admin/testimonials/${id}`)
+        .set(owner())
+        .expect(204);
+      expect(removed).toSatisfyApiSpec();
+    }
     await app.close();
   });
+
+  const createTestimonial = async (payload: object): Promise<void> => {
+    const created = await request(server)
+      .post('/api/v1/admin/testimonials')
+      .set(owner())
+      .send(payload)
+      .expect(201);
+    createdTestimonialIds.push(envelopeData<{ id: string }>(created).id);
+  };
 
   const uploadImage = (
     token: string | null,
@@ -261,23 +279,19 @@ describe('Media pipeline (e2e)', () => {
         await pngImage(RUN + 21, 1086, 1448),
       ).expect(201),
     );
-    await request(server)
-      .post('/api/v1/admin/testimonials')
-      .set(owner())
-      .send({
-        avatarId: asset.id,
-        order: 30,
-        isVisible: true,
-        translations: [
-          {
-            locale: 'en',
-            quote: 'Portrait descriptor check.',
-            authorName: 'A',
-            authorRole: 'R',
-          },
-        ],
-      })
-      .expect(201);
+    await createTestimonial({
+      avatarId: asset.id,
+      order: 30,
+      isVisible: true,
+      translations: [
+        {
+          locale: 'en',
+          quote: 'Portrait descriptor check.',
+          authorName: 'A',
+          authorRole: 'R',
+        },
+      ],
+    });
 
     const publicList = await request(server)
       .get('/api/v1/testimonials?locale=en')
@@ -322,23 +336,19 @@ describe('Media pipeline (e2e)', () => {
       await uploadImage(ownerToken, await pngImage(RUN + 5)).expect(201),
     );
     // Reference it as a testimonial avatar so deletion is usage-guarded.
-    await request(server)
-      .post('/api/v1/admin/testimonials')
-      .set(owner())
-      .send({
-        avatarId: asset.id,
-        order: 0,
-        isVisible: true,
-        translations: [
-          {
-            locale: 'en',
-            quote: 'Great work.',
-            authorName: 'Alex',
-            authorRole: 'CTO',
-          },
-        ],
-      })
-      .expect(201);
+    await createTestimonial({
+      avatarId: asset.id,
+      order: 0,
+      isVisible: true,
+      translations: [
+        {
+          locale: 'en',
+          quote: 'Great work.',
+          authorName: 'Alex',
+          authorRole: 'CTO',
+        },
+      ],
+    });
 
     const usages = await request(server)
       .get(`/api/v1/admin/media/${asset.id}/usages`)
@@ -373,7 +383,7 @@ describe('Media pipeline (e2e)', () => {
       .expect(204);
   });
 
-  // ── The race the pre-check cannot win (D07-7) ──────────────────────────────────────────────
+  // ── The race the pre-check cannot win ──────────────────────────────────────────────────────
   //
   // The usage read at the top of `remove()` is stale the moment it returns. This proves the
   // RESTRICT foreign key — not that read — is what decides, and that the reordering keeps the
@@ -548,40 +558,32 @@ describe('Media pipeline (e2e)', () => {
     const asset = envelopeData<AdminAsset>(
       await uploadImage(ownerToken, await pngImage(RUN + 9)).expect(201),
     );
-    await request(server)
-      .post('/api/v1/admin/testimonials')
-      .set(owner())
-      .send({
-        avatarId: asset.id,
-        order: 1,
-        isVisible: true,
-        translations: [
-          {
-            locale: 'en',
-            quote: 'With avatar.',
-            authorName: 'A',
-            authorRole: 'R',
-          },
-        ],
-      })
-      .expect(201);
+    await createTestimonial({
+      avatarId: asset.id,
+      order: 1,
+      isVisible: true,
+      translations: [
+        {
+          locale: 'en',
+          quote: 'With avatar.',
+          authorName: 'A',
+          authorRole: 'R',
+        },
+      ],
+    });
     // Null: a visible testimonial with no avatar → descriptor null.
-    await request(server)
-      .post('/api/v1/admin/testimonials')
-      .set(owner())
-      .send({
-        order: 2,
-        isVisible: true,
-        translations: [
-          {
-            locale: 'en',
-            quote: 'No avatar.',
-            authorName: 'B',
-            authorRole: 'R',
-          },
-        ],
-      })
-      .expect(201);
+    await createTestimonial({
+      order: 2,
+      isVisible: true,
+      translations: [
+        {
+          locale: 'en',
+          quote: 'No avatar.',
+          authorName: 'B',
+          authorRole: 'R',
+        },
+      ],
+    });
 
     const publicList = await request(server)
       .get('/api/v1/testimonials?locale=en')

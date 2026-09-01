@@ -105,7 +105,7 @@ export class ContactMailService {
   // module already owns contact mail content while MailService owns delivery, and extending that
   // seam is what the boundary asks for rather than a second reply-specific mail service.
   //
-  // THE RECIPIENT INVARIANT, in code (D19-12): `to` is `message.email` and there is no parameter,
+  // THE RECIPIENT INVARIANT, in code (D02-13): `to` is `message.email` and there is no parameter,
   // field or fallback through which a caller could supply a different address. The parameter type
   // requires an already-narrowed message, so the address is not merely unvalidated-but-trusted —
   // it is the only value in scope that could be used.

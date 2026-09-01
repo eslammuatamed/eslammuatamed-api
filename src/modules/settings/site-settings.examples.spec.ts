@@ -1,10 +1,10 @@
-import jestOpenAPI from 'jest-openapi';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   SETTINGS_SCALARS,
   SETTINGS_TRANSLATIONS,
 } from '../../../prisma/content/canonical/site-settings';
+import { loadApiSpec } from '../../../test/utils/contract';
 import { PUBLIC_SITE_SETTINGS_RESPONSE_EXAMPLES } from './site-settings.examples';
 
 /**
@@ -16,7 +16,8 @@ import { PUBLIC_SITE_SETTINGS_RESPONSE_EXAMPLES } from './site-settings.examples
  * 1. THE EXAMPLES MUST BE COMPLETE AND VALID. Prism replays an example verbatim, so a missing or
  *    mistyped field is served to every gate that runs against the contract — it does not fail at
  *    export time. They are validated here against the exported document with the SAME oracle the
- *    e2e contract suite uses (`jest-openapi`), rather than a hand-rolled shape check.
+ *    e2e contract suite registers in `test/utils/contract.ts`, rather than a hand-rolled shape
+ *    check.
  *
  * 2. THE GOVERNED VALUES MUST BE THE CANONICAL ONES. `src/` cannot import the canonical dataset —
  *    `tsconfig.build.json` excludes `prisma/`, so a runtime import would restructure `dist/` and
@@ -112,7 +113,9 @@ describe('GET /settings/site — named locale response examples', () => {
 
   describe('schema conformance', () => {
     beforeAll(() => {
-      jestOpenAPI(CONTRACT_PATH);
+      // The single repo-owned registration boundary (test/utils/contract.ts): structural
+      // validation plus the enforced response formats, identical to every e2e assertion.
+      loadApiSpec();
     });
 
     it.each(['en', 'ar'])(
@@ -127,6 +130,22 @@ describe('GET /settings/site — named locale response examples', () => {
         expect(response).toSatisfyApiSpec();
       },
     );
+
+    // Proves this spec runs the format-enforcing evaluator rather than a bypassed
+    // registration: only the repo-owned matcher rejects `format: uuid` violations.
+    it('rejects a cloned example whose portraitAssetId violates format uuid', () => {
+      const corrupted = structuredClone(
+        PUBLIC_SITE_SETTINGS_RESPONSE_EXAMPLES.en.value,
+      ) as { data: Record<string, unknown> };
+      corrupted.data.portraitAssetId = 'not-a-uuid';
+      expect(() =>
+        expect({
+          status: 200,
+          req: { method: 'GET', path: SETTINGS_PATH },
+          body: corrupted,
+        }).toSatisfyApiSpec(),
+      ).toThrow(/must match format "uuid"/);
+    });
   });
 
   describe('the governed values are the canonical ones', () => {

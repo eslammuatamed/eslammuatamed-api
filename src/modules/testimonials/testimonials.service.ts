@@ -5,9 +5,14 @@ import {
   TestimonialTranslation,
 } from '../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import {
+  buildPageMeta,
+  PaginatedResult,
+} from '../../common/pagination/page-meta';
 import { LocalesService } from '../locales/locales.service';
 import { MediaDescriptorResolver } from '../media/media-descriptor.resolver';
 import {
+  AdminTestimonialListQueryDto,
   CreateTestimonialDto,
   UpdateTestimonialDto,
 } from './dto/testimonial.dto';
@@ -52,12 +57,26 @@ export class TestimonialsService {
       .map((row) => this.resolvePublic(row, locale))
       .filter((row): row is PublicTestimonialEntity => row !== null);
   }
-  async listAdmin(): Promise<AdminTestimonialEntity[]> {
-    const rows = await this.prisma.testimonial.findMany({
-      include: { translations: true },
-      orderBy: { order: 'asc' },
-    });
-    return rows.sort((a, b) => a.order - b.order).map(toAdminEntity);
+  async listAdmin(
+    query: AdminTestimonialListQueryDto,
+  ): Promise<PaginatedResult<AdminTestimonialEntity>> {
+    const where: Prisma.TestimonialWhereInput = {};
+    const [rows, total] = await this.prisma.$transaction([
+      this.prisma.testimonial.findMany({
+        where,
+        include: { translations: true },
+        // Apply the full collection ordering before skip/take. The immutable id stabilizes pages
+        // when two testimonials share the dashboard-controlled `order` value.
+        orderBy: [{ order: 'asc' }, { id: 'asc' }],
+        skip: query.skip,
+        take: query.take,
+      }),
+      this.prisma.testimonial.count({ where }),
+    ]);
+    return new PaginatedResult(
+      rows.map(toAdminEntity),
+      buildPageMeta(query.page, query.perPage, total),
+    );
   }
   async getAdmin(id: string): Promise<AdminTestimonialEntity> {
     return toAdminEntity(await this.getOrThrow(id));

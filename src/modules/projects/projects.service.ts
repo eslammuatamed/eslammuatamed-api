@@ -412,7 +412,7 @@ export class ProjectsService {
 }
 
 // What "a project the public can reach in this locale" means — the SINGLE definition, deliberately
-// extracted (D10-19).
+// extracted so the listing and the facet query cannot drift.
 //
 // The listing and the facet query MUST agree on this or the filter lies: a facet computed over a
 // wider set than the listing offers a chip that then returns "no projects", and a narrower one

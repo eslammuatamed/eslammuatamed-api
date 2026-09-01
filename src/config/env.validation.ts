@@ -40,7 +40,7 @@ export class EnvironmentVariables {
   @Max(65535)
   PORT!: number;
 
-  // Structural, not merely present (D16-12). `@IsNotEmpty()` alone was a fail-open gate: it
+  // Structural, not merely present. `@IsNotEmpty()` alone was a fail-open gate: it
   // accepted a whitespace-only value, a bare database name, `mysql://`, and a newline-injected
   // second assignment — including the exact historical value that created a URL-encoded 63-byte
   // database instead of aborting. The malformed string reached Prisma and became runtime behavior
@@ -50,8 +50,8 @@ export class EnvironmentVariables {
   // PostgreSQL already defines, and every field it checked would be one more way to wrongly reject
   // a legitimate production URL. This asserts only what is unambiguous — a supported scheme and no
   // whitespace — and deliberately says NOTHING about the database name: pointing at the wrong
-  // database is D18-8's fail-closed assertion in the e2e harness, while this gate must accept any
-  // legitimate production name.
+  // database is caught by the e2e harness's fail-closed assertion instead, while this gate must
+  // accept any legitimate production name.
   @IsString()
   @Matches(/^postgres(ql)?:\/\/\S+$/, {
     message:

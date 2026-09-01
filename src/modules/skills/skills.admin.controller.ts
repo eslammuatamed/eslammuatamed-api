@@ -9,6 +9,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -20,7 +21,9 @@ import { Throttle } from '@nestjs/throttler';
 import {
   ApiCreatedEnvelope,
   ApiOkEnvelope,
+  ApiOkPaginated,
 } from '../../common/swagger/api-envelope';
+import { PaginatedResult } from '../../common/pagination/page-meta';
 import {
   ApiAdminErrorResponses,
   ApiProblemResponse,
@@ -28,7 +31,11 @@ import {
 } from '../../common/swagger/api-problem-response';
 import { THROTTLE_TIERS } from '../../common/throttling/throttle-tiers';
 import { RequirePermission } from '../access-control/decorators/require-permission.decorator';
-import { CreateSkillDto, UpdateSkillDto } from './dto/skill.dto';
+import {
+  AdminSkillListQueryDto,
+  CreateSkillDto,
+  UpdateSkillDto,
+} from './dto/skill.dto';
 import { AdminSkillEntity } from './entities/skill.entities';
 import { SkillsService } from './skills.service';
 
@@ -42,9 +49,15 @@ export class SkillsAdminController {
   @Get()
   @RequirePermission('skills.read')
   @ApiOperation({ summary: 'List skills with full translations.' })
-  @ApiOkEnvelope(AdminSkillEntity, { isArray: true })
-  list(): Promise<AdminSkillEntity[]> {
-    return this.skills.listAdmin();
+  @ApiOkPaginated(AdminSkillEntity)
+  @ApiProblemResponse(
+    HttpStatus.UNPROCESSABLE_ENTITY,
+    'Malformed Skills list query parameters: page must be at least 1, perPage must be 1 through 50, group must be a valid SkillGroup, and unknown fields are rejected.',
+  )
+  list(
+    @Query() query: AdminSkillListQueryDto,
+  ): Promise<PaginatedResult<AdminSkillEntity>> {
+    return this.skills.listAdmin(query);
   }
   @Get(':id')
   @RequirePermission('skills.read')

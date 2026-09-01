@@ -6,6 +6,22 @@ type Schema = {
   items?: {
     $ref?: string;
   };
+  $ref?: string;
+};
+
+type Parameter = {
+  name?: string;
+  in?: string;
+  description?: string;
+  schema?: {
+    type?: string;
+    maxLength?: number;
+    minimum?: number;
+    maximum?: number;
+    default?: number;
+    example?: number | string;
+    enum?: string[];
+  };
 };
 
 type OpenApiDocument = {
@@ -13,6 +29,7 @@ type OpenApiDocument = {
     string,
     {
       get?: {
+        parameters?: Parameter[];
         responses?: Record<
           string,
           {
@@ -36,10 +53,10 @@ const contract = JSON.parse(
   readFileSync(join(process.cwd(), 'openapi.json'), 'utf8'),
 ) as OpenApiDocument;
 
-describe('admin taxonomy list envelopes', () => {
+describe('admin list envelopes', () => {
   it.each([
-    ['/api/v1/admin/categories', '#/components/schemas/AdminCategoryEntity'],
-    ['/api/v1/admin/tags', '#/components/schemas/AdminTagEntity'],
+    ['/api/v1/admin/users', '#/components/schemas/UserEntity'],
+    ['/api/v1/admin/roles', '#/components/schemas/RoleEntity'],
   ])('documents %s data as an array', (path, itemRef) => {
     const data =
       contract.paths[path]?.get?.responses?.['200']?.content?.[
@@ -49,6 +66,183 @@ describe('admin taxonomy list envelopes', () => {
     expect(data).toEqual({
       type: 'array',
       items: { $ref: itemRef },
+    });
+  });
+
+  it('documents canonical pagination and the SkillGroup filter for admin Skills', () => {
+    const operation = contract.paths['/api/v1/admin/skills']?.get;
+    const parameters = operation?.parameters?.filter(
+      (parameter) => parameter.in === 'query',
+    );
+    const schema =
+      operation?.responses?.['200']?.content?.['application/json']?.schema;
+
+    expect(parameters).toEqual([
+      {
+        name: 'page',
+        required: false,
+        in: 'query',
+        schema: { minimum: 1, default: 1, example: 1, type: 'number' },
+      },
+      {
+        name: 'perPage',
+        required: false,
+        in: 'query',
+        schema: {
+          minimum: 1,
+          maximum: 50,
+          default: 12,
+          example: 12,
+          type: 'number',
+        },
+      },
+      {
+        name: 'group',
+        required: false,
+        in: 'query',
+        schema: {
+          example: 'FRONTEND',
+          enum: ['LANGUAGE', 'FRONTEND', 'BACKEND', 'DELIVERY'],
+          type: 'string',
+        },
+      },
+    ]);
+    expect(schema?.properties).toEqual({
+      data: {
+        type: 'array',
+        items: { $ref: '#/components/schemas/AdminSkillEntity' },
+      },
+      meta: { $ref: '#/components/schemas/PageMeta' },
+    });
+  });
+
+  it.each([
+    ['/api/v1/admin/categories', '#/components/schemas/AdminCategoryEntity'],
+    ['/api/v1/admin/tags', '#/components/schemas/AdminTagEntity'],
+  ])('documents canonical pagination for %s', (path, itemRef) => {
+    const operation = contract.paths[path]?.get;
+    const parameters = operation?.parameters?.filter(
+      (parameter) => parameter.in === 'query',
+    );
+    const schema =
+      operation?.responses?.['200']?.content?.['application/json']?.schema;
+
+    expect(parameters).toEqual([
+      {
+        name: 'page',
+        required: false,
+        in: 'query',
+        schema: { minimum: 1, default: 1, example: 1, type: 'number' },
+      },
+      {
+        name: 'perPage',
+        required: false,
+        in: 'query',
+        schema: {
+          minimum: 1,
+          maximum: 50,
+          default: 12,
+          example: 12,
+          type: 'number',
+        },
+      },
+    ]);
+    expect(schema?.properties).toEqual({
+      data: { type: 'array', items: { $ref: itemRef } },
+      meta: { $ref: '#/components/schemas/PageMeta' },
+    });
+  });
+
+  it('documents title-only q for the admin Articles collection', () => {
+    const q = contract.paths['/api/v1/admin/articles']?.get?.parameters?.find(
+      (parameter) => parameter.in === 'query' && parameter.name === 'q',
+    );
+
+    expect(q).toEqual({
+      name: 'q',
+      required: false,
+      in: 'query',
+      description:
+        'Case-insensitive substring match on title across all authored translations. Blank or whitespace-only values are ignored.',
+      schema: {
+        maxLength: 120,
+        example: 'modular monolith',
+        type: 'string',
+      },
+    });
+  });
+
+  it('documents canonical pagination for the existing admin Experiences collection', () => {
+    const operation = contract.paths['/api/v1/admin/experiences']?.get;
+    const parameters = operation?.parameters?.filter(
+      (parameter) => parameter.in === 'query',
+    );
+    const schema =
+      operation?.responses?.['200']?.content?.['application/json']?.schema;
+
+    expect(parameters).toEqual([
+      {
+        name: 'page',
+        required: false,
+        in: 'query',
+        schema: { minimum: 1, default: 1, example: 1, type: 'number' },
+      },
+      {
+        name: 'perPage',
+        required: false,
+        in: 'query',
+        schema: {
+          minimum: 1,
+          maximum: 50,
+          default: 12,
+          example: 12,
+          type: 'number',
+        },
+      },
+    ]);
+    expect(schema?.properties).toEqual({
+      data: {
+        type: 'array',
+        items: { $ref: '#/components/schemas/AdminExperienceEntity' },
+      },
+      meta: { $ref: '#/components/schemas/PageMeta' },
+    });
+  });
+
+  it('documents canonical pagination for the existing admin Testimonials collection', () => {
+    const operation = contract.paths['/api/v1/admin/testimonials']?.get;
+    const parameters = operation?.parameters?.filter(
+      (parameter) => parameter.in === 'query',
+    );
+    const schema =
+      operation?.responses?.['200']?.content?.['application/json']?.schema;
+
+    expect(parameters).toEqual([
+      {
+        name: 'page',
+        required: false,
+        in: 'query',
+        schema: { minimum: 1, default: 1, example: 1, type: 'number' },
+      },
+      {
+        name: 'perPage',
+        required: false,
+        in: 'query',
+        schema: {
+          minimum: 1,
+          maximum: 50,
+          default: 12,
+          example: 12,
+          type: 'number',
+        },
+      },
+    ]);
+    expect(schema?.properties).toEqual({
+      data: {
+        type: 'array',
+        items: { $ref: '#/components/schemas/AdminTestimonialEntity' },
+      },
+      meta: { $ref: '#/components/schemas/PageMeta' },
     });
   });
 });

@@ -15,6 +15,7 @@ import { MediaDescriptorResolver } from '../media/media-descriptor.resolver';
 import { StorageAdapter } from '../media/storage/storage-adapter.interface';
 import { RedirectService } from '../redirects/redirect.service';
 import { ArticlesService } from './articles.service';
+import { AdminArticleListQueryDto } from './dto/article-query.dto';
 
 const storage = {
   put: jest.fn(),
@@ -241,10 +242,10 @@ describe('ArticlesService', () => {
     });
   });
 
-  // D10-20: the article's own translation governs its visibility, so an article whose category
+  // The article's own translation governs its visibility, so an article whose category
   // (or tag) has no translation in the requested locale stays readable. The include already
   // scopes taxonomy translations to that locale, so "absent here" means "absent in this locale".
-  describe('taxonomy resolution (D10-20)', () => {
+  describe('taxonomy resolution', () => {
     // The payload the include produces when the category row exists but its translation for the
     // requested locale does not: the relation is loaded, its filtered translations array is empty.
     function untranslatedCategoryPayload() {
@@ -313,7 +314,7 @@ describe('ArticlesService', () => {
 
       const result = await service.getPublicBySlug('slug-en', 'en');
 
-      // Omission, not a null entry and not a blank label (D10-20 §6).
+      // Omission, not a null entry and not a blank label.
       expect(result.tags).toEqual([
         { id: 'tag-translated', name: 'NestJS', slug: 'nestjs' },
       ]);
@@ -484,6 +485,67 @@ describe('ArticlesService', () => {
         total: 1,
         totalPages: 1,
       });
+    });
+  });
+
+  describe('listAdmin (admin title search)', () => {
+    const query = (
+      overrides: Partial<AdminArticleListQueryDto> = {},
+    ): AdminArticleListQueryDto =>
+      Object.assign(new AdminArticleListQueryDto(), overrides);
+
+    const findManyArgs = (): Record<string, unknown> =>
+      prisma.article.findMany.mock.calls[0]?.[0] ?? {};
+
+    beforeEach(() => {
+      prisma.$transaction.mockResolvedValue([[], 0] as never);
+    });
+
+    it('preserves the status-only query when q is absent and makes the order total', async () => {
+      await service.listAdmin(query({ status: ContentStatus.DRAFT }));
+
+      expect(findManyArgs().where).toEqual({ status: ContentStatus.DRAFT });
+      expect(findManyArgs().orderBy).toEqual([
+        { createdAt: 'desc' },
+        { id: 'asc' },
+      ]);
+    });
+
+    it('searches partial titles across every translation, combines status with AND, and counts the same scope', async () => {
+      prisma.$transaction.mockResolvedValue([
+        [articlePayload(ContentStatus.DRAFT)],
+        1,
+      ] as never);
+
+      const result = await service.listAdmin(
+        query({ status: ContentStatus.DRAFT, q: '  عنوان  ' }),
+      );
+
+      const where = {
+        status: ContentStatus.DRAFT,
+        translations: {
+          some: {
+            title: {
+              contains: 'عنوان',
+              mode: Prisma.QueryMode.insensitive,
+            },
+          },
+        },
+      };
+      expect(findManyArgs().where).toEqual(where);
+      expect(prisma.article.count).toHaveBeenCalledWith({ where });
+      expect(result.meta).toEqual({
+        page: 1,
+        perPage: 12,
+        total: 1,
+        totalPages: 1,
+      });
+    });
+
+    it('drops whitespace-only q rather than widening title search to another field', async () => {
+      await service.listAdmin(query({ q: '   ' }));
+
+      expect(findManyArgs().where).toEqual({});
     });
   });
 

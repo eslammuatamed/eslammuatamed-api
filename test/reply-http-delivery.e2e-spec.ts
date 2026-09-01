@@ -668,7 +668,7 @@ describe('Reply delivery over HTTP (e2e)', () => {
 
       // No raw SMTP text, no provider stack, no secrets anywhere in the response.
       const serialized = JSON.stringify(res.body);
-      expect(serialized).not.toContain('550');
+      expect(serialized).not.toContain('responseCode');
       expect(serialized).not.toContain('Mailbox unavailable');
       expect(serialized).not.toContain('fake transport');
 
