@@ -9,6 +9,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -20,7 +21,9 @@ import { Throttle } from '@nestjs/throttler';
 import {
   ApiCreatedEnvelope,
   ApiOkEnvelope,
+  ApiOkPaginated,
 } from '../../common/swagger/api-envelope';
+import { PaginatedResult } from '../../common/pagination/page-meta';
 import {
   ApiAdminErrorResponses,
   ApiProblemResponse,
@@ -28,7 +31,11 @@ import {
 } from '../../common/swagger/api-problem-response';
 import { THROTTLE_TIERS } from '../../common/throttling/throttle-tiers';
 import { RequirePermission } from '../access-control/decorators/require-permission.decorator';
-import { CreateExperienceDto, UpdateExperienceDto } from './dto/experience.dto';
+import {
+  AdminExperienceListQueryDto,
+  CreateExperienceDto,
+  UpdateExperienceDto,
+} from './dto/experience.dto';
 import { AdminExperienceEntity } from './entities/experience.entities';
 import { ExperiencesService } from './experiences.service';
 
@@ -41,10 +48,16 @@ export class ExperiencesAdminController {
   constructor(private readonly experiences: ExperiencesService) {}
   @Get()
   @RequirePermission('experiences.read')
-  @ApiOkEnvelope(AdminExperienceEntity, { isArray: true })
+  @ApiOkPaginated(AdminExperienceEntity)
   @ApiOperation({ summary: 'List experiences with full translations.' })
-  list(): Promise<AdminExperienceEntity[]> {
-    return this.experiences.listAdmin();
+  @ApiProblemResponse(
+    HttpStatus.UNPROCESSABLE_ENTITY,
+    'Malformed pagination query parameters: page must be at least 1, perPage must be 1 through 50, and unknown fields are rejected.',
+  )
+  list(
+    @Query() query: AdminExperienceListQueryDto,
+  ): Promise<PaginatedResult<AdminExperienceEntity>> {
+    return this.experiences.listAdmin(query);
   }
   @Get(':id')
   @RequirePermission('experiences.read')

@@ -6,6 +6,7 @@ type Schema = {
   items?: {
     $ref?: string;
   };
+  $ref?: string;
 };
 
 type Parameter = {
@@ -15,6 +16,10 @@ type Parameter = {
   schema?: {
     type?: string;
     maxLength?: number;
+    minimum?: number;
+    maximum?: number;
+    default?: number;
+    example?: number | string;
   };
 };
 
@@ -81,6 +86,43 @@ describe('admin list envelopes', () => {
         example: 'modular monolith',
         type: 'string',
       },
+    });
+  });
+
+  it('documents canonical pagination for the existing admin Experiences collection', () => {
+    const operation = contract.paths['/api/v1/admin/experiences']?.get;
+    const parameters = operation?.parameters?.filter(
+      (parameter) => parameter.in === 'query',
+    );
+    const schema =
+      operation?.responses?.['200']?.content?.['application/json']?.schema;
+
+    expect(parameters).toEqual([
+      {
+        name: 'page',
+        required: false,
+        in: 'query',
+        schema: { minimum: 1, default: 1, example: 1, type: 'number' },
+      },
+      {
+        name: 'perPage',
+        required: false,
+        in: 'query',
+        schema: {
+          minimum: 1,
+          maximum: 50,
+          default: 12,
+          example: 12,
+          type: 'number',
+        },
+      },
+    ]);
+    expect(schema?.properties).toEqual({
+      data: {
+        type: 'array',
+        items: { $ref: '#/components/schemas/AdminExperienceEntity' },
+      },
+      meta: { $ref: '#/components/schemas/PageMeta' },
     });
   });
 });

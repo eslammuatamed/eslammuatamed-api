@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { EmploymentType } from '../../../generated/prisma/client';
+import { PaginationQueryDto } from '../../../common/dto/pagination-query.dto';
 import { Type } from 'class-transformer';
 import {
   ArrayMinSize,
@@ -100,3 +101,7 @@ export class ExperienceQueryDto {
   @Matches(/^[a-z]{2}$/)
   readonly locale: string = 'en';
 }
+
+// Admin reads return full translation maps and never accept `locale`; pagination is the only
+// collection query surface for this endpoint.
+export class AdminExperienceListQueryDto extends PaginationQueryDto {}
